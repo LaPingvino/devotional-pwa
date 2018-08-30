@@ -5,7 +5,7 @@
   "background_color": "lightgrey",
   "display": "standalone",
   "scope": "/",
-  "start_url": "https://devotional.gq"
+  "start_url": "https://devotional.gq",
   "icons": [
     {
       "src": "windows10/Square71x71Logo.scale-400.png",
