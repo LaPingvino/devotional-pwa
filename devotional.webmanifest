@@ -6,4 +6,54 @@
   "display": "standalone",
   "scope": "/",
   "start_url": "https://devotional.gq"
+  "icons": [
+    {
+      "src": "windows10/Square71x71Logo.scale-400.png",
+      "sizes": "284x284"
+    },
+    {
+      "src": "windows10/Square71x71Logo.scale-200.png",
+      "sizes": "142x142"
+    },
+    {
+      "src": "windows10/Square71x71Logo.scale-100.png",
+      "sizes": "71x71"
+    },
+    {
+      "src": "windows10/Square71x71Logo.scale-150.png",
+      "sizes": "107x107"
+    },
+    {
+      "src": "windows10/Square71x71Logo.scale-125.png",
+      "sizes": "89x89"
+    },
+    {
+      "src": "windows10/Square150x150Logo.scale-400.png",
+      "sizes": "600x600"
+    },
+    {
+      "src": "windows10/Square150x150Logo.scale-200.png",
+      "sizes": "300x300"
+    },
+    {
+      "src": "windows10/Square150x150Logo.scale-100.png",
+      "sizes": "150x150"
+    },
+    {
+      "src": "windows10/Square150x150Logo.scale-150.png",
+      "sizes": "225x225"
+    },
+    {
+      "src": "windows10/Square150x150Logo.scale-125.png",
+      "sizes": "188x188"
+    },
+    {
+      "src": "windows10/Wide310x150Logo.scale-400.png",
+      "sizes": "1240x600"
+    },
+    {
+      "src": "windows10/Wide310x150Logo.scale-200.png",
+      "sizes": "620x300"
+    }]
 }
+
