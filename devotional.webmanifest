@@ -1,0 +1,9 @@
+{
+  "name": "Devotionals of Great Quality",
+  "short_name": "Devotionals",
+  "theme_color": "green",
+  "background_color": "lightgrey",
+  "display": "standalone",
+  "scope": "/",
+  "start_url": "https://devotional.gq"
+}
