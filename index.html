@@ -16,10 +16,23 @@
   background: url('banner-1018812_1920.jpg') center / cover;
 }
 .demo-layout-transparent .mdl-layout__header,
+.demo-layout-transparent .mdl-navigation,
 .demo-layout-transparent .mdl-layout__drawer-button {
   /* This background is dark, so we set text to white. Use 87% black instead if
      your background is light. */
   color: black;
+}
+.author::before {
+	content: "--";
+}
+.scripture {
+	margin-left: 1em;
+	border-left: black solid 2px;
+	padding-left: 1em;
+}
+.author {
+	margin-left: 2em;
+	font-weight: bold;
 }
 </style>
 
@@ -27,28 +40,36 @@
   <header class="mdl-layout__header mdl-layout__header--transparent">
     <div class="mdl-layout__header-row">
       <!-- Title -->
-      <span class="mdl-layout-title">Title</span>
+      <span class="mdl-layout-title">Devotionals of Great Quality</span>
       <!-- Add spacer, to align navigation to the right -->
       <div class="mdl-layout-spacer"></div>
       <!-- Navigation -->
       <nav class="mdl-navigation">
-        <a class="mdl-navigation__link" href="">Link</a>
-        <a class="mdl-navigation__link" href="">Link</a>
-        <a class="mdl-navigation__link" href="">Link</a>
-        <a class="mdl-navigation__link" href="">Link</a>
+        <a class="mdl-navigation__link" href="">en</a>
+        <a class="mdl-navigation__link" href="">nl</a>
+        <a class="mdl-navigation__link" href="">ar</a>
+        <a class="mdl-navigation__link" href="">fa</a>
       </nav>
     </div>
   </header>
   <div class="mdl-layout__drawer">
-    <span class="mdl-layout-title">Title</span>
+    <span class="mdl-layout-title">Menu</span>
     <nav class="mdl-navigation">
-      <a class="mdl-navigation__link" href="">Link</a>
-      <a class="mdl-navigation__link" href="">Link</a>
-      <a class="mdl-navigation__link" href="">Link</a>
-      <a class="mdl-navigation__link" href="">Link</a>
+      <a class="mdl-navigation__link" href="">Prayers</a>
+      <a class="mdl-navigation__link" href="">Songs</a>
+      <a class="mdl-navigation__link" href="">Books</a>
+      <a class="mdl-navigation__link" href="">Programs</a>
     </nav>
   </div>
   <main class="mdl-layout__content">
+	<div class="scripture">
+		<div class="prayer">
+			Thy name is my healing, O my God, and remembrance of Thee is my remedy.  Nearness to Thee is my hope, and love for Thee is my companion.  Thy mercy to me is my healing and my succor in both this world and the world to come.  Thou, verily, art the All-Bountiful, the All-Knowing, the All-Wise.
+		</div>
+		<div class="author">
+			Bahá'u'lláh
+		</div>
+	</div>
   </main>
 </div>
 <!-- Add ServiceWorker and manup.js -->
