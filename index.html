@@ -31,17 +31,29 @@ body {
 .author::before {
 	content: "--";
 }
+header, .scripture {
+	margin: 25px 75px;
+	padding-left: 1em;
+}
 .scripture {
 	font-family: "Gentium", "Times New Roman", serif;
-	margin: 25px 75px;
 	border-left: black solid 2px;
-	padding-left: 1em;
 	max-width: 800px;
 }
 .author {
 	margin-top: 1em;
 	margin-left: 2em;
 	font-weight: bold;
+}
+h2 {
+	font-size: 1.2em;
+}
+#category {
+	font-size: 1.2em;
+	font-weight: bold;
+}
+#blocktitle {
+	color: darkgray;
 }
 </style>
 
@@ -69,6 +81,9 @@ body {
     </nav>
   </div>
   <main class="mdl-layout__content">
+	  <header>
+		  <h2><span id="category">Prayers</span> <span id="blocktitle">Healing</span></h2>
+	  </header>
 	<div class="scripture">
 		<div class="prayer">
 			Thy name is my healing, O my God, and remembrance of Thee is my remedy.  Nearness to Thee is my hope, and love for Thee is my companion.  Thy mercy to me is my healing and my succor in both this world and the world to come.  Thou, verily, art the All-Bountiful, the All-Knowing, the All-Wise.
