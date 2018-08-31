@@ -103,6 +103,9 @@ var $subslice = function(slice, low, high, max) {
   if (low < 0 || high < low || max < high || high > slice.$capacity || max > slice.$capacity) {
     $throwRuntimeError("slice bounds out of range");
   }
+  if (slice === slice.constructor.nil) {
+    return slice;
+  }
   var s = new slice.constructor(slice.$array);
   s.$offset = slice.$offset + low;
   s.$length = high - low;
@@ -897,7 +900,7 @@ var $newType = function(size, kind, string, named, pkg, exported, constructor) {
           };
         };
         fields.forEach(function(f) {
-          if (f.anonymous) {
+          if (f.embedded) {
             $methodSet(f.typ).forEach(function(m) {
               synthesizeMethod(typ, m, f);
               synthesizeMethod(typ.ptr, m, f);
@@ -1037,7 +1040,7 @@ var $methodSet = function(typ) {
       switch (e.typ.kind) {
       case $kindStruct:
         e.typ.fields.forEach(function(f) {
-          if (f.anonymous) {
+          if (f.embedded) {
             var fTyp = f.typ;
             var fIsPtr = (fTyp.kind === $kindPtr);
             next.push({typ: fIsPtr ? fTyp.elem : fTyp, indirect: e.indirect || fIsPtr});
@@ -1337,7 +1340,11 @@ var $assertType = function(value, type, returnTuple) {
     if (returnTuple) {
       return [type.zero(), false];
     }
-    $panic(new $packages["runtime"].TypeAssertionError.ptr("", (value === $ifaceNil ? "" : value.constructor.string), type.string, missingMethod));
+    $panic(new $packages["runtime"].TypeAssertionError.ptr(
+      $packages["runtime"]._type.ptr.nil,
+      (value === $ifaceNil ? $packages["runtime"]._type.ptr.nil : new $packages["runtime"]._type.ptr(value.constructor.string)),
+      new $packages["runtime"]._type.ptr(type.string),
+      missingMethod));
   }
 
   if (!isInterface) {
@@ -2239,12 +2246,34 @@ $packages["github.com/gopherjs/gopherjs/js"] = (function() {
 	};
 	ptrType.methods = [{prop: "Get", name: "Get", pkg: "", typ: $funcType([$String], [ptrType], false)}, {prop: "Set", name: "Set", pkg: "", typ: $funcType([$String, $emptyInterface], [], false)}, {prop: "Delete", name: "Delete", pkg: "", typ: $funcType([$String], [], false)}, {prop: "Length", name: "Length", pkg: "", typ: $funcType([], [$Int], false)}, {prop: "Index", name: "Index", pkg: "", typ: $funcType([$Int], [ptrType], false)}, {prop: "SetIndex", name: "SetIndex", pkg: "", typ: $funcType([$Int, $emptyInterface], [], false)}, {prop: "Call", name: "Call", pkg: "", typ: $funcType([$String, sliceType], [ptrType], true)}, {prop: "Invoke", name: "Invoke", pkg: "", typ: $funcType([sliceType], [ptrType], true)}, {prop: "New", name: "New", pkg: "", typ: $funcType([sliceType], [ptrType], true)}, {prop: "Bool", name: "Bool", pkg: "", typ: $funcType([], [$Bool], false)}, {prop: "String", name: "String", pkg: "", typ: $funcType([], [$String], false)}, {prop: "Int", name: "Int", pkg: "", typ: $funcType([], [$Int], false)}, {prop: "Int64", name: "Int64", pkg: "", typ: $funcType([], [$Int64], false)}, {prop: "Uint64", name: "Uint64", pkg: "", typ: $funcType([], [$Uint64], false)}, {prop: "Float", name: "Float", pkg: "", typ: $funcType([], [$Float64], false)}, {prop: "Interface", name: "Interface", pkg: "", typ: $funcType([], [$emptyInterface], false)}, {prop: "Unsafe", name: "Unsafe", pkg: "", typ: $funcType([], [$Uintptr], false)}];
 	ptrType$1.methods = [{prop: "Error", name: "Error", pkg: "", typ: $funcType([], [$String], false)}, {prop: "Stack", name: "Stack", pkg: "", typ: $funcType([], [$String], false)}];
-	Object.init("github.com/gopherjs/gopherjs/js", [{prop: "object", name: "object", anonymous: false, exported: false, typ: ptrType, tag: ""}]);
-	Error.init("", [{prop: "Object", name: "Object", anonymous: true, exported: true, typ: ptrType, tag: ""}]);
+	Object.init("github.com/gopherjs/gopherjs/js", [{prop: "object", name: "object", embedded: false, exported: false, typ: ptrType, tag: ""}]);
+	Error.init("", [{prop: "Object", name: "Object", embedded: true, exported: true, typ: ptrType, tag: ""}]);
 	$init = function() {
 		$pkg.$init = function() {};
 		/* */ var $f, $c = false, $s = 0, $r; if (this !== undefined && this.$blk !== undefined) { $f = this; $c = true; $s = $f.$s; $r = $f.$r; } s: while (true) { switch ($s) { case 0:
 		init();
+		/* */ } return; } if ($f === undefined) { $f = { $blk: $init }; } $f.$s = $s; $f.$r = $r; return $f;
+	};
+	$pkg.$init = $init;
+	return $pkg;
+})();
+$packages["internal/cpu"] = (function() {
+	var $pkg = {}, $init;
+	$init = function() {
+		$pkg.$init = function() {};
+		/* */ var $f, $c = false, $s = 0, $r; if (this !== undefined && this.$blk !== undefined) { $f = this; $c = true; $s = $f.$s; $r = $f.$r; } s: while (true) { switch ($s) { case 0:
+		/* */ } return; } if ($f === undefined) { $f = { $blk: $init }; } $f.$s = $s; $f.$r = $r; return $f;
+	};
+	$pkg.$init = $init;
+	return $pkg;
+})();
+$packages["internal/bytealg"] = (function() {
+	var $pkg = {}, $init, cpu;
+	cpu = $packages["internal/cpu"];
+	$init = function() {
+		$pkg.$init = function() {};
+		/* */ var $f, $c = false, $s = 0, $r; if (this !== undefined && this.$blk !== undefined) { $f = this; $c = true; $s = $f.$s; $r = $f.$r; } s: while (true) { switch ($s) { case 0:
+		$r = cpu.$init(); /* */ $s = 1; case 1: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
 		/* */ } return; } if ($f === undefined) { $f = { $blk: $init }; } $f.$s = $s; $f.$r = $r; return $f;
 	};
 	$pkg.$init = $init;
@@ -2261,25 +2290,47 @@ $packages["runtime/internal/sys"] = (function() {
 	return $pkg;
 })();
 $packages["runtime"] = (function() {
-	var $pkg = {}, $init, js, sys, TypeAssertionError, errorString, ptrType$4, init, GOROOT, Goexit, throw$1;
+	var $pkg = {}, $init, js, bytealg, sys, _type, TypeAssertionError, errorString, ptrType, ptrType$4, init, GOROOT, Goexit, throw$1;
 	js = $packages["github.com/gopherjs/gopherjs/js"];
+	bytealg = $packages["internal/bytealg"];
 	sys = $packages["runtime/internal/sys"];
-	TypeAssertionError = $pkg.TypeAssertionError = $newType(0, $kindStruct, "runtime.TypeAssertionError", true, "runtime", true, function(interfaceString_, concreteString_, assertedString_, missingMethod_) {
+	_type = $pkg._type = $newType(0, $kindStruct, "runtime._type", true, "runtime", false, function(str_) {
 		this.$val = this;
 		if (arguments.length === 0) {
-			this.interfaceString = "";
-			this.concreteString = "";
-			this.assertedString = "";
+			this.str = "";
+			return;
+		}
+		this.str = str_;
+	});
+	TypeAssertionError = $pkg.TypeAssertionError = $newType(0, $kindStruct, "runtime.TypeAssertionError", true, "runtime", true, function(_interface_, concrete_, asserted_, missingMethod_) {
+		this.$val = this;
+		if (arguments.length === 0) {
+			this._interface = ptrType.nil;
+			this.concrete = ptrType.nil;
+			this.asserted = ptrType.nil;
 			this.missingMethod = "";
 			return;
 		}
-		this.interfaceString = interfaceString_;
-		this.concreteString = concreteString_;
-		this.assertedString = assertedString_;
+		this._interface = _interface_;
+		this.concrete = concrete_;
+		this.asserted = asserted_;
 		this.missingMethod = missingMethod_;
 	});
 	errorString = $pkg.errorString = $newType(8, $kindString, "runtime.errorString", true, "runtime", false, null);
+	ptrType = $ptrType(_type);
 	ptrType$4 = $ptrType(TypeAssertionError);
+	_type.ptr.prototype.string = function() {
+		var t;
+		t = this;
+		return t.str;
+	};
+	_type.prototype.string = function() { return this.$val.string(); };
+	_type.ptr.prototype.pkgpath = function() {
+		var t;
+		t = this;
+		return "";
+	};
+	_type.prototype.pkgpath = function() { return this.$val.pkgpath(); };
 	init = function() {
 		var e, jsPkg;
 		jsPkg = $packages[$externalize("github.com/gopherjs/gopherjs/js", $String)];
@@ -2287,7 +2338,7 @@ $packages["runtime"] = (function() {
 		$jsErrorPtr = jsPkg.Error.ptr;
 		$throwRuntimeError = throw$1;
 		e = $ifaceNil;
-		e = new TypeAssertionError.ptr("", "", "", "");
+		e = new TypeAssertionError.ptr(ptrType.nil, ptrType.nil, ptrType.nil, "");
 		$unused(e);
 	};
 	GOROOT = function() {
@@ -2316,19 +2367,29 @@ $packages["runtime"] = (function() {
 	};
 	TypeAssertionError.prototype.RuntimeError = function() { return this.$val.RuntimeError(); };
 	TypeAssertionError.ptr.prototype.Error = function() {
-		var e, inter;
+		var as, cs, e, inter, msg;
 		e = this;
-		inter = e.interfaceString;
-		if (inter === "") {
-			inter = "interface";
+		inter = "interface";
+		if (!(e._interface === ptrType.nil)) {
+			inter = e._interface.string();
 		}
-		if (e.concreteString === "") {
-			return "interface conversion: " + inter + " is nil, not " + e.assertedString;
+		as = e.asserted.string();
+		if (e.concrete === ptrType.nil) {
+			return "interface conversion: " + inter + " is nil, not " + as;
 		}
+		cs = e.concrete.string();
 		if (e.missingMethod === "") {
-			return "interface conversion: " + inter + " is " + e.concreteString + ", not " + e.assertedString;
+			msg = "interface conversion: " + inter + " is " + cs + ", not " + as;
+			if (cs === as) {
+				if (!(e.concrete.pkgpath() === e.asserted.pkgpath())) {
+					msg = msg + (" (types from different packages)");
+				} else {
+					msg = msg + (" (types from different scopes)");
+				}
+			}
+			return msg;
 		}
-		return "interface conversion: " + e.concreteString + " is not " + e.assertedString + ": missing method " + e.missingMethod;
+		return "interface conversion: " + cs + " is not " + as + ": missing method " + e.missingMethod;
 	};
 	TypeAssertionError.prototype.Error = function() { return this.$val.Error(); };
 	errorString.prototype.RuntimeError = function() {
@@ -2342,14 +2403,17 @@ $packages["runtime"] = (function() {
 		return "runtime error: " + (e);
 	};
 	$ptrType(errorString).prototype.Error = function() { return new errorString(this.$get()).Error(); };
+	ptrType.methods = [{prop: "string", name: "string", pkg: "runtime", typ: $funcType([], [$String], false)}, {prop: "pkgpath", name: "pkgpath", pkg: "runtime", typ: $funcType([], [$String], false)}];
 	ptrType$4.methods = [{prop: "RuntimeError", name: "RuntimeError", pkg: "", typ: $funcType([], [], false)}, {prop: "Error", name: "Error", pkg: "", typ: $funcType([], [$String], false)}];
 	errorString.methods = [{prop: "RuntimeError", name: "RuntimeError", pkg: "", typ: $funcType([], [], false)}, {prop: "Error", name: "Error", pkg: "", typ: $funcType([], [$String], false)}];
-	TypeAssertionError.init("runtime", [{prop: "interfaceString", name: "interfaceString", anonymous: false, exported: false, typ: $String, tag: ""}, {prop: "concreteString", name: "concreteString", anonymous: false, exported: false, typ: $String, tag: ""}, {prop: "assertedString", name: "assertedString", anonymous: false, exported: false, typ: $String, tag: ""}, {prop: "missingMethod", name: "missingMethod", anonymous: false, exported: false, typ: $String, tag: ""}]);
+	_type.init("runtime", [{prop: "str", name: "str", embedded: false, exported: false, typ: $String, tag: ""}]);
+	TypeAssertionError.init("runtime", [{prop: "_interface", name: "_interface", embedded: false, exported: false, typ: ptrType, tag: ""}, {prop: "concrete", name: "concrete", embedded: false, exported: false, typ: ptrType, tag: ""}, {prop: "asserted", name: "asserted", embedded: false, exported: false, typ: ptrType, tag: ""}, {prop: "missingMethod", name: "missingMethod", embedded: false, exported: false, typ: $String, tag: ""}]);
 	$init = function() {
 		$pkg.$init = function() {};
 		/* */ var $f, $c = false, $s = 0, $r; if (this !== undefined && this.$blk !== undefined) { $f = this; $c = true; $s = $f.$s; $r = $f.$r; } s: while (true) { switch ($s) { case 0:
 		$r = js.$init(); /* */ $s = 1; case 1: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
-		$r = sys.$init(); /* */ $s = 2; case 2: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
+		$r = bytealg.$init(); /* */ $s = 2; case 2: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
+		$r = sys.$init(); /* */ $s = 3; case 3: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
 		init();
 		/* */ } return; } if ($f === undefined) { $f = { $blk: $init }; } $f.$s = $s; $f.$r = $r; return $f;
 	};
@@ -2379,7 +2443,7 @@ $packages["errors"] = (function() {
 	};
 	errorString.prototype.Error = function() { return this.$val.Error(); };
 	ptrType.methods = [{prop: "Error", name: "Error", pkg: "", typ: $funcType([], [$String], false)}];
-	errorString.init("errors", [{prop: "s", name: "s", anonymous: false, exported: false, typ: $String, tag: ""}]);
+	errorString.init("errors", [{prop: "s", name: "s", embedded: false, exported: false, typ: $String, tag: ""}]);
 	$init = function() {
 		$pkg.$init = function() {};
 		/* */ var $f, $c = false, $s = 0, $r; if (this !== undefined && this.$blk !== undefined) { $f = this; $c = true; $s = $f.$s; $r = $f.$r; } s: while (true) { switch ($s) { case 0:
@@ -2769,11 +2833,11 @@ $packages["sync"] = (function() {
 	};
 	ptrType.methods = [{prop: "Get", name: "Get", pkg: "", typ: $funcType([], [$emptyInterface], false)}, {prop: "Put", name: "Put", pkg: "", typ: $funcType([$emptyInterface], [], false)}, {prop: "getSlow", name: "getSlow", pkg: "sync", typ: $funcType([], [$emptyInterface], false)}, {prop: "pin", name: "pin", pkg: "sync", typ: $funcType([], [ptrType$7], false)}, {prop: "pinSlow", name: "pinSlow", pkg: "sync", typ: $funcType([], [ptrType$7], false)}];
 	ptrType$16.methods = [{prop: "Lock", name: "Lock", pkg: "", typ: $funcType([], [], false)}, {prop: "Unlock", name: "Unlock", pkg: "", typ: $funcType([], [], false)}];
-	Pool.init("sync", [{prop: "local", name: "local", anonymous: false, exported: false, typ: $UnsafePointer, tag: ""}, {prop: "localSize", name: "localSize", anonymous: false, exported: false, typ: $Uintptr, tag: ""}, {prop: "store", name: "store", anonymous: false, exported: false, typ: sliceType$4, tag: ""}, {prop: "New", name: "New", anonymous: false, exported: true, typ: funcType, tag: ""}]);
-	Mutex.init("sync", [{prop: "state", name: "state", anonymous: false, exported: false, typ: $Int32, tag: ""}, {prop: "sema", name: "sema", anonymous: false, exported: false, typ: $Uint32, tag: ""}]);
-	poolLocalInternal.init("sync", [{prop: "private$0", name: "private", anonymous: false, exported: false, typ: $emptyInterface, tag: ""}, {prop: "shared", name: "shared", anonymous: false, exported: false, typ: sliceType$4, tag: ""}, {prop: "Mutex", name: "Mutex", anonymous: true, exported: true, typ: Mutex, tag: ""}]);
-	poolLocal.init("sync", [{prop: "poolLocalInternal", name: "poolLocalInternal", anonymous: true, exported: false, typ: poolLocalInternal, tag: ""}, {prop: "pad", name: "pad", anonymous: false, exported: false, typ: arrayType$2, tag: ""}]);
-	notifyList.init("sync", [{prop: "wait", name: "wait", anonymous: false, exported: false, typ: $Uint32, tag: ""}, {prop: "notify", name: "notify", anonymous: false, exported: false, typ: $Uint32, tag: ""}, {prop: "lock", name: "lock", anonymous: false, exported: false, typ: $Uintptr, tag: ""}, {prop: "head", name: "head", anonymous: false, exported: false, typ: $UnsafePointer, tag: ""}, {prop: "tail", name: "tail", anonymous: false, exported: false, typ: $UnsafePointer, tag: ""}]);
+	Pool.init("sync", [{prop: "local", name: "local", embedded: false, exported: false, typ: $UnsafePointer, tag: ""}, {prop: "localSize", name: "localSize", embedded: false, exported: false, typ: $Uintptr, tag: ""}, {prop: "store", name: "store", embedded: false, exported: false, typ: sliceType$4, tag: ""}, {prop: "New", name: "New", embedded: false, exported: true, typ: funcType, tag: ""}]);
+	Mutex.init("sync", [{prop: "state", name: "state", embedded: false, exported: false, typ: $Int32, tag: ""}, {prop: "sema", name: "sema", embedded: false, exported: false, typ: $Uint32, tag: ""}]);
+	poolLocalInternal.init("sync", [{prop: "private$0", name: "private", embedded: false, exported: false, typ: $emptyInterface, tag: ""}, {prop: "shared", name: "shared", embedded: false, exported: false, typ: sliceType$4, tag: ""}, {prop: "Mutex", name: "Mutex", embedded: true, exported: true, typ: Mutex, tag: ""}]);
+	poolLocal.init("sync", [{prop: "poolLocalInternal", name: "poolLocalInternal", embedded: true, exported: false, typ: poolLocalInternal, tag: ""}, {prop: "pad", name: "pad", embedded: false, exported: false, typ: arrayType$2, tag: ""}]);
+	notifyList.init("sync", [{prop: "wait", name: "wait", embedded: false, exported: false, typ: $Uint32, tag: ""}, {prop: "notify", name: "notify", embedded: false, exported: false, typ: $Uint32, tag: ""}, {prop: "lock", name: "lock", embedded: false, exported: false, typ: $Uintptr, tag: ""}, {prop: "head", name: "head", embedded: false, exported: false, typ: $UnsafePointer, tag: ""}, {prop: "tail", name: "tail", embedded: false, exported: false, typ: $UnsafePointer, tag: ""}]);
 	$init = function() {
 		$pkg.$init = function() {};
 		/* */ var $f, $c = false, $s = 0, $r; if (this !== undefined && this.$blk !== undefined) { $f = this; $c = true; $s = $f.$s; $r = $f.$r; } s: while (true) { switch ($s) { case 0:
@@ -2837,8 +2901,9 @@ $packages["unicode/utf8"] = (function() {
 	return $pkg;
 })();
 $packages["bytes"] = (function() {
-	var $pkg = {}, $init, errors, io, unicode, utf8, errNegativeRead;
+	var $pkg = {}, $init, errors, bytealg, io, unicode, utf8, errNegativeRead;
 	errors = $packages["errors"];
+	bytealg = $packages["internal/bytealg"];
 	io = $packages["io"];
 	unicode = $packages["unicode"];
 	utf8 = $packages["unicode/utf8"];
@@ -2846,9 +2911,10 @@ $packages["bytes"] = (function() {
 		$pkg.$init = function() {};
 		/* */ var $f, $c = false, $s = 0, $r; if (this !== undefined && this.$blk !== undefined) { $f = this; $c = true; $s = $f.$s; $r = $f.$r; } s: while (true) { switch ($s) { case 0:
 		$r = errors.$init(); /* */ $s = 1; case 1: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
-		$r = io.$init(); /* */ $s = 2; case 2: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
-		$r = unicode.$init(); /* */ $s = 3; case 3: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
-		$r = utf8.$init(); /* */ $s = 4; case 4: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
+		$r = bytealg.$init(); /* */ $s = 2; case 2: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
+		$r = io.$init(); /* */ $s = 3; case 3: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
+		$r = unicode.$init(); /* */ $s = 4; case 4: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
+		$r = utf8.$init(); /* */ $s = 5; case 5: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
 		$pkg.ErrTooLarge = errors.New("bytes.Buffer: too large");
 		errNegativeRead = errors.New("bytes.Buffer: reader returned negative count from Read");
 		/* */ } return; } if ($f === undefined) { $f = { $blk: $init }; } $f.$s = $s; $f.$r = $r; return $f;
@@ -3532,19 +3598,19 @@ $packages["image/color"] = (function() {
 	NYCbCrA.methods = [{prop: "RGBA", name: "RGBA", pkg: "", typ: $funcType([], [$Uint32, $Uint32, $Uint32, $Uint32], false)}];
 	CMYK.methods = [{prop: "RGBA", name: "RGBA", pkg: "", typ: $funcType([], [$Uint32, $Uint32, $Uint32, $Uint32], false)}];
 	Color.init([{prop: "RGBA", name: "RGBA", pkg: "", typ: $funcType([], [$Uint32, $Uint32, $Uint32, $Uint32], false)}]);
-	RGBA.init("", [{prop: "R", name: "R", anonymous: false, exported: true, typ: $Uint8, tag: ""}, {prop: "G", name: "G", anonymous: false, exported: true, typ: $Uint8, tag: ""}, {prop: "B", name: "B", anonymous: false, exported: true, typ: $Uint8, tag: ""}, {prop: "A", name: "A", anonymous: false, exported: true, typ: $Uint8, tag: ""}]);
-	RGBA64.init("", [{prop: "R", name: "R", anonymous: false, exported: true, typ: $Uint16, tag: ""}, {prop: "G", name: "G", anonymous: false, exported: true, typ: $Uint16, tag: ""}, {prop: "B", name: "B", anonymous: false, exported: true, typ: $Uint16, tag: ""}, {prop: "A", name: "A", anonymous: false, exported: true, typ: $Uint16, tag: ""}]);
-	NRGBA.init("", [{prop: "R", name: "R", anonymous: false, exported: true, typ: $Uint8, tag: ""}, {prop: "G", name: "G", anonymous: false, exported: true, typ: $Uint8, tag: ""}, {prop: "B", name: "B", anonymous: false, exported: true, typ: $Uint8, tag: ""}, {prop: "A", name: "A", anonymous: false, exported: true, typ: $Uint8, tag: ""}]);
-	NRGBA64.init("", [{prop: "R", name: "R", anonymous: false, exported: true, typ: $Uint16, tag: ""}, {prop: "G", name: "G", anonymous: false, exported: true, typ: $Uint16, tag: ""}, {prop: "B", name: "B", anonymous: false, exported: true, typ: $Uint16, tag: ""}, {prop: "A", name: "A", anonymous: false, exported: true, typ: $Uint16, tag: ""}]);
-	Alpha.init("", [{prop: "A", name: "A", anonymous: false, exported: true, typ: $Uint8, tag: ""}]);
-	Alpha16.init("", [{prop: "A", name: "A", anonymous: false, exported: true, typ: $Uint16, tag: ""}]);
-	Gray.init("", [{prop: "Y", name: "Y", anonymous: false, exported: true, typ: $Uint8, tag: ""}]);
-	Gray16.init("", [{prop: "Y", name: "Y", anonymous: false, exported: true, typ: $Uint16, tag: ""}]);
+	RGBA.init("", [{prop: "R", name: "R", embedded: false, exported: true, typ: $Uint8, tag: ""}, {prop: "G", name: "G", embedded: false, exported: true, typ: $Uint8, tag: ""}, {prop: "B", name: "B", embedded: false, exported: true, typ: $Uint8, tag: ""}, {prop: "A", name: "A", embedded: false, exported: true, typ: $Uint8, tag: ""}]);
+	RGBA64.init("", [{prop: "R", name: "R", embedded: false, exported: true, typ: $Uint16, tag: ""}, {prop: "G", name: "G", embedded: false, exported: true, typ: $Uint16, tag: ""}, {prop: "B", name: "B", embedded: false, exported: true, typ: $Uint16, tag: ""}, {prop: "A", name: "A", embedded: false, exported: true, typ: $Uint16, tag: ""}]);
+	NRGBA.init("", [{prop: "R", name: "R", embedded: false, exported: true, typ: $Uint8, tag: ""}, {prop: "G", name: "G", embedded: false, exported: true, typ: $Uint8, tag: ""}, {prop: "B", name: "B", embedded: false, exported: true, typ: $Uint8, tag: ""}, {prop: "A", name: "A", embedded: false, exported: true, typ: $Uint8, tag: ""}]);
+	NRGBA64.init("", [{prop: "R", name: "R", embedded: false, exported: true, typ: $Uint16, tag: ""}, {prop: "G", name: "G", embedded: false, exported: true, typ: $Uint16, tag: ""}, {prop: "B", name: "B", embedded: false, exported: true, typ: $Uint16, tag: ""}, {prop: "A", name: "A", embedded: false, exported: true, typ: $Uint16, tag: ""}]);
+	Alpha.init("", [{prop: "A", name: "A", embedded: false, exported: true, typ: $Uint8, tag: ""}]);
+	Alpha16.init("", [{prop: "A", name: "A", embedded: false, exported: true, typ: $Uint16, tag: ""}]);
+	Gray.init("", [{prop: "Y", name: "Y", embedded: false, exported: true, typ: $Uint8, tag: ""}]);
+	Gray16.init("", [{prop: "Y", name: "Y", embedded: false, exported: true, typ: $Uint16, tag: ""}]);
 	Model.init([{prop: "Convert", name: "Convert", pkg: "", typ: $funcType([Color], [Color], false)}]);
-	modelFunc.init("image/color", [{prop: "f", name: "f", anonymous: false, exported: false, typ: funcType, tag: ""}]);
-	YCbCr.init("", [{prop: "Y", name: "Y", anonymous: false, exported: true, typ: $Uint8, tag: ""}, {prop: "Cb", name: "Cb", anonymous: false, exported: true, typ: $Uint8, tag: ""}, {prop: "Cr", name: "Cr", anonymous: false, exported: true, typ: $Uint8, tag: ""}]);
-	NYCbCrA.init("", [{prop: "YCbCr", name: "YCbCr", anonymous: true, exported: true, typ: YCbCr, tag: ""}, {prop: "A", name: "A", anonymous: false, exported: true, typ: $Uint8, tag: ""}]);
-	CMYK.init("", [{prop: "C", name: "C", anonymous: false, exported: true, typ: $Uint8, tag: ""}, {prop: "M", name: "M", anonymous: false, exported: true, typ: $Uint8, tag: ""}, {prop: "Y", name: "Y", anonymous: false, exported: true, typ: $Uint8, tag: ""}, {prop: "K", name: "K", anonymous: false, exported: true, typ: $Uint8, tag: ""}]);
+	modelFunc.init("image/color", [{prop: "f", name: "f", embedded: false, exported: false, typ: funcType, tag: ""}]);
+	YCbCr.init("", [{prop: "Y", name: "Y", embedded: false, exported: true, typ: $Uint8, tag: ""}, {prop: "Cb", name: "Cb", embedded: false, exported: true, typ: $Uint8, tag: ""}, {prop: "Cr", name: "Cr", embedded: false, exported: true, typ: $Uint8, tag: ""}]);
+	NYCbCrA.init("", [{prop: "YCbCr", name: "YCbCr", embedded: true, exported: true, typ: YCbCr, tag: ""}, {prop: "A", name: "A", embedded: false, exported: true, typ: $Uint8, tag: ""}]);
+	CMYK.init("", [{prop: "C", name: "C", embedded: false, exported: true, typ: $Uint8, tag: ""}, {prop: "M", name: "M", embedded: false, exported: true, typ: $Uint8, tag: ""}, {prop: "Y", name: "Y", embedded: false, exported: true, typ: $Uint8, tag: ""}, {prop: "K", name: "K", embedded: false, exported: true, typ: $Uint8, tag: ""}]);
 	$init = function() {
 		$pkg.$init = function() {};
 		/* */ var $f, $c = false, $s = 0, $r; if (this !== undefined && this.$blk !== undefined) { $f = this; $c = true; $s = $f.$s; $r = $f.$r; } s: while (true) { switch ($s) { case 0:
@@ -3574,7 +3640,7 @@ $packages["math"] = (function() {
 	arrayType = $arrayType($Uint32, 2);
 	arrayType$1 = $arrayType($Float32, 2);
 	arrayType$2 = $arrayType($Float64, 1);
-	structType = $structType("math", [{prop: "uint32array", name: "uint32array", anonymous: false, exported: false, typ: arrayType, tag: ""}, {prop: "float32array", name: "float32array", anonymous: false, exported: false, typ: arrayType$1, tag: ""}, {prop: "float64array", name: "float64array", anonymous: false, exported: false, typ: arrayType$2, tag: ""}]);
+	structType = $structType("math", [{prop: "uint32array", name: "uint32array", embedded: false, exported: false, typ: arrayType, tag: ""}, {prop: "float32array", name: "float32array", embedded: false, exported: false, typ: arrayType$1, tag: ""}, {prop: "float64array", name: "float64array", embedded: false, exported: false, typ: arrayType$2, tag: ""}]);
 	init = function() {
 		var ab;
 		ab = new ($global.ArrayBuffer)(8);
@@ -3594,10 +3660,47 @@ $packages["math"] = (function() {
 	$pkg.$init = $init;
 	return $pkg;
 })();
+$packages["math/bits"] = (function() {
+	var $pkg = {}, $init, deBruijn32tab, deBruijn64tab, TrailingZeros, TrailingZeros32, TrailingZeros64;
+	TrailingZeros = function(x) {
+		var x;
+		if (true) {
+			return TrailingZeros32(((x >>> 0)));
+		}
+		return TrailingZeros64((new $Uint64(0, x)));
+	};
+	$pkg.TrailingZeros = TrailingZeros;
+	TrailingZeros32 = function(x) {
+		var x, x$1;
+		if (x === 0) {
+			return 32;
+		}
+		return (((x$1 = ($imul((((x & (-x >>> 0)) >>> 0)), 125613361) >>> 0) >>> 27 >>> 0, ((x$1 < 0 || x$1 >= deBruijn32tab.length) ? ($throwRuntimeError("index out of range"), undefined) : deBruijn32tab[x$1])) >> 0));
+	};
+	$pkg.TrailingZeros32 = TrailingZeros32;
+	TrailingZeros64 = function(x) {
+		var x, x$1, x$2;
+		if ((x.$high === 0 && x.$low === 0)) {
+			return 64;
+		}
+		return (((x$1 = $shiftRightUint64($mul64(((x$2 = new $Uint64(-x.$high, -x.$low), new $Uint64(x.$high & x$2.$high, (x.$low & x$2.$low) >>> 0))), new $Uint64(66559345, 3033172745)), 58), (($flatten64(x$1) < 0 || $flatten64(x$1) >= deBruijn64tab.length) ? ($throwRuntimeError("index out of range"), undefined) : deBruijn64tab[$flatten64(x$1)])) >> 0));
+	};
+	$pkg.TrailingZeros64 = TrailingZeros64;
+	$init = function() {
+		$pkg.$init = function() {};
+		/* */ var $f, $c = false, $s = 0, $r; if (this !== undefined && this.$blk !== undefined) { $f = this; $c = true; $s = $f.$s; $r = $f.$r; } s: while (true) { switch ($s) { case 0:
+		deBruijn32tab = $toNativeArray($kindUint8, [0, 1, 28, 2, 29, 14, 24, 3, 30, 22, 20, 15, 25, 17, 4, 8, 31, 27, 13, 23, 21, 19, 16, 7, 26, 12, 18, 6, 11, 5, 10, 9]);
+		deBruijn64tab = $toNativeArray($kindUint8, [0, 1, 56, 2, 57, 49, 28, 3, 61, 58, 42, 50, 38, 29, 17, 4, 62, 47, 59, 36, 45, 43, 51, 22, 53, 39, 33, 30, 24, 18, 12, 5, 63, 55, 48, 27, 60, 41, 37, 16, 46, 35, 44, 21, 52, 32, 23, 11, 54, 26, 40, 15, 34, 20, 31, 10, 25, 14, 19, 9, 13, 8, 7, 6]);
+		/* */ } return; } if ($f === undefined) { $f = { $blk: $init }; } $f.$s = $s; $f.$r = $r; return $f;
+	};
+	$pkg.$init = $init;
+	return $pkg;
+})();
 $packages["strconv"] = (function() {
-	var $pkg = {}, $init, errors, math, utf8, sliceType$6, arrayType$3, shifts, FormatInt, Itoa, small, formatBits;
+	var $pkg = {}, $init, errors, math, bits, utf8, sliceType$6, arrayType$3, FormatInt, Itoa, small, formatBits, isPowerOfTwo;
 	errors = $packages["errors"];
 	math = $packages["math"];
+	bits = $packages["math/bits"];
 	utf8 = $packages["unicode/utf8"];
 	sliceType$6 = $sliceType($Uint8);
 	arrayType$3 = $arrayType($Uint8, 65);
@@ -3617,15 +3720,14 @@ $packages["strconv"] = (function() {
 	};
 	$pkg.Itoa = Itoa;
 	small = function(i) {
-		var i, off;
-		off = 0;
+		var i;
 		if (i < 10) {
-			off = 1;
+			return $substring("0123456789abcdefghijklmnopqrstuvwxyz", i, (i + 1 >> 0));
 		}
-		return $substring("00010203040506070809101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899", (($imul(i, 2)) + off >> 0), (($imul(i, 2)) + 2 >> 0));
+		return $substring("00010203040506070809101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899", ($imul(i, 2)), (($imul(i, 2)) + 2 >> 0));
 	};
 	formatBits = function(dst, u, base, neg, append_) {
-		var _q, _q$1, _r, _r$1, a, append_, b, b$1, base, d, dst, i, is, is$1, is$2, j, m, neg, q, q$1, s, s$1, u, us, us$1, x, x$1, x$2, x$3, x$4, x$5;
+		var _q, _q$1, _r, _r$1, a, append_, b, b$1, base, d, dst, i, is, is$1, is$2, j, m, neg, q, q$1, s, shift, u, us, us$1, x, x$1, x$2, x$3, x$4, x$5;
 		d = sliceType$6.nil;
 		s = "";
 		if (base < 2 || base > 36) {
@@ -3673,31 +3775,29 @@ $packages["strconv"] = (function() {
 				i = i - (1) >> 0;
 				((i < 0 || i >= a.length) ? ($throwRuntimeError("index out of range"), undefined) : a[i] = "00010203040506070809101112131415161718192021222324252627282930313233343536373839404142434445464748495051525354555657585960616263646566676869707172737475767778798081828384858687888990919293949596979899".charCodeAt(is$2));
 			}
-		} else {
-			s$1 = ((base < 0 || base >= shifts.length) ? ($throwRuntimeError("index out of range"), undefined) : shifts[base]);
-			if (s$1 > 0) {
-				b = (new $Uint64(0, base));
-				m = ((base >>> 0)) - 1 >>> 0;
-				while (true) {
-					if (!((u.$high > b.$high || (u.$high === b.$high && u.$low >= b.$low)))) { break; }
-					i = i - (1) >> 0;
-					((i < 0 || i >= a.length) ? ($throwRuntimeError("index out of range"), undefined) : a[i] = "0123456789abcdefghijklmnopqrstuvwxyz".charCodeAt(((((u.$low >>> 0)) & m) >>> 0)));
-					u = $shiftRightUint64(u, (s$1));
-				}
+		} else if (isPowerOfTwo(base)) {
+			shift = (((bits.TrailingZeros(((base >>> 0))) >>> 0)) & 31) >>> 0;
+			b = (new $Uint64(0, base));
+			m = ((base >>> 0)) - 1 >>> 0;
+			while (true) {
+				if (!((u.$high > b.$high || (u.$high === b.$high && u.$low >= b.$low)))) { break; }
 				i = i - (1) >> 0;
-				((i < 0 || i >= a.length) ? ($throwRuntimeError("index out of range"), undefined) : a[i] = "0123456789abcdefghijklmnopqrstuvwxyz".charCodeAt(((u.$low >>> 0))));
-			} else {
-				b$1 = (new $Uint64(0, base));
-				while (true) {
-					if (!((u.$high > b$1.$high || (u.$high === b$1.$high && u.$low >= b$1.$low)))) { break; }
-					i = i - (1) >> 0;
-					q$1 = $div64(u, b$1, false);
-					((i < 0 || i >= a.length) ? ($throwRuntimeError("index out of range"), undefined) : a[i] = "0123456789abcdefghijklmnopqrstuvwxyz".charCodeAt((((x$5 = $mul64(q$1, b$1), new $Uint64(u.$high - x$5.$high, u.$low - x$5.$low)).$low >>> 0))));
-					u = q$1;
-				}
-				i = i - (1) >> 0;
-				((i < 0 || i >= a.length) ? ($throwRuntimeError("index out of range"), undefined) : a[i] = "0123456789abcdefghijklmnopqrstuvwxyz".charCodeAt(((u.$low >>> 0))));
+				((i < 0 || i >= a.length) ? ($throwRuntimeError("index out of range"), undefined) : a[i] = "0123456789abcdefghijklmnopqrstuvwxyz".charCodeAt(((((u.$low >>> 0)) & m) >>> 0)));
+				u = $shiftRightUint64(u, (shift));
 			}
+			i = i - (1) >> 0;
+			((i < 0 || i >= a.length) ? ($throwRuntimeError("index out of range"), undefined) : a[i] = "0123456789abcdefghijklmnopqrstuvwxyz".charCodeAt(((u.$low >>> 0))));
+		} else {
+			b$1 = (new $Uint64(0, base));
+			while (true) {
+				if (!((u.$high > b$1.$high || (u.$high === b$1.$high && u.$low >= b$1.$low)))) { break; }
+				i = i - (1) >> 0;
+				q$1 = $div64(u, b$1, false);
+				((i < 0 || i >= a.length) ? ($throwRuntimeError("index out of range"), undefined) : a[i] = "0123456789abcdefghijklmnopqrstuvwxyz".charCodeAt((((x$5 = $mul64(q$1, b$1), new $Uint64(u.$high - x$5.$high, u.$low - x$5.$low)).$low >>> 0))));
+				u = q$1;
+			}
+			i = i - (1) >> 0;
+			((i < 0 || i >= a.length) ? ($throwRuntimeError("index out of range"), undefined) : a[i] = "0123456789abcdefghijklmnopqrstuvwxyz".charCodeAt(((u.$low >>> 0))));
 		}
 		if (neg) {
 			i = i - (1) >> 0;
@@ -3710,15 +3810,19 @@ $packages["strconv"] = (function() {
 		s = ($bytesToString($subslice(new sliceType$6(a), i)));
 		return [d, s];
 	};
+	isPowerOfTwo = function(x) {
+		var x;
+		return (x & ((x - 1 >> 0))) === 0;
+	};
 	$init = function() {
 		$pkg.$init = function() {};
 		/* */ var $f, $c = false, $s = 0, $r; if (this !== undefined && this.$blk !== undefined) { $f = this; $c = true; $s = $f.$s; $r = $f.$r; } s: while (true) { switch ($s) { case 0:
 		$r = errors.$init(); /* */ $s = 1; case 1: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
 		$r = math.$init(); /* */ $s = 2; case 2: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
-		$r = utf8.$init(); /* */ $s = 3; case 3: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
+		$r = bits.$init(); /* */ $s = 3; case 3: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
+		$r = utf8.$init(); /* */ $s = 4; case 4: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
 		$pkg.ErrRange = errors.New("value out of range");
 		$pkg.ErrSyntax = errors.New("invalid syntax");
-		shifts = $toNativeArray($kindUint, [0, 0, 1, 0, 2, 0, 0, 0, 3, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0]);
 		/* */ } return; } if ($f === undefined) { $f = { $blk: $init }; } $f.$s = $s; $f.$r = $r; return $f;
 	};
 	$pkg.$init = $init;
@@ -4066,9 +4170,9 @@ $packages["image"] = (function() {
 	Point.methods = [{prop: "String", name: "String", pkg: "", typ: $funcType([], [$String], false)}, {prop: "Add", name: "Add", pkg: "", typ: $funcType([Point], [Point], false)}, {prop: "Sub", name: "Sub", pkg: "", typ: $funcType([Point], [Point], false)}, {prop: "Mul", name: "Mul", pkg: "", typ: $funcType([$Int], [Point], false)}, {prop: "Div", name: "Div", pkg: "", typ: $funcType([$Int], [Point], false)}, {prop: "In", name: "In", pkg: "", typ: $funcType([Rectangle], [$Bool], false)}, {prop: "Mod", name: "Mod", pkg: "", typ: $funcType([Rectangle], [Point], false)}, {prop: "Eq", name: "Eq", pkg: "", typ: $funcType([Point], [$Bool], false)}];
 	Rectangle.methods = [{prop: "String", name: "String", pkg: "", typ: $funcType([], [$String], false)}, {prop: "Dx", name: "Dx", pkg: "", typ: $funcType([], [$Int], false)}, {prop: "Dy", name: "Dy", pkg: "", typ: $funcType([], [$Int], false)}, {prop: "Size", name: "Size", pkg: "", typ: $funcType([], [Point], false)}, {prop: "Add", name: "Add", pkg: "", typ: $funcType([Point], [Rectangle], false)}, {prop: "Sub", name: "Sub", pkg: "", typ: $funcType([Point], [Rectangle], false)}, {prop: "Inset", name: "Inset", pkg: "", typ: $funcType([$Int], [Rectangle], false)}, {prop: "Intersect", name: "Intersect", pkg: "", typ: $funcType([Rectangle], [Rectangle], false)}, {prop: "Union", name: "Union", pkg: "", typ: $funcType([Rectangle], [Rectangle], false)}, {prop: "Empty", name: "Empty", pkg: "", typ: $funcType([], [$Bool], false)}, {prop: "Eq", name: "Eq", pkg: "", typ: $funcType([Rectangle], [$Bool], false)}, {prop: "Overlaps", name: "Overlaps", pkg: "", typ: $funcType([Rectangle], [$Bool], false)}, {prop: "In", name: "In", pkg: "", typ: $funcType([Rectangle], [$Bool], false)}, {prop: "Canon", name: "Canon", pkg: "", typ: $funcType([], [Rectangle], false)}, {prop: "At", name: "At", pkg: "", typ: $funcType([$Int, $Int], [color.Color], false)}, {prop: "Bounds", name: "Bounds", pkg: "", typ: $funcType([], [Rectangle], false)}, {prop: "ColorModel", name: "ColorModel", pkg: "", typ: $funcType([], [color.Model], false)}];
 	ptrType$10.methods = [{prop: "RGBA", name: "RGBA", pkg: "", typ: $funcType([], [$Uint32, $Uint32, $Uint32, $Uint32], false)}, {prop: "ColorModel", name: "ColorModel", pkg: "", typ: $funcType([], [color.Model], false)}, {prop: "Convert", name: "Convert", pkg: "", typ: $funcType([color.Color], [color.Color], false)}, {prop: "Bounds", name: "Bounds", pkg: "", typ: $funcType([], [Rectangle], false)}, {prop: "At", name: "At", pkg: "", typ: $funcType([$Int, $Int], [color.Color], false)}, {prop: "Opaque", name: "Opaque", pkg: "", typ: $funcType([], [$Bool], false)}];
-	Point.init("", [{prop: "X", name: "X", anonymous: false, exported: true, typ: $Int, tag: ""}, {prop: "Y", name: "Y", anonymous: false, exported: true, typ: $Int, tag: ""}]);
-	Rectangle.init("", [{prop: "Min", name: "Min", anonymous: false, exported: true, typ: Point, tag: ""}, {prop: "Max", name: "Max", anonymous: false, exported: true, typ: Point, tag: ""}]);
-	Uniform.init("", [{prop: "C", name: "C", anonymous: false, exported: true, typ: color.Color, tag: ""}]);
+	Point.init("", [{prop: "X", name: "X", embedded: false, exported: true, typ: $Int, tag: ""}, {prop: "Y", name: "Y", embedded: false, exported: true, typ: $Int, tag: ""}]);
+	Rectangle.init("", [{prop: "Min", name: "Min", embedded: false, exported: true, typ: Point, tag: ""}, {prop: "Max", name: "Max", embedded: false, exported: true, typ: Point, tag: ""}]);
+	Uniform.init("", [{prop: "C", name: "C", embedded: false, exported: true, typ: color.Color, tag: ""}]);
 	$init = function() {
 		$pkg.$init = function() {};
 		/* */ var $f, $c = false, $s = 0, $r; if (this !== undefined && this.$blk !== undefined) { $f = this; $c = true; $s = $f.$s; $r = $f.$r; } s: while (true) { switch ($s) { case 0:
@@ -4089,9 +4193,10 @@ $packages["image"] = (function() {
 	return $pkg;
 })();
 $packages["strings"] = (function() {
-	var $pkg = {}, $init, errors, js, io, unicode, utf8, sliceType, Join;
+	var $pkg = {}, $init, errors, js, bytealg, io, unicode, utf8, sliceType, Join;
 	errors = $packages["errors"];
 	js = $packages["github.com/gopherjs/gopherjs/js"];
+	bytealg = $packages["internal/bytealg"];
 	io = $packages["io"];
 	unicode = $packages["unicode"];
 	utf8 = $packages["unicode/utf8"];
@@ -4134,9 +4239,10 @@ $packages["strings"] = (function() {
 		/* */ var $f, $c = false, $s = 0, $r; if (this !== undefined && this.$blk !== undefined) { $f = this; $c = true; $s = $f.$s; $r = $f.$r; } s: while (true) { switch ($s) { case 0:
 		$r = errors.$init(); /* */ $s = 1; case 1: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
 		$r = js.$init(); /* */ $s = 2; case 2: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
-		$r = io.$init(); /* */ $s = 3; case 3: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
-		$r = unicode.$init(); /* */ $s = 4; case 4: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
-		$r = utf8.$init(); /* */ $s = 5; case 5: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
+		$r = bytealg.$init(); /* */ $s = 3; case 3: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
+		$r = io.$init(); /* */ $s = 4; case 4: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
+		$r = unicode.$init(); /* */ $s = 5; case 5: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
+		$r = utf8.$init(); /* */ $s = 6; case 6: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
 		/* */ } return; } if ($f === undefined) { $f = { $blk: $init }; } $f.$s = $s; $f.$r = $r; return $f;
 	};
 	$pkg.$init = $init;
@@ -4178,7 +4284,7 @@ $packages["github.com/gopherjs/gopherjs/nosync"] = (function() {
 	};
 	Once.prototype.Do = function(f) { return this.$val.Do(f); };
 	ptrType$4.methods = [{prop: "Do", name: "Do", pkg: "", typ: $funcType([funcType$1], [], false)}];
-	Once.init("github.com/gopherjs/gopherjs/nosync", [{prop: "doing", name: "doing", anonymous: false, exported: false, typ: $Bool, tag: ""}, {prop: "done", name: "done", anonymous: false, exported: false, typ: $Bool, tag: ""}]);
+	Once.init("github.com/gopherjs/gopherjs/nosync", [{prop: "doing", name: "doing", embedded: false, exported: false, typ: $Bool, tag: ""}, {prop: "done", name: "done", embedded: false, exported: false, typ: $Bool, tag: ""}]);
 	$init = function() {
 		$pkg.$init = function() {};
 		/* */ var $f, $c = false, $s = 0, $r; if (this !== undefined && this.$blk !== undefined) { $f = this; $c = true; $s = $f.$s; $r = $f.$r; } s: while (true) { switch ($s) { case 0:
@@ -4212,7 +4318,7 @@ $packages["syscall"] = (function() {
 	sliceType$1 = $sliceType($String);
 	ptrType$2 = $ptrType($Uint8);
 	arrayType$4 = $arrayType($Uint8, 32);
-	structType = $structType("syscall", [{prop: "addr", name: "addr", anonymous: false, exported: false, typ: $Uintptr, tag: ""}, {prop: "len", name: "len", anonymous: false, exported: false, typ: $Int, tag: ""}, {prop: "cap", name: "cap", anonymous: false, exported: false, typ: $Int, tag: ""}]);
+	structType = $structType("syscall", [{prop: "addr", name: "addr", embedded: false, exported: false, typ: $Uintptr, tag: ""}, {prop: "len", name: "len", embedded: false, exported: false, typ: $Int, tag: ""}, {prop: "cap", name: "cap", embedded: false, exported: false, typ: $Int, tag: ""}]);
 	ptrType$25 = $ptrType(mmapper);
 	mapType = $mapType(ptrType$2, sliceType);
 	funcType$2 = $funcType([$Uintptr, $Uintptr, $Int, $Int, $Int, $Int64], [$Uintptr, $error], false);
@@ -4474,7 +4580,7 @@ $packages["syscall"] = (function() {
 	Errno.prototype.Temporary = function() {
 		var e;
 		e = this.$val;
-		return (e === 4) || (e === 24) || (e === 104) || (e === 103) || new Errno(e).Timeout();
+		return (e === 4) || (e === 24) || new Errno(e).Timeout();
 	};
 	$ptrType(Errno).prototype.Temporary = function() { return new Errno(this.$get()).Temporary(); };
 	Errno.prototype.Timeout = function() {
@@ -4522,7 +4628,7 @@ $packages["syscall"] = (function() {
 	};
 	ptrType$25.methods = [{prop: "Mmap", name: "Mmap", pkg: "", typ: $funcType([$Int, $Int64, $Int, $Int, $Int], [sliceType, $error], false)}, {prop: "Munmap", name: "Munmap", pkg: "", typ: $funcType([sliceType], [$error], false)}];
 	Errno.methods = [{prop: "Error", name: "Error", pkg: "", typ: $funcType([], [$String], false)}, {prop: "Temporary", name: "Temporary", pkg: "", typ: $funcType([], [$Bool], false)}, {prop: "Timeout", name: "Timeout", pkg: "", typ: $funcType([], [$Bool], false)}];
-	mmapper.init("syscall", [{prop: "Mutex", name: "Mutex", anonymous: true, exported: true, typ: sync.Mutex, tag: ""}, {prop: "active", name: "active", anonymous: false, exported: false, typ: mapType, tag: ""}, {prop: "mmap", name: "mmap", anonymous: false, exported: false, typ: funcType$2, tag: ""}, {prop: "munmap", name: "munmap", anonymous: false, exported: false, typ: funcType$3, tag: ""}]);
+	mmapper.init("syscall", [{prop: "Mutex", name: "Mutex", embedded: true, exported: true, typ: sync.Mutex, tag: ""}, {prop: "active", name: "active", embedded: false, exported: false, typ: mapType, tag: ""}, {prop: "mmap", name: "mmap", embedded: false, exported: false, typ: funcType$2, tag: ""}, {prop: "munmap", name: "munmap", embedded: false, exported: false, typ: funcType$3, tag: ""}]);
 	$init = function() {
 		$pkg.$init = function() {};
 		/* */ var $f, $c = false, $s = 0, $r; if (this !== undefined && this.$blk !== undefined) { $f = this; $c = true; $s = $f.$s; $r = $f.$r; } s: while (true) { switch ($s) { case 0:
@@ -4548,7 +4654,7 @@ $packages["syscall"] = (function() {
 	return $pkg;
 })();
 $packages["time"] = (function() {
-	var $pkg = {}, $init, errors, js, nosync, runtime, syscall, ParseError, Time, Month, Weekday, Duration, Location, zone, zoneTrans, sliceType, sliceType$1, ptrType, sliceType$2, arrayType, sliceType$3, arrayType$1, arrayType$2, ptrType$2, arrayType$3, ptrType$4, ptrType$7, zoneSources, std0x, longDayNames, shortDayNames, shortMonthNames, longMonthNames, atoiError, errBad, errLeadingInt, months, days, daysBefore, utcLoc, utcLoc$24ptr, localLoc, localLoc$24ptr, localOnce, errLocation, badData, init, initLocal, indexByte, startsWithLowerCase, nextStdChunk, match, lookup, appendInt, atoi, formatNano, quote, isDigit, getnum, cutspace, skip, Parse, parse, parseTimeZone, parseGMT, parseNanoseconds, leadingInt, absWeekday, absClock, fmtFrac, fmtInt, lessThanHalf, absDate, daysIn, unixTime, Unix, isLeap, norm, Date, div, FixedZone;
+	var $pkg = {}, $init, errors, js, nosync, runtime, syscall, ParseError, Time, Month, Weekday, Duration, Location, zone, zoneTrans, sliceType, sliceType$1, ptrType, sliceType$2, arrayType, sliceType$3, arrayType$1, arrayType$2, ptrType$2, arrayType$3, ptrType$4, ptrType$7, zoneSources, std0x, longDayNames, shortDayNames, shortMonthNames, longMonthNames, atoiError, errBad, errLeadingInt, months, days, daysBefore, utcLoc, utcLoc$24ptr, localLoc, localLoc$24ptr, localOnce, errLocation, badData, init, initLocal, indexByte, startsWithLowerCase, nextStdChunk, match, lookup, appendInt, atoi, formatNano, quote, isDigit, getnum, cutspace, skip, Parse, parse, parseTimeZone, parseGMT, parseSignedOffset, parseNanoseconds, leadingInt, absWeekday, absClock, fmtFrac, fmtInt, lessThanHalf, absDate, daysIn, unixTime, Unix, isLeap, norm, Date, div, FixedZone;
 	errors = $packages["errors"];
 	js = $packages["github.com/gopherjs/gopherjs/js"];
 	nosync = $packages["github.com/gopherjs/gopherjs/nosync"];
@@ -5793,7 +5899,7 @@ $packages["time"] = (function() {
 		/* */ } return; } if ($f === undefined) { $f = { $blk: parse }; } $f._1 = _1; $f._2 = _2; $f._3 = _3; $f._4 = _4; $f._r = _r; $f._r$1 = _r$1; $f._r$2 = _r$2; $f._r$3 = _r$3; $f._r$4 = _r$4; $f._r$5 = _r$5; $f._tmp = _tmp; $f._tmp$1 = _tmp$1; $f._tmp$10 = _tmp$10; $f._tmp$11 = _tmp$11; $f._tmp$12 = _tmp$12; $f._tmp$13 = _tmp$13; $f._tmp$14 = _tmp$14; $f._tmp$15 = _tmp$15; $f._tmp$16 = _tmp$16; $f._tmp$17 = _tmp$17; $f._tmp$18 = _tmp$18; $f._tmp$19 = _tmp$19; $f._tmp$2 = _tmp$2; $f._tmp$20 = _tmp$20; $f._tmp$21 = _tmp$21; $f._tmp$22 = _tmp$22; $f._tmp$23 = _tmp$23; $f._tmp$24 = _tmp$24; $f._tmp$25 = _tmp$25; $f._tmp$26 = _tmp$26; $f._tmp$27 = _tmp$27; $f._tmp$28 = _tmp$28; $f._tmp$29 = _tmp$29; $f._tmp$3 = _tmp$3; $f._tmp$30 = _tmp$30; $f._tmp$31 = _tmp$31; $f._tmp$32 = _tmp$32; $f._tmp$33 = _tmp$33; $f._tmp$34 = _tmp$34; $f._tmp$35 = _tmp$35; $f._tmp$36 = _tmp$36; $f._tmp$37 = _tmp$37; $f._tmp$38 = _tmp$38; $f._tmp$39 = _tmp$39; $f._tmp$4 = _tmp$4; $f._tmp$40 = _tmp$40; $f._tmp$41 = _tmp$41; $f._tmp$42 = _tmp$42; $f._tmp$43 = _tmp$43; $f._tmp$5 = _tmp$5; $f._tmp$6 = _tmp$6; $f._tmp$7 = _tmp$7; $f._tmp$8 = _tmp$8; $f._tmp$9 = _tmp$9; $f._tuple = _tuple; $f._tuple$1 = _tuple$1; $f._tuple$10 = _tuple$10; $f._tuple$11 = _tuple$11; $f._tuple$12 = _tuple$12; $f._tuple$13 = _tuple$13; $f._tuple$14 = _tuple$14; $f._tuple$15 = _tuple$15; $f._tuple$16 = _tuple$16; $f._tuple$17 = _tuple$17; $f._tuple$18 = _tuple$18; $f._tuple$19 = _tuple$19; $f._tuple$2 = _tuple$2; $f._tuple$20 = _tuple$20; $f._tuple$21 = _tuple$21; $f._tuple$22 = _tuple$22; $f._tuple$23 = _tuple$23; $f._tuple$24 = _tuple$24; $f._tuple$3 = _tuple$3; $f._tuple$4 = _tuple$4; $f._tuple$5 = _tuple$5; $f._tuple$6 = _tuple$6; $f._tuple$7 = _tuple$7; $f._tuple$8 = _tuple$8; $f._tuple$9 = _tuple$9; $f.alayout = alayout; $f.amSet = amSet; $f.avalue = avalue; $f.day = day; $f.defaultLocation = defaultLocation; $f.err = err; $f.hour = hour; $f.hour$1 = hour$1; $f.hr = hr; $f.i = i; $f.layout = layout; $f.local = local; $f.min = min; $f.min$1 = min$1; $f.mm = mm; $f.month = month; $f.n = n; $f.n$1 = n$1; $f.name = name; $f.ndigit = ndigit; $f.nsec = nsec; $f.offset = offset; $f.offset$1 = offset$1; $f.ok = ok; $f.ok$1 = ok$1; $f.p = p; $f.pmSet = pmSet; $f.prefix = prefix; $f.rangeErrString = rangeErrString; $f.sec = sec; $f.seconds = seconds; $f.sign = sign; $f.ss = ss; $f.std = std; $f.stdstr = stdstr; $f.suffix = suffix; $f.t = t; $f.t$1 = t$1; $f.value = value; $f.x = x; $f.x$1 = x$1; $f.year = year; $f.z = z; $f.zoneName = zoneName; $f.zoneOffset = zoneOffset; $f.$s = $s; $f.$r = $r; return $f;
 	};
 	parseTimeZone = function(value) {
-		var _1, _tmp, _tmp$1, _tmp$10, _tmp$11, _tmp$12, _tmp$13, _tmp$14, _tmp$15, _tmp$2, _tmp$3, _tmp$4, _tmp$5, _tmp$6, _tmp$7, _tmp$8, _tmp$9, c, length, nUpper, ok, value;
+		var _1, _tmp, _tmp$1, _tmp$10, _tmp$11, _tmp$12, _tmp$13, _tmp$14, _tmp$15, _tmp$16, _tmp$17, _tmp$2, _tmp$3, _tmp$4, _tmp$5, _tmp$6, _tmp$7, _tmp$8, _tmp$9, c, length, nUpper, ok, value;
 		length = 0;
 		ok = false;
 		if (value.length < 3) {
@@ -5818,6 +5924,14 @@ $packages["time"] = (function() {
 			ok = _tmp$5;
 			return [length, ok];
 		}
+		if ((value.charCodeAt(0) === 43) || (value.charCodeAt(0) === 45)) {
+			length = parseSignedOffset(value);
+			_tmp$6 = length;
+			_tmp$7 = true;
+			length = _tmp$6;
+			ok = _tmp$7;
+			return [length, ok];
+		}
 		nUpper = 0;
 		nUpper = 0;
 		while (true) {
@@ -5833,64 +5947,68 @@ $packages["time"] = (function() {
 		}
 		_1 = nUpper;
 		if ((_1 === (0)) || (_1 === (1)) || (_1 === (2)) || (_1 === (6))) {
-			_tmp$6 = 0;
-			_tmp$7 = false;
-			length = _tmp$6;
-			ok = _tmp$7;
+			_tmp$8 = 0;
+			_tmp$9 = false;
+			length = _tmp$8;
+			ok = _tmp$9;
 			return [length, ok];
 		} else if (_1 === (5)) {
 			if (value.charCodeAt(4) === 84) {
-				_tmp$8 = 5;
-				_tmp$9 = true;
-				length = _tmp$8;
-				ok = _tmp$9;
-				return [length, ok];
-			}
-		} else if (_1 === (4)) {
-			if ((value.charCodeAt(3) === 84) || $substring(value, 0, 4) === "WITA") {
-				_tmp$10 = 4;
+				_tmp$10 = 5;
 				_tmp$11 = true;
 				length = _tmp$10;
 				ok = _tmp$11;
 				return [length, ok];
 			}
+		} else if (_1 === (4)) {
+			if ((value.charCodeAt(3) === 84) || $substring(value, 0, 4) === "WITA") {
+				_tmp$12 = 4;
+				_tmp$13 = true;
+				length = _tmp$12;
+				ok = _tmp$13;
+				return [length, ok];
+			}
 		} else if (_1 === (3)) {
-			_tmp$12 = 3;
-			_tmp$13 = true;
-			length = _tmp$12;
-			ok = _tmp$13;
+			_tmp$14 = 3;
+			_tmp$15 = true;
+			length = _tmp$14;
+			ok = _tmp$15;
 			return [length, ok];
 		}
-		_tmp$14 = 0;
-		_tmp$15 = false;
-		length = _tmp$14;
-		ok = _tmp$15;
+		_tmp$16 = 0;
+		_tmp$17 = false;
+		length = _tmp$16;
+		ok = _tmp$17;
 		return [length, ok];
 	};
 	parseGMT = function(value) {
-		var _tuple, err, rem, sign, value, x;
+		var value;
 		value = $substring(value, 3);
 		if (value.length === 0) {
 			return 3;
 		}
+		return 3 + parseSignedOffset(value) >> 0;
+	};
+	parseSignedOffset = function(value) {
+		var _tuple, err, rem, sign, value, x;
 		sign = value.charCodeAt(0);
 		if (!((sign === 45)) && !((sign === 43))) {
-			return 3;
+			return 0;
 		}
 		_tuple = leadingInt($substring(value, 1));
 		x = _tuple[0];
 		rem = _tuple[1];
 		err = _tuple[2];
 		if (!($interfaceIsEqual(err, $ifaceNil))) {
-			return 3;
+			return 0;
 		}
 		if (sign === 45) {
 			x = new $Int64(-x.$high, -x.$low);
 		}
 		if ((x.$high === 0 && x.$low === 0) || (x.$high < -1 || (x.$high === -1 && x.$low < 4294967282)) || (0 < x.$high || (0 === x.$high && 12 < x.$low))) {
-			return 3;
+			return 0;
 		}
-		return (3 + value.length >> 0) - rem.length >> 0;
+		return value.length - rem.length >> 0;
 	};
 	parseNanoseconds = function(value, nbytes) {
 		var _tuple, err, i, nbytes, ns, rangeErrString, scaleDigits, value;
@@ -5973,7 +6091,7 @@ $packages["time"] = (function() {
 		if (!((x = (x$1 = t.wall, new $Uint64(x$1.$high & 2147483648, (x$1.$low & 0) >>> 0)), (x.$high === 0 && x.$low === 0)))) {
 			return (x$2 = ((x$3 = $shiftRightUint64($shiftLeft64(t.wall, 1), 31), new $Int64(x$3.$high, x$3.$low))), new $Int64(13 + x$2.$high, 3618733952 + x$2.$low));
 		}
-		return (t.ext);
+		return t.ext;
 	};
 	Time.prototype.sec = function() { return this.$val.sec(); };
 	Time.ptr.prototype.unixSec = function() {
@@ -6057,9 +6175,14 @@ $packages["time"] = (function() {
 	};
 	$ptrType(Month).prototype.String = function() { return new Month(this.$get()).String(); };
 	Weekday.prototype.String = function() {
-		var d;
+		var buf, d, n;
 		d = this.$val;
-		return ((d < 0 || d >= days.length) ? ($throwRuntimeError("index out of range"), undefined) : days[d]);
+		if (0 <= d && d <= 6) {
+			return ((d < 0 || d >= days.length) ? ($throwRuntimeError("index out of range"), undefined) : days[d]);
+		}
+		buf = $makeSlice(sliceType$3, 20);
+		n = fmtInt(buf, (new $Uint64(0, d)));
+		return "%!Weekday(" + ($bytesToString($subslice(buf, n))) + ")";
 	};
 	$ptrType(Weekday).prototype.String = function() { return new Weekday(this.$get()).String(); };
 	Time.ptr.prototype.IsZero = function() {
@@ -6503,7 +6626,7 @@ $packages["time"] = (function() {
 		t.addSec(dsec);
 		if (!((x$7 = (x$8 = t.wall, new $Uint64(x$8.$high & 2147483648, (x$8.$low & 0) >>> 0)), (x$7.$high === 0 && x$7.$low === 0)))) {
 			te = (x$9 = t.ext, x$10 = (new $Int64(d.$high, d.$low)), new $Int64(x$9.$high + x$10.$high, x$9.$low + x$10.$low));
-			if ((d.$high < 0 || (d.$high === 0 && d.$low < 0)) && (x$11 = (t.ext), (te.$high > x$11.$high || (te.$high === x$11.$high && te.$low > x$11.$low))) || (d.$high > 0 || (d.$high === 0 && d.$low > 0)) && (x$12 = (t.ext), (te.$high < x$12.$high || (te.$high === x$12.$high && te.$low < x$12.$low)))) {
+			if ((d.$high < 0 || (d.$high === 0 && d.$low < 0)) && (x$11 = t.ext, (te.$high > x$11.$high || (te.$high === x$11.$high && te.$low > x$11.$low))) || (d.$high > 0 || (d.$high === 0 && d.$low > 0)) && (x$12 = t.ext, (te.$high < x$12.$high || (te.$high === x$12.$high && te.$low < x$12.$low)))) {
 				t.stripMono();
 			} else {
 				t.ext = te;
@@ -6516,8 +6639,8 @@ $packages["time"] = (function() {
 		var d, d$1, t, te, u, ue, x, x$1, x$2, x$3, x$4, x$5, x$6, x$7, x$8, x$9;
 		t = this;
 		if (!((x = (x$1 = (x$2 = t.wall, x$3 = u.wall, new $Uint64(x$2.$high & x$3.$high, (x$2.$low & x$3.$low) >>> 0)), new $Uint64(x$1.$high & 2147483648, (x$1.$low & 0) >>> 0)), (x.$high === 0 && x.$low === 0)))) {
-			te = (t.ext);
-			ue = (u.ext);
+			te = t.ext;
+			ue = u.ext;
 			d = ((x$4 = new $Int64(te.$high - ue.$high, te.$low - ue.$low), new Duration(x$4.$high, x$4.$low)));
 			if ((d.$high < 0 || (d.$high === 0 && d.$low < 0)) && (te.$high > ue.$high || (te.$high === ue.$high && te.$low > ue.$low))) {
 				return new Duration(2147483647, 4294967295);
@@ -6931,8 +7054,8 @@ $packages["time"] = (function() {
 		_r = loc.lookup(unix); /* */ $s = 1; case 1: if($c) { $c = false; _r = _r.$blk(); } if (_r && _r.$blk !== undefined) { break s; }
 		_tuple$5 = _r;
 		offset = _tuple$5[1];
-		start = _tuple$5[3];
-		end = _tuple$5[4];
+		start = _tuple$5[2];
+		end = _tuple$5[3];
 		/* */ if (!((offset === 0))) { $s = 2; continue; }
 		/* */ $s = 3; continue;
 		/* if (!((offset === 0))) { */ case 2:
@@ -7096,11 +7219,10 @@ $packages["time"] = (function() {
 	};
 	$pkg.FixedZone = FixedZone;
 	Location.ptr.prototype.lookup = function(sec) {
-		var _q, _r, end, hi, isDST, l, lim, lo, m, name, offset, sec, start, tx, x, x$1, x$2, x$3, x$4, x$5, x$6, x$7, x$8, zone$1, zone$2, zone$3, $s, $r;
-		/* */ $s = 0; var $f, $c = false; if (this !== undefined && this.$blk !== undefined) { $f = this; $c = true; _q = $f._q; _r = $f._r; end = $f.end; hi = $f.hi; isDST = $f.isDST; l = $f.l; lim = $f.lim; lo = $f.lo; m = $f.m; name = $f.name; offset = $f.offset; sec = $f.sec; start = $f.start; tx = $f.tx; x = $f.x; x$1 = $f.x$1; x$2 = $f.x$2; x$3 = $f.x$3; x$4 = $f.x$4; x$5 = $f.x$5; x$6 = $f.x$6; x$7 = $f.x$7; x$8 = $f.x$8; zone$1 = $f.zone$1; zone$2 = $f.zone$2; zone$3 = $f.zone$3; $s = $f.$s; $r = $f.$r; } s: while (true) { switch ($s) { case 0:
+		var _q, _r, end, hi, l, lim, lo, m, name, offset, sec, start, tx, x, x$1, x$2, x$3, x$4, x$5, x$6, x$7, x$8, zone$1, zone$2, zone$3, $s, $r;
+		/* */ $s = 0; var $f, $c = false; if (this !== undefined && this.$blk !== undefined) { $f = this; $c = true; _q = $f._q; _r = $f._r; end = $f.end; hi = $f.hi; l = $f.l; lim = $f.lim; lo = $f.lo; m = $f.m; name = $f.name; offset = $f.offset; sec = $f.sec; start = $f.start; tx = $f.tx; x = $f.x; x$1 = $f.x$1; x$2 = $f.x$2; x$3 = $f.x$3; x$4 = $f.x$4; x$5 = $f.x$5; x$6 = $f.x$6; x$7 = $f.x$7; x$8 = $f.x$8; zone$1 = $f.zone$1; zone$2 = $f.zone$2; zone$3 = $f.zone$3; $s = $f.$s; $r = $f.$r; } s: while (true) { switch ($s) { case 0:
 		name = "";
 		offset = 0;
-		isDST = false;
 		start = new $Int64(0, 0);
 		end = new $Int64(0, 0);
 		l = this;
@@ -7109,32 +7231,29 @@ $packages["time"] = (function() {
 		if (l.zone.$length === 0) {
 			name = "UTC";
 			offset = 0;
-			isDST = false;
 			start = new $Int64(-2147483648, 0);
 			end = new $Int64(2147483647, 4294967295);
-			$s = -1; return [name, offset, isDST, start, end];
+			$s = -1; return [name, offset, start, end];
 		}
 		zone$1 = l.cacheZone;
 		if (!(zone$1 === ptrType.nil) && (x = l.cacheStart, (x.$high < sec.$high || (x.$high === sec.$high && x.$low <= sec.$low))) && (x$1 = l.cacheEnd, (sec.$high < x$1.$high || (sec.$high === x$1.$high && sec.$low < x$1.$low)))) {
 			name = zone$1.name;
 			offset = zone$1.offset;
-			isDST = zone$1.isDST;
 			start = l.cacheStart;
 			end = l.cacheEnd;
-			$s = -1; return [name, offset, isDST, start, end];
+			$s = -1; return [name, offset, start, end];
 		}
 		if ((l.tx.$length === 0) || (x$2 = (x$3 = l.tx, (0 >= x$3.$length ? ($throwRuntimeError("index out of range"), undefined) : x$3.$array[x$3.$offset + 0])).when, (sec.$high < x$2.$high || (sec.$high === x$2.$high && sec.$low < x$2.$low)))) {
 			zone$2 = (x$4 = l.zone, x$5 = l.lookupFirstZone(), ((x$5 < 0 || x$5 >= x$4.$length) ? ($throwRuntimeError("index out of range"), undefined) : x$4.$array[x$4.$offset + x$5]));
 			name = zone$2.name;
 			offset = zone$2.offset;
-			isDST = zone$2.isDST;
 			start = new $Int64(-2147483648, 0);
 			if (l.tx.$length > 0) {
 				end = (x$6 = l.tx, (0 >= x$6.$length ? ($throwRuntimeError("index out of range"), undefined) : x$6.$array[x$6.$offset + 0])).when;
 			} else {
 				end = new $Int64(2147483647, 4294967295);
 			}
-			$s = -1; return [name, offset, isDST, start, end];
+			$s = -1; return [name, offset, start, end];
 		}
 		tx = l.tx;
 		end = new $Int64(2147483647, 4294967295);
@@ -7154,10 +7273,9 @@ $packages["time"] = (function() {
 		zone$3 = (x$7 = l.zone, x$8 = ((lo < 0 || lo >= tx.$length) ? ($throwRuntimeError("index out of range"), undefined) : tx.$array[tx.$offset + lo]).index, ((x$8 < 0 || x$8 >= x$7.$length) ? ($throwRuntimeError("index out of range"), undefined) : x$7.$array[x$7.$offset + x$8]));
 		name = zone$3.name;
 		offset = zone$3.offset;
-		isDST = zone$3.isDST;
 		start = ((lo < 0 || lo >= tx.$length) ? ($throwRuntimeError("index out of range"), undefined) : tx.$array[tx.$offset + lo]).when;
-		$s = -1; return [name, offset, isDST, start, end];
-		/* */ } return; } if ($f === undefined) { $f = { $blk: Location.ptr.prototype.lookup }; } $f._q = _q; $f._r = _r; $f.end = end; $f.hi = hi; $f.isDST = isDST; $f.l = l; $f.lim = lim; $f.lo = lo; $f.m = m; $f.name = name; $f.offset = offset; $f.sec = sec; $f.start = start; $f.tx = tx; $f.x = x; $f.x$1 = x$1; $f.x$2 = x$2; $f.x$3 = x$3; $f.x$4 = x$4; $f.x$5 = x$5; $f.x$6 = x$6; $f.x$7 = x$7; $f.x$8 = x$8; $f.zone$1 = zone$1; $f.zone$2 = zone$2; $f.zone$3 = zone$3; $f.$s = $s; $f.$r = $r; return $f;
+		$s = -1; return [name, offset, start, end];
+		/* */ } return; } if ($f === undefined) { $f = { $blk: Location.ptr.prototype.lookup }; } $f._q = _q; $f._r = _r; $f.end = end; $f.hi = hi; $f.l = l; $f.lim = lim; $f.lo = lo; $f.m = m; $f.name = name; $f.offset = offset; $f.sec = sec; $f.start = start; $f.tx = tx; $f.x = x; $f.x$1 = x$1; $f.x$2 = x$2; $f.x$3 = x$3; $f.x$4 = x$4; $f.x$5 = x$5; $f.x$6 = x$6; $f.x$7 = x$7; $f.x$8 = x$8; $f.zone$1 = zone$1; $f.zone$2 = zone$2; $f.zone$3 = zone$3; $f.$s = $s; $f.$r = $r; return $f;
 	};
 	Location.prototype.lookup = function(sec) { return this.$val.lookup(sec); };
 	Location.ptr.prototype.lookupFirstZone = function() {
@@ -7261,12 +7379,12 @@ $packages["time"] = (function() {
 	Month.methods = [{prop: "String", name: "String", pkg: "", typ: $funcType([], [$String], false)}];
 	Weekday.methods = [{prop: "String", name: "String", pkg: "", typ: $funcType([], [$String], false)}];
 	Duration.methods = [{prop: "String", name: "String", pkg: "", typ: $funcType([], [$String], false)}, {prop: "Nanoseconds", name: "Nanoseconds", pkg: "", typ: $funcType([], [$Int64], false)}, {prop: "Seconds", name: "Seconds", pkg: "", typ: $funcType([], [$Float64], false)}, {prop: "Minutes", name: "Minutes", pkg: "", typ: $funcType([], [$Float64], false)}, {prop: "Hours", name: "Hours", pkg: "", typ: $funcType([], [$Float64], false)}, {prop: "Truncate", name: "Truncate", pkg: "", typ: $funcType([Duration], [Duration], false)}, {prop: "Round", name: "Round", pkg: "", typ: $funcType([Duration], [Duration], false)}];
-	ptrType$2.methods = [{prop: "get", name: "get", pkg: "time", typ: $funcType([], [ptrType$2], false)}, {prop: "String", name: "String", pkg: "", typ: $funcType([], [$String], false)}, {prop: "lookup", name: "lookup", pkg: "time", typ: $funcType([$Int64], [$String, $Int, $Bool, $Int64, $Int64], false)}, {prop: "lookupFirstZone", name: "lookupFirstZone", pkg: "time", typ: $funcType([], [$Int], false)}, {prop: "firstZoneUsed", name: "firstZoneUsed", pkg: "time", typ: $funcType([], [$Bool], false)}, {prop: "lookupName", name: "lookupName", pkg: "time", typ: $funcType([$String, $Int64], [$Int, $Bool], false)}];
-	ParseError.init("", [{prop: "Layout", name: "Layout", anonymous: false, exported: true, typ: $String, tag: ""}, {prop: "Value", name: "Value", anonymous: false, exported: true, typ: $String, tag: ""}, {prop: "LayoutElem", name: "LayoutElem", anonymous: false, exported: true, typ: $String, tag: ""}, {prop: "ValueElem", name: "ValueElem", anonymous: false, exported: true, typ: $String, tag: ""}, {prop: "Message", name: "Message", anonymous: false, exported: true, typ: $String, tag: ""}]);
-	Time.init("time", [{prop: "wall", name: "wall", anonymous: false, exported: false, typ: $Uint64, tag: ""}, {prop: "ext", name: "ext", anonymous: false, exported: false, typ: $Int64, tag: ""}, {prop: "loc", name: "loc", anonymous: false, exported: false, typ: ptrType$2, tag: ""}]);
-	Location.init("time", [{prop: "name", name: "name", anonymous: false, exported: false, typ: $String, tag: ""}, {prop: "zone", name: "zone", anonymous: false, exported: false, typ: sliceType, tag: ""}, {prop: "tx", name: "tx", anonymous: false, exported: false, typ: sliceType$1, tag: ""}, {prop: "cacheStart", name: "cacheStart", anonymous: false, exported: false, typ: $Int64, tag: ""}, {prop: "cacheEnd", name: "cacheEnd", anonymous: false, exported: false, typ: $Int64, tag: ""}, {prop: "cacheZone", name: "cacheZone", anonymous: false, exported: false, typ: ptrType, tag: ""}]);
-	zone.init("time", [{prop: "name", name: "name", anonymous: false, exported: false, typ: $String, tag: ""}, {prop: "offset", name: "offset", anonymous: false, exported: false, typ: $Int, tag: ""}, {prop: "isDST", name: "isDST", anonymous: false, exported: false, typ: $Bool, tag: ""}]);
-	zoneTrans.init("time", [{prop: "when", name: "when", anonymous: false, exported: false, typ: $Int64, tag: ""}, {prop: "index", name: "index", anonymous: false, exported: false, typ: $Uint8, tag: ""}, {prop: "isstd", name: "isstd", anonymous: false, exported: false, typ: $Bool, tag: ""}, {prop: "isutc", name: "isutc", anonymous: false, exported: false, typ: $Bool, tag: ""}]);
+	ptrType$2.methods = [{prop: "get", name: "get", pkg: "time", typ: $funcType([], [ptrType$2], false)}, {prop: "String", name: "String", pkg: "", typ: $funcType([], [$String], false)}, {prop: "lookup", name: "lookup", pkg: "time", typ: $funcType([$Int64], [$String, $Int, $Int64, $Int64], false)}, {prop: "lookupFirstZone", name: "lookupFirstZone", pkg: "time", typ: $funcType([], [$Int], false)}, {prop: "firstZoneUsed", name: "firstZoneUsed", pkg: "time", typ: $funcType([], [$Bool], false)}, {prop: "lookupName", name: "lookupName", pkg: "time", typ: $funcType([$String, $Int64], [$Int, $Bool], false)}];
+	ParseError.init("", [{prop: "Layout", name: "Layout", embedded: false, exported: true, typ: $String, tag: ""}, {prop: "Value", name: "Value", embedded: false, exported: true, typ: $String, tag: ""}, {prop: "LayoutElem", name: "LayoutElem", embedded: false, exported: true, typ: $String, tag: ""}, {prop: "ValueElem", name: "ValueElem", embedded: false, exported: true, typ: $String, tag: ""}, {prop: "Message", name: "Message", embedded: false, exported: true, typ: $String, tag: ""}]);
+	Time.init("time", [{prop: "wall", name: "wall", embedded: false, exported: false, typ: $Uint64, tag: ""}, {prop: "ext", name: "ext", embedded: false, exported: false, typ: $Int64, tag: ""}, {prop: "loc", name: "loc", embedded: false, exported: false, typ: ptrType$2, tag: ""}]);
+	Location.init("time", [{prop: "name", name: "name", embedded: false, exported: false, typ: $String, tag: ""}, {prop: "zone", name: "zone", embedded: false, exported: false, typ: sliceType, tag: ""}, {prop: "tx", name: "tx", embedded: false, exported: false, typ: sliceType$1, tag: ""}, {prop: "cacheStart", name: "cacheStart", embedded: false, exported: false, typ: $Int64, tag: ""}, {prop: "cacheEnd", name: "cacheEnd", embedded: false, exported: false, typ: $Int64, tag: ""}, {prop: "cacheZone", name: "cacheZone", embedded: false, exported: false, typ: ptrType, tag: ""}]);
+	zone.init("time", [{prop: "name", name: "name", embedded: false, exported: false, typ: $String, tag: ""}, {prop: "offset", name: "offset", embedded: false, exported: false, typ: $Int, tag: ""}, {prop: "isDST", name: "isDST", embedded: false, exported: false, typ: $Bool, tag: ""}]);
+	zoneTrans.init("time", [{prop: "when", name: "when", embedded: false, exported: false, typ: $Int64, tag: ""}, {prop: "index", name: "index", embedded: false, exported: false, typ: $Uint8, tag: ""}, {prop: "isstd", name: "isstd", embedded: false, exported: false, typ: $Bool, tag: ""}, {prop: "isutc", name: "isutc", embedded: false, exported: false, typ: $Bool, tag: ""}]);
 	$init = function() {
 		$pkg.$init = function() {};
 		/* */ var $f, $c = false, $s = 0, $r; if (this !== undefined && this.$blk !== undefined) { $f = this; $c = true; $s = $f.$s; $r = $f.$r; } s: while (true) { switch ($s) { case 0:
@@ -12171,161 +12289,161 @@ $packages["honnef.co/go/js/dom"] = (function() {
 	ptrType$19.methods = [{prop: "Bubbles", name: "Bubbles", pkg: "", typ: $funcType([], [$Bool], false)}, {prop: "Cancelable", name: "Cancelable", pkg: "", typ: $funcType([], [$Bool], false)}, {prop: "CurrentTarget", name: "CurrentTarget", pkg: "", typ: $funcType([], [Element], false)}, {prop: "DefaultPrevented", name: "DefaultPrevented", pkg: "", typ: $funcType([], [$Bool], false)}, {prop: "EventPhase", name: "EventPhase", pkg: "", typ: $funcType([], [$Int], false)}, {prop: "Target", name: "Target", pkg: "", typ: $funcType([], [Element], false)}, {prop: "Timestamp", name: "Timestamp", pkg: "", typ: $funcType([], [time.Time], false)}, {prop: "Type", name: "Type", pkg: "", typ: $funcType([], [$String], false)}, {prop: "PreventDefault", name: "PreventDefault", pkg: "", typ: $funcType([], [], false)}, {prop: "StopImmediatePropagation", name: "StopImmediatePropagation", pkg: "", typ: $funcType([], [], false)}, {prop: "StopPropagation", name: "StopPropagation", pkg: "", typ: $funcType([], [], false)}, {prop: "Underlying", name: "Underlying", pkg: "", typ: $funcType([], [ptrType], false)}];
 	ptrType$57.methods = [{prop: "ModifierState", name: "ModifierState", pkg: "", typ: $funcType([$String], [$Bool], false)}];
 	ptrType$58.methods = [{prop: "RelatedTarget", name: "RelatedTarget", pkg: "", typ: $funcType([], [Element], false)}, {prop: "ModifierState", name: "ModifierState", pkg: "", typ: $funcType([$String], [$Bool], false)}];
-	TokenList.init("honnef.co/go/js/dom", [{prop: "dtl", name: "dtl", anonymous: false, exported: false, typ: ptrType, tag: ""}, {prop: "o", name: "o", anonymous: false, exported: false, typ: ptrType, tag: ""}, {prop: "sa", name: "sa", anonymous: false, exported: false, typ: $String, tag: ""}, {prop: "Length", name: "Length", anonymous: false, exported: true, typ: $Int, tag: "js:\"length\""}]);
+	TokenList.init("honnef.co/go/js/dom", [{prop: "dtl", name: "dtl", embedded: false, exported: false, typ: ptrType, tag: ""}, {prop: "o", name: "o", embedded: false, exported: false, typ: ptrType, tag: ""}, {prop: "sa", name: "sa", embedded: false, exported: false, typ: $String, tag: ""}, {prop: "Length", name: "Length", embedded: false, exported: true, typ: $Int, tag: "js:\"length\""}]);
 	Document.init([{prop: "AddEventListener", name: "AddEventListener", pkg: "", typ: $funcType([$String, $Bool, funcType$2], [funcType$1], false)}, {prop: "AdoptNode", name: "AdoptNode", pkg: "", typ: $funcType([Node], [Node], false)}, {prop: "AppendChild", name: "AppendChild", pkg: "", typ: $funcType([Node], [], false)}, {prop: "Async", name: "Async", pkg: "", typ: $funcType([], [$Bool], false)}, {prop: "BaseURI", name: "BaseURI", pkg: "", typ: $funcType([], [$String], false)}, {prop: "ChildNodes", name: "ChildNodes", pkg: "", typ: $funcType([], [sliceType$2], false)}, {prop: "CloneNode", name: "CloneNode", pkg: "", typ: $funcType([$Bool], [Node], false)}, {prop: "CompareDocumentPosition", name: "CompareDocumentPosition", pkg: "", typ: $funcType([Node], [$Int], false)}, {prop: "Contains", name: "Contains", pkg: "", typ: $funcType([Node], [$Bool], false)}, {prop: "CreateDocumentFragment", name: "CreateDocumentFragment", pkg: "", typ: $funcType([], [DocumentFragment], false)}, {prop: "CreateElement", name: "CreateElement", pkg: "", typ: $funcType([$String], [Element], false)}, {prop: "CreateElementNS", name: "CreateElementNS", pkg: "", typ: $funcType([$String, $String], [Element], false)}, {prop: "CreateTextNode", name: "CreateTextNode", pkg: "", typ: $funcType([$String], [ptrType$12], false)}, {prop: "DispatchEvent", name: "DispatchEvent", pkg: "", typ: $funcType([Event], [$Bool], false)}, {prop: "Doctype", name: "Doctype", pkg: "", typ: $funcType([], [DocumentType], false)}, {prop: "DocumentElement", name: "DocumentElement", pkg: "", typ: $funcType([], [Element], false)}, {prop: "DocumentURI", name: "DocumentURI", pkg: "", typ: $funcType([], [$String], false)}, {prop: "ElementFromPoint", name: "ElementFromPoint", pkg: "", typ: $funcType([$Int, $Int], [Element], false)}, {prop: "EnableStyleSheetsForSet", name: "EnableStyleSheetsForSet", pkg: "", typ: $funcType([$String], [], false)}, {prop: "FirstChild", name: "FirstChild", pkg: "", typ: $funcType([], [Node], false)}, {prop: "GetElementByID", name: "GetElementByID", pkg: "", typ: $funcType([$String], [Element], false)}, {prop: "GetElementsByClassName", name: "GetElementsByClassName", pkg: "", typ: $funcType([$String], [sliceType$3], false)}, {prop: "GetElementsByTagName", name: "GetElementsByTagName", pkg: "", typ: $funcType([$String], [sliceType$3], false)}, {prop: "GetElementsByTagNameNS", name: "GetElementsByTagNameNS", pkg: "", typ: $funcType([$String, $String], [sliceType$3], false)}, {prop: "HasChildNodes", name: "HasChildNodes", pkg: "", typ: $funcType([], [$Bool], false)}, {prop: "Implementation", name: "Implementation", pkg: "", typ: $funcType([], [DOMImplementation], false)}, {prop: "ImportNode", name: "ImportNode", pkg: "", typ: $funcType([Node, $Bool], [Node], false)}, {prop: "InsertBefore", name: "InsertBefore", pkg: "", typ: $funcType([Node, Node], [], false)}, {prop: "IsDefaultNamespace", name: "IsDefaultNamespace", pkg: "", typ: $funcType([$String], [$Bool], false)}, {prop: "IsEqualNode", name: "IsEqualNode", pkg: "", typ: $funcType([Node], [$Bool], false)}, {prop: "LastChild", name: "LastChild", pkg: "", typ: $funcType([], [Node], false)}, {prop: "LastStyleSheetSet", name: "LastStyleSheetSet", pkg: "", typ: $funcType([], [$String], false)}, {prop: "LookupNamespaceURI", name: "LookupNamespaceURI", pkg: "", typ: $funcType([$String], [$String], false)}, {prop: "LookupPrefix", name: "LookupPrefix", pkg: "", typ: $funcType([], [$String], false)}, {prop: "NextSibling", name: "NextSibling", pkg: "", typ: $funcType([], [Node], false)}, {prop: "NodeName", name: "NodeName", pkg: "", typ: $funcType([], [$String], false)}, {prop: "NodeType", name: "NodeType", pkg: "", typ: $funcType([], [$Int], false)}, {prop: "NodeValue", name: "NodeValue", pkg: "", typ: $funcType([], [$String], false)}, {prop: "Normalize", name: "Normalize", pkg: "", typ: $funcType([], [], false)}, {prop: "OwnerDocument", name: "OwnerDocument", pkg: "", typ: $funcType([], [Document], false)}, {prop: "ParentElement", name: "ParentElement", pkg: "", typ: $funcType([], [Element], false)}, {prop: "ParentNode", name: "ParentNode", pkg: "", typ: $funcType([], [Node], false)}, {prop: "PreferredStyleSheetSet", name: "PreferredStyleSheetSet", pkg: "", typ: $funcType([], [$String], false)}, {prop: "PreviousSibling", name: "PreviousSibling", pkg: "", typ: $funcType([], [Node], false)}, {prop: "QuerySelector", name: "QuerySelector", pkg: "", typ: $funcType([$String], [Element], false)}, {prop: "QuerySelectorAll", name: "QuerySelectorAll", pkg: "", typ: $funcType([$String], [sliceType$3], false)}, {prop: "RemoveChild", name: "RemoveChild", pkg: "", typ: $funcType([Node], [], false)}, {prop: "RemoveEventListener", name: "RemoveEventListener", pkg: "", typ: $funcType([$String, $Bool, funcType$1], [], false)}, {prop: "ReplaceChild", name: "ReplaceChild", pkg: "", typ: $funcType([Node, Node], [], false)}, {prop: "SelectedStyleSheetSet", name: "SelectedStyleSheetSet", pkg: "", typ: $funcType([], [$String], false)}, {prop: "SetAsync", name: "SetAsync", pkg: "", typ: $funcType([$Bool], [], false)}, {prop: "SetNodeValue", name: "SetNodeValue", pkg: "", typ: $funcType([$String], [], false)}, {prop: "SetTextContent", name: "SetTextContent", pkg: "", typ: $funcType([$String], [], false)}, {prop: "StyleSheetSets", name: "StyleSheetSets", pkg: "", typ: $funcType([], [sliceType$17], false)}, {prop: "StyleSheets", name: "StyleSheets", pkg: "", typ: $funcType([], [sliceType$17], false)}, {prop: "TextContent", name: "TextContent", pkg: "", typ: $funcType([], [$String], false)}, {prop: "Underlying", name: "Underlying", pkg: "", typ: $funcType([], [ptrType], false)}]);
 	DocumentFragment.init([{prop: "AddEventListener", name: "AddEventListener", pkg: "", typ: $funcType([$String, $Bool, funcType$2], [funcType$1], false)}, {prop: "AppendChild", name: "AppendChild", pkg: "", typ: $funcType([Node], [], false)}, {prop: "BaseURI", name: "BaseURI", pkg: "", typ: $funcType([], [$String], false)}, {prop: "ChildNodes", name: "ChildNodes", pkg: "", typ: $funcType([], [sliceType$2], false)}, {prop: "CloneNode", name: "CloneNode", pkg: "", typ: $funcType([$Bool], [Node], false)}, {prop: "CompareDocumentPosition", name: "CompareDocumentPosition", pkg: "", typ: $funcType([Node], [$Int], false)}, {prop: "Contains", name: "Contains", pkg: "", typ: $funcType([Node], [$Bool], false)}, {prop: "DispatchEvent", name: "DispatchEvent", pkg: "", typ: $funcType([Event], [$Bool], false)}, {prop: "FirstChild", name: "FirstChild", pkg: "", typ: $funcType([], [Node], false)}, {prop: "GetElementByID", name: "GetElementByID", pkg: "", typ: $funcType([$String], [Element], false)}, {prop: "HasChildNodes", name: "HasChildNodes", pkg: "", typ: $funcType([], [$Bool], false)}, {prop: "InsertBefore", name: "InsertBefore", pkg: "", typ: $funcType([Node, Node], [], false)}, {prop: "IsDefaultNamespace", name: "IsDefaultNamespace", pkg: "", typ: $funcType([$String], [$Bool], false)}, {prop: "IsEqualNode", name: "IsEqualNode", pkg: "", typ: $funcType([Node], [$Bool], false)}, {prop: "LastChild", name: "LastChild", pkg: "", typ: $funcType([], [Node], false)}, {prop: "LookupNamespaceURI", name: "LookupNamespaceURI", pkg: "", typ: $funcType([$String], [$String], false)}, {prop: "LookupPrefix", name: "LookupPrefix", pkg: "", typ: $funcType([], [$String], false)}, {prop: "NextSibling", name: "NextSibling", pkg: "", typ: $funcType([], [Node], false)}, {prop: "NodeName", name: "NodeName", pkg: "", typ: $funcType([], [$String], false)}, {prop: "NodeType", name: "NodeType", pkg: "", typ: $funcType([], [$Int], false)}, {prop: "NodeValue", name: "NodeValue", pkg: "", typ: $funcType([], [$String], false)}, {prop: "Normalize", name: "Normalize", pkg: "", typ: $funcType([], [], false)}, {prop: "OwnerDocument", name: "OwnerDocument", pkg: "", typ: $funcType([], [Document], false)}, {prop: "ParentElement", name: "ParentElement", pkg: "", typ: $funcType([], [Element], false)}, {prop: "ParentNode", name: "ParentNode", pkg: "", typ: $funcType([], [Node], false)}, {prop: "PreviousSibling", name: "PreviousSibling", pkg: "", typ: $funcType([], [Node], false)}, {prop: "QuerySelector", name: "QuerySelector", pkg: "", typ: $funcType([$String], [Element], false)}, {prop: "QuerySelectorAll", name: "QuerySelectorAll", pkg: "", typ: $funcType([$String], [sliceType$3], false)}, {prop: "RemoveChild", name: "RemoveChild", pkg: "", typ: $funcType([Node], [], false)}, {prop: "RemoveEventListener", name: "RemoveEventListener", pkg: "", typ: $funcType([$String, $Bool, funcType$1], [], false)}, {prop: "ReplaceChild", name: "ReplaceChild", pkg: "", typ: $funcType([Node, Node], [], false)}, {prop: "SetNodeValue", name: "SetNodeValue", pkg: "", typ: $funcType([$String], [], false)}, {prop: "SetTextContent", name: "SetTextContent", pkg: "", typ: $funcType([$String], [], false)}, {prop: "TextContent", name: "TextContent", pkg: "", typ: $funcType([], [$String], false)}, {prop: "Underlying", name: "Underlying", pkg: "", typ: $funcType([], [ptrType], false)}]);
-	documentFragment.init("", [{prop: "BasicNode", name: "BasicNode", anonymous: true, exported: true, typ: ptrType$23, tag: ""}]);
-	document.init("", [{prop: "BasicNode", name: "BasicNode", anonymous: true, exported: true, typ: ptrType$23, tag: ""}]);
-	htmlDocument.init("honnef.co/go/js/dom", [{prop: "document", name: "document", anonymous: true, exported: false, typ: ptrType$24, tag: ""}]);
-	URLUtils.init("", [{prop: "Object", name: "Object", anonymous: true, exported: true, typ: ptrType, tag: ""}, {prop: "Href", name: "Href", anonymous: false, exported: true, typ: $String, tag: "js:\"href\""}, {prop: "Protocol", name: "Protocol", anonymous: false, exported: true, typ: $String, tag: "js:\"protocol\""}, {prop: "Host", name: "Host", anonymous: false, exported: true, typ: $String, tag: "js:\"host\""}, {prop: "Hostname", name: "Hostname", anonymous: false, exported: true, typ: $String, tag: "js:\"hostname\""}, {prop: "Port", name: "Port", anonymous: false, exported: true, typ: $String, tag: "js:\"port\""}, {prop: "Pathname", name: "Pathname", anonymous: false, exported: true, typ: $String, tag: "js:\"pathname\""}, {prop: "Search", name: "Search", anonymous: false, exported: true, typ: $String, tag: "js:\"search\""}, {prop: "Hash", name: "Hash", anonymous: false, exported: true, typ: $String, tag: "js:\"hash\""}, {prop: "Username", name: "Username", anonymous: false, exported: true, typ: $String, tag: "js:\"username\""}, {prop: "Password", name: "Password", anonymous: false, exported: true, typ: $String, tag: "js:\"password\""}, {prop: "Origin", name: "Origin", anonymous: false, exported: true, typ: $String, tag: "js:\"origin\""}]);
-	Location.init("", [{prop: "Object", name: "Object", anonymous: true, exported: true, typ: ptrType, tag: ""}, {prop: "URLUtils", name: "URLUtils", anonymous: true, exported: true, typ: ptrType$2, tag: ""}]);
+	documentFragment.init("", [{prop: "BasicNode", name: "BasicNode", embedded: true, exported: true, typ: ptrType$23, tag: ""}]);
+	document.init("", [{prop: "BasicNode", name: "BasicNode", embedded: true, exported: true, typ: ptrType$23, tag: ""}]);
+	htmlDocument.init("honnef.co/go/js/dom", [{prop: "document", name: "document", embedded: true, exported: false, typ: ptrType$24, tag: ""}]);
+	URLUtils.init("", [{prop: "Object", name: "Object", embedded: true, exported: true, typ: ptrType, tag: ""}, {prop: "Href", name: "Href", embedded: false, exported: true, typ: $String, tag: "js:\"href\""}, {prop: "Protocol", name: "Protocol", embedded: false, exported: true, typ: $String, tag: "js:\"protocol\""}, {prop: "Host", name: "Host", embedded: false, exported: true, typ: $String, tag: "js:\"host\""}, {prop: "Hostname", name: "Hostname", embedded: false, exported: true, typ: $String, tag: "js:\"hostname\""}, {prop: "Port", name: "Port", embedded: false, exported: true, typ: $String, tag: "js:\"port\""}, {prop: "Pathname", name: "Pathname", embedded: false, exported: true, typ: $String, tag: "js:\"pathname\""}, {prop: "Search", name: "Search", embedded: false, exported: true, typ: $String, tag: "js:\"search\""}, {prop: "Hash", name: "Hash", embedded: false, exported: true, typ: $String, tag: "js:\"hash\""}, {prop: "Username", name: "Username", embedded: false, exported: true, typ: $String, tag: "js:\"username\""}, {prop: "Password", name: "Password", embedded: false, exported: true, typ: $String, tag: "js:\"password\""}, {prop: "Origin", name: "Origin", embedded: false, exported: true, typ: $String, tag: "js:\"origin\""}]);
+	Location.init("", [{prop: "Object", name: "Object", embedded: true, exported: true, typ: ptrType, tag: ""}, {prop: "URLUtils", name: "URLUtils", embedded: true, exported: true, typ: ptrType$2, tag: ""}]);
 	HTMLElement.init([{prop: "AccessKey", name: "AccessKey", pkg: "", typ: $funcType([], [$String], false)}, {prop: "AccessKeyLabel", name: "AccessKeyLabel", pkg: "", typ: $funcType([], [$String], false)}, {prop: "AddEventListener", name: "AddEventListener", pkg: "", typ: $funcType([$String, $Bool, funcType$2], [funcType$1], false)}, {prop: "AppendChild", name: "AppendChild", pkg: "", typ: $funcType([Node], [], false)}, {prop: "Attributes", name: "Attributes", pkg: "", typ: $funcType([], [mapType], false)}, {prop: "BaseURI", name: "BaseURI", pkg: "", typ: $funcType([], [$String], false)}, {prop: "Blur", name: "Blur", pkg: "", typ: $funcType([], [], false)}, {prop: "ChildNodes", name: "ChildNodes", pkg: "", typ: $funcType([], [sliceType$2], false)}, {prop: "Class", name: "Class", pkg: "", typ: $funcType([], [ptrType$21], false)}, {prop: "Click", name: "Click", pkg: "", typ: $funcType([], [], false)}, {prop: "CloneNode", name: "CloneNode", pkg: "", typ: $funcType([$Bool], [Node], false)}, {prop: "CompareDocumentPosition", name: "CompareDocumentPosition", pkg: "", typ: $funcType([Node], [$Int], false)}, {prop: "Contains", name: "Contains", pkg: "", typ: $funcType([Node], [$Bool], false)}, {prop: "ContentEditable", name: "ContentEditable", pkg: "", typ: $funcType([], [$String], false)}, {prop: "Dataset", name: "Dataset", pkg: "", typ: $funcType([], [mapType], false)}, {prop: "Dir", name: "Dir", pkg: "", typ: $funcType([], [$String], false)}, {prop: "DispatchEvent", name: "DispatchEvent", pkg: "", typ: $funcType([Event], [$Bool], false)}, {prop: "Draggable", name: "Draggable", pkg: "", typ: $funcType([], [$Bool], false)}, {prop: "FirstChild", name: "FirstChild", pkg: "", typ: $funcType([], [Node], false)}, {prop: "Focus", name: "Focus", pkg: "", typ: $funcType([], [], false)}, {prop: "GetAttribute", name: "GetAttribute", pkg: "", typ: $funcType([$String], [$String], false)}, {prop: "GetAttributeNS", name: "GetAttributeNS", pkg: "", typ: $funcType([$String, $String], [$String], false)}, {prop: "GetBoundingClientRect", name: "GetBoundingClientRect", pkg: "", typ: $funcType([], [ClientRect], false)}, {prop: "GetElementsByClassName", name: "GetElementsByClassName", pkg: "", typ: $funcType([$String], [sliceType$3], false)}, {prop: "GetElementsByTagName", name: "GetElementsByTagName", pkg: "", typ: $funcType([$String], [sliceType$3], false)}, {prop: "GetElementsByTagNameNS", name: "GetElementsByTagNameNS", pkg: "", typ: $funcType([$String, $String], [sliceType$3], false)}, {prop: "HasAttribute", name: "HasAttribute", pkg: "", typ: $funcType([$String], [$Bool], false)}, {prop: "HasAttributeNS", name: "HasAttributeNS", pkg: "", typ: $funcType([$String, $String], [$Bool], false)}, {prop: "HasChildNodes", name: "HasChildNodes", pkg: "", typ: $funcType([], [$Bool], false)}, {prop: "ID", name: "ID", pkg: "", typ: $funcType([], [$String], false)}, {prop: "InnerHTML", name: "InnerHTML", pkg: "", typ: $funcType([], [$String], false)}, {prop: "InsertBefore", name: "InsertBefore", pkg: "", typ: $funcType([Node, Node], [], false)}, {prop: "IsContentEditable", name: "IsContentEditable", pkg: "", typ: $funcType([], [$Bool], false)}, {prop: "IsDefaultNamespace", name: "IsDefaultNamespace", pkg: "", typ: $funcType([$String], [$Bool], false)}, {prop: "IsEqualNode", name: "IsEqualNode", pkg: "", typ: $funcType([Node], [$Bool], false)}, {prop: "Lang", name: "Lang", pkg: "", typ: $funcType([], [$String], false)}, {prop: "LastChild", name: "LastChild", pkg: "", typ: $funcType([], [Node], false)}, {prop: "LookupNamespaceURI", name: "LookupNamespaceURI", pkg: "", typ: $funcType([$String], [$String], false)}, {prop: "LookupPrefix", name: "LookupPrefix", pkg: "", typ: $funcType([], [$String], false)}, {prop: "NextElementSibling", name: "NextElementSibling", pkg: "", typ: $funcType([], [Element], false)}, {prop: "NextSibling", name: "NextSibling", pkg: "", typ: $funcType([], [Node], false)}, {prop: "NodeName", name: "NodeName", pkg: "", typ: $funcType([], [$String], false)}, {prop: "NodeType", name: "NodeType", pkg: "", typ: $funcType([], [$Int], false)}, {prop: "NodeValue", name: "NodeValue", pkg: "", typ: $funcType([], [$String], false)}, {prop: "Normalize", name: "Normalize", pkg: "", typ: $funcType([], [], false)}, {prop: "OffsetHeight", name: "OffsetHeight", pkg: "", typ: $funcType([], [$Float64], false)}, {prop: "OffsetLeft", name: "OffsetLeft", pkg: "", typ: $funcType([], [$Float64], false)}, {prop: "OffsetParent", name: "OffsetParent", pkg: "", typ: $funcType([], [HTMLElement], false)}, {prop: "OffsetTop", name: "OffsetTop", pkg: "", typ: $funcType([], [$Float64], false)}, {prop: "OffsetWidth", name: "OffsetWidth", pkg: "", typ: $funcType([], [$Float64], false)}, {prop: "OuterHTML", name: "OuterHTML", pkg: "", typ: $funcType([], [$String], false)}, {prop: "OwnerDocument", name: "OwnerDocument", pkg: "", typ: $funcType([], [Document], false)}, {prop: "ParentElement", name: "ParentElement", pkg: "", typ: $funcType([], [Element], false)}, {prop: "ParentNode", name: "ParentNode", pkg: "", typ: $funcType([], [Node], false)}, {prop: "PreviousElementSibling", name: "PreviousElementSibling", pkg: "", typ: $funcType([], [Element], false)}, {prop: "PreviousSibling", name: "PreviousSibling", pkg: "", typ: $funcType([], [Node], false)}, {prop: "QuerySelector", name: "QuerySelector", pkg: "", typ: $funcType([$String], [Element], false)}, {prop: "QuerySelectorAll", name: "QuerySelectorAll", pkg: "", typ: $funcType([$String], [sliceType$3], false)}, {prop: "RemoveAttribute", name: "RemoveAttribute", pkg: "", typ: $funcType([$String], [], false)}, {prop: "RemoveAttributeNS", name: "RemoveAttributeNS", pkg: "", typ: $funcType([$String, $String], [], false)}, {prop: "RemoveChild", name: "RemoveChild", pkg: "", typ: $funcType([Node], [], false)}, {prop: "RemoveEventListener", name: "RemoveEventListener", pkg: "", typ: $funcType([$String, $Bool, funcType$1], [], false)}, {prop: "ReplaceChild", name: "ReplaceChild", pkg: "", typ: $funcType([Node, Node], [], false)}, {prop: "SetAccessKey", name: "SetAccessKey", pkg: "", typ: $funcType([$String], [], false)}, {prop: "SetAccessKeyLabel", name: "SetAccessKeyLabel", pkg: "", typ: $funcType([$String], [], false)}, {prop: "SetAttribute", name: "SetAttribute", pkg: "", typ: $funcType([$String, $String], [], false)}, {prop: "SetAttributeNS", name: "SetAttributeNS", pkg: "", typ: $funcType([$String, $String, $String], [], false)}, {prop: "SetContentEditable", name: "SetContentEditable", pkg: "", typ: $funcType([$String], [], false)}, {prop: "SetDir", name: "SetDir", pkg: "", typ: $funcType([$String], [], false)}, {prop: "SetDraggable", name: "SetDraggable", pkg: "", typ: $funcType([$Bool], [], false)}, {prop: "SetID", name: "SetID", pkg: "", typ: $funcType([$String], [], false)}, {prop: "SetInnerHTML", name: "SetInnerHTML", pkg: "", typ: $funcType([$String], [], false)}, {prop: "SetLang", name: "SetLang", pkg: "", typ: $funcType([$String], [], false)}, {prop: "SetNodeValue", name: "SetNodeValue", pkg: "", typ: $funcType([$String], [], false)}, {prop: "SetOuterHTML", name: "SetOuterHTML", pkg: "", typ: $funcType([$String], [], false)}, {prop: "SetTextContent", name: "SetTextContent", pkg: "", typ: $funcType([$String], [], false)}, {prop: "SetTitle", name: "SetTitle", pkg: "", typ: $funcType([$String], [], false)}, {prop: "Style", name: "Style", pkg: "", typ: $funcType([], [ptrType$26], false)}, {prop: "TagName", name: "TagName", pkg: "", typ: $funcType([], [$String], false)}, {prop: "TextContent", name: "TextContent", pkg: "", typ: $funcType([], [$String], false)}, {prop: "Title", name: "Title", pkg: "", typ: $funcType([], [$String], false)}, {prop: "Underlying", name: "Underlying", pkg: "", typ: $funcType([], [ptrType], false)}]);
 	Window.init([{prop: "AddEventListener", name: "AddEventListener", pkg: "", typ: $funcType([$String, $Bool, funcType$2], [funcType$1], false)}, {prop: "Alert", name: "Alert", pkg: "", typ: $funcType([$String], [], false)}, {prop: "Back", name: "Back", pkg: "", typ: $funcType([], [], false)}, {prop: "Blur", name: "Blur", pkg: "", typ: $funcType([], [], false)}, {prop: "CancelAnimationFrame", name: "CancelAnimationFrame", pkg: "", typ: $funcType([$Int], [], false)}, {prop: "ClearInterval", name: "ClearInterval", pkg: "", typ: $funcType([$Int], [], false)}, {prop: "ClearTimeout", name: "ClearTimeout", pkg: "", typ: $funcType([$Int], [], false)}, {prop: "Close", name: "Close", pkg: "", typ: $funcType([], [], false)}, {prop: "Confirm", name: "Confirm", pkg: "", typ: $funcType([$String], [$Bool], false)}, {prop: "Console", name: "Console", pkg: "", typ: $funcType([], [ptrType$27], false)}, {prop: "DispatchEvent", name: "DispatchEvent", pkg: "", typ: $funcType([Event], [$Bool], false)}, {prop: "Document", name: "Document", pkg: "", typ: $funcType([], [Document], false)}, {prop: "Focus", name: "Focus", pkg: "", typ: $funcType([], [], false)}, {prop: "Forward", name: "Forward", pkg: "", typ: $funcType([], [], false)}, {prop: "FrameElement", name: "FrameElement", pkg: "", typ: $funcType([], [Element], false)}, {prop: "GetComputedStyle", name: "GetComputedStyle", pkg: "", typ: $funcType([Element, $String], [ptrType$26], false)}, {prop: "GetSelection", name: "GetSelection", pkg: "", typ: $funcType([], [Selection], false)}, {prop: "History", name: "History", pkg: "", typ: $funcType([], [History], false)}, {prop: "Home", name: "Home", pkg: "", typ: $funcType([], [], false)}, {prop: "InnerHeight", name: "InnerHeight", pkg: "", typ: $funcType([], [$Int], false)}, {prop: "InnerWidth", name: "InnerWidth", pkg: "", typ: $funcType([], [$Int], false)}, {prop: "Length", name: "Length", pkg: "", typ: $funcType([], [$Int], false)}, {prop: "Location", name: "Location", pkg: "", typ: $funcType([], [ptrType$22], false)}, {prop: "MoveBy", name: "MoveBy", pkg: "", typ: $funcType([$Int, $Int], [], false)}, {prop: "MoveTo", name: "MoveTo", pkg: "", typ: $funcType([$Int, $Int], [], false)}, {prop: "Name", name: "Name", pkg: "", typ: $funcType([], [$String], false)}, {prop: "Navigator", name: "Navigator", pkg: "", typ: $funcType([], [Navigator], false)}, {prop: "Open", name: "Open", pkg: "", typ: $funcType([$String, $String, $String], [Window], false)}, {prop: "OpenDialog", name: "OpenDialog", pkg: "", typ: $funcType([$String, $String, $String, sliceType], [Window], false)}, {prop: "Opener", name: "Opener", pkg: "", typ: $funcType([], [Window], false)}, {prop: "OuterHeight", name: "OuterHeight", pkg: "", typ: $funcType([], [$Int], false)}, {prop: "OuterWidth", name: "OuterWidth", pkg: "", typ: $funcType([], [$Int], false)}, {prop: "Parent", name: "Parent", pkg: "", typ: $funcType([], [Window], false)}, {prop: "PostMessage", name: "PostMessage", pkg: "", typ: $funcType([$String, $String, sliceType], [], false)}, {prop: "Print", name: "Print", pkg: "", typ: $funcType([], [], false)}, {prop: "Prompt", name: "Prompt", pkg: "", typ: $funcType([$String, $String], [$String], false)}, {prop: "RemoveEventListener", name: "RemoveEventListener", pkg: "", typ: $funcType([$String, $Bool, funcType$1], [], false)}, {prop: "RequestAnimationFrame", name: "RequestAnimationFrame", pkg: "", typ: $funcType([funcType$3], [$Int], false)}, {prop: "ResizeBy", name: "ResizeBy", pkg: "", typ: $funcType([$Int, $Int], [], false)}, {prop: "ResizeTo", name: "ResizeTo", pkg: "", typ: $funcType([$Int, $Int], [], false)}, {prop: "Screen", name: "Screen", pkg: "", typ: $funcType([], [ptrType$28], false)}, {prop: "ScreenX", name: "ScreenX", pkg: "", typ: $funcType([], [$Int], false)}, {prop: "ScreenY", name: "ScreenY", pkg: "", typ: $funcType([], [$Int], false)}, {prop: "Scroll", name: "Scroll", pkg: "", typ: $funcType([$Int, $Int], [], false)}, {prop: "ScrollBy", name: "ScrollBy", pkg: "", typ: $funcType([$Int, $Int], [], false)}, {prop: "ScrollByLines", name: "ScrollByLines", pkg: "", typ: $funcType([$Int], [], false)}, {prop: "ScrollMaxX", name: "ScrollMaxX", pkg: "", typ: $funcType([], [$Int], false)}, {prop: "ScrollMaxY", name: "ScrollMaxY", pkg: "", typ: $funcType([], [$Int], false)}, {prop: "ScrollTo", name: "ScrollTo", pkg: "", typ: $funcType([$Int, $Int], [], false)}, {prop: "ScrollX", name: "ScrollX", pkg: "", typ: $funcType([], [$Int], false)}, {prop: "ScrollY", name: "ScrollY", pkg: "", typ: $funcType([], [$Int], false)}, {prop: "SetCursor", name: "SetCursor", pkg: "", typ: $funcType([$String], [], false)}, {prop: "SetInterval", name: "SetInterval", pkg: "", typ: $funcType([funcType, $Int], [$Int], false)}, {prop: "SetName", name: "SetName", pkg: "", typ: $funcType([$String], [], false)}, {prop: "SetTimeout", name: "SetTimeout", pkg: "", typ: $funcType([funcType, $Int], [$Int], false)}, {prop: "Stop", name: "Stop", pkg: "", typ: $funcType([], [], false)}, {prop: "Top", name: "Top", pkg: "", typ: $funcType([], [Window], false)}]);
-	window.init("", [{prop: "Object", name: "Object", anonymous: true, exported: true, typ: ptrType, tag: ""}]);
+	window.init("", [{prop: "Object", name: "Object", embedded: true, exported: true, typ: ptrType, tag: ""}]);
 	Selection.init([]);
-	Screen.init("", [{prop: "Object", name: "Object", anonymous: true, exported: true, typ: ptrType, tag: ""}, {prop: "AvailTop", name: "AvailTop", anonymous: false, exported: true, typ: $Int, tag: "js:\"availTop\""}, {prop: "AvailLeft", name: "AvailLeft", anonymous: false, exported: true, typ: $Int, tag: "js:\"availLeft\""}, {prop: "AvailHeight", name: "AvailHeight", anonymous: false, exported: true, typ: $Int, tag: "js:\"availHeight\""}, {prop: "AvailWidth", name: "AvailWidth", anonymous: false, exported: true, typ: $Int, tag: "js:\"availWidth\""}, {prop: "ColorDepth", name: "ColorDepth", anonymous: false, exported: true, typ: $Int, tag: "js:\"colorDepth\""}, {prop: "Height", name: "Height", anonymous: false, exported: true, typ: $Int, tag: "js:\"height\""}, {prop: "Left", name: "Left", anonymous: false, exported: true, typ: $Int, tag: "js:\"left\""}, {prop: "PixelDepth", name: "PixelDepth", anonymous: false, exported: true, typ: $Int, tag: "js:\"pixelDepth\""}, {prop: "Top", name: "Top", anonymous: false, exported: true, typ: $Int, tag: "js:\"top\""}, {prop: "Width", name: "Width", anonymous: false, exported: true, typ: $Int, tag: "js:\"width\""}]);
+	Screen.init("", [{prop: "Object", name: "Object", embedded: true, exported: true, typ: ptrType, tag: ""}, {prop: "AvailTop", name: "AvailTop", embedded: false, exported: true, typ: $Int, tag: "js:\"availTop\""}, {prop: "AvailLeft", name: "AvailLeft", embedded: false, exported: true, typ: $Int, tag: "js:\"availLeft\""}, {prop: "AvailHeight", name: "AvailHeight", embedded: false, exported: true, typ: $Int, tag: "js:\"availHeight\""}, {prop: "AvailWidth", name: "AvailWidth", embedded: false, exported: true, typ: $Int, tag: "js:\"availWidth\""}, {prop: "ColorDepth", name: "ColorDepth", embedded: false, exported: true, typ: $Int, tag: "js:\"colorDepth\""}, {prop: "Height", name: "Height", embedded: false, exported: true, typ: $Int, tag: "js:\"height\""}, {prop: "Left", name: "Left", embedded: false, exported: true, typ: $Int, tag: "js:\"left\""}, {prop: "PixelDepth", name: "PixelDepth", embedded: false, exported: true, typ: $Int, tag: "js:\"pixelDepth\""}, {prop: "Top", name: "Top", embedded: false, exported: true, typ: $Int, tag: "js:\"top\""}, {prop: "Width", name: "Width", embedded: false, exported: true, typ: $Int, tag: "js:\"width\""}]);
 	Navigator.init([{prop: "AppName", name: "AppName", pkg: "", typ: $funcType([], [$String], false)}, {prop: "AppVersion", name: "AppVersion", pkg: "", typ: $funcType([], [$String], false)}, {prop: "CookieEnabled", name: "CookieEnabled", pkg: "", typ: $funcType([], [$Bool], false)}, {prop: "DoNotTrack", name: "DoNotTrack", pkg: "", typ: $funcType([], [$String], false)}, {prop: "Geolocation", name: "Geolocation", pkg: "", typ: $funcType([], [Geolocation], false)}, {prop: "Language", name: "Language", pkg: "", typ: $funcType([], [$String], false)}, {prop: "Online", name: "Online", pkg: "", typ: $funcType([], [$Bool], false)}, {prop: "Platform", name: "Platform", pkg: "", typ: $funcType([], [$String], false)}, {prop: "Product", name: "Product", pkg: "", typ: $funcType([], [$String], false)}, {prop: "RegisterProtocolHandler", name: "RegisterProtocolHandler", pkg: "", typ: $funcType([$String, $String, $String], [], false)}, {prop: "UserAgent", name: "UserAgent", pkg: "", typ: $funcType([], [$String], false)}]);
 	Geolocation.init([{prop: "ClearWatch", name: "ClearWatch", pkg: "", typ: $funcType([$Int], [], false)}, {prop: "CurrentPosition", name: "CurrentPosition", pkg: "", typ: $funcType([funcType$4, funcType$5, PositionOptions], [Position], false)}, {prop: "WatchPosition", name: "WatchPosition", pkg: "", typ: $funcType([funcType$4, funcType$5, PositionOptions], [$Int], false)}]);
-	PositionError.init("", [{prop: "Object", name: "Object", anonymous: true, exported: true, typ: ptrType, tag: ""}, {prop: "Code", name: "Code", anonymous: false, exported: true, typ: $Int, tag: "js:\"code\""}]);
-	PositionOptions.init("", [{prop: "EnableHighAccuracy", name: "EnableHighAccuracy", anonymous: false, exported: true, typ: $Bool, tag: ""}, {prop: "Timeout", name: "Timeout", anonymous: false, exported: true, typ: time.Duration, tag: ""}, {prop: "MaximumAge", name: "MaximumAge", anonymous: false, exported: true, typ: time.Duration, tag: ""}]);
-	Position.init("", [{prop: "Coords", name: "Coords", anonymous: false, exported: true, typ: ptrType$31, tag: ""}, {prop: "Timestamp", name: "Timestamp", anonymous: false, exported: true, typ: time.Time, tag: ""}]);
-	Coordinates.init("", [{prop: "Object", name: "Object", anonymous: true, exported: true, typ: ptrType, tag: ""}, {prop: "Latitude", name: "Latitude", anonymous: false, exported: true, typ: $Float64, tag: "js:\"latitude\""}, {prop: "Longitude", name: "Longitude", anonymous: false, exported: true, typ: $Float64, tag: "js:\"longitude\""}, {prop: "Altitude", name: "Altitude", anonymous: false, exported: true, typ: $Float64, tag: "js:\"altitude\""}, {prop: "Accuracy", name: "Accuracy", anonymous: false, exported: true, typ: $Float64, tag: "js:\"accuracy\""}, {prop: "AltitudeAccuracy", name: "AltitudeAccuracy", anonymous: false, exported: true, typ: $Float64, tag: "js:\"altitudeAccuracy\""}, {prop: "Heading", name: "Heading", anonymous: false, exported: true, typ: $Float64, tag: "js:\"heading\""}, {prop: "Speed", name: "Speed", anonymous: false, exported: true, typ: $Float64, tag: "js:\"speed\""}]);
+	PositionError.init("", [{prop: "Object", name: "Object", embedded: true, exported: true, typ: ptrType, tag: ""}, {prop: "Code", name: "Code", embedded: false, exported: true, typ: $Int, tag: "js:\"code\""}]);
+	PositionOptions.init("", [{prop: "EnableHighAccuracy", name: "EnableHighAccuracy", embedded: false, exported: true, typ: $Bool, tag: ""}, {prop: "Timeout", name: "Timeout", embedded: false, exported: true, typ: time.Duration, tag: ""}, {prop: "MaximumAge", name: "MaximumAge", embedded: false, exported: true, typ: time.Duration, tag: ""}]);
+	Position.init("", [{prop: "Coords", name: "Coords", embedded: false, exported: true, typ: ptrType$31, tag: ""}, {prop: "Timestamp", name: "Timestamp", embedded: false, exported: true, typ: time.Time, tag: ""}]);
+	Coordinates.init("", [{prop: "Object", name: "Object", embedded: true, exported: true, typ: ptrType, tag: ""}, {prop: "Latitude", name: "Latitude", embedded: false, exported: true, typ: $Float64, tag: "js:\"latitude\""}, {prop: "Longitude", name: "Longitude", embedded: false, exported: true, typ: $Float64, tag: "js:\"longitude\""}, {prop: "Altitude", name: "Altitude", embedded: false, exported: true, typ: $Float64, tag: "js:\"altitude\""}, {prop: "Accuracy", name: "Accuracy", embedded: false, exported: true, typ: $Float64, tag: "js:\"accuracy\""}, {prop: "AltitudeAccuracy", name: "AltitudeAccuracy", embedded: false, exported: true, typ: $Float64, tag: "js:\"altitudeAccuracy\""}, {prop: "Heading", name: "Heading", embedded: false, exported: true, typ: $Float64, tag: "js:\"heading\""}, {prop: "Speed", name: "Speed", embedded: false, exported: true, typ: $Float64, tag: "js:\"speed\""}]);
 	History.init([{prop: "Back", name: "Back", pkg: "", typ: $funcType([], [], false)}, {prop: "Forward", name: "Forward", pkg: "", typ: $funcType([], [], false)}, {prop: "Go", name: "Go", pkg: "", typ: $funcType([$Int], [], false)}, {prop: "Length", name: "Length", pkg: "", typ: $funcType([], [$Int], false)}, {prop: "PushState", name: "PushState", pkg: "", typ: $funcType([$emptyInterface, $String, $String], [], false)}, {prop: "ReplaceState", name: "ReplaceState", pkg: "", typ: $funcType([$emptyInterface, $String, $String], [], false)}, {prop: "State", name: "State", pkg: "", typ: $funcType([], [$emptyInterface], false)}]);
-	Console.init("", [{prop: "Object", name: "Object", anonymous: true, exported: true, typ: ptrType, tag: ""}]);
+	Console.init("", [{prop: "Object", name: "Object", embedded: true, exported: true, typ: ptrType, tag: ""}]);
 	DocumentType.init([]);
 	DOMImplementation.init([]);
 	StyleSheet.init([]);
 	Node.init([{prop: "AddEventListener", name: "AddEventListener", pkg: "", typ: $funcType([$String, $Bool, funcType$2], [funcType$1], false)}, {prop: "AppendChild", name: "AppendChild", pkg: "", typ: $funcType([Node], [], false)}, {prop: "BaseURI", name: "BaseURI", pkg: "", typ: $funcType([], [$String], false)}, {prop: "ChildNodes", name: "ChildNodes", pkg: "", typ: $funcType([], [sliceType$2], false)}, {prop: "CloneNode", name: "CloneNode", pkg: "", typ: $funcType([$Bool], [Node], false)}, {prop: "CompareDocumentPosition", name: "CompareDocumentPosition", pkg: "", typ: $funcType([Node], [$Int], false)}, {prop: "Contains", name: "Contains", pkg: "", typ: $funcType([Node], [$Bool], false)}, {prop: "DispatchEvent", name: "DispatchEvent", pkg: "", typ: $funcType([Event], [$Bool], false)}, {prop: "FirstChild", name: "FirstChild", pkg: "", typ: $funcType([], [Node], false)}, {prop: "HasChildNodes", name: "HasChildNodes", pkg: "", typ: $funcType([], [$Bool], false)}, {prop: "InsertBefore", name: "InsertBefore", pkg: "", typ: $funcType([Node, Node], [], false)}, {prop: "IsDefaultNamespace", name: "IsDefaultNamespace", pkg: "", typ: $funcType([$String], [$Bool], false)}, {prop: "IsEqualNode", name: "IsEqualNode", pkg: "", typ: $funcType([Node], [$Bool], false)}, {prop: "LastChild", name: "LastChild", pkg: "", typ: $funcType([], [Node], false)}, {prop: "LookupNamespaceURI", name: "LookupNamespaceURI", pkg: "", typ: $funcType([$String], [$String], false)}, {prop: "LookupPrefix", name: "LookupPrefix", pkg: "", typ: $funcType([], [$String], false)}, {prop: "NextSibling", name: "NextSibling", pkg: "", typ: $funcType([], [Node], false)}, {prop: "NodeName", name: "NodeName", pkg: "", typ: $funcType([], [$String], false)}, {prop: "NodeType", name: "NodeType", pkg: "", typ: $funcType([], [$Int], false)}, {prop: "NodeValue", name: "NodeValue", pkg: "", typ: $funcType([], [$String], false)}, {prop: "Normalize", name: "Normalize", pkg: "", typ: $funcType([], [], false)}, {prop: "OwnerDocument", name: "OwnerDocument", pkg: "", typ: $funcType([], [Document], false)}, {prop: "ParentElement", name: "ParentElement", pkg: "", typ: $funcType([], [Element], false)}, {prop: "ParentNode", name: "ParentNode", pkg: "", typ: $funcType([], [Node], false)}, {prop: "PreviousSibling", name: "PreviousSibling", pkg: "", typ: $funcType([], [Node], false)}, {prop: "RemoveChild", name: "RemoveChild", pkg: "", typ: $funcType([Node], [], false)}, {prop: "RemoveEventListener", name: "RemoveEventListener", pkg: "", typ: $funcType([$String, $Bool, funcType$1], [], false)}, {prop: "ReplaceChild", name: "ReplaceChild", pkg: "", typ: $funcType([Node, Node], [], false)}, {prop: "SetNodeValue", name: "SetNodeValue", pkg: "", typ: $funcType([$String], [], false)}, {prop: "SetTextContent", name: "SetTextContent", pkg: "", typ: $funcType([$String], [], false)}, {prop: "TextContent", name: "TextContent", pkg: "", typ: $funcType([], [$String], false)}, {prop: "Underlying", name: "Underlying", pkg: "", typ: $funcType([], [ptrType], false)}]);
-	BasicNode.init("", [{prop: "Object", name: "Object", anonymous: true, exported: true, typ: ptrType, tag: ""}]);
+	BasicNode.init("", [{prop: "Object", name: "Object", embedded: true, exported: true, typ: ptrType, tag: ""}]);
 	Element.init([{prop: "AddEventListener", name: "AddEventListener", pkg: "", typ: $funcType([$String, $Bool, funcType$2], [funcType$1], false)}, {prop: "AppendChild", name: "AppendChild", pkg: "", typ: $funcType([Node], [], false)}, {prop: "Attributes", name: "Attributes", pkg: "", typ: $funcType([], [mapType], false)}, {prop: "BaseURI", name: "BaseURI", pkg: "", typ: $funcType([], [$String], false)}, {prop: "ChildNodes", name: "ChildNodes", pkg: "", typ: $funcType([], [sliceType$2], false)}, {prop: "Class", name: "Class", pkg: "", typ: $funcType([], [ptrType$21], false)}, {prop: "CloneNode", name: "CloneNode", pkg: "", typ: $funcType([$Bool], [Node], false)}, {prop: "CompareDocumentPosition", name: "CompareDocumentPosition", pkg: "", typ: $funcType([Node], [$Int], false)}, {prop: "Contains", name: "Contains", pkg: "", typ: $funcType([Node], [$Bool], false)}, {prop: "DispatchEvent", name: "DispatchEvent", pkg: "", typ: $funcType([Event], [$Bool], false)}, {prop: "FirstChild", name: "FirstChild", pkg: "", typ: $funcType([], [Node], false)}, {prop: "GetAttribute", name: "GetAttribute", pkg: "", typ: $funcType([$String], [$String], false)}, {prop: "GetAttributeNS", name: "GetAttributeNS", pkg: "", typ: $funcType([$String, $String], [$String], false)}, {prop: "GetBoundingClientRect", name: "GetBoundingClientRect", pkg: "", typ: $funcType([], [ClientRect], false)}, {prop: "GetElementsByClassName", name: "GetElementsByClassName", pkg: "", typ: $funcType([$String], [sliceType$3], false)}, {prop: "GetElementsByTagName", name: "GetElementsByTagName", pkg: "", typ: $funcType([$String], [sliceType$3], false)}, {prop: "GetElementsByTagNameNS", name: "GetElementsByTagNameNS", pkg: "", typ: $funcType([$String, $String], [sliceType$3], false)}, {prop: "HasAttribute", name: "HasAttribute", pkg: "", typ: $funcType([$String], [$Bool], false)}, {prop: "HasAttributeNS", name: "HasAttributeNS", pkg: "", typ: $funcType([$String, $String], [$Bool], false)}, {prop: "HasChildNodes", name: "HasChildNodes", pkg: "", typ: $funcType([], [$Bool], false)}, {prop: "ID", name: "ID", pkg: "", typ: $funcType([], [$String], false)}, {prop: "InnerHTML", name: "InnerHTML", pkg: "", typ: $funcType([], [$String], false)}, {prop: "InsertBefore", name: "InsertBefore", pkg: "", typ: $funcType([Node, Node], [], false)}, {prop: "IsDefaultNamespace", name: "IsDefaultNamespace", pkg: "", typ: $funcType([$String], [$Bool], false)}, {prop: "IsEqualNode", name: "IsEqualNode", pkg: "", typ: $funcType([Node], [$Bool], false)}, {prop: "LastChild", name: "LastChild", pkg: "", typ: $funcType([], [Node], false)}, {prop: "LookupNamespaceURI", name: "LookupNamespaceURI", pkg: "", typ: $funcType([$String], [$String], false)}, {prop: "LookupPrefix", name: "LookupPrefix", pkg: "", typ: $funcType([], [$String], false)}, {prop: "NextElementSibling", name: "NextElementSibling", pkg: "", typ: $funcType([], [Element], false)}, {prop: "NextSibling", name: "NextSibling", pkg: "", typ: $funcType([], [Node], false)}, {prop: "NodeName", name: "NodeName", pkg: "", typ: $funcType([], [$String], false)}, {prop: "NodeType", name: "NodeType", pkg: "", typ: $funcType([], [$Int], false)}, {prop: "NodeValue", name: "NodeValue", pkg: "", typ: $funcType([], [$String], false)}, {prop: "Normalize", name: "Normalize", pkg: "", typ: $funcType([], [], false)}, {prop: "OuterHTML", name: "OuterHTML", pkg: "", typ: $funcType([], [$String], false)}, {prop: "OwnerDocument", name: "OwnerDocument", pkg: "", typ: $funcType([], [Document], false)}, {prop: "ParentElement", name: "ParentElement", pkg: "", typ: $funcType([], [Element], false)}, {prop: "ParentNode", name: "ParentNode", pkg: "", typ: $funcType([], [Node], false)}, {prop: "PreviousElementSibling", name: "PreviousElementSibling", pkg: "", typ: $funcType([], [Element], false)}, {prop: "PreviousSibling", name: "PreviousSibling", pkg: "", typ: $funcType([], [Node], false)}, {prop: "QuerySelector", name: "QuerySelector", pkg: "", typ: $funcType([$String], [Element], false)}, {prop: "QuerySelectorAll", name: "QuerySelectorAll", pkg: "", typ: $funcType([$String], [sliceType$3], false)}, {prop: "RemoveAttribute", name: "RemoveAttribute", pkg: "", typ: $funcType([$String], [], false)}, {prop: "RemoveAttributeNS", name: "RemoveAttributeNS", pkg: "", typ: $funcType([$String, $String], [], false)}, {prop: "RemoveChild", name: "RemoveChild", pkg: "", typ: $funcType([Node], [], false)}, {prop: "RemoveEventListener", name: "RemoveEventListener", pkg: "", typ: $funcType([$String, $Bool, funcType$1], [], false)}, {prop: "ReplaceChild", name: "ReplaceChild", pkg: "", typ: $funcType([Node, Node], [], false)}, {prop: "SetAttribute", name: "SetAttribute", pkg: "", typ: $funcType([$String, $String], [], false)}, {prop: "SetAttributeNS", name: "SetAttributeNS", pkg: "", typ: $funcType([$String, $String, $String], [], false)}, {prop: "SetID", name: "SetID", pkg: "", typ: $funcType([$String], [], false)}, {prop: "SetInnerHTML", name: "SetInnerHTML", pkg: "", typ: $funcType([$String], [], false)}, {prop: "SetNodeValue", name: "SetNodeValue", pkg: "", typ: $funcType([$String], [], false)}, {prop: "SetOuterHTML", name: "SetOuterHTML", pkg: "", typ: $funcType([$String], [], false)}, {prop: "SetTextContent", name: "SetTextContent", pkg: "", typ: $funcType([$String], [], false)}, {prop: "TagName", name: "TagName", pkg: "", typ: $funcType([], [$String], false)}, {prop: "TextContent", name: "TextContent", pkg: "", typ: $funcType([], [$String], false)}, {prop: "Underlying", name: "Underlying", pkg: "", typ: $funcType([], [ptrType], false)}]);
-	ClientRect.init("", [{prop: "Object", name: "Object", anonymous: true, exported: true, typ: ptrType, tag: ""}, {prop: "Height", name: "Height", anonymous: false, exported: true, typ: $Float64, tag: "js:\"height\""}, {prop: "Width", name: "Width", anonymous: false, exported: true, typ: $Float64, tag: "js:\"width\""}, {prop: "Left", name: "Left", anonymous: false, exported: true, typ: $Float64, tag: "js:\"left\""}, {prop: "Right", name: "Right", anonymous: false, exported: true, typ: $Float64, tag: "js:\"right\""}, {prop: "Top", name: "Top", anonymous: false, exported: true, typ: $Float64, tag: "js:\"top\""}, {prop: "Bottom", name: "Bottom", anonymous: false, exported: true, typ: $Float64, tag: "js:\"bottom\""}]);
-	BasicHTMLElement.init("", [{prop: "BasicElement", name: "BasicElement", anonymous: true, exported: true, typ: ptrType$32, tag: ""}]);
-	BasicElement.init("", [{prop: "BasicNode", name: "BasicNode", anonymous: true, exported: true, typ: ptrType$23, tag: ""}]);
-	HTMLAnchorElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "URLUtils", name: "URLUtils", anonymous: true, exported: true, typ: ptrType$2, tag: ""}, {prop: "HrefLang", name: "HrefLang", anonymous: false, exported: true, typ: $String, tag: "js:\"hreflang\""}, {prop: "Media", name: "Media", anonymous: false, exported: true, typ: $String, tag: "js:\"media\""}, {prop: "TabIndex", name: "TabIndex", anonymous: false, exported: true, typ: $Int, tag: "js:\"tabIndex\""}, {prop: "Target", name: "Target", anonymous: false, exported: true, typ: $String, tag: "js:\"target\""}, {prop: "Text", name: "Text", anonymous: false, exported: true, typ: $String, tag: "js:\"text\""}, {prop: "Type", name: "Type", anonymous: false, exported: true, typ: $String, tag: "js:\"type\""}]);
-	HTMLAppletElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Alt", name: "Alt", anonymous: false, exported: true, typ: $String, tag: "js:\"alt\""}, {prop: "Coords", name: "Coords", anonymous: false, exported: true, typ: $String, tag: "js:\"coords\""}, {prop: "HrefLang", name: "HrefLang", anonymous: false, exported: true, typ: $String, tag: "js:\"hreflang\""}, {prop: "Media", name: "Media", anonymous: false, exported: true, typ: $String, tag: "js:\"media\""}, {prop: "Search", name: "Search", anonymous: false, exported: true, typ: $String, tag: "js:\"search\""}, {prop: "Shape", name: "Shape", anonymous: false, exported: true, typ: $String, tag: "js:\"shape\""}, {prop: "TabIndex", name: "TabIndex", anonymous: false, exported: true, typ: $Int, tag: "js:\"tabIndex\""}, {prop: "Target", name: "Target", anonymous: false, exported: true, typ: $String, tag: "js:\"target\""}, {prop: "Type", name: "Type", anonymous: false, exported: true, typ: $String, tag: "js:\"type\""}]);
-	HTMLAreaElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "URLUtils", name: "URLUtils", anonymous: true, exported: true, typ: ptrType$2, tag: ""}, {prop: "Alt", name: "Alt", anonymous: false, exported: true, typ: $String, tag: "js:\"alt\""}, {prop: "Coords", name: "Coords", anonymous: false, exported: true, typ: $String, tag: "js:\"coords\""}, {prop: "HrefLang", name: "HrefLang", anonymous: false, exported: true, typ: $String, tag: "js:\"hreflang\""}, {prop: "Media", name: "Media", anonymous: false, exported: true, typ: $String, tag: "js:\"media\""}, {prop: "Search", name: "Search", anonymous: false, exported: true, typ: $String, tag: "js:\"search\""}, {prop: "Shape", name: "Shape", anonymous: false, exported: true, typ: $String, tag: "js:\"shape\""}, {prop: "TabIndex", name: "TabIndex", anonymous: false, exported: true, typ: $Int, tag: "js:\"tabIndex\""}, {prop: "Target", name: "Target", anonymous: false, exported: true, typ: $String, tag: "js:\"target\""}, {prop: "Type", name: "Type", anonymous: false, exported: true, typ: $String, tag: "js:\"type\""}]);
-	HTMLAudioElement.init("", [{prop: "HTMLMediaElement", name: "HTMLMediaElement", anonymous: true, exported: true, typ: ptrType$3, tag: ""}]);
-	HTMLBRElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLBaseElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLBodyElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	ValidityState.init("", [{prop: "Object", name: "Object", anonymous: true, exported: true, typ: ptrType, tag: ""}, {prop: "CustomError", name: "CustomError", anonymous: false, exported: true, typ: $Bool, tag: "js:\"customError\""}, {prop: "PatternMismatch", name: "PatternMismatch", anonymous: false, exported: true, typ: $Bool, tag: "js:\"patternMismatch\""}, {prop: "RangeOverflow", name: "RangeOverflow", anonymous: false, exported: true, typ: $Bool, tag: "js:\"rangeOverflow\""}, {prop: "RangeUnderflow", name: "RangeUnderflow", anonymous: false, exported: true, typ: $Bool, tag: "js:\"rangeUnderflow\""}, {prop: "StepMismatch", name: "StepMismatch", anonymous: false, exported: true, typ: $Bool, tag: "js:\"stepMismatch\""}, {prop: "TooLong", name: "TooLong", anonymous: false, exported: true, typ: $Bool, tag: "js:\"tooLong\""}, {prop: "TypeMismatch", name: "TypeMismatch", anonymous: false, exported: true, typ: $Bool, tag: "js:\"typeMismatch\""}, {prop: "Valid", name: "Valid", anonymous: false, exported: true, typ: $Bool, tag: "js:\"valid\""}, {prop: "ValueMissing", name: "ValueMissing", anonymous: false, exported: true, typ: $Bool, tag: "js:\"valueMissing\""}]);
-	HTMLButtonElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "AutoFocus", name: "AutoFocus", anonymous: false, exported: true, typ: $Bool, tag: "js:\"autofocus\""}, {prop: "Disabled", name: "Disabled", anonymous: false, exported: true, typ: $Bool, tag: "js:\"disabled\""}, {prop: "FormAction", name: "FormAction", anonymous: false, exported: true, typ: $String, tag: "js:\"formAction\""}, {prop: "FormEncType", name: "FormEncType", anonymous: false, exported: true, typ: $String, tag: "js:\"formEncType\""}, {prop: "FormMethod", name: "FormMethod", anonymous: false, exported: true, typ: $String, tag: "js:\"formMethod\""}, {prop: "FormNoValidate", name: "FormNoValidate", anonymous: false, exported: true, typ: $Bool, tag: "js:\"formNoValidate\""}, {prop: "FormTarget", name: "FormTarget", anonymous: false, exported: true, typ: $String, tag: "js:\"formTarget\""}, {prop: "Name", name: "Name", anonymous: false, exported: true, typ: $String, tag: "js:\"name\""}, {prop: "TabIndex", name: "TabIndex", anonymous: false, exported: true, typ: $Int, tag: "js:\"tabIndex\""}, {prop: "Type", name: "Type", anonymous: false, exported: true, typ: $String, tag: "js:\"type\""}, {prop: "ValidationMessage", name: "ValidationMessage", anonymous: false, exported: true, typ: $String, tag: "js:\"validationMessage\""}, {prop: "Value", name: "Value", anonymous: false, exported: true, typ: $String, tag: "js:\"value\""}, {prop: "WillValidate", name: "WillValidate", anonymous: false, exported: true, typ: $Bool, tag: "js:\"willValidate\""}]);
-	HTMLCanvasElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Height", name: "Height", anonymous: false, exported: true, typ: $Int, tag: "js:\"height\""}, {prop: "Width", name: "Width", anonymous: false, exported: true, typ: $Int, tag: "js:\"width\""}]);
-	CanvasRenderingContext2D.init("", [{prop: "Object", name: "Object", anonymous: true, exported: true, typ: ptrType, tag: ""}, {prop: "FillStyle", name: "FillStyle", anonymous: false, exported: true, typ: $String, tag: "js:\"fillStyle\""}, {prop: "StrokeStyle", name: "StrokeStyle", anonymous: false, exported: true, typ: $String, tag: "js:\"strokeStyle\""}, {prop: "ShadowColor", name: "ShadowColor", anonymous: false, exported: true, typ: $String, tag: "js:\"shadowColor\""}, {prop: "ShadowBlur", name: "ShadowBlur", anonymous: false, exported: true, typ: $Int, tag: "js:\"shadowBlur\""}, {prop: "ShadowOffsetX", name: "ShadowOffsetX", anonymous: false, exported: true, typ: $Int, tag: "js:\"shadowOffsetX\""}, {prop: "ShadowOffsetY", name: "ShadowOffsetY", anonymous: false, exported: true, typ: $Int, tag: "js:\"shadowOffsetY\""}, {prop: "LineCap", name: "LineCap", anonymous: false, exported: true, typ: $String, tag: "js:\"lineCap\""}, {prop: "LineJoin", name: "LineJoin", anonymous: false, exported: true, typ: $String, tag: "js:\"lineJoin\""}, {prop: "LineWidth", name: "LineWidth", anonymous: false, exported: true, typ: $Int, tag: "js:\"lineWidth\""}, {prop: "MiterLimit", name: "MiterLimit", anonymous: false, exported: true, typ: $Int, tag: "js:\"miterLimit\""}, {prop: "Font", name: "Font", anonymous: false, exported: true, typ: $String, tag: "js:\"font\""}, {prop: "TextAlign", name: "TextAlign", anonymous: false, exported: true, typ: $String, tag: "js:\"textAlign\""}, {prop: "TextBaseline", name: "TextBaseline", anonymous: false, exported: true, typ: $String, tag: "js:\"textBaseline\""}, {prop: "GlobalAlpha", name: "GlobalAlpha", anonymous: false, exported: true, typ: $Float64, tag: "js:\"globalAlpha\""}, {prop: "GlobalCompositeOperation", name: "GlobalCompositeOperation", anonymous: false, exported: true, typ: $String, tag: "js:\"globalCompositeOperation\""}]);
-	ImageData.init("", [{prop: "Object", name: "Object", anonymous: true, exported: true, typ: ptrType, tag: ""}, {prop: "Width", name: "Width", anonymous: false, exported: true, typ: $Int, tag: "js:\"width\""}, {prop: "Height", name: "Height", anonymous: false, exported: true, typ: $Int, tag: "js:\"height\""}, {prop: "Data", name: "Data", anonymous: false, exported: true, typ: ptrType, tag: "js:\"data\""}]);
-	CanvasGradient.init("", [{prop: "Object", name: "Object", anonymous: true, exported: true, typ: ptrType, tag: ""}]);
-	CanvasPattern.init("", [{prop: "Object", name: "Object", anonymous: true, exported: true, typ: ptrType, tag: ""}]);
-	TextMetrics.init("", [{prop: "Object", name: "Object", anonymous: true, exported: true, typ: ptrType, tag: ""}, {prop: "Width", name: "Width", anonymous: false, exported: true, typ: $Float64, tag: "js:\"width\""}, {prop: "ActualBoundingBoxLeft", name: "ActualBoundingBoxLeft", anonymous: false, exported: true, typ: $Float64, tag: "js:\"actualBoundingBoxLeft\""}, {prop: "ActualBoundingBoxRight", name: "ActualBoundingBoxRight", anonymous: false, exported: true, typ: $Float64, tag: "js:\"actualBoundingBoxRight\""}, {prop: "FontBoundingBoxAscent", name: "FontBoundingBoxAscent", anonymous: false, exported: true, typ: $Float64, tag: "js:\"fontBoundingBoxAscent\""}, {prop: "FontBoundingBoxDescent", name: "FontBoundingBoxDescent", anonymous: false, exported: true, typ: $Float64, tag: "js:\"fontBoundingBoxDescent\""}, {prop: "ActualBoundingBoxAscent", name: "ActualBoundingBoxAscent", anonymous: false, exported: true, typ: $Float64, tag: "js:\"actualBoundingBoxAscent\""}, {prop: "ActualBoundingBoxDescent", name: "ActualBoundingBoxDescent", anonymous: false, exported: true, typ: $Float64, tag: "js:\"actualBoundingBoxDescent\""}, {prop: "EmHeightAscent", name: "EmHeightAscent", anonymous: false, exported: true, typ: $Float64, tag: "js:\"emHeightAscent\""}, {prop: "EmHeightDescent", name: "EmHeightDescent", anonymous: false, exported: true, typ: $Float64, tag: "js:\"emHeightDescent\""}, {prop: "HangingBaseline", name: "HangingBaseline", anonymous: false, exported: true, typ: $Float64, tag: "js:\"hangingBaseline\""}, {prop: "AlphabeticBaseline", name: "AlphabeticBaseline", anonymous: false, exported: true, typ: $Float64, tag: "js:\"alphabeticBaseline\""}, {prop: "IdeographicBaseline", name: "IdeographicBaseline", anonymous: false, exported: true, typ: $Float64, tag: "js:\"ideographicBaseline\""}]);
-	HTMLDListElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLDataElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Value", name: "Value", anonymous: false, exported: true, typ: $String, tag: "js:\"value\""}]);
-	HTMLDataListElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLDirectoryElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLDivElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLEmbedElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Src", name: "Src", anonymous: false, exported: true, typ: $String, tag: "js:\"src\""}, {prop: "Type", name: "Type", anonymous: false, exported: true, typ: $String, tag: "js:\"type\""}, {prop: "Width", name: "Width", anonymous: false, exported: true, typ: $String, tag: "js:\"width\""}]);
-	HTMLFieldSetElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Disabled", name: "Disabled", anonymous: false, exported: true, typ: $Bool, tag: "js:\"disabled\""}, {prop: "Name", name: "Name", anonymous: false, exported: true, typ: $String, tag: "js:\"name\""}, {prop: "Type", name: "Type", anonymous: false, exported: true, typ: $String, tag: "js:\"type\""}, {prop: "ValidationMessage", name: "ValidationMessage", anonymous: false, exported: true, typ: $String, tag: "js:\"validationMessage\""}, {prop: "WillValidate", name: "WillValidate", anonymous: false, exported: true, typ: $Bool, tag: "js:\"willValidate\""}]);
-	HTMLFontElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLFormElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "AcceptCharset", name: "AcceptCharset", anonymous: false, exported: true, typ: $String, tag: "js:\"acceptCharset\""}, {prop: "Action", name: "Action", anonymous: false, exported: true, typ: $String, tag: "js:\"action\""}, {prop: "Autocomplete", name: "Autocomplete", anonymous: false, exported: true, typ: $String, tag: "js:\"autocomplete\""}, {prop: "Encoding", name: "Encoding", anonymous: false, exported: true, typ: $String, tag: "js:\"encoding\""}, {prop: "Enctype", name: "Enctype", anonymous: false, exported: true, typ: $String, tag: "js:\"enctype\""}, {prop: "Length", name: "Length", anonymous: false, exported: true, typ: $Int, tag: "js:\"length\""}, {prop: "Method", name: "Method", anonymous: false, exported: true, typ: $String, tag: "js:\"method\""}, {prop: "Name", name: "Name", anonymous: false, exported: true, typ: $String, tag: "js:\"name\""}, {prop: "NoValidate", name: "NoValidate", anonymous: false, exported: true, typ: $Bool, tag: "js:\"noValidate\""}, {prop: "Target", name: "Target", anonymous: false, exported: true, typ: $String, tag: "js:\"target\""}]);
-	HTMLFrameElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLFrameSetElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLHRElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLHeadElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLHeadingElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLHtmlElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLIFrameElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Width", name: "Width", anonymous: false, exported: true, typ: $String, tag: "js:\"width\""}, {prop: "Height", name: "Height", anonymous: false, exported: true, typ: $String, tag: "js:\"height\""}, {prop: "Name", name: "Name", anonymous: false, exported: true, typ: $String, tag: "js:\"name\""}, {prop: "Src", name: "Src", anonymous: false, exported: true, typ: $String, tag: "js:\"src\""}, {prop: "SrcDoc", name: "SrcDoc", anonymous: false, exported: true, typ: $String, tag: "js:\"srcdoc\""}, {prop: "Seamless", name: "Seamless", anonymous: false, exported: true, typ: $Bool, tag: "js:\"seamless\""}]);
-	HTMLImageElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Complete", name: "Complete", anonymous: false, exported: true, typ: $Bool, tag: "js:\"complete\""}, {prop: "CrossOrigin", name: "CrossOrigin", anonymous: false, exported: true, typ: $String, tag: "js:\"crossOrigin\""}, {prop: "Height", name: "Height", anonymous: false, exported: true, typ: $Int, tag: "js:\"height\""}, {prop: "IsMap", name: "IsMap", anonymous: false, exported: true, typ: $Bool, tag: "js:\"isMap\""}, {prop: "NaturalHeight", name: "NaturalHeight", anonymous: false, exported: true, typ: $Int, tag: "js:\"naturalHeight\""}, {prop: "NaturalWidth", name: "NaturalWidth", anonymous: false, exported: true, typ: $Int, tag: "js:\"naturalWidth\""}, {prop: "Src", name: "Src", anonymous: false, exported: true, typ: $String, tag: "js:\"src\""}, {prop: "UseMap", name: "UseMap", anonymous: false, exported: true, typ: $String, tag: "js:\"useMap\""}, {prop: "Width", name: "Width", anonymous: false, exported: true, typ: $Int, tag: "js:\"width\""}]);
-	HTMLInputElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Accept", name: "Accept", anonymous: false, exported: true, typ: $String, tag: "js:\"accept\""}, {prop: "Alt", name: "Alt", anonymous: false, exported: true, typ: $String, tag: "js:\"alt\""}, {prop: "Autocomplete", name: "Autocomplete", anonymous: false, exported: true, typ: $String, tag: "js:\"autocomplete\""}, {prop: "Autofocus", name: "Autofocus", anonymous: false, exported: true, typ: $Bool, tag: "js:\"autofocus\""}, {prop: "Checked", name: "Checked", anonymous: false, exported: true, typ: $Bool, tag: "js:\"checked\""}, {prop: "DefaultChecked", name: "DefaultChecked", anonymous: false, exported: true, typ: $Bool, tag: "js:\"defaultChecked\""}, {prop: "DefaultValue", name: "DefaultValue", anonymous: false, exported: true, typ: $String, tag: "js:\"defaultValue\""}, {prop: "DirName", name: "DirName", anonymous: false, exported: true, typ: $String, tag: "js:\"dirName\""}, {prop: "Disabled", name: "Disabled", anonymous: false, exported: true, typ: $Bool, tag: "js:\"disabled\""}, {prop: "FormAction", name: "FormAction", anonymous: false, exported: true, typ: $String, tag: "js:\"formAction\""}, {prop: "FormEncType", name: "FormEncType", anonymous: false, exported: true, typ: $String, tag: "js:\"formEncType\""}, {prop: "FormMethod", name: "FormMethod", anonymous: false, exported: true, typ: $String, tag: "js:\"formMethod\""}, {prop: "FormNoValidate", name: "FormNoValidate", anonymous: false, exported: true, typ: $Bool, tag: "js:\"formNoValidate\""}, {prop: "FormTarget", name: "FormTarget", anonymous: false, exported: true, typ: $String, tag: "js:\"formTarget\""}, {prop: "Height", name: "Height", anonymous: false, exported: true, typ: $String, tag: "js:\"height\""}, {prop: "Indeterminate", name: "Indeterminate", anonymous: false, exported: true, typ: $Bool, tag: "js:\"indeterminate\""}, {prop: "Max", name: "Max", anonymous: false, exported: true, typ: $String, tag: "js:\"max\""}, {prop: "MaxLength", name: "MaxLength", anonymous: false, exported: true, typ: $Int, tag: "js:\"maxLength\""}, {prop: "Min", name: "Min", anonymous: false, exported: true, typ: $String, tag: "js:\"min\""}, {prop: "Multiple", name: "Multiple", anonymous: false, exported: true, typ: $Bool, tag: "js:\"multiple\""}, {prop: "Name", name: "Name", anonymous: false, exported: true, typ: $String, tag: "js:\"name\""}, {prop: "Pattern", name: "Pattern", anonymous: false, exported: true, typ: $String, tag: "js:\"pattern\""}, {prop: "Placeholder", name: "Placeholder", anonymous: false, exported: true, typ: $String, tag: "js:\"placeholder\""}, {prop: "ReadOnly", name: "ReadOnly", anonymous: false, exported: true, typ: $Bool, tag: "js:\"readOnly\""}, {prop: "Required", name: "Required", anonymous: false, exported: true, typ: $Bool, tag: "js:\"required\""}, {prop: "SelectionDirection", name: "SelectionDirection", anonymous: false, exported: true, typ: $String, tag: "js:\"selectionDirection\""}, {prop: "SelectionEnd", name: "SelectionEnd", anonymous: false, exported: true, typ: $Int, tag: "js:\"selectionEnd\""}, {prop: "SelectionStart", name: "SelectionStart", anonymous: false, exported: true, typ: $Int, tag: "js:\"selectionStart\""}, {prop: "Size", name: "Size", anonymous: false, exported: true, typ: $Int, tag: "js:\"size\""}, {prop: "Src", name: "Src", anonymous: false, exported: true, typ: $String, tag: "js:\"src\""}, {prop: "Step", name: "Step", anonymous: false, exported: true, typ: $String, tag: "js:\"step\""}, {prop: "TabIndex", name: "TabIndex", anonymous: false, exported: true, typ: $Int, tag: "js:\"tabIndex\""}, {prop: "Type", name: "Type", anonymous: false, exported: true, typ: $String, tag: "js:\"type\""}, {prop: "ValidationMessage", name: "ValidationMessage", anonymous: false, exported: true, typ: $String, tag: "js:\"validationMessage\""}, {prop: "Value", name: "Value", anonymous: false, exported: true, typ: $String, tag: "js:\"value\""}, {prop: "ValueAsDate", name: "ValueAsDate", anonymous: false, exported: true, typ: time.Time, tag: "js:\"valueAsDate\""}, {prop: "ValueAsNumber", name: "ValueAsNumber", anonymous: false, exported: true, typ: $Float64, tag: "js:\"valueAsNumber\""}, {prop: "Width", name: "Width", anonymous: false, exported: true, typ: $String, tag: "js:\"width\""}, {prop: "WillValidate", name: "WillValidate", anonymous: false, exported: true, typ: $Bool, tag: "js:\"willValidate\""}]);
-	File.init("", [{prop: "Object", name: "Object", anonymous: true, exported: true, typ: ptrType, tag: ""}]);
-	HTMLKeygenElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Autofocus", name: "Autofocus", anonymous: false, exported: true, typ: $Bool, tag: "js:\"autofocus\""}, {prop: "Challenge", name: "Challenge", anonymous: false, exported: true, typ: $String, tag: "js:\"challenge\""}, {prop: "Disabled", name: "Disabled", anonymous: false, exported: true, typ: $Bool, tag: "js:\"disabled\""}, {prop: "Keytype", name: "Keytype", anonymous: false, exported: true, typ: $String, tag: "js:\"keytype\""}, {prop: "Name", name: "Name", anonymous: false, exported: true, typ: $String, tag: "js:\"name\""}, {prop: "Type", name: "Type", anonymous: false, exported: true, typ: $String, tag: "js:\"type\""}, {prop: "ValidationMessage", name: "ValidationMessage", anonymous: false, exported: true, typ: $String, tag: "js:\"validationMessage\""}, {prop: "WillValidate", name: "WillValidate", anonymous: false, exported: true, typ: $Bool, tag: "js:\"willValidate\""}]);
-	HTMLLIElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Value", name: "Value", anonymous: false, exported: true, typ: $Int, tag: "js:\"value\""}]);
-	HTMLLabelElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "For", name: "For", anonymous: false, exported: true, typ: $String, tag: "js:\"htmlFor\""}]);
-	HTMLLegendElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLLinkElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Disabled", name: "Disabled", anonymous: false, exported: true, typ: $Bool, tag: "js:\"disabled\""}, {prop: "Href", name: "Href", anonymous: false, exported: true, typ: $String, tag: "js:\"href\""}, {prop: "HrefLang", name: "HrefLang", anonymous: false, exported: true, typ: $String, tag: "js:\"hrefLang\""}, {prop: "Media", name: "Media", anonymous: false, exported: true, typ: $String, tag: "js:\"media\""}, {prop: "Type", name: "Type", anonymous: false, exported: true, typ: $String, tag: "js:\"type\""}]);
-	HTMLMapElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Name", name: "Name", anonymous: false, exported: true, typ: $String, tag: "js:\"name\""}]);
-	HTMLMediaElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Paused", name: "Paused", anonymous: false, exported: true, typ: $Bool, tag: "js:\"paused\""}]);
-	HTMLMenuElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLMetaElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Content", name: "Content", anonymous: false, exported: true, typ: $String, tag: "js:\"content\""}, {prop: "HTTPEquiv", name: "HTTPEquiv", anonymous: false, exported: true, typ: $String, tag: "js:\"httpEquiv\""}, {prop: "Name", name: "Name", anonymous: false, exported: true, typ: $String, tag: "js:\"name\""}]);
-	HTMLMeterElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "High", name: "High", anonymous: false, exported: true, typ: $Float64, tag: "js:\"high\""}, {prop: "Low", name: "Low", anonymous: false, exported: true, typ: $Float64, tag: "js:\"low\""}, {prop: "Max", name: "Max", anonymous: false, exported: true, typ: $Float64, tag: "js:\"max\""}, {prop: "Min", name: "Min", anonymous: false, exported: true, typ: $Float64, tag: "js:\"min\""}, {prop: "Optimum", name: "Optimum", anonymous: false, exported: true, typ: $Float64, tag: "js:\"optimum\""}]);
-	HTMLModElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Cite", name: "Cite", anonymous: false, exported: true, typ: $String, tag: "js:\"cite\""}, {prop: "DateTime", name: "DateTime", anonymous: false, exported: true, typ: $String, tag: "js:\"dateTime\""}]);
-	HTMLOListElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Reversed", name: "Reversed", anonymous: false, exported: true, typ: $Bool, tag: "js:\"reversed\""}, {prop: "Start", name: "Start", anonymous: false, exported: true, typ: $Int, tag: "js:\"start\""}, {prop: "Type", name: "Type", anonymous: false, exported: true, typ: $String, tag: "js:\"type\""}]);
-	HTMLObjectElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Data", name: "Data", anonymous: false, exported: true, typ: $String, tag: "js:\"data\""}, {prop: "Height", name: "Height", anonymous: false, exported: true, typ: $String, tag: "js:\"height\""}, {prop: "Name", name: "Name", anonymous: false, exported: true, typ: $String, tag: "js:\"name\""}, {prop: "TabIndex", name: "TabIndex", anonymous: false, exported: true, typ: $Int, tag: "js:\"tabIndex\""}, {prop: "Type", name: "Type", anonymous: false, exported: true, typ: $String, tag: "js:\"type\""}, {prop: "TypeMustMatch", name: "TypeMustMatch", anonymous: false, exported: true, typ: $Bool, tag: "js:\"typeMustMatch\""}, {prop: "UseMap", name: "UseMap", anonymous: false, exported: true, typ: $String, tag: "js:\"useMap\""}, {prop: "ValidationMessage", name: "ValidationMessage", anonymous: false, exported: true, typ: $String, tag: "js:\"validationMessage\""}, {prop: "With", name: "With", anonymous: false, exported: true, typ: $String, tag: "js:\"with\""}, {prop: "WillValidate", name: "WillValidate", anonymous: false, exported: true, typ: $Bool, tag: "js:\"willValidate\""}]);
-	HTMLOptGroupElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Disabled", name: "Disabled", anonymous: false, exported: true, typ: $Bool, tag: "js:\"disabled\""}, {prop: "Label", name: "Label", anonymous: false, exported: true, typ: $String, tag: "js:\"label\""}]);
-	HTMLOptionElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "DefaultSelected", name: "DefaultSelected", anonymous: false, exported: true, typ: $Bool, tag: "js:\"defaultSelected\""}, {prop: "Disabled", name: "Disabled", anonymous: false, exported: true, typ: $Bool, tag: "js:\"disabled\""}, {prop: "Index", name: "Index", anonymous: false, exported: true, typ: $Int, tag: "js:\"index\""}, {prop: "Label", name: "Label", anonymous: false, exported: true, typ: $String, tag: "js:\"label\""}, {prop: "Selected", name: "Selected", anonymous: false, exported: true, typ: $Bool, tag: "js:\"selected\""}, {prop: "Text", name: "Text", anonymous: false, exported: true, typ: $String, tag: "js:\"text\""}, {prop: "Value", name: "Value", anonymous: false, exported: true, typ: $String, tag: "js:\"value\""}]);
-	HTMLOutputElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "DefaultValue", name: "DefaultValue", anonymous: false, exported: true, typ: $String, tag: "js:\"defaultValue\""}, {prop: "Name", name: "Name", anonymous: false, exported: true, typ: $String, tag: "js:\"name\""}, {prop: "Type", name: "Type", anonymous: false, exported: true, typ: $String, tag: "js:\"type\""}, {prop: "ValidationMessage", name: "ValidationMessage", anonymous: false, exported: true, typ: $String, tag: "js:\"validationMessage\""}, {prop: "Value", name: "Value", anonymous: false, exported: true, typ: $String, tag: "js:\"value\""}, {prop: "WillValidate", name: "WillValidate", anonymous: false, exported: true, typ: $Bool, tag: "js:\"willValidate\""}]);
-	HTMLParagraphElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLParamElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Name", name: "Name", anonymous: false, exported: true, typ: $String, tag: "js:\"name\""}, {prop: "Value", name: "Value", anonymous: false, exported: true, typ: $String, tag: "js:\"value\""}]);
-	HTMLPreElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLProgressElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Max", name: "Max", anonymous: false, exported: true, typ: $Float64, tag: "js:\"max\""}, {prop: "Position", name: "Position", anonymous: false, exported: true, typ: $Float64, tag: "js:\"position\""}, {prop: "Value", name: "Value", anonymous: false, exported: true, typ: $Float64, tag: "js:\"value\""}]);
-	HTMLQuoteElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Cite", name: "Cite", anonymous: false, exported: true, typ: $String, tag: "js:\"cite\""}]);
-	HTMLScriptElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Type", name: "Type", anonymous: false, exported: true, typ: $String, tag: "js:\"type\""}, {prop: "Src", name: "Src", anonymous: false, exported: true, typ: $String, tag: "js:\"src\""}, {prop: "Charset", name: "Charset", anonymous: false, exported: true, typ: $String, tag: "js:\"charset\""}, {prop: "Async", name: "Async", anonymous: false, exported: true, typ: $Bool, tag: "js:\"async\""}, {prop: "Defer", name: "Defer", anonymous: false, exported: true, typ: $Bool, tag: "js:\"defer\""}, {prop: "Text", name: "Text", anonymous: false, exported: true, typ: $String, tag: "js:\"text\""}]);
-	HTMLSelectElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Autofocus", name: "Autofocus", anonymous: false, exported: true, typ: $Bool, tag: "js:\"autofocus\""}, {prop: "Disabled", name: "Disabled", anonymous: false, exported: true, typ: $Bool, tag: "js:\"disabled\""}, {prop: "Length", name: "Length", anonymous: false, exported: true, typ: $Int, tag: "js:\"length\""}, {prop: "Multiple", name: "Multiple", anonymous: false, exported: true, typ: $Bool, tag: "js:\"multiple\""}, {prop: "Name", name: "Name", anonymous: false, exported: true, typ: $String, tag: "js:\"name\""}, {prop: "Required", name: "Required", anonymous: false, exported: true, typ: $Bool, tag: "js:\"required\""}, {prop: "SelectedIndex", name: "SelectedIndex", anonymous: false, exported: true, typ: $Int, tag: "js:\"selectedIndex\""}, {prop: "Size", name: "Size", anonymous: false, exported: true, typ: $Int, tag: "js:\"size\""}, {prop: "Type", name: "Type", anonymous: false, exported: true, typ: $String, tag: "js:\"type\""}, {prop: "ValidationMessage", name: "ValidationMessage", anonymous: false, exported: true, typ: $String, tag: "js:\"validationMessage\""}, {prop: "Value", name: "Value", anonymous: false, exported: true, typ: $String, tag: "js:\"value\""}, {prop: "WillValidate", name: "WillValidate", anonymous: false, exported: true, typ: $Bool, tag: "js:\"willValidate\""}]);
-	HTMLSourceElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Media", name: "Media", anonymous: false, exported: true, typ: $String, tag: "js:\"media\""}, {prop: "Src", name: "Src", anonymous: false, exported: true, typ: $String, tag: "js:\"src\""}, {prop: "Type", name: "Type", anonymous: false, exported: true, typ: $String, tag: "js:\"type\""}]);
-	HTMLSpanElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLStyleElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLTableCaptionElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLTableCellElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "ColSpan", name: "ColSpan", anonymous: false, exported: true, typ: $Int, tag: "js:\"colSpan\""}, {prop: "RowSpan", name: "RowSpan", anonymous: false, exported: true, typ: $Int, tag: "js:\"rowSpan\""}, {prop: "CellIndex", name: "CellIndex", anonymous: false, exported: true, typ: $Int, tag: "js:\"cellIndex\""}]);
-	HTMLTableColElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Span", name: "Span", anonymous: false, exported: true, typ: $Int, tag: "js:\"span\""}]);
-	HTMLTableDataCellElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLTableElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLTableHeaderCellElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Abbr", name: "Abbr", anonymous: false, exported: true, typ: $String, tag: "js:\"abbr\""}, {prop: "Scope", name: "Scope", anonymous: false, exported: true, typ: $String, tag: "js:\"scope\""}]);
-	HTMLTableRowElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "RowIndex", name: "RowIndex", anonymous: false, exported: true, typ: $Int, tag: "js:\"rowIndex\""}, {prop: "SectionRowIndex", name: "SectionRowIndex", anonymous: false, exported: true, typ: $Int, tag: "js:\"sectionRowIndex\""}]);
-	HTMLTableSectionElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLTextAreaElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Autocomplete", name: "Autocomplete", anonymous: false, exported: true, typ: $String, tag: "js:\"autocomplete\""}, {prop: "Autofocus", name: "Autofocus", anonymous: false, exported: true, typ: $Bool, tag: "js:\"autofocus\""}, {prop: "Cols", name: "Cols", anonymous: false, exported: true, typ: $Int, tag: "js:\"cols\""}, {prop: "DefaultValue", name: "DefaultValue", anonymous: false, exported: true, typ: $String, tag: "js:\"defaultValue\""}, {prop: "DirName", name: "DirName", anonymous: false, exported: true, typ: $String, tag: "js:\"dirName\""}, {prop: "Disabled", name: "Disabled", anonymous: false, exported: true, typ: $Bool, tag: "js:\"disabled\""}, {prop: "MaxLength", name: "MaxLength", anonymous: false, exported: true, typ: $Int, tag: "js:\"maxLength\""}, {prop: "Name", name: "Name", anonymous: false, exported: true, typ: $String, tag: "js:\"name\""}, {prop: "Placeholder", name: "Placeholder", anonymous: false, exported: true, typ: $String, tag: "js:\"placeholder\""}, {prop: "ReadOnly", name: "ReadOnly", anonymous: false, exported: true, typ: $Bool, tag: "js:\"readOnly\""}, {prop: "Required", name: "Required", anonymous: false, exported: true, typ: $Bool, tag: "js:\"required\""}, {prop: "Rows", name: "Rows", anonymous: false, exported: true, typ: $Int, tag: "js:\"rows\""}, {prop: "SelectionDirection", name: "SelectionDirection", anonymous: false, exported: true, typ: $String, tag: "js:\"selectionDirection\""}, {prop: "SelectionStart", name: "SelectionStart", anonymous: false, exported: true, typ: $Int, tag: "js:\"selectionStart\""}, {prop: "SelectionEnd", name: "SelectionEnd", anonymous: false, exported: true, typ: $Int, tag: "js:\"selectionEnd\""}, {prop: "TabIndex", name: "TabIndex", anonymous: false, exported: true, typ: $Int, tag: "js:\"tabIndex\""}, {prop: "TextLength", name: "TextLength", anonymous: false, exported: true, typ: $Int, tag: "js:\"textLength\""}, {prop: "Type", name: "Type", anonymous: false, exported: true, typ: $String, tag: "js:\"type\""}, {prop: "ValidationMessage", name: "ValidationMessage", anonymous: false, exported: true, typ: $String, tag: "js:\"validationMessage\""}, {prop: "Value", name: "Value", anonymous: false, exported: true, typ: $String, tag: "js:\"value\""}, {prop: "WillValidate", name: "WillValidate", anonymous: false, exported: true, typ: $Bool, tag: "js:\"willValidate\""}, {prop: "Wrap", name: "Wrap", anonymous: false, exported: true, typ: $String, tag: "js:\"wrap\""}]);
-	HTMLTimeElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "DateTime", name: "DateTime", anonymous: false, exported: true, typ: $String, tag: "js:\"dateTime\""}]);
-	HTMLTitleElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Text", name: "Text", anonymous: false, exported: true, typ: $String, tag: "js:\"text\""}]);
-	TextTrack.init("", [{prop: "Object", name: "Object", anonymous: true, exported: true, typ: ptrType, tag: ""}]);
-	HTMLTrackElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Kind", name: "Kind", anonymous: false, exported: true, typ: $String, tag: "js:\"kind\""}, {prop: "Src", name: "Src", anonymous: false, exported: true, typ: $String, tag: "js:\"src\""}, {prop: "Srclang", name: "Srclang", anonymous: false, exported: true, typ: $String, tag: "js:\"srclang\""}, {prop: "Label", name: "Label", anonymous: false, exported: true, typ: $String, tag: "js:\"label\""}, {prop: "Default", name: "Default", anonymous: false, exported: true, typ: $Bool, tag: "js:\"default\""}, {prop: "ReadyState", name: "ReadyState", anonymous: false, exported: true, typ: $Int, tag: "js:\"readyState\""}]);
-	HTMLUListElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLUnknownElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", anonymous: true, exported: true, typ: ptrType$1, tag: ""}]);
-	HTMLVideoElement.init("", [{prop: "HTMLMediaElement", name: "HTMLMediaElement", anonymous: true, exported: true, typ: ptrType$3, tag: ""}]);
-	CSSStyleDeclaration.init("", [{prop: "Object", name: "Object", anonymous: true, exported: true, typ: ptrType, tag: ""}]);
-	Text.init("", [{prop: "BasicNode", name: "BasicNode", anonymous: true, exported: true, typ: ptrType$23, tag: ""}]);
+	ClientRect.init("", [{prop: "Object", name: "Object", embedded: true, exported: true, typ: ptrType, tag: ""}, {prop: "Height", name: "Height", embedded: false, exported: true, typ: $Float64, tag: "js:\"height\""}, {prop: "Width", name: "Width", embedded: false, exported: true, typ: $Float64, tag: "js:\"width\""}, {prop: "Left", name: "Left", embedded: false, exported: true, typ: $Float64, tag: "js:\"left\""}, {prop: "Right", name: "Right", embedded: false, exported: true, typ: $Float64, tag: "js:\"right\""}, {prop: "Top", name: "Top", embedded: false, exported: true, typ: $Float64, tag: "js:\"top\""}, {prop: "Bottom", name: "Bottom", embedded: false, exported: true, typ: $Float64, tag: "js:\"bottom\""}]);
+	BasicHTMLElement.init("", [{prop: "BasicElement", name: "BasicElement", embedded: true, exported: true, typ: ptrType$32, tag: ""}]);
+	BasicElement.init("", [{prop: "BasicNode", name: "BasicNode", embedded: true, exported: true, typ: ptrType$23, tag: ""}]);
+	HTMLAnchorElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "URLUtils", name: "URLUtils", embedded: true, exported: true, typ: ptrType$2, tag: ""}, {prop: "HrefLang", name: "HrefLang", embedded: false, exported: true, typ: $String, tag: "js:\"hreflang\""}, {prop: "Media", name: "Media", embedded: false, exported: true, typ: $String, tag: "js:\"media\""}, {prop: "TabIndex", name: "TabIndex", embedded: false, exported: true, typ: $Int, tag: "js:\"tabIndex\""}, {prop: "Target", name: "Target", embedded: false, exported: true, typ: $String, tag: "js:\"target\""}, {prop: "Text", name: "Text", embedded: false, exported: true, typ: $String, tag: "js:\"text\""}, {prop: "Type", name: "Type", embedded: false, exported: true, typ: $String, tag: "js:\"type\""}]);
+	HTMLAppletElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Alt", name: "Alt", embedded: false, exported: true, typ: $String, tag: "js:\"alt\""}, {prop: "Coords", name: "Coords", embedded: false, exported: true, typ: $String, tag: "js:\"coords\""}, {prop: "HrefLang", name: "HrefLang", embedded: false, exported: true, typ: $String, tag: "js:\"hreflang\""}, {prop: "Media", name: "Media", embedded: false, exported: true, typ: $String, tag: "js:\"media\""}, {prop: "Search", name: "Search", embedded: false, exported: true, typ: $String, tag: "js:\"search\""}, {prop: "Shape", name: "Shape", embedded: false, exported: true, typ: $String, tag: "js:\"shape\""}, {prop: "TabIndex", name: "TabIndex", embedded: false, exported: true, typ: $Int, tag: "js:\"tabIndex\""}, {prop: "Target", name: "Target", embedded: false, exported: true, typ: $String, tag: "js:\"target\""}, {prop: "Type", name: "Type", embedded: false, exported: true, typ: $String, tag: "js:\"type\""}]);
+	HTMLAreaElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "URLUtils", name: "URLUtils", embedded: true, exported: true, typ: ptrType$2, tag: ""}, {prop: "Alt", name: "Alt", embedded: false, exported: true, typ: $String, tag: "js:\"alt\""}, {prop: "Coords", name: "Coords", embedded: false, exported: true, typ: $String, tag: "js:\"coords\""}, {prop: "HrefLang", name: "HrefLang", embedded: false, exported: true, typ: $String, tag: "js:\"hreflang\""}, {prop: "Media", name: "Media", embedded: false, exported: true, typ: $String, tag: "js:\"media\""}, {prop: "Search", name: "Search", embedded: false, exported: true, typ: $String, tag: "js:\"search\""}, {prop: "Shape", name: "Shape", embedded: false, exported: true, typ: $String, tag: "js:\"shape\""}, {prop: "TabIndex", name: "TabIndex", embedded: false, exported: true, typ: $Int, tag: "js:\"tabIndex\""}, {prop: "Target", name: "Target", embedded: false, exported: true, typ: $String, tag: "js:\"target\""}, {prop: "Type", name: "Type", embedded: false, exported: true, typ: $String, tag: "js:\"type\""}]);
+	HTMLAudioElement.init("", [{prop: "HTMLMediaElement", name: "HTMLMediaElement", embedded: true, exported: true, typ: ptrType$3, tag: ""}]);
+	HTMLBRElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLBaseElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLBodyElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	ValidityState.init("", [{prop: "Object", name: "Object", embedded: true, exported: true, typ: ptrType, tag: ""}, {prop: "CustomError", name: "CustomError", embedded: false, exported: true, typ: $Bool, tag: "js:\"customError\""}, {prop: "PatternMismatch", name: "PatternMismatch", embedded: false, exported: true, typ: $Bool, tag: "js:\"patternMismatch\""}, {prop: "RangeOverflow", name: "RangeOverflow", embedded: false, exported: true, typ: $Bool, tag: "js:\"rangeOverflow\""}, {prop: "RangeUnderflow", name: "RangeUnderflow", embedded: false, exported: true, typ: $Bool, tag: "js:\"rangeUnderflow\""}, {prop: "StepMismatch", name: "StepMismatch", embedded: false, exported: true, typ: $Bool, tag: "js:\"stepMismatch\""}, {prop: "TooLong", name: "TooLong", embedded: false, exported: true, typ: $Bool, tag: "js:\"tooLong\""}, {prop: "TypeMismatch", name: "TypeMismatch", embedded: false, exported: true, typ: $Bool, tag: "js:\"typeMismatch\""}, {prop: "Valid", name: "Valid", embedded: false, exported: true, typ: $Bool, tag: "js:\"valid\""}, {prop: "ValueMissing", name: "ValueMissing", embedded: false, exported: true, typ: $Bool, tag: "js:\"valueMissing\""}]);
+	HTMLButtonElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "AutoFocus", name: "AutoFocus", embedded: false, exported: true, typ: $Bool, tag: "js:\"autofocus\""}, {prop: "Disabled", name: "Disabled", embedded: false, exported: true, typ: $Bool, tag: "js:\"disabled\""}, {prop: "FormAction", name: "FormAction", embedded: false, exported: true, typ: $String, tag: "js:\"formAction\""}, {prop: "FormEncType", name: "FormEncType", embedded: false, exported: true, typ: $String, tag: "js:\"formEncType\""}, {prop: "FormMethod", name: "FormMethod", embedded: false, exported: true, typ: $String, tag: "js:\"formMethod\""}, {prop: "FormNoValidate", name: "FormNoValidate", embedded: false, exported: true, typ: $Bool, tag: "js:\"formNoValidate\""}, {prop: "FormTarget", name: "FormTarget", embedded: false, exported: true, typ: $String, tag: "js:\"formTarget\""}, {prop: "Name", name: "Name", embedded: false, exported: true, typ: $String, tag: "js:\"name\""}, {prop: "TabIndex", name: "TabIndex", embedded: false, exported: true, typ: $Int, tag: "js:\"tabIndex\""}, {prop: "Type", name: "Type", embedded: false, exported: true, typ: $String, tag: "js:\"type\""}, {prop: "ValidationMessage", name: "ValidationMessage", embedded: false, exported: true, typ: $String, tag: "js:\"validationMessage\""}, {prop: "Value", name: "Value", embedded: false, exported: true, typ: $String, tag: "js:\"value\""}, {prop: "WillValidate", name: "WillValidate", embedded: false, exported: true, typ: $Bool, tag: "js:\"willValidate\""}]);
+	HTMLCanvasElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Height", name: "Height", embedded: false, exported: true, typ: $Int, tag: "js:\"height\""}, {prop: "Width", name: "Width", embedded: false, exported: true, typ: $Int, tag: "js:\"width\""}]);
+	CanvasRenderingContext2D.init("", [{prop: "Object", name: "Object", embedded: true, exported: true, typ: ptrType, tag: ""}, {prop: "FillStyle", name: "FillStyle", embedded: false, exported: true, typ: $String, tag: "js:\"fillStyle\""}, {prop: "StrokeStyle", name: "StrokeStyle", embedded: false, exported: true, typ: $String, tag: "js:\"strokeStyle\""}, {prop: "ShadowColor", name: "ShadowColor", embedded: false, exported: true, typ: $String, tag: "js:\"shadowColor\""}, {prop: "ShadowBlur", name: "ShadowBlur", embedded: false, exported: true, typ: $Int, tag: "js:\"shadowBlur\""}, {prop: "ShadowOffsetX", name: "ShadowOffsetX", embedded: false, exported: true, typ: $Int, tag: "js:\"shadowOffsetX\""}, {prop: "ShadowOffsetY", name: "ShadowOffsetY", embedded: false, exported: true, typ: $Int, tag: "js:\"shadowOffsetY\""}, {prop: "LineCap", name: "LineCap", embedded: false, exported: true, typ: $String, tag: "js:\"lineCap\""}, {prop: "LineJoin", name: "LineJoin", embedded: false, exported: true, typ: $String, tag: "js:\"lineJoin\""}, {prop: "LineWidth", name: "LineWidth", embedded: false, exported: true, typ: $Int, tag: "js:\"lineWidth\""}, {prop: "MiterLimit", name: "MiterLimit", embedded: false, exported: true, typ: $Int, tag: "js:\"miterLimit\""}, {prop: "Font", name: "Font", embedded: false, exported: true, typ: $String, tag: "js:\"font\""}, {prop: "TextAlign", name: "TextAlign", embedded: false, exported: true, typ: $String, tag: "js:\"textAlign\""}, {prop: "TextBaseline", name: "TextBaseline", embedded: false, exported: true, typ: $String, tag: "js:\"textBaseline\""}, {prop: "GlobalAlpha", name: "GlobalAlpha", embedded: false, exported: true, typ: $Float64, tag: "js:\"globalAlpha\""}, {prop: "GlobalCompositeOperation", name: "GlobalCompositeOperation", embedded: false, exported: true, typ: $String, tag: "js:\"globalCompositeOperation\""}]);
+	ImageData.init("", [{prop: "Object", name: "Object", embedded: true, exported: true, typ: ptrType, tag: ""}, {prop: "Width", name: "Width", embedded: false, exported: true, typ: $Int, tag: "js:\"width\""}, {prop: "Height", name: "Height", embedded: false, exported: true, typ: $Int, tag: "js:\"height\""}, {prop: "Data", name: "Data", embedded: false, exported: true, typ: ptrType, tag: "js:\"data\""}]);
+	CanvasGradient.init("", [{prop: "Object", name: "Object", embedded: true, exported: true, typ: ptrType, tag: ""}]);
+	CanvasPattern.init("", [{prop: "Object", name: "Object", embedded: true, exported: true, typ: ptrType, tag: ""}]);
+	TextMetrics.init("", [{prop: "Object", name: "Object", embedded: true, exported: true, typ: ptrType, tag: ""}, {prop: "Width", name: "Width", embedded: false, exported: true, typ: $Float64, tag: "js:\"width\""}, {prop: "ActualBoundingBoxLeft", name: "ActualBoundingBoxLeft", embedded: false, exported: true, typ: $Float64, tag: "js:\"actualBoundingBoxLeft\""}, {prop: "ActualBoundingBoxRight", name: "ActualBoundingBoxRight", embedded: false, exported: true, typ: $Float64, tag: "js:\"actualBoundingBoxRight\""}, {prop: "FontBoundingBoxAscent", name: "FontBoundingBoxAscent", embedded: false, exported: true, typ: $Float64, tag: "js:\"fontBoundingBoxAscent\""}, {prop: "FontBoundingBoxDescent", name: "FontBoundingBoxDescent", embedded: false, exported: true, typ: $Float64, tag: "js:\"fontBoundingBoxDescent\""}, {prop: "ActualBoundingBoxAscent", name: "ActualBoundingBoxAscent", embedded: false, exported: true, typ: $Float64, tag: "js:\"actualBoundingBoxAscent\""}, {prop: "ActualBoundingBoxDescent", name: "ActualBoundingBoxDescent", embedded: false, exported: true, typ: $Float64, tag: "js:\"actualBoundingBoxDescent\""}, {prop: "EmHeightAscent", name: "EmHeightAscent", embedded: false, exported: true, typ: $Float64, tag: "js:\"emHeightAscent\""}, {prop: "EmHeightDescent", name: "EmHeightDescent", embedded: false, exported: true, typ: $Float64, tag: "js:\"emHeightDescent\""}, {prop: "HangingBaseline", name: "HangingBaseline", embedded: false, exported: true, typ: $Float64, tag: "js:\"hangingBaseline\""}, {prop: "AlphabeticBaseline", name: "AlphabeticBaseline", embedded: false, exported: true, typ: $Float64, tag: "js:\"alphabeticBaseline\""}, {prop: "IdeographicBaseline", name: "IdeographicBaseline", embedded: false, exported: true, typ: $Float64, tag: "js:\"ideographicBaseline\""}]);
+	HTMLDListElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLDataElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Value", name: "Value", embedded: false, exported: true, typ: $String, tag: "js:\"value\""}]);
+	HTMLDataListElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLDirectoryElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLDivElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLEmbedElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Src", name: "Src", embedded: false, exported: true, typ: $String, tag: "js:\"src\""}, {prop: "Type", name: "Type", embedded: false, exported: true, typ: $String, tag: "js:\"type\""}, {prop: "Width", name: "Width", embedded: false, exported: true, typ: $String, tag: "js:\"width\""}]);
+	HTMLFieldSetElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Disabled", name: "Disabled", embedded: false, exported: true, typ: $Bool, tag: "js:\"disabled\""}, {prop: "Name", name: "Name", embedded: false, exported: true, typ: $String, tag: "js:\"name\""}, {prop: "Type", name: "Type", embedded: false, exported: true, typ: $String, tag: "js:\"type\""}, {prop: "ValidationMessage", name: "ValidationMessage", embedded: false, exported: true, typ: $String, tag: "js:\"validationMessage\""}, {prop: "WillValidate", name: "WillValidate", embedded: false, exported: true, typ: $Bool, tag: "js:\"willValidate\""}]);
+	HTMLFontElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLFormElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "AcceptCharset", name: "AcceptCharset", embedded: false, exported: true, typ: $String, tag: "js:\"acceptCharset\""}, {prop: "Action", name: "Action", embedded: false, exported: true, typ: $String, tag: "js:\"action\""}, {prop: "Autocomplete", name: "Autocomplete", embedded: false, exported: true, typ: $String, tag: "js:\"autocomplete\""}, {prop: "Encoding", name: "Encoding", embedded: false, exported: true, typ: $String, tag: "js:\"encoding\""}, {prop: "Enctype", name: "Enctype", embedded: false, exported: true, typ: $String, tag: "js:\"enctype\""}, {prop: "Length", name: "Length", embedded: false, exported: true, typ: $Int, tag: "js:\"length\""}, {prop: "Method", name: "Method", embedded: false, exported: true, typ: $String, tag: "js:\"method\""}, {prop: "Name", name: "Name", embedded: false, exported: true, typ: $String, tag: "js:\"name\""}, {prop: "NoValidate", name: "NoValidate", embedded: false, exported: true, typ: $Bool, tag: "js:\"noValidate\""}, {prop: "Target", name: "Target", embedded: false, exported: true, typ: $String, tag: "js:\"target\""}]);
+	HTMLFrameElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLFrameSetElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLHRElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLHeadElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLHeadingElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLHtmlElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLIFrameElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Width", name: "Width", embedded: false, exported: true, typ: $String, tag: "js:\"width\""}, {prop: "Height", name: "Height", embedded: false, exported: true, typ: $String, tag: "js:\"height\""}, {prop: "Name", name: "Name", embedded: false, exported: true, typ: $String, tag: "js:\"name\""}, {prop: "Src", name: "Src", embedded: false, exported: true, typ: $String, tag: "js:\"src\""}, {prop: "SrcDoc", name: "SrcDoc", embedded: false, exported: true, typ: $String, tag: "js:\"srcdoc\""}, {prop: "Seamless", name: "Seamless", embedded: false, exported: true, typ: $Bool, tag: "js:\"seamless\""}]);
+	HTMLImageElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Complete", name: "Complete", embedded: false, exported: true, typ: $Bool, tag: "js:\"complete\""}, {prop: "CrossOrigin", name: "CrossOrigin", embedded: false, exported: true, typ: $String, tag: "js:\"crossOrigin\""}, {prop: "Height", name: "Height", embedded: false, exported: true, typ: $Int, tag: "js:\"height\""}, {prop: "IsMap", name: "IsMap", embedded: false, exported: true, typ: $Bool, tag: "js:\"isMap\""}, {prop: "NaturalHeight", name: "NaturalHeight", embedded: false, exported: true, typ: $Int, tag: "js:\"naturalHeight\""}, {prop: "NaturalWidth", name: "NaturalWidth", embedded: false, exported: true, typ: $Int, tag: "js:\"naturalWidth\""}, {prop: "Src", name: "Src", embedded: false, exported: true, typ: $String, tag: "js:\"src\""}, {prop: "UseMap", name: "UseMap", embedded: false, exported: true, typ: $String, tag: "js:\"useMap\""}, {prop: "Width", name: "Width", embedded: false, exported: true, typ: $Int, tag: "js:\"width\""}]);
+	HTMLInputElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Accept", name: "Accept", embedded: false, exported: true, typ: $String, tag: "js:\"accept\""}, {prop: "Alt", name: "Alt", embedded: false, exported: true, typ: $String, tag: "js:\"alt\""}, {prop: "Autocomplete", name: "Autocomplete", embedded: false, exported: true, typ: $String, tag: "js:\"autocomplete\""}, {prop: "Autofocus", name: "Autofocus", embedded: false, exported: true, typ: $Bool, tag: "js:\"autofocus\""}, {prop: "Checked", name: "Checked", embedded: false, exported: true, typ: $Bool, tag: "js:\"checked\""}, {prop: "DefaultChecked", name: "DefaultChecked", embedded: false, exported: true, typ: $Bool, tag: "js:\"defaultChecked\""}, {prop: "DefaultValue", name: "DefaultValue", embedded: false, exported: true, typ: $String, tag: "js:\"defaultValue\""}, {prop: "DirName", name: "DirName", embedded: false, exported: true, typ: $String, tag: "js:\"dirName\""}, {prop: "Disabled", name: "Disabled", embedded: false, exported: true, typ: $Bool, tag: "js:\"disabled\""}, {prop: "FormAction", name: "FormAction", embedded: false, exported: true, typ: $String, tag: "js:\"formAction\""}, {prop: "FormEncType", name: "FormEncType", embedded: false, exported: true, typ: $String, tag: "js:\"formEncType\""}, {prop: "FormMethod", name: "FormMethod", embedded: false, exported: true, typ: $String, tag: "js:\"formMethod\""}, {prop: "FormNoValidate", name: "FormNoValidate", embedded: false, exported: true, typ: $Bool, tag: "js:\"formNoValidate\""}, {prop: "FormTarget", name: "FormTarget", embedded: false, exported: true, typ: $String, tag: "js:\"formTarget\""}, {prop: "Height", name: "Height", embedded: false, exported: true, typ: $String, tag: "js:\"height\""}, {prop: "Indeterminate", name: "Indeterminate", embedded: false, exported: true, typ: $Bool, tag: "js:\"indeterminate\""}, {prop: "Max", name: "Max", embedded: false, exported: true, typ: $String, tag: "js:\"max\""}, {prop: "MaxLength", name: "MaxLength", embedded: false, exported: true, typ: $Int, tag: "js:\"maxLength\""}, {prop: "Min", name: "Min", embedded: false, exported: true, typ: $String, tag: "js:\"min\""}, {prop: "Multiple", name: "Multiple", embedded: false, exported: true, typ: $Bool, tag: "js:\"multiple\""}, {prop: "Name", name: "Name", embedded: false, exported: true, typ: $String, tag: "js:\"name\""}, {prop: "Pattern", name: "Pattern", embedded: false, exported: true, typ: $String, tag: "js:\"pattern\""}, {prop: "Placeholder", name: "Placeholder", embedded: false, exported: true, typ: $String, tag: "js:\"placeholder\""}, {prop: "ReadOnly", name: "ReadOnly", embedded: false, exported: true, typ: $Bool, tag: "js:\"readOnly\""}, {prop: "Required", name: "Required", embedded: false, exported: true, typ: $Bool, tag: "js:\"required\""}, {prop: "SelectionDirection", name: "SelectionDirection", embedded: false, exported: true, typ: $String, tag: "js:\"selectionDirection\""}, {prop: "SelectionEnd", name: "SelectionEnd", embedded: false, exported: true, typ: $Int, tag: "js:\"selectionEnd\""}, {prop: "SelectionStart", name: "SelectionStart", embedded: false, exported: true, typ: $Int, tag: "js:\"selectionStart\""}, {prop: "Size", name: "Size", embedded: false, exported: true, typ: $Int, tag: "js:\"size\""}, {prop: "Src", name: "Src", embedded: false, exported: true, typ: $String, tag: "js:\"src\""}, {prop: "Step", name: "Step", embedded: false, exported: true, typ: $String, tag: "js:\"step\""}, {prop: "TabIndex", name: "TabIndex", embedded: false, exported: true, typ: $Int, tag: "js:\"tabIndex\""}, {prop: "Type", name: "Type", embedded: false, exported: true, typ: $String, tag: "js:\"type\""}, {prop: "ValidationMessage", name: "ValidationMessage", embedded: false, exported: true, typ: $String, tag: "js:\"validationMessage\""}, {prop: "Value", name: "Value", embedded: false, exported: true, typ: $String, tag: "js:\"value\""}, {prop: "ValueAsDate", name: "ValueAsDate", embedded: false, exported: true, typ: time.Time, tag: "js:\"valueAsDate\""}, {prop: "ValueAsNumber", name: "ValueAsNumber", embedded: false, exported: true, typ: $Float64, tag: "js:\"valueAsNumber\""}, {prop: "Width", name: "Width", embedded: false, exported: true, typ: $String, tag: "js:\"width\""}, {prop: "WillValidate", name: "WillValidate", embedded: false, exported: true, typ: $Bool, tag: "js:\"willValidate\""}]);
+	File.init("", [{prop: "Object", name: "Object", embedded: true, exported: true, typ: ptrType, tag: ""}]);
+	HTMLKeygenElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Autofocus", name: "Autofocus", embedded: false, exported: true, typ: $Bool, tag: "js:\"autofocus\""}, {prop: "Challenge", name: "Challenge", embedded: false, exported: true, typ: $String, tag: "js:\"challenge\""}, {prop: "Disabled", name: "Disabled", embedded: false, exported: true, typ: $Bool, tag: "js:\"disabled\""}, {prop: "Keytype", name: "Keytype", embedded: false, exported: true, typ: $String, tag: "js:\"keytype\""}, {prop: "Name", name: "Name", embedded: false, exported: true, typ: $String, tag: "js:\"name\""}, {prop: "Type", name: "Type", embedded: false, exported: true, typ: $String, tag: "js:\"type\""}, {prop: "ValidationMessage", name: "ValidationMessage", embedded: false, exported: true, typ: $String, tag: "js:\"validationMessage\""}, {prop: "WillValidate", name: "WillValidate", embedded: false, exported: true, typ: $Bool, tag: "js:\"willValidate\""}]);
+	HTMLLIElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Value", name: "Value", embedded: false, exported: true, typ: $Int, tag: "js:\"value\""}]);
+	HTMLLabelElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "For", name: "For", embedded: false, exported: true, typ: $String, tag: "js:\"htmlFor\""}]);
+	HTMLLegendElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLLinkElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Disabled", name: "Disabled", embedded: false, exported: true, typ: $Bool, tag: "js:\"disabled\""}, {prop: "Href", name: "Href", embedded: false, exported: true, typ: $String, tag: "js:\"href\""}, {prop: "HrefLang", name: "HrefLang", embedded: false, exported: true, typ: $String, tag: "js:\"hrefLang\""}, {prop: "Media", name: "Media", embedded: false, exported: true, typ: $String, tag: "js:\"media\""}, {prop: "Type", name: "Type", embedded: false, exported: true, typ: $String, tag: "js:\"type\""}]);
+	HTMLMapElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Name", name: "Name", embedded: false, exported: true, typ: $String, tag: "js:\"name\""}]);
+	HTMLMediaElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Paused", name: "Paused", embedded: false, exported: true, typ: $Bool, tag: "js:\"paused\""}]);
+	HTMLMenuElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLMetaElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Content", name: "Content", embedded: false, exported: true, typ: $String, tag: "js:\"content\""}, {prop: "HTTPEquiv", name: "HTTPEquiv", embedded: false, exported: true, typ: $String, tag: "js:\"httpEquiv\""}, {prop: "Name", name: "Name", embedded: false, exported: true, typ: $String, tag: "js:\"name\""}]);
+	HTMLMeterElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "High", name: "High", embedded: false, exported: true, typ: $Float64, tag: "js:\"high\""}, {prop: "Low", name: "Low", embedded: false, exported: true, typ: $Float64, tag: "js:\"low\""}, {prop: "Max", name: "Max", embedded: false, exported: true, typ: $Float64, tag: "js:\"max\""}, {prop: "Min", name: "Min", embedded: false, exported: true, typ: $Float64, tag: "js:\"min\""}, {prop: "Optimum", name: "Optimum", embedded: false, exported: true, typ: $Float64, tag: "js:\"optimum\""}]);
+	HTMLModElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Cite", name: "Cite", embedded: false, exported: true, typ: $String, tag: "js:\"cite\""}, {prop: "DateTime", name: "DateTime", embedded: false, exported: true, typ: $String, tag: "js:\"dateTime\""}]);
+	HTMLOListElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Reversed", name: "Reversed", embedded: false, exported: true, typ: $Bool, tag: "js:\"reversed\""}, {prop: "Start", name: "Start", embedded: false, exported: true, typ: $Int, tag: "js:\"start\""}, {prop: "Type", name: "Type", embedded: false, exported: true, typ: $String, tag: "js:\"type\""}]);
+	HTMLObjectElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Data", name: "Data", embedded: false, exported: true, typ: $String, tag: "js:\"data\""}, {prop: "Height", name: "Height", embedded: false, exported: true, typ: $String, tag: "js:\"height\""}, {prop: "Name", name: "Name", embedded: false, exported: true, typ: $String, tag: "js:\"name\""}, {prop: "TabIndex", name: "TabIndex", embedded: false, exported: true, typ: $Int, tag: "js:\"tabIndex\""}, {prop: "Type", name: "Type", embedded: false, exported: true, typ: $String, tag: "js:\"type\""}, {prop: "TypeMustMatch", name: "TypeMustMatch", embedded: false, exported: true, typ: $Bool, tag: "js:\"typeMustMatch\""}, {prop: "UseMap", name: "UseMap", embedded: false, exported: true, typ: $String, tag: "js:\"useMap\""}, {prop: "ValidationMessage", name: "ValidationMessage", embedded: false, exported: true, typ: $String, tag: "js:\"validationMessage\""}, {prop: "With", name: "With", embedded: false, exported: true, typ: $String, tag: "js:\"with\""}, {prop: "WillValidate", name: "WillValidate", embedded: false, exported: true, typ: $Bool, tag: "js:\"willValidate\""}]);
+	HTMLOptGroupElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Disabled", name: "Disabled", embedded: false, exported: true, typ: $Bool, tag: "js:\"disabled\""}, {prop: "Label", name: "Label", embedded: false, exported: true, typ: $String, tag: "js:\"label\""}]);
+	HTMLOptionElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "DefaultSelected", name: "DefaultSelected", embedded: false, exported: true, typ: $Bool, tag: "js:\"defaultSelected\""}, {prop: "Disabled", name: "Disabled", embedded: false, exported: true, typ: $Bool, tag: "js:\"disabled\""}, {prop: "Index", name: "Index", embedded: false, exported: true, typ: $Int, tag: "js:\"index\""}, {prop: "Label", name: "Label", embedded: false, exported: true, typ: $String, tag: "js:\"label\""}, {prop: "Selected", name: "Selected", embedded: false, exported: true, typ: $Bool, tag: "js:\"selected\""}, {prop: "Text", name: "Text", embedded: false, exported: true, typ: $String, tag: "js:\"text\""}, {prop: "Value", name: "Value", embedded: false, exported: true, typ: $String, tag: "js:\"value\""}]);
+	HTMLOutputElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "DefaultValue", name: "DefaultValue", embedded: false, exported: true, typ: $String, tag: "js:\"defaultValue\""}, {prop: "Name", name: "Name", embedded: false, exported: true, typ: $String, tag: "js:\"name\""}, {prop: "Type", name: "Type", embedded: false, exported: true, typ: $String, tag: "js:\"type\""}, {prop: "ValidationMessage", name: "ValidationMessage", embedded: false, exported: true, typ: $String, tag: "js:\"validationMessage\""}, {prop: "Value", name: "Value", embedded: false, exported: true, typ: $String, tag: "js:\"value\""}, {prop: "WillValidate", name: "WillValidate", embedded: false, exported: true, typ: $Bool, tag: "js:\"willValidate\""}]);
+	HTMLParagraphElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLParamElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Name", name: "Name", embedded: false, exported: true, typ: $String, tag: "js:\"name\""}, {prop: "Value", name: "Value", embedded: false, exported: true, typ: $String, tag: "js:\"value\""}]);
+	HTMLPreElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLProgressElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Max", name: "Max", embedded: false, exported: true, typ: $Float64, tag: "js:\"max\""}, {prop: "Position", name: "Position", embedded: false, exported: true, typ: $Float64, tag: "js:\"position\""}, {prop: "Value", name: "Value", embedded: false, exported: true, typ: $Float64, tag: "js:\"value\""}]);
+	HTMLQuoteElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Cite", name: "Cite", embedded: false, exported: true, typ: $String, tag: "js:\"cite\""}]);
+	HTMLScriptElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Type", name: "Type", embedded: false, exported: true, typ: $String, tag: "js:\"type\""}, {prop: "Src", name: "Src", embedded: false, exported: true, typ: $String, tag: "js:\"src\""}, {prop: "Charset", name: "Charset", embedded: false, exported: true, typ: $String, tag: "js:\"charset\""}, {prop: "Async", name: "Async", embedded: false, exported: true, typ: $Bool, tag: "js:\"async\""}, {prop: "Defer", name: "Defer", embedded: false, exported: true, typ: $Bool, tag: "js:\"defer\""}, {prop: "Text", name: "Text", embedded: false, exported: true, typ: $String, tag: "js:\"text\""}]);
+	HTMLSelectElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Autofocus", name: "Autofocus", embedded: false, exported: true, typ: $Bool, tag: "js:\"autofocus\""}, {prop: "Disabled", name: "Disabled", embedded: false, exported: true, typ: $Bool, tag: "js:\"disabled\""}, {prop: "Length", name: "Length", embedded: false, exported: true, typ: $Int, tag: "js:\"length\""}, {prop: "Multiple", name: "Multiple", embedded: false, exported: true, typ: $Bool, tag: "js:\"multiple\""}, {prop: "Name", name: "Name", embedded: false, exported: true, typ: $String, tag: "js:\"name\""}, {prop: "Required", name: "Required", embedded: false, exported: true, typ: $Bool, tag: "js:\"required\""}, {prop: "SelectedIndex", name: "SelectedIndex", embedded: false, exported: true, typ: $Int, tag: "js:\"selectedIndex\""}, {prop: "Size", name: "Size", embedded: false, exported: true, typ: $Int, tag: "js:\"size\""}, {prop: "Type", name: "Type", embedded: false, exported: true, typ: $String, tag: "js:\"type\""}, {prop: "ValidationMessage", name: "ValidationMessage", embedded: false, exported: true, typ: $String, tag: "js:\"validationMessage\""}, {prop: "Value", name: "Value", embedded: false, exported: true, typ: $String, tag: "js:\"value\""}, {prop: "WillValidate", name: "WillValidate", embedded: false, exported: true, typ: $Bool, tag: "js:\"willValidate\""}]);
+	HTMLSourceElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Media", name: "Media", embedded: false, exported: true, typ: $String, tag: "js:\"media\""}, {prop: "Src", name: "Src", embedded: false, exported: true, typ: $String, tag: "js:\"src\""}, {prop: "Type", name: "Type", embedded: false, exported: true, typ: $String, tag: "js:\"type\""}]);
+	HTMLSpanElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLStyleElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLTableCaptionElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLTableCellElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "ColSpan", name: "ColSpan", embedded: false, exported: true, typ: $Int, tag: "js:\"colSpan\""}, {prop: "RowSpan", name: "RowSpan", embedded: false, exported: true, typ: $Int, tag: "js:\"rowSpan\""}, {prop: "CellIndex", name: "CellIndex", embedded: false, exported: true, typ: $Int, tag: "js:\"cellIndex\""}]);
+	HTMLTableColElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Span", name: "Span", embedded: false, exported: true, typ: $Int, tag: "js:\"span\""}]);
+	HTMLTableDataCellElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLTableElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLTableHeaderCellElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Abbr", name: "Abbr", embedded: false, exported: true, typ: $String, tag: "js:\"abbr\""}, {prop: "Scope", name: "Scope", embedded: false, exported: true, typ: $String, tag: "js:\"scope\""}]);
+	HTMLTableRowElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "RowIndex", name: "RowIndex", embedded: false, exported: true, typ: $Int, tag: "js:\"rowIndex\""}, {prop: "SectionRowIndex", name: "SectionRowIndex", embedded: false, exported: true, typ: $Int, tag: "js:\"sectionRowIndex\""}]);
+	HTMLTableSectionElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLTextAreaElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Autocomplete", name: "Autocomplete", embedded: false, exported: true, typ: $String, tag: "js:\"autocomplete\""}, {prop: "Autofocus", name: "Autofocus", embedded: false, exported: true, typ: $Bool, tag: "js:\"autofocus\""}, {prop: "Cols", name: "Cols", embedded: false, exported: true, typ: $Int, tag: "js:\"cols\""}, {prop: "DefaultValue", name: "DefaultValue", embedded: false, exported: true, typ: $String, tag: "js:\"defaultValue\""}, {prop: "DirName", name: "DirName", embedded: false, exported: true, typ: $String, tag: "js:\"dirName\""}, {prop: "Disabled", name: "Disabled", embedded: false, exported: true, typ: $Bool, tag: "js:\"disabled\""}, {prop: "MaxLength", name: "MaxLength", embedded: false, exported: true, typ: $Int, tag: "js:\"maxLength\""}, {prop: "Name", name: "Name", embedded: false, exported: true, typ: $String, tag: "js:\"name\""}, {prop: "Placeholder", name: "Placeholder", embedded: false, exported: true, typ: $String, tag: "js:\"placeholder\""}, {prop: "ReadOnly", name: "ReadOnly", embedded: false, exported: true, typ: $Bool, tag: "js:\"readOnly\""}, {prop: "Required", name: "Required", embedded: false, exported: true, typ: $Bool, tag: "js:\"required\""}, {prop: "Rows", name: "Rows", embedded: false, exported: true, typ: $Int, tag: "js:\"rows\""}, {prop: "SelectionDirection", name: "SelectionDirection", embedded: false, exported: true, typ: $String, tag: "js:\"selectionDirection\""}, {prop: "SelectionStart", name: "SelectionStart", embedded: false, exported: true, typ: $Int, tag: "js:\"selectionStart\""}, {prop: "SelectionEnd", name: "SelectionEnd", embedded: false, exported: true, typ: $Int, tag: "js:\"selectionEnd\""}, {prop: "TabIndex", name: "TabIndex", embedded: false, exported: true, typ: $Int, tag: "js:\"tabIndex\""}, {prop: "TextLength", name: "TextLength", embedded: false, exported: true, typ: $Int, tag: "js:\"textLength\""}, {prop: "Type", name: "Type", embedded: false, exported: true, typ: $String, tag: "js:\"type\""}, {prop: "ValidationMessage", name: "ValidationMessage", embedded: false, exported: true, typ: $String, tag: "js:\"validationMessage\""}, {prop: "Value", name: "Value", embedded: false, exported: true, typ: $String, tag: "js:\"value\""}, {prop: "WillValidate", name: "WillValidate", embedded: false, exported: true, typ: $Bool, tag: "js:\"willValidate\""}, {prop: "Wrap", name: "Wrap", embedded: false, exported: true, typ: $String, tag: "js:\"wrap\""}]);
+	HTMLTimeElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "DateTime", name: "DateTime", embedded: false, exported: true, typ: $String, tag: "js:\"dateTime\""}]);
+	HTMLTitleElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Text", name: "Text", embedded: false, exported: true, typ: $String, tag: "js:\"text\""}]);
+	TextTrack.init("", [{prop: "Object", name: "Object", embedded: true, exported: true, typ: ptrType, tag: ""}]);
+	HTMLTrackElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}, {prop: "Kind", name: "Kind", embedded: false, exported: true, typ: $String, tag: "js:\"kind\""}, {prop: "Src", name: "Src", embedded: false, exported: true, typ: $String, tag: "js:\"src\""}, {prop: "Srclang", name: "Srclang", embedded: false, exported: true, typ: $String, tag: "js:\"srclang\""}, {prop: "Label", name: "Label", embedded: false, exported: true, typ: $String, tag: "js:\"label\""}, {prop: "Default", name: "Default", embedded: false, exported: true, typ: $Bool, tag: "js:\"default\""}, {prop: "ReadyState", name: "ReadyState", embedded: false, exported: true, typ: $Int, tag: "js:\"readyState\""}]);
+	HTMLUListElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLUnknownElement.init("", [{prop: "BasicHTMLElement", name: "BasicHTMLElement", embedded: true, exported: true, typ: ptrType$1, tag: ""}]);
+	HTMLVideoElement.init("", [{prop: "HTMLMediaElement", name: "HTMLMediaElement", embedded: true, exported: true, typ: ptrType$3, tag: ""}]);
+	CSSStyleDeclaration.init("", [{prop: "Object", name: "Object", embedded: true, exported: true, typ: ptrType, tag: ""}]);
+	Text.init("", [{prop: "BasicNode", name: "BasicNode", embedded: true, exported: true, typ: ptrType$23, tag: ""}]);
 	Event.init([{prop: "Bubbles", name: "Bubbles", pkg: "", typ: $funcType([], [$Bool], false)}, {prop: "Cancelable", name: "Cancelable", pkg: "", typ: $funcType([], [$Bool], false)}, {prop: "CurrentTarget", name: "CurrentTarget", pkg: "", typ: $funcType([], [Element], false)}, {prop: "DefaultPrevented", name: "DefaultPrevented", pkg: "", typ: $funcType([], [$Bool], false)}, {prop: "EventPhase", name: "EventPhase", pkg: "", typ: $funcType([], [$Int], false)}, {prop: "PreventDefault", name: "PreventDefault", pkg: "", typ: $funcType([], [], false)}, {prop: "StopImmediatePropagation", name: "StopImmediatePropagation", pkg: "", typ: $funcType([], [], false)}, {prop: "StopPropagation", name: "StopPropagation", pkg: "", typ: $funcType([], [], false)}, {prop: "Target", name: "Target", pkg: "", typ: $funcType([], [Element], false)}, {prop: "Timestamp", name: "Timestamp", pkg: "", typ: $funcType([], [time.Time], false)}, {prop: "Type", name: "Type", pkg: "", typ: $funcType([], [$String], false)}, {prop: "Underlying", name: "Underlying", pkg: "", typ: $funcType([], [ptrType], false)}]);
-	BasicEvent.init("", [{prop: "Object", name: "Object", anonymous: true, exported: true, typ: ptrType, tag: ""}]);
-	AnimationEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	AudioProcessingEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	BeforeInputEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	BeforeUnloadEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	BlobEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	ClipboardEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	CloseEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}, {prop: "Code", name: "Code", anonymous: false, exported: true, typ: $Int, tag: "js:\"code\""}, {prop: "Reason", name: "Reason", anonymous: false, exported: true, typ: $String, tag: "js:\"reason\""}, {prop: "WasClean", name: "WasClean", anonymous: false, exported: true, typ: $Bool, tag: "js:\"wasClean\""}]);
-	CompositionEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	CSSFontFaceLoadEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	CustomEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	DeviceLightEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	DeviceMotionEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	DeviceOrientationEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	DeviceProximityEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	DOMTransactionEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	DragEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	EditingBeforeInputEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	ErrorEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	FocusEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	GamepadEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	HashChangeEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	IDBVersionChangeEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	KeyboardEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}, {prop: "AltKey", name: "AltKey", anonymous: false, exported: true, typ: $Bool, tag: "js:\"altKey\""}, {prop: "CharCode", name: "CharCode", anonymous: false, exported: true, typ: $Int, tag: "js:\"charCode\""}, {prop: "CtrlKey", name: "CtrlKey", anonymous: false, exported: true, typ: $Bool, tag: "js:\"ctrlKey\""}, {prop: "Key", name: "Key", anonymous: false, exported: true, typ: $String, tag: "js:\"key\""}, {prop: "KeyIdentifier", name: "KeyIdentifier", anonymous: false, exported: true, typ: $String, tag: "js:\"keyIdentifier\""}, {prop: "KeyCode", name: "KeyCode", anonymous: false, exported: true, typ: $Int, tag: "js:\"keyCode\""}, {prop: "Locale", name: "Locale", anonymous: false, exported: true, typ: $String, tag: "js:\"locale\""}, {prop: "Location", name: "Location", anonymous: false, exported: true, typ: $Int, tag: "js:\"location\""}, {prop: "KeyLocation", name: "KeyLocation", anonymous: false, exported: true, typ: $Int, tag: "js:\"keyLocation\""}, {prop: "MetaKey", name: "MetaKey", anonymous: false, exported: true, typ: $Bool, tag: "js:\"metaKey\""}, {prop: "Repeat", name: "Repeat", anonymous: false, exported: true, typ: $Bool, tag: "js:\"repeat\""}, {prop: "ShiftKey", name: "ShiftKey", anonymous: false, exported: true, typ: $Bool, tag: "js:\"shiftKey\""}]);
-	MediaStreamEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	MessageEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}, {prop: "Data", name: "Data", anonymous: false, exported: true, typ: ptrType, tag: "js:\"data\""}]);
-	MouseEvent.init("", [{prop: "UIEvent", name: "UIEvent", anonymous: true, exported: true, typ: ptrType$20, tag: ""}, {prop: "AltKey", name: "AltKey", anonymous: false, exported: true, typ: $Bool, tag: "js:\"altKey\""}, {prop: "Button", name: "Button", anonymous: false, exported: true, typ: $Int, tag: "js:\"button\""}, {prop: "ClientX", name: "ClientX", anonymous: false, exported: true, typ: $Int, tag: "js:\"clientX\""}, {prop: "ClientY", name: "ClientY", anonymous: false, exported: true, typ: $Int, tag: "js:\"clientY\""}, {prop: "CtrlKey", name: "CtrlKey", anonymous: false, exported: true, typ: $Bool, tag: "js:\"ctrlKey\""}, {prop: "MetaKey", name: "MetaKey", anonymous: false, exported: true, typ: $Bool, tag: "js:\"metaKey\""}, {prop: "MovementX", name: "MovementX", anonymous: false, exported: true, typ: $Int, tag: "js:\"movementX\""}, {prop: "MovementY", name: "MovementY", anonymous: false, exported: true, typ: $Int, tag: "js:\"movementY\""}, {prop: "ScreenX", name: "ScreenX", anonymous: false, exported: true, typ: $Int, tag: "js:\"screenX\""}, {prop: "ScreenY", name: "ScreenY", anonymous: false, exported: true, typ: $Int, tag: "js:\"screenY\""}, {prop: "ShiftKey", name: "ShiftKey", anonymous: false, exported: true, typ: $Bool, tag: "js:\"shiftKey\""}]);
-	MutationEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	OfflineAudioCompletionEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	PageTransitionEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	PointerEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	PopStateEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	ProgressEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	RelatedEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	RTCPeerConnectionIceEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	SensorEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	StorageEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	SVGEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	SVGZoomEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	TimeEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	TouchEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	TrackEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	TransitionEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	UIEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	UserProximityEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}]);
-	WheelEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", anonymous: true, exported: true, typ: ptrType$19, tag: ""}, {prop: "DeltaX", name: "DeltaX", anonymous: false, exported: true, typ: $Float64, tag: "js:\"deltaX\""}, {prop: "DeltaY", name: "DeltaY", anonymous: false, exported: true, typ: $Float64, tag: "js:\"deltaY\""}, {prop: "DeltaZ", name: "DeltaZ", anonymous: false, exported: true, typ: $Float64, tag: "js:\"deltaZ\""}, {prop: "DeltaMode", name: "DeltaMode", anonymous: false, exported: true, typ: $Int, tag: "js:\"deltaMode\""}]);
+	BasicEvent.init("", [{prop: "Object", name: "Object", embedded: true, exported: true, typ: ptrType, tag: ""}]);
+	AnimationEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	AudioProcessingEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	BeforeInputEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	BeforeUnloadEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	BlobEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	ClipboardEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	CloseEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}, {prop: "Code", name: "Code", embedded: false, exported: true, typ: $Int, tag: "js:\"code\""}, {prop: "Reason", name: "Reason", embedded: false, exported: true, typ: $String, tag: "js:\"reason\""}, {prop: "WasClean", name: "WasClean", embedded: false, exported: true, typ: $Bool, tag: "js:\"wasClean\""}]);
+	CompositionEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	CSSFontFaceLoadEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	CustomEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	DeviceLightEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	DeviceMotionEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	DeviceOrientationEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	DeviceProximityEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	DOMTransactionEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	DragEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	EditingBeforeInputEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	ErrorEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	FocusEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	GamepadEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	HashChangeEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	IDBVersionChangeEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	KeyboardEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}, {prop: "AltKey", name: "AltKey", embedded: false, exported: true, typ: $Bool, tag: "js:\"altKey\""}, {prop: "CharCode", name: "CharCode", embedded: false, exported: true, typ: $Int, tag: "js:\"charCode\""}, {prop: "CtrlKey", name: "CtrlKey", embedded: false, exported: true, typ: $Bool, tag: "js:\"ctrlKey\""}, {prop: "Key", name: "Key", embedded: false, exported: true, typ: $String, tag: "js:\"key\""}, {prop: "KeyIdentifier", name: "KeyIdentifier", embedded: false, exported: true, typ: $String, tag: "js:\"keyIdentifier\""}, {prop: "KeyCode", name: "KeyCode", embedded: false, exported: true, typ: $Int, tag: "js:\"keyCode\""}, {prop: "Locale", name: "Locale", embedded: false, exported: true, typ: $String, tag: "js:\"locale\""}, {prop: "Location", name: "Location", embedded: false, exported: true, typ: $Int, tag: "js:\"location\""}, {prop: "KeyLocation", name: "KeyLocation", embedded: false, exported: true, typ: $Int, tag: "js:\"keyLocation\""}, {prop: "MetaKey", name: "MetaKey", embedded: false, exported: true, typ: $Bool, tag: "js:\"metaKey\""}, {prop: "Repeat", name: "Repeat", embedded: false, exported: true, typ: $Bool, tag: "js:\"repeat\""}, {prop: "ShiftKey", name: "ShiftKey", embedded: false, exported: true, typ: $Bool, tag: "js:\"shiftKey\""}]);
+	MediaStreamEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	MessageEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}, {prop: "Data", name: "Data", embedded: false, exported: true, typ: ptrType, tag: "js:\"data\""}]);
+	MouseEvent.init("", [{prop: "UIEvent", name: "UIEvent", embedded: true, exported: true, typ: ptrType$20, tag: ""}, {prop: "AltKey", name: "AltKey", embedded: false, exported: true, typ: $Bool, tag: "js:\"altKey\""}, {prop: "Button", name: "Button", embedded: false, exported: true, typ: $Int, tag: "js:\"button\""}, {prop: "ClientX", name: "ClientX", embedded: false, exported: true, typ: $Int, tag: "js:\"clientX\""}, {prop: "ClientY", name: "ClientY", embedded: false, exported: true, typ: $Int, tag: "js:\"clientY\""}, {prop: "CtrlKey", name: "CtrlKey", embedded: false, exported: true, typ: $Bool, tag: "js:\"ctrlKey\""}, {prop: "MetaKey", name: "MetaKey", embedded: false, exported: true, typ: $Bool, tag: "js:\"metaKey\""}, {prop: "MovementX", name: "MovementX", embedded: false, exported: true, typ: $Int, tag: "js:\"movementX\""}, {prop: "MovementY", name: "MovementY", embedded: false, exported: true, typ: $Int, tag: "js:\"movementY\""}, {prop: "ScreenX", name: "ScreenX", embedded: false, exported: true, typ: $Int, tag: "js:\"screenX\""}, {prop: "ScreenY", name: "ScreenY", embedded: false, exported: true, typ: $Int, tag: "js:\"screenY\""}, {prop: "ShiftKey", name: "ShiftKey", embedded: false, exported: true, typ: $Bool, tag: "js:\"shiftKey\""}]);
+	MutationEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	OfflineAudioCompletionEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	PageTransitionEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	PointerEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	PopStateEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	ProgressEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	RelatedEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	RTCPeerConnectionIceEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	SensorEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	StorageEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	SVGEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	SVGZoomEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	TimeEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	TouchEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	TrackEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	TransitionEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	UIEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	UserProximityEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}]);
+	WheelEvent.init("", [{prop: "BasicEvent", name: "BasicEvent", embedded: true, exported: true, typ: ptrType$19, tag: ""}, {prop: "DeltaX", name: "DeltaX", embedded: false, exported: true, typ: $Float64, tag: "js:\"deltaX\""}, {prop: "DeltaY", name: "DeltaY", embedded: false, exported: true, typ: $Float64, tag: "js:\"deltaY\""}, {prop: "DeltaZ", name: "DeltaZ", embedded: false, exported: true, typ: $Float64, tag: "js:\"deltaZ\""}, {prop: "DeltaMode", name: "DeltaMode", embedded: false, exported: true, typ: $Int, tag: "js:\"deltaMode\""}]);
 	$init = function() {
 		$pkg.$init = function() {};
 		/* */ var $f, $c = false, $s = 0, $r; if (this !== undefined && this.$blk !== undefined) { $f = this; $c = true; $s = $f.$s; $r = $f.$r; } s: while (true) { switch ($s) { case 0:
