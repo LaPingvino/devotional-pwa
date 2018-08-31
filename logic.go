@@ -6,5 +6,5 @@ import "honnef.co/go/js/dom"
 
 func main() {
 	el := dom.GetWindow().Document().QuerySelector("nav")
-	el.SetInnerHTML("Javascript is activated!")
+	el.SetInnerHTML(`<a class="mdl-navigation__link" href="javascript:alert('Yay!');">Javascript is activated!`)
 }

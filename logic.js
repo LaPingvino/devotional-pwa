@@ -12348,7 +12348,7 @@ $packages["main"] = (function() {
 		_r = dom.GetWindow().Document(); /* */ $s = 1; case 1: if($c) { $c = false; _r = _r.$blk(); } if (_r && _r.$blk !== undefined) { break s; }
 		_r$1 = _r.QuerySelector("nav"); /* */ $s = 2; case 2: if($c) { $c = false; _r$1 = _r$1.$blk(); } if (_r$1 && _r$1.$blk !== undefined) { break s; }
 		el = _r$1;
-		$r = el.SetInnerHTML("Javascript is activated!"); /* */ $s = 3; case 3: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
+		$r = el.SetInnerHTML("<a class=\"mdl-navigation__link\" href=\"javascript:alert('Yay!');\">Javascript is activated!"); /* */ $s = 3; case 3: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
 		$s = -1; return;
 		/* */ } return; } if ($f === undefined) { $f = { $blk: main }; } $f._r = _r; $f._r$1 = _r$1; $f.el = el; $f.$s = $s; $f.$r = $r; return $f;
 	};
