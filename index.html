@@ -29,11 +29,25 @@ body {
 .mdl-layout__header-row .mdl-navigation {
 	background: gray;
 }
+#content {
+	margin: 25px 75px;
+}
+@media screen and (max-width: 480px) {
+	#content {
+		margin: 25px 25px;
+	}
+}
+#content a {
+	font-weight: bold;
+	padding: 3px;
+}
+#content a+a::before {
+	content: " - "; 
+}
 .author::before {
 	content: "--";
 }
 header, .scripture {
-	margin: 25px 75px;
 	padding-left: 1em;
 }
 .scripture {

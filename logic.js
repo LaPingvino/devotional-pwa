@@ -25210,8 +25210,8 @@ $packages["main"] = (function() {
 	dom = $packages["honnef.co/go/js/dom"];
 	sliceType = $sliceType($emptyInterface);
 	nav = function(n) {
-		var _entry, _i, _keys, _r, _r$1, _r$2, _ref, a, el, h, menu, n, t, $s, $r;
-		/* */ $s = 0; var $f, $c = false; if (this !== undefined && this.$blk !== undefined) { $f = this; $c = true; _entry = $f._entry; _i = $f._i; _keys = $f._keys; _r = $f._r; _r$1 = $f._r$1; _r$2 = $f._r$2; _ref = $f._ref; a = $f.a; el = $f.el; h = $f.h; menu = $f.menu; n = $f.n; t = $f.t; $s = $f.$s; $r = $f.$r; } s: while (true) { switch ($s) { case 0:
+		var _entry, _i, _keys, _r, _r$1, _r$2, _r$3, _r$4, _r$5, _ref, a, bottom, el, h, menu, n, t, $s, $r;
+		/* */ $s = 0; var $f, $c = false; if (this !== undefined && this.$blk !== undefined) { $f = this; $c = true; _entry = $f._entry; _i = $f._i; _keys = $f._keys; _r = $f._r; _r$1 = $f._r$1; _r$2 = $f._r$2; _r$3 = $f._r$3; _r$4 = $f._r$4; _r$5 = $f._r$5; _ref = $f._ref; a = $f.a; bottom = $f.bottom; el = $f.el; h = $f.h; menu = $f.menu; n = $f.n; t = $f.t; $s = $f.$s; $r = $f.$r; } s: while (true) { switch ($s) { case 0:
 		a = (function $b(t, h) {
 			var _r, h, t, $s, $r;
 			/* */ $s = 0; var $f, $c = false; if (this !== undefined && this.$blk !== undefined) { $f = this; $c = true; _r = $f._r; h = $f.h; t = $f.t; $s = $f.$s; $r = $f.$r; } s: while (true) { switch ($s) { case 0:
@@ -25222,31 +25222,36 @@ $packages["main"] = (function() {
 		_r = dom.GetWindow().Document(); /* */ $s = 1; case 1: if($c) { $c = false; _r = _r.$blk(); } if (_r && _r.$blk !== undefined) { break s; }
 		_r$1 = _r.QuerySelector("nav"); /* */ $s = 2; case 2: if($c) { $c = false; _r$1 = _r$1.$blk(); } if (_r$1 && _r$1.$blk !== undefined) { break s; }
 		el = _r$1;
+		_r$2 = dom.GetWindow().Document(); /* */ $s = 3; case 3: if($c) { $c = false; _r$2 = _r$2.$blk(); } if (_r$2 && _r$2.$blk !== undefined) { break s; }
+		_r$3 = _r$2.QuerySelector("#content"); /* */ $s = 4; case 4: if($c) { $c = false; _r$3 = _r$3.$blk(); } if (_r$3 && _r$3.$blk !== undefined) { break s; }
+		bottom = _r$3;
 		menu = "";
 		_ref = n;
 		_i = 0;
 		_keys = $keys(_ref);
-		/* while (true) { */ case 3:
-			/* if (!(_i < _keys.length)) { break; } */ if(!(_i < _keys.length)) { $s = 4; continue; }
+		/* while (true) { */ case 5:
+			/* if (!(_i < _keys.length)) { break; } */ if(!(_i < _keys.length)) { $s = 6; continue; }
 			_entry = _ref[_keys[_i]];
 			if (_entry === undefined) {
 				_i++;
-				/* continue; */ $s = 3; continue;
+				/* continue; */ $s = 5; continue;
 			}
 			t = _entry.k;
 			h = _entry.v;
-			_r$2 = a(t, h); /* */ $s = 5; case 5: if($c) { $c = false; _r$2 = _r$2.$blk(); } if (_r$2 && _r$2.$blk !== undefined) { break s; }
-			menu = menu + (_r$2);
+			_r$4 = a(t, h); /* */ $s = 7; case 7: if($c) { $c = false; _r$4 = _r$4.$blk(); } if (_r$4 && _r$4.$blk !== undefined) { break s; }
+			menu = menu + (_r$4);
 			_i++;
-		/* } */ $s = 3; continue; case 4:
-		$r = el.SetInnerHTML(menu); /* */ $s = 6; case 6: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
+		/* } */ $s = 5; continue; case 6:
+		$r = el.SetInnerHTML(menu); /* */ $s = 8; case 8: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
+		_r$5 = el.CloneNode(true); /* */ $s = 9; case 9: if($c) { $c = false; _r$5 = _r$5.$blk(); } if (_r$5 && _r$5.$blk !== undefined) { break s; }
+		$r = bottom.AppendChild(_r$5); /* */ $s = 10; case 10: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
 		$s = -1; return;
-		/* */ } return; } if ($f === undefined) { $f = { $blk: nav }; } $f._entry = _entry; $f._i = _i; $f._keys = _keys; $f._r = _r; $f._r$1 = _r$1; $f._r$2 = _r$2; $f._ref = _ref; $f.a = a; $f.el = el; $f.h = h; $f.menu = menu; $f.n = n; $f.t = t; $f.$s = $s; $f.$r = $r; return $f;
+		/* */ } return; } if ($f === undefined) { $f = { $blk: nav }; } $f._entry = _entry; $f._i = _i; $f._keys = _keys; $f._r = _r; $f._r$1 = _r$1; $f._r$2 = _r$2; $f._r$3 = _r$3; $f._r$4 = _r$4; $f._r$5 = _r$5; $f._ref = _ref; $f.a = a; $f.bottom = bottom; $f.el = el; $f.h = h; $f.menu = menu; $f.n = n; $f.t = t; $f.$s = $s; $f.$r = $r; return $f;
 	};
 	main = function() {
 		var menu, $s, $r;
 		/* */ $s = 0; var $f, $c = false; if (this !== undefined && this.$blk !== undefined) { $f = this; $c = true; menu = $f.menu; $s = $f.$s; $r = $f.$r; } s: while (true) { switch ($s) { case 0:
-		menu = $makeMap($String.keyFor, [{ k: "en", v: "#en" }]);
+		menu = $makeMap($String.keyFor, [{ k: "en", v: "#en" }, { k: "fr", v: "#fr" }, { k: "de", v: "#de" }]);
 		$r = nav(menu); /* */ $s = 1; case 1: if($c) { $c = false; $r = $r.$blk(); } if ($r && $r.$blk !== undefined) { break s; }
 		$s = -1; return;
 		/* */ } return; } if ($f === undefined) { $f = { $blk: main }; } $f.menu = menu; $f.$s = $s; $f.$r = $r; return $f;
