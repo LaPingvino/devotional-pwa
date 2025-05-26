@@ -108,10 +108,10 @@
             }
             small {
                 font-family: "Gentium", "Times New Roman", serif;
-                font-size: 0.6em;
+                font-size: 0.9em; /* Increased from 0.6em for better readability */
                 display: block;
                 margin: 5px;
-                margin-top: 100px;
+                margin-top: 20px; /* Reduced from 100px, more appropriate for drawer context */
             }
             .prayer-list-item {
                 margin-bottom: 0.5em;
@@ -142,6 +142,13 @@
                 margin: 5px; /* Spacing around each button */
                 text-transform: uppercase; /* Ensure language codes are uppercase */
             }
+
+            /* Ensure MDL menu for languages is above other elements like drawer obfuscator/header */
+            /* This is important because MDL's default menu z-index (999) can be lower than header (1000) or drawer (10000) */
+            #prayer-language-nav .mdl-menu__container {
+                z-index: 10001 !important;
+            }
+
             .prayer-actions {
                 margin-top: 20px;
                 padding-top: 15px;
