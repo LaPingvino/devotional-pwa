@@ -207,6 +207,8 @@
 
             const DOLTHUB_API_BASE_URL =
                 "https://www.dolthub.com/api/v1alpha1/holywritings/bahaiwritings/main?q=";
+            const DOLTHUB_REPO_QUERY_URL_BASE =
+                "https://www.dolthub.com/repositories/holywritings/bahaiwritings/query/main?q=";
             const MAX_DIRECT_LINKS_IN_HEADER = 4;
             const ITEMS_PER_PAGE = 20;
 
@@ -330,7 +332,13 @@
                 const rows = await executeQuery(sql);
 
                 if (rows.length === 0) {
-                    contentDiv.innerHTML = `<p>Prayer with ID ${versionId} not found.</p>`;
+                    const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(sql)}`;
+                    contentDiv.innerHTML = `
+                        <p>Prayer with ID ${versionId} not found.</p>
+                        <p>Query used:</p>
+                        <pre style="white-space: pre-wrap; word-break: break-all; background: #eee; padding: 10px; border-radius: 4px;">${sql}</pre>
+                        <p><a href="${debugQueryUrl}" target="_blank">Debug this query on DoltHub</a></p>
+                    `;
                     return;
                 }
 
@@ -425,7 +433,17 @@
                 const totalPages = Math.ceil(totalPrayers / ITEMS_PER_PAGE);
 
                 if (prayers.length === 0 && page === 1) {
-                    contentDiv.innerHTML = `<p>No prayers found for language: ${languageDisplayName}.</p>`;
+                    const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(sql)}`;
+                    contentDiv.innerHTML = `
+                        <p>No prayers found for language: ${languageDisplayName}.</p>
+                        <p>Query used:</p>
+                        <pre style="white-space: pre-wrap; word-break: break-all; background: #eee; padding: 10px; border-radius: 4px;">${sql}</pre>
+                        <p><a href="${debugQueryUrl}" target="_blank">Debug this query on DoltHub</a></p>
+                        <p>Count query used:</p>
+                        <pre style="white-space: pre-wrap; word-break: break-all; background: #eee; padding: 10px; border-radius: 4px;">${countSql}</pre>
+                        <p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(countSql)}" target="_blank">Debug count query on DoltHub</a></p>
+
+                    `;
                     return;
                 }
                 if (prayers.length === 0 && page > 1) {
@@ -482,7 +500,13 @@
                 const languages = await executeQuery(sql);
 
                 if (languages.length === 0) {
-                    contentDiv.innerHTML = `<p>No languages found in the database.</p>`;
+                    const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(sql)}`;
+                    contentDiv.innerHTML = `
+                        <p>No languages found in the database.</p>
+                        <p>Query used:</p>
+                        <pre style="white-space: pre-wrap; word-break: break-all; background: #eee; padding: 10px; border-radius: 4px;">${sql}</pre>
+                        <p><a href="${debugQueryUrl}" target="_blank">Debug this query on DoltHub</a></p>
+                    `;
                     return;
                 }
                 let listHtml = languages
@@ -534,7 +558,16 @@
                 }
 
                 if (results.length === 0 && page === 1) {
-                    contentDiv.innerHTML = `<p>No prayers found matching "${searchTerm}".</p>`;
+                    const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(sql)}`;
+                    contentDiv.innerHTML = `
+                        <p>No prayers found matching "${searchTerm}".</p>
+                        <p>Query used:</p>
+                        <pre style="white-space: pre-wrap; word-break: break-all; background: #eee; padding: 10px; border-radius: 4px;">${sql}</pre>
+                        <p><a href="${debugQueryUrl}" target="_blank">Debug this query on DoltHub</a></p>
+                        <p>Count query used:</p>
+                        <pre style="white-space: pre-wrap; word-break: break-all; background: #eee; padding: 10px; border-radius: 4px;">${countSql}</pre>
+                        <p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(countSql)}" target="_blank">Debug count query on DoltHub</a></p>
+                    `;
                     return;
                 }
                 if (results.length === 0 && page > 1) {
