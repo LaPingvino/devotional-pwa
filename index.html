@@ -305,9 +305,29 @@
                 const sql = `SELECT version, name, language, SUBSTRING(text, 1, 70) AS opening_text FROM writings WHERE language = '${langCode}' ORDER BY name, opening_text, version`;
                 const prayers = await executeQuery(sql);
 
+                // executeQuery will set contentDiv.innerHTML to an error message and return [] if the query fails.
+                // If prayers is empty, we need to determine if it's because of a query failure (where an error
+                // message is already shown by executeQuery) or simply no data was found (in which case we
+                // show the "No prayers found" message).
                 if (prayers.length === 0) {
-                    contentDiv.innerHTML = `<p>No prayers found for language: ${languageDisplayName}.</p>`;
-                    return;
+                    // Check if contentDiv's first child is still the spinner.
+                    // If executeQuery encountered an error, it would have replaced the spinner
+                    // with an error message (typically a <p> element).
+                    const firstChildInContent = contentDiv.firstChild;
+                    const isSpinnerStillPresent =
+                        firstChildInContent &&
+                        firstChildInContent.nodeName === "DIV" && // Spinner is a div
+                        firstChildInContent.classList &&
+                        firstChildInContent.classList.contains("mdl-spinner");
+
+                    if (isSpinnerStillPresent) {
+                        // The spinner is still there, meaning executeQuery was successful but found no prayers.
+                        contentDiv.innerHTML = `<p>No prayers found for language: ${languageDisplayName}.</p>`;
+                    }
+                    // If the spinner is NOT present, it implies executeQuery already set an error message
+                    // in contentDiv. In this case, we don't overwrite it, allowing the more specific
+                    // error from executeQuery to be displayed.
+                    return; // Return whether it was "no data" or an error already handled by executeQuery.
                 }
 
                 let listHtml = prayers
