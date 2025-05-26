@@ -1,11 +1,11 @@
 {
-  "name": "Devotionals of Great Quality",
-  "short_name": "Devotionals",
-  "theme_color": "green",
-  "background_color": "lightgrey",
-  "display": "standalone",
-  "scope": "/",
-  "start_url": "https://devotional.gq",
+    "name": "Holywritings.net",
+    "short_name": "Holywritings",
+    "theme_color": "green",
+    "background_color": "lightgrey",
+    "display": "standalone",
+    "scope": "/",
+    "start_url": "https://holywritings.net",
   "icons": [
     {
       "src": "windows10/Square71x71Logo.scale-400.png",
@@ -56,4 +56,3 @@
       "sizes": "620x300"
     }]
 }
-
