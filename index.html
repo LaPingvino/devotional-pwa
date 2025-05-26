@@ -283,9 +283,9 @@
         <div class="mdl-layout mdl-js-layout">
             <header class="mdl-layout__header">
                 <div class="mdl-layout__header-row">
-                    <span class="mdl-layout-title">
+                    <a href="#" class="mdl-layout-title" style="color: white; text-decoration: none;">
                         <span class="star">&#x1f7d9;</span> Holy Writings Reader
-                    </span>
+                    </a>
                     <div class="mdl-layout-spacer"></div>
                     <div
                         class="mdl-textfield mdl-js-textfield mdl-textfield--expandable mdl-textfield--floating-label mdl-textfield--align-right"
@@ -474,7 +474,7 @@
             let currentPageByPhelpsCode = {}; // { phelpsCode: page }
 
             let pinnedPrayerDetails = null; // Stores { version, phelps, name, language, text }
-            let collectedMatchesForEmail = []; // Array of strings, each being a formatted match description for email.
+            let collectedMatchesForEmail = []; // Array of objects: { pinned: {}, current: {}, description: "" }
 
             // --- Prayer Matching Helper Functions ---
             function updatePrayerMatchingToolDisplay() {
@@ -534,9 +534,9 @@
                 // Collected Matches Display
                 matchesListUl.innerHTML = ""; // Clear previous
                 if (collectedMatchesForEmail.length > 0) {
-                    collectedMatchesForEmail.forEach((matchStr) => {
+                    collectedMatchesForEmail.forEach((matchData) => {
                         const li = document.createElement("li");
-                        li.textContent = matchStr;
+                        li.textContent = matchData.description;
                         matchesListUl.appendChild(li);
                     });
                     mailButton.disabled = false;
@@ -568,7 +568,7 @@
                     text: prayerData.text || "Text not available.", // Store prayer text
                 };
                 updatePrayerMatchingToolDisplay();
-                handleRouteChange();
+                handleRouteChange(); // Re-render current view to update action buttons
                 const snackbarContainer =
                     document.querySelector(".mdl-js-snackbar");
                 if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
@@ -582,7 +582,7 @@
                 pinnedPrayerDetails = null;
                 collectedMatchesForEmail = []; // Clear collected matches as well
                 updatePrayerMatchingToolDisplay();
-                handleRouteChange();
+                handleRouteChange(); // Re-render current view to update action buttons
                 const snackbarContainer =
                     document.querySelector(".mdl-js-snackbar");
                 if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
@@ -602,8 +602,8 @@
                     return;
                 }
 
-                const p1 = pinnedPrayerDetails;
-                const p2 = {
+                const p1 = pinnedPrayerDetails; // Already has { version, phelps, name, language, text }
+                const p2_for_match = { // Extract only needed fields for consistency
                     version: currentPrayerData.version,
                     phelps: currentPrayerData.phelps || null,
                     name:
@@ -613,17 +613,21 @@
                 };
 
                 let emailMatchDetail = "";
-                if (p1.phelps && !p2.phelps) {
-                    emailMatchDetail = `Pinned prayer (Phelps ${p1.phelps}, Version ${p1.version}) matches current prayer (Version ${p2.version}).`;
-                } else if (!p1.phelps && p2.phelps) {
-                    emailMatchDetail = `Pinned prayer (Version ${p1.version}) matches current prayer (Phelps ${p2.phelps}, Version ${p2.version}).`;
-                } else if (!p1.phelps && !p2.phelps) {
-                    emailMatchDetail = `Pinned prayer (Version ${p1.version}) matches current prayer (Version ${p2.version}).`;
-                } else {
-                    emailMatchDetail = `Pinned prayer (Phelps ${p1.phelps}, Version ${p1.version}) matches current prayer (Phelps ${p2.phelps}, Version ${p2.version}).`;
+                if (p1.phelps && !p2_for_match.phelps) {
+                    emailMatchDetail = `Pinned prayer (Phelps ${p1.phelps}, Version ${p1.version}) matches current prayer (Version ${p2_for_match.version}).`;
+                } else if (!p1.phelps && p2_for_match.phelps) {
+                    emailMatchDetail = `Pinned prayer (Version ${p1.version}) matches current prayer (Phelps ${p2_for_match.phelps}, Version ${p2_for_match.version}).`;
+                } else if (!p1.phelps && !p2_for_match.phelps) {
+                    emailMatchDetail = `Pinned prayer (Version ${p1.version}) matches current prayer (Version ${p2_for_match.version}).`;
+                } else { // Both have phelps (could be same or different)
+                    emailMatchDetail = `Pinned prayer (Phelps ${p1.phelps}, Version ${p1.version}) matches current prayer (Phelps ${p2_for_match.phelps}, Version ${p2_for_match.version}).`;
                 }
 
-                collectedMatchesForEmail.push(emailMatchDetail);
+                collectedMatchesForEmail.push({
+                    pinned: p1,
+                    current: p2_for_match,
+                    description: emailMatchDetail,
+                });
                 updatePrayerMatchingToolDisplay();
 
                 const snackbarContainer =
@@ -644,14 +648,14 @@
                 }
 
                 const subject =
-                    "holywritings.net: I found matching prayers for you";
+                    "holywritings.net: Prayer Matches and SQL Suggestions";
                 const bodyLines = [
                     "Hello,",
                     "I've found the following prayer matches on holywritings.net:",
                     "",
                 ];
-                collectedMatchesForEmail.forEach((match, index) => {
-                    bodyLines.push(`${index + 1}. ${match}`);
+                collectedMatchesForEmail.forEach((matchData, index) => {
+                    bodyLines.push(`${index + 1}. ${matchData.description}`);
                 });
                 bodyLines.push("");
                 bodyLines.push(
@@ -660,6 +664,53 @@
                 bodyLines.push(
                     `Base URL for reference: ${window.location.origin}${window.location.pathname}`,
                 );
+                bodyLines.push("");
+
+                const sqlUpdateQueries = [];
+                const sqlSelectForReviewQueries = [];
+
+                collectedMatchesForEmail.forEach(matchData => {
+                    const p1 = matchData.pinned;
+                    const p2 = matchData.current;
+
+                    // Part 1: SQL UPDATE queries for missing Phelps codes
+                    if (p1.phelps && !p2.phelps) {
+                        sqlUpdateQueries.push(`UPDATE writings SET phelps = '${p1.phelps}' WHERE version = '${p2.version}'; -- Auto-assign: Matched ${p2.version} (${p2.language}) with ${p1.version} (Phelps: ${p1.phelps})`);
+                    }
+                    if (!p1.phelps && p2.phelps) {
+                        sqlUpdateQueries.push(`UPDATE writings SET phelps = '${p2.phelps}' WHERE version = '${p1.version}'; -- Auto-assign: Matched ${p1.version} (${p1.language}) with ${p2.version} (Phelps: ${p2.phelps})`);
+                    }
+
+                    // Part 2: SQL SELECT queries for manual lookup/verification
+                    if (p1.phelps && !p2.phelps) {
+                        sqlSelectForReviewQueries.push(`SELECT * FROM writings WHERE version = '${p2.version}'; -- MANUAL REVIEW: Version ${p2.version} (${p2.language}) is missing Phelps. Matched with ${p1.version} (Phelps: ${p1.phelps}). Update suggested.`);
+                    }
+                    if (!p1.phelps && p2.phelps) {
+                        sqlSelectForReviewQueries.push(`SELECT * FROM writings WHERE version = '${p1.version}'; -- MANUAL REVIEW: Version ${p1.version} (${p1.language}) is missing Phelps. Matched with ${p2.version} (Phelps: ${p2.phelps}). Update suggested.`);
+                    }
+                    if (!p1.phelps && !p2.phelps) {
+                        sqlSelectForReviewQueries.push(`SELECT * FROM writings WHERE version IN ('${p1.version}', '${p2.version}'); -- MANUAL REVIEW: Both matched prayers (V: ${p1.version}, ${p1.language} and V: ${p2.version}, ${p2.language}) are missing Phelps codes.`);
+                    }
+                    if (p1.phelps && p2.phelps && p1.phelps !== p2.phelps) {
+                        sqlSelectForReviewQueries.push(`SELECT * FROM writings WHERE version IN ('${p1.version}', '${p2.version}'); -- MANUAL REVIEW (Conflict): Matched prayers have different Phelps codes: ${p1.version} (${p1.phelps}) vs ${p2.version} (${p2.phelps}).`);
+                    }
+                });
+
+                if (sqlUpdateQueries.length > 0) {
+                    bodyLines.push("--- Suggested SQL UPDATE Statements (for auto-assigning Phelps codes) ---");
+                    sqlUpdateQueries.forEach(q => bodyLines.push(q));
+                } else {
+                    bodyLines.push("--- No SQL UPDATE Statements Suggested ---");
+                }
+                bodyLines.push("");
+
+                if (sqlSelectForReviewQueries.length > 0) {
+                    bodyLines.push("--- SQL SELECT Statements for Manual Review/Verification ---");
+                    sqlSelectForReviewQueries.forEach(q => bodyLines.push(q));
+                } else {
+                    bodyLines.push("--- No specific SQL SELECT Statements for manual review based on these matches ---");
+                }
+
 
                 const mailBody = encodeURIComponent(bodyLines.join("\n"));
                 const mailtoLink = `mailto:ikojba@gmail.com?subject=${encodeURIComponent(subject)}&body=${mailBody}`;
@@ -670,8 +721,10 @@
                 tempLink.click();
                 document.body.removeChild(tempLink);
 
+                // Clear matches after attempting to send
+                // unpinPrayer(); // This would also clear pinnedPrayerDetails, which might not be desired yet.
                 collectedMatchesForEmail = [];
-                updatePrayerMatchingToolDisplay();
+                updatePrayerMatchingToolDisplay(); // Update UI to show cleared list and disabled button
             }
 
             // --- LocalStorage Cache Functions ---
@@ -1541,7 +1594,7 @@
                             e.preventDefault();
                             const searchTerm = searchInput.value.trim();
                             if (searchTerm) {
-                                currentPageBySearchTerm[searchTerm] = 1;
+                                currentPageBySearchTerm[searchTerm] = 1; // Reset page for new search
                                 window.location.hash = `#search/prayers/${encodeURIComponent(searchTerm)}`;
                             }
                         }
@@ -1561,8 +1614,8 @@
                 if (typeof componentHandler !== "undefined") {
                     componentHandler.upgradeDom();
                 }
-                updatePrayerMatchingToolDisplay();
-                handleRouteChange();
+                updatePrayerMatchingToolDisplay(); // Initial display update
+                handleRouteChange(); // Initial route handling
             });
 
             window.addEventListener("hashchange", handleRouteChange);
