@@ -58,7 +58,12 @@
                 padding: 3px;
             }
             #content a + a::before {
+                /* This applies to adjacent <a> tags, good for horizontal lists */
                 content: " - ";
+            }
+            #content .prayer-list-item a + a::before {
+                /* Disable for prayer list items */
+                content: "";
             }
             .author::before {
                 content: "--";
@@ -94,6 +99,9 @@
                 margin: 5px;
                 margin-top: 100px;
             }
+            .prayer-list-item {
+                margin-bottom: 0.5em;
+            }
         </style>
 
         <div class="mdl-layout mdl-js-layout">
@@ -107,27 +115,21 @@
                     <!-- Add spacer, to align navigation to the right -->
                     <div class="mdl-layout-spacer"></div>
                     <!-- Navigation -->
-                    <nav class="mdl-navigation">
-                        <a class="mdl-navigation__link" href=""
-                            ><span
-                                class="material-icons mdl-badge"
-                                data-badge="js"
-                                >extension</span
-                            ></a
-                        >
-                        <a class="mdl-navigation__link" href=""
-                            >This app needs JavaScript...</a
-                        >
+                    <nav class="mdl-navigation" id="prayer-language-nav">
+                        <!-- Language links for current prayer will be inserted here by JS -->
+                        <a class="mdl-navigation__link" href="">Loading...</a>
                     </nav>
                 </div>
             </header>
             <div class="mdl-layout__drawer">
                 <span class="mdl-layout-title">Menu</span>
                 <nav class="mdl-navigation">
-                    <a class="mdl-navigation__link" href="">Prayers</a>
-                    <a class="mdl-navigation__link" href="">Songs</a>
-                    <a class="mdl-navigation__link" href="">Books</a>
-                    <a class="mdl-navigation__link" href="">Programs</a>
+                    <a class="mdl-navigation__link" href="#prayers">Prayers</a>
+                    <a class="mdl-navigation__link" href="#songs">Songs</a>
+                    <a class="mdl-navigation__link" href="#books">Books</a>
+                    <a class="mdl-navigation__link" href="#programs"
+                        >Programs</a
+                    >
                 </nav>
                 <img
                     src="windows10/StoreLogo.scale-400.png"
@@ -151,26 +153,262 @@
             </div>
             <main class="mdl-layout__content">
                 <div id="content">
-                    <header>
-                        <h2>
-                            <span id="category">Prayers</span>
-                            <span id="blocktitle">Healing</span>
-                        </h2>
-                    </header>
-                    <div class="scripture">
-                        <div class="prayer">
-                            Thy name is my healing, O my God, and remembrance of
-                            Thee is my remedy. Nearness to Thee is my hope, and
-                            love for Thee is my companion. Thy mercy to me is my
-                            healing and my succor in both this world and the
-                            world to come. Thou, verily, art the All-Bountiful,
-                            the All-Knowing, the All-Wise.
-                        </div>
-                        <div class="author">Bahá'u'lláh</div>
-                    </div>
+                    <!-- Content will be dynamically loaded here -->
+                    <p>Loading content...</p>
                 </div>
             </main>
         </div>
+
+        <script>
+            // DATABASE STRUCTURE ASSUMPTIONS (holywritings/bahaiwritings):
+            // Table:             // Columns:
+            //   - version (TEXT/VARCHAR, Primary Key): Unique identifier for a specific version/translation of a prayer.
+            //   - text (TEXT): The full text of the prayer. Ensure this is fetched.
+            //   - language (TEXT/VARCHAR): ISO 639-1 or similar language code (e.g., "en", "fr", "es").
+            //   - phelps (TEXT/VARCHAR, nullable): An identifier to link different language versions of the same prayer.
+            //                                        This is crucial for finding translations.
+            //   - name (TEXT/VARCHAR, nullable): A short title or the first few words of the prayer, used for display in lists.
+            //                                   If not available, SUBSTRING(text_content, 1, N) can be used as a fallback.
+            //   - source (TEXT/VARCHAR, nullable): Reference to the original source (e.g., "Prayers and Meditations, CIX").
+            //   - link (TEXT/VARCHAR, nullable): A link to the original source (e.g., a "https://bahaiprayers.net" link).
+
+            const DOLTHUB_API_BASE_URL =
+                "https://www.dolthub.com/api/v1alpha1/holywritings/bahaiwritings/main?q=";
+
+            const contentDiv = document.getElementById("content");
+            const prayerLanguageNav = document.getElementById(
+                "prayer-language-nav",
+            );
+
+            async function executeQuery(sql) {
+                try {
+                    const response = await fetch(
+                        DOLTHUB_API_BASE_URL + encodeURIComponent(sql),
+                    );
+                    if (!response.ok) {
+                        throw new Error(
+                            `HTTP error! status: ${response.status}`,
+                        );
+                    }
+                    const data = await response.json();
+                    return data.rows || [];
+                } catch (error) {
+                    console.error("Error executing query:", error);
+                    contentDiv.innerHTML = `<p>Error loading data: ${error.message}. Please try again later.</p>`;
+                    return [];
+                }
+            }
+
+            function updateHeaderNavigation(links = []) {
+                prayerLanguageNav.innerHTML = ""; // Clear existing links
+                if (links.length === 0) {
+                    // Optional: add a default message or leave empty
+                    // const defaultLink = document.createElement('a');
+                    // defaultLink.className = 'mdl-navigation__link';
+                    // defaultLink.textContent = 'Holy Writings';
+                    // prayerLanguageNav.appendChild(defaultLink);
+                    return;
+                }
+                links.forEach((linkInfo) => {
+                    const link = document.createElement("a");
+                    link.className = "mdl-navigation__link";
+                    link.href = linkInfo.href;
+                    link.textContent = linkInfo.text.toUpperCase();
+                    prayerLanguageNav.appendChild(link);
+                });
+            }
+
+            async function renderPrayer(versionId) {
+                // Parameter name kept for consistency with hash, but refers to 'version'
+                contentDiv.innerHTML =
+                    '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
+                if (typeof componentHandler !== "undefined") {
+                    componentHandler.upgradeDom();
+                }
+                updateHeaderNavigation([]);
+
+                // Use 'writings' table and its columns
+                const sql = `SELECT version, text, language, phelps, name, source, link FROM writings WHERE version = '${versionId}' LIMIT 1`;
+                const rows = await executeQuery(sql);
+
+                if (rows.length === 0) {
+                    contentDiv.innerHTML = `<p>Prayer with ID ${versionId} not found.</p>`;
+                    return;
+                }
+
+                const prayer = rows[0];
+
+                let prayerTitle;
+                if (prayer.name) {
+                    prayerTitle = prayer.name;
+                } else if (prayer.text) {
+                    prayerTitle = prayer.text.substring(0, 50) + "...";
+                } else {
+                    prayerTitle = "Prayer"; // Fallback
+                }
+
+                let html = `
+                    <header>
+                        <h2>
+                            <span id="category">Prayer</span>
+                            <span id="blocktitle">${prayerTitle}</span>
+                        </h2>
+                    </header>
+                    <div class="scripture">
+                        <div class="prayer" style="white-space: pre-wrap;">${prayer.text || "No text available."}</div>
+                        ${prayer.source ? `<div style="font-size: 0.8em; margin-left: 2em; margin-top: 0.5em; font-style: italic;">Source: ${prayer.source} ${prayer.link ? `(<a href="${prayer.link}" target="_blank">link</a>)` : ""}</div>` : ""}
+                    </div>
+                `;
+                contentDiv.innerHTML = html;
+
+                if (prayer.phelps) {
+                    const transSql = `SELECT version, language FROM writings WHERE phelps = '${prayer.phelps}' AND phelps IS NOT NULL AND phelps != ''`;
+                    const translations = await executeQuery(transSql);
+                    const langLinks = translations
+                        .filter((t) => t.version !== prayer.version) // Exclude current prayer
+                        .map((t) => ({
+                            text: t.language,
+                            href: `#prayer/${t.version}`,
+                        }));
+
+                    // Add link to current language version as well for context
+                    const currentLangLink = {
+                        text: prayer.language,
+                        href: `#prayer/${prayer.version}`,
+                    };
+                    const allLangLinks = [currentLangLink, ...langLinks].sort(
+                        (a, b) => a.text.localeCompare(b.text),
+                    );
+
+                    updateHeaderNavigation(allLangLinks);
+                } else {
+                    updateHeaderNavigation([
+                        {
+                            text: prayer.language,
+                            href: `#prayer/${prayer.version}`,
+                        },
+                    ]);
+                }
+            }
+
+            async function renderPrayersForLanguage(langCode) {
+                contentDiv.innerHTML =
+                    '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
+                if (typeof componentHandler !== "undefined") {
+                    componentHandler.upgradeDom();
+                }
+                updateHeaderNavigation([]);
+
+                const languageDisplayName = langCode.toUpperCase();
+
+                // Use 'writings' table and its columns. SUBSTRING uses 'text'. 'author' is removed.
+                const sql = `SELECT version, name, language, SUBSTRING(text, 1, 70) AS opening_text FROM writings WHERE language = '${langCode}' ORDER BY name, opening_text, version`;
+                const prayers = await executeQuery(sql);
+
+                if (prayers.length === 0) {
+                    contentDiv.innerHTML = `<p>No prayers found for language: ${languageDisplayName}.</p>`;
+                    return;
+                }
+
+                let listHtml = prayers
+                    .map((p) => {
+                        // Use p.name instead of p.title. Remove p.author.
+                        const displayTitle =
+                            p.name ||
+                            (p.opening_text
+                                ? p.opening_text + "..."
+                                : "Untitled Prayer");
+                        return `<div class="prayer-list-item"><a href="#prayer/${p.version}">${displayTitle}</a></div>`;
+                    })
+                    .join("");
+
+                contentDiv.innerHTML = `
+                    <header>
+                        <h2>
+                            <span id="category">Prayers</span>
+                            <span id="blocktitle">Language: ${languageDisplayName}</span>
+                        </h2>
+                    </header>
+                    <div>${listHtml}</div>
+                `;
+            }
+
+            async function renderLanguageList() {
+                contentDiv.innerHTML =
+                    '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
+                if (typeof componentHandler !== "undefined") {
+                    componentHandler.upgradeDom();
+                }
+                updateHeaderNavigation([]);
+
+                // Use 'writings' table and 'language' column
+                const sql = `SELECT DISTINCT language FROM writings WHERE language IS NOT NULL AND language != '' ORDER BY language`;
+                const languages = await executeQuery(sql);
+
+                if (languages.length === 0) {
+                    contentDiv.innerHTML = `<p>No languages found in the database.</p>`;
+                    return;
+                }
+
+                let listHtml = languages
+                    .map(
+                        (lang) =>
+                            // Use lang.language instead of lang.language_code
+                            `<div class="prayer-list-item"><a href="#prayers/${lang.language}">${lang.language.toUpperCase()}</a></div>`,
+                    )
+                    .join("");
+
+                contentDiv.innerHTML = `
+                    <header>
+                        <h2>
+                            <span id="category">Prayers</span>
+                            <span id="blocktitle">Available Languages</span>
+                        </h2>
+                    </header>
+                    <div>${listHtml}</div>
+                `;
+            }
+
+            function handleRouteChange() {
+                const hash = window.location.hash;
+
+                if (hash.startsWith("#prayer/")) {
+                    const versionId = hash.substring("#prayer/".length); // This ID refers to 'version' column
+                    if (versionId) {
+                        renderPrayer(versionId);
+                    } else {
+                        renderLanguageList(); // Fallback if ID is missing
+                    }
+                } else if (hash.startsWith("#prayers/")) {
+                    const langCode = hash.substring("#prayers/".length);
+                    if (langCode) {
+                        renderPrayersForLanguage(langCode);
+                    } else {
+                        renderLanguageList(); // Fallback if lang code is missing
+                    }
+                } else if (hash === "#prayers" || hash === "" || hash === "#") {
+                    renderLanguageList();
+                } else {
+                    // Fallback for other unrecognised hashes or initial load without specific prayer hash
+                    console.log(
+                        "Unhandled hash:",
+                        hash,
+                        "defaulting to language list.",
+                    );
+                    renderLanguageList();
+                }
+            }
+
+            window.addEventListener("hashchange", handleRouteChange);
+            document.addEventListener("DOMContentLoaded", () => {
+                // Ensure MDL components are upgraded after initial dynamic content might be added
+                if (typeof componentHandler !== "undefined") {
+                    componentHandler.upgradeDom();
+                }
+                handleRouteChange(); // Initial route handling
+            });
+        </script>
+
         <!-- Add ServiceWorker and manup.js -->
         <script>
             //This is the "Offline copy of pages" service worker
@@ -194,6 +432,5 @@
                     });
             }
         </script>
-        <script defer src="logic.js"></script>
     </body>
 </html>
