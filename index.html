@@ -99,12 +99,14 @@
                 }
                 #prayer-matching-tool {
                     order: 2; /* Tool second */
-                    min-width: unset; /* Allow it to be full width */
+                    min-width: 0; /* Allow it to be full width, override base 320px */
                     max-height: none; /* Allow full height for content */
                     overflow-y: visible;
                 }
                 #contribution-section {
-                    margin: 15px; /* Consistent margin for stacked layout */
+                    /* #main-view-container padding 5px + #content margin 15px = 20px effective indent */
+                    /* So, #contribution-section needs L/R margin 20px to align */
+                    margin: 15px 20px; /* Consistent margin for stacked layout, L/R adjusted */
                 }
             }
 
@@ -115,10 +117,49 @@
                 #content,
                 #prayer-matching-tool,
                 #contribution-section {
-                    margin: 10px; /* Reduce margins for cards */
+                    margin: 10px; /* Reduce margins for cards, all will align as parent padding is 0 */
                     padding: 15px; /* Reduce padding inside cards */
                 }
             }
+
+            /* Header fixes for mobile visibility */
+            @media screen and (max-width: 767px) { /* Mobile and small tablets */
+                .mdl-layout__header-row {
+                    padding-right: 8px; /* Reduce right padding for more space for icons/nav */
+                }
+                .mdl-layout__header-row .mdl-layout-title {
+                    font-size: 1rem; /* Smaller title */
+                    flex: 0 1 auto; /* Allow title to shrink but not grow, auto basis */
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+                /* The div holding search has an inline margin-right: 10px.
+                   It's better to remove that from HTML if possible or override with !important if not.
+                   Assuming it's removed from HTML (as per thought process), or we style child: */
+                .mdl-layout__header-row .mdl-textfield--expandable {
+                    flex-shrink: 0; /* Don't shrink search icon container */
+                    /* margin-right: 2px !important; /* If inline style cannot be removed */
+                }
+                 .mdl-layout__header-row .mdl-textfield--expandable > .mdl-button--icon {
+                     margin-right: 2px; /* Reduce default spacing around search icon if needed */
+                }
+
+                .mdl-layout__header-row #prayer-language-nav {
+                    flex-shrink: 0; /* Don't shrink language nav container */
+                }
+                /* If language nav renders direct links, make them compact */
+                .mdl-layout__header-row #prayer-language-nav.mdl-navigation .mdl-navigation__link {
+                    padding: 0 4px; /* Compact padding */
+                    font-size: 0.75em; /* Smaller font (e.g. ~12px if body 1.3em -> ~16px base) */
+                    white-space: nowrap; /* Prevent ugly wrapping of short link texts */
+                }
+                 /* If language nav becomes a menu button (icon) */
+                .mdl-layout__header-row #prayer-language-nav .mdl-button--icon {
+                    margin-left: 2px; /* Small gap if search also has reduced margin */
+                }
+            }
+
 
             #content a {
                 font-weight: bold;
@@ -248,7 +289,7 @@
                     <div class="mdl-layout-spacer"></div>
                     <div
                         class="mdl-textfield mdl-js-textfield mdl-textfield--expandable mdl-textfield--floating-label mdl-textfield--align-right"
-                        style="margin-right: 10px"
+                        style="margin-right: 2px;" /* Adjusted inline style for tighter spacing on mobile */
                     >
                         <label
                             class="mdl-button mdl-js-button mdl-button--icon"
