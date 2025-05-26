@@ -70,6 +70,11 @@
                 /* Disable for prayer list items if multiple links are inside one item */
                 content: "";
             }
+            /* Specific style for prayer code list items, to avoid double separators */
+            #content .prayer-code-list-item a + a::before {
+                content: "";
+            }
+
             .author::before {
                 content: "--";
             }
@@ -287,6 +292,7 @@
 
             let currentPageByLanguage = {}; // { langCode: page }
             let currentPageBySearchTerm = {}; // { searchTerm: page }
+            let currentPageByPhelpsCode = {}; // { phelpsCode: page }
 
             // --- LocalStorage Cache Functions ---
             function cachePrayerText(prayerData) {
@@ -500,6 +506,10 @@
                         ? prayer.text.substring(0, 50) + "..."
                         : "Prayer");
 
+                const phelpsLinkHtml = prayer.phelps
+                    ? `<a href="#prayercode/${prayer.phelps}">${prayer.phelps}</a>`
+                    : "";
+
                 let html = `
                     <header>
                         <h2>
@@ -511,7 +521,7 @@
                         <div class="prayer" style="white-space: pre-wrap;">${prayer.text || "No text available."}</div>
                         ${authorName ? `<div class="author">${authorName}</div>` : ""}
                         ${prayer.source ? `<div style="font-size: 0.8em; margin-left: 2em; margin-top: 0.5em; font-style: italic;">Source: ${prayer.source} ${prayer.link ? `(<a href="${prayer.link}" target="_blank">link</a>)` : ""}</div>` : ""}
-                        ${prayer.phelps ? `<div style="font-size: 0.7em; margin-left: 2em; margin-top: 0.3em; color: #555;">Phelps ID: ${prayer.phelps}</div>` : ""}
+                        ${prayer.phelps ? `<div style="font-size: 0.7em; margin-left: 2em; margin-top: 0.3em; color: #555;">Phelps ID: ${phelpsLinkHtml}</div>` : ""}
                     </div>
                 `;
                 contentDiv.innerHTML = html;
@@ -673,6 +683,93 @@
                     componentHandler.upgradeDom();
             }
 
+            async function renderPrayerCodeView(phelpsCode, page = 1) {
+                currentPageByPhelpsCode[phelpsCode] = page;
+                const offset = (page - 1) * ITEMS_PER_PAGE;
+
+                contentDiv.innerHTML =
+                    '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
+                if (typeof componentHandler !== "undefined")
+                    componentHandler.upgradeDom();
+                updateHeaderNavigation([]); // Clear previous prayer-specific navigation
+
+                const metadataSql = `SELECT version, name, language, text FROM writings WHERE phelps = '${phelpsCode}' AND phelps IS NOT NULL AND phelps != '' ORDER BY language, name LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
+                const prayersMetadata = await executeQuery(metadataSql);
+
+                const countSql = `SELECT COUNT(*) as total FROM writings WHERE phelps = '${phelpsCode}' AND phelps IS NOT NULL AND phelps != ''`;
+                const countResult = await executeQuery(countSql);
+                const totalPrayers =
+                    countResult.length > 0 ? countResult[0].total : 0;
+                const totalPages = Math.ceil(totalPrayers / ITEMS_PER_PAGE);
+
+                if (prayersMetadata.length === 0 && page === 1) {
+                    const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(metadataSql)}`;
+                    contentDiv.innerHTML = `
+                        <p>No prayer versions found for Phelps Code: ${phelpsCode}.</p>
+                        <p>Query used:</p>
+                        <pre style="white-space: pre-wrap; word-break: break-all; background: #eee; padding: 10px; border-radius: 4px;">${metadataSql}</pre>
+                        <p><a href="${debugQueryUrl}" target="_blank">Debug this query on DoltHub</a></p>`;
+                    return;
+                }
+                if (prayersMetadata.length === 0 && page > 1) {
+                    renderPrayerCodeView(phelpsCode, Math.max(1, totalPages)); // Go to last valid page
+                    return;
+                }
+
+                const prayersForDisplay = prayersMetadata.map((p) => {
+                    // Cache text if fetched directly
+                    if (p.text && !getCachedPrayerText(p.version)) {
+                        cachePrayerText({
+                            version: p.version,
+                            text: p.text,
+                            name: p.name,
+                            language: p.language,
+                        });
+                    }
+                    const opening_text = p.text
+                        ? p.text.substring(0, 70) +
+                          (p.text.length > 70 ? "..." : "")
+                        : "No text preview.";
+                    return { ...p, opening_text };
+                });
+
+                let listHtml = prayersForDisplay
+                    .map((p) => {
+                        const displayTitle =
+                            p.name || p.opening_text || "Untitled Prayer";
+                        return `<div class="prayer-code-list-item">
+                                    <a href="#prayer/${p.version}">
+                                        ${p.language.toUpperCase()}: ${displayTitle}
+                                    </a>
+                                </div>`;
+                    })
+                    .join("");
+
+                let paginationHtml = "";
+                if (totalPages > 1) {
+                    paginationHtml = '<div class="pagination">';
+                    if (page > 1)
+                        paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="renderPrayerCodeView('${phelpsCode}', ${page - 1})">Previous</button>`;
+                    paginationHtml += ` <span>Page ${page} of ${totalPages}</span> `;
+                    if (page < totalPages)
+                        paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="renderPrayerCodeView('${phelpsCode}', ${page + 1})">Next</button>`;
+                    paginationHtml += "</div>";
+                }
+
+                contentDiv.innerHTML = `
+                    <header>
+                        <h2>
+                            <span id="category">Prayer Code</span>
+                            <span id="blocktitle">${phelpsCode} (Page ${page})</span>
+                        </h2>
+                    </header>
+                    <div>${listHtml}</div>
+                    ${paginationHtml}
+                `;
+                if (typeof componentHandler !== "undefined")
+                    componentHandler.upgradeDom();
+            }
+
             async function renderLanguageList() {
                 contentDiv.innerHTML =
                     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
@@ -681,6 +778,7 @@
                 updateHeaderNavigation([]);
                 currentPageByLanguage = {};
                 currentPageBySearchTerm = {};
+                currentPageByPhelpsCode = {};
 
                 const sql = `SELECT language, COUNT(*) as prayer_count FROM writings WHERE language IS NOT NULL AND language != '' GROUP BY language ORDER BY language`;
                 const languagesWithCounts = await executeQuery(sql);
@@ -959,6 +1057,17 @@
                     } else {
                         renderLanguageList();
                     }
+                } else if (mainHash.startsWith("#prayercode/")) {
+                    const phelpsCode = decodeURIComponent(
+                        mainHash.substring("#prayercode/".length),
+                    );
+                    if (phelpsCode) {
+                        const page =
+                            currentPageByPhelpsCode[phelpsCode] || pageParam;
+                        renderPrayerCodeView(phelpsCode, page);
+                    } else {
+                        renderLanguageList(); // Fallback if no phelps code provided
+                    }
                 } else if (mainHash.startsWith("#prayer/")) {
                     const versionId = mainHash.substring("#prayer/".length);
                     if (versionId) renderPrayer(versionId);
@@ -979,16 +1088,23 @@
                 ) {
                     renderLanguageList();
                 } else {
+                    // This regex was for old-style phelps links.
+                    // The new #prayercode/ route is preferred.
+                    // We can keep this for backward compatibility or remove.
+                    // For now, let it default to language list.
                     const phelpsRegex = /^#([A-Z]{2}\d{3,5}[A-Z]{0,3})$/i;
                     const phelpsMatch = mainHash.match(phelpsRegex);
                     if (phelpsMatch && phelpsMatch[1]) {
                         const phelpsCode = phelpsMatch[1].toUpperCase();
+                        // Redirect to new prayercode view or handle as before
                         console.log(
-                            "Phelps code detected:",
+                            "Old style Phelps code detected:",
                             phelpsCode,
-                            " - direct linking by Phelps not fully implemented for routing.",
+                            " - Consider updating link to #prayercode/",
+                            phelpsCode,
                         );
-                        renderLanguageList();
+                        // Optionally, redirect: window.location.hash = `#prayercode/${phelpsCode}`;
+                        renderPrayerCodeView(phelpsCode, 1); // Or redirect to new format
                     } else {
                         console.log(
                             "Unhandled hash:",
@@ -1002,6 +1118,7 @@
 
             window.renderPrayersForLanguage = renderPrayersForLanguage;
             window.renderSearchResults = renderSearchResults;
+            window.renderPrayerCodeView = renderPrayerCodeView;
 
             document.addEventListener("DOMContentLoaded", () => {
                 const searchInput = document.getElementById(
