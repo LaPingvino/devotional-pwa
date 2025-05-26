@@ -174,6 +174,7 @@
 
             const DOLTHUB_API_BASE_URL =
                 "https://www.dolthub.com/api/v1alpha1/holywritings/bahaiwritings/main?q=";
+            const MAX_DIRECT_LINKS_IN_HEADER = 4; // Max links before switching to a menu
 
             const contentDiv = document.getElementById("content");
             const prayerLanguageNav = document.getElementById(
@@ -193,7 +194,7 @@
                     const data = await response.json();
                     return data.rows || [];
                 } catch (error) {
-                    console.error("Error executing query:", error); // Corrected console.err or to console.error
+                    console.error("Error executing query:", error);
                     contentDiv.innerHTML = `<p>Error loading data: ${error.message}. Please try again later.</p>`;
                     return [];
                 }
@@ -201,33 +202,71 @@
 
             function updateHeaderNavigation(links = []) {
                 prayerLanguageNav.innerHTML = ""; // Clear existing links
+
                 if (links.length === 0) {
-                    // Optional: add a default message or leave empty
-                    // const defaultLink = document.createElement('a');
-                    // defaultLink.className = 'mdl-navigation__link';
-                    // defaultLink.textContent = 'Holy Writings';
-                    // prayerLanguageNav.appendChild(defaultLink);
                     return;
                 }
-                links.forEach((linkInfo) => {
-                    const link = document.createElement("a");
-                    link.className = "mdl-navigation__link";
-                    link.href = linkInfo.href;
-                    link.textContent = linkInfo.text.toUpperCase();
-                    prayerLanguageNav.appendChild(link);
-                });
+
+                if (links.length > MAX_DIRECT_LINKS_IN_HEADER) {
+                    // Show "Languages" menu button
+                    const buttonId = "languages-menu-button";
+                    const menuButton = document.createElement("button");
+                    menuButton.id = buttonId;
+                    menuButton.className =
+                        "mdl-button mdl-js-button mdl-button--icon"; // Icon button
+
+                    const icon = document.createElement("i");
+                    icon.className = "material-icons";
+                    icon.textContent = "language"; // Material icon for languages/translation
+                    menuButton.appendChild(icon);
+
+                    const menuUl = document.createElement("ul");
+                    menuUl.className =
+                        "mdl-menu mdl-menu--bottom-right mdl-js-menu mdl-js-ripple-effect";
+                    menuUl.setAttribute("for", buttonId);
+
+                    links.forEach((linkInfo) => {
+                        const menuItemLi = document.createElement("li");
+                        menuItemLi.className = "mdl-menu__item";
+
+                        const linkA = document.createElement("a");
+                        linkA.href = linkInfo.href;
+                        linkA.textContent = linkInfo.text; // Text is already processed (e.g., "EN (2)")
+                        linkA.style.textDecoration = "none";
+                        linkA.style.color = "inherit";
+                        linkA.style.display = "block";
+
+                        menuItemLi.appendChild(linkA);
+                        menuUl.appendChild(menuItemLi);
+                    });
+
+                    prayerLanguageNav.appendChild(menuButton);
+                    prayerLanguageNav.appendChild(menuUl);
+
+                    if (typeof componentHandler !== "undefined") {
+                        componentHandler.upgradeElement(menuButton);
+                        componentHandler.upgradeElement(menuUl);
+                    }
+                } else {
+                    // Show direct links
+                    links.forEach((linkInfo) => {
+                        const link = document.createElement("a");
+                        link.className = "mdl-navigation__link";
+                        link.href = linkInfo.href;
+                        link.textContent = linkInfo.text; // Text is already processed
+                        prayerLanguageNav.appendChild(link);
+                    });
+                }
             }
 
             async function renderPrayer(versionId) {
-                // Parameter name kept for consistency with hash, but refers to 'version'
                 contentDiv.innerHTML =
                     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
                 if (typeof componentHandler !== "undefined") {
-                    componentHandler.upgradeDom();
+                    componentHandler.upgradeDom(); // For the spinner
                 }
-                updateHeaderNavigation([]);
+                updateHeaderNavigation([]); // Clear previous language links
 
-                // Use 'writings' table and its columns
                 const sql = `SELECT version, text, language, phelps, name, source, link FROM writings WHERE version = '${versionId}' LIMIT 1`;
                 const rows = await executeQuery(sql);
 
@@ -244,7 +283,7 @@
                 } else if (prayer.text) {
                     prayerTitle = prayer.text.substring(0, 50) + "...";
                 } else {
-                    prayerTitle = "Prayer"; // Fallback
+                    prayerTitle = "Prayer";
                 }
 
                 let html = `
@@ -265,27 +304,62 @@
                 if (prayer.phelps) {
                     const transSql = `SELECT version, language FROM writings WHERE phelps = '${prayer.phelps}' AND phelps IS NOT NULL AND phelps != ''`;
                     const translations = await executeQuery(transSql);
-                    const langLinks = translations
-                        .filter((t) => t.version !== prayer.version) // Exclude current prayer
+
+                    const currentLangLink = {
+                        text: prayer.language, // Raw language code
+                        href: `#prayer/${prayer.version}`,
+                    };
+
+                    const otherLangLinks = translations
+                        // .filter(t => t.version !== prayer.version) // We will include current prayer version from currentLangLink
                         .map((t) => ({
-                            text: t.language,
+                            text: t.language, // Raw language code
                             href: `#prayer/${t.version}`,
                         }));
 
-                    // Add link to current language version as well for context
-                    const currentLangLink = {
-                        text: prayer.language,
-                        href: `#prayer/${prayer.version}`,
-                    };
-                    const allLangLinks = [currentLangLink, ...langLinks].sort(
-                        (a, b) => a.text.localeCompare(b.text),
+                    // Combine, sort, and process for display (numbering duplicates)
+                    // We use all translations from the query plus the current one if it wasn't in the list (e.g. phelps matches but version is unique)
+                    // To ensure the current prayer is in the list and correctly processed with others:
+                    // Create a Set of versions to avoid double-adding if current prayer is already in translations
+                    const uniqueLinks = new Map();
+                    otherLangLinks.forEach((link) =>
+                        uniqueLinks.set(link.href, link),
                     );
+                    uniqueLinks.set(currentLangLink.href, currentLangLink); // Add/overwrite current prayer's link info
 
-                    updateHeaderNavigation(allLangLinks);
+                    const allLangLinksRaw = Array.from(
+                        uniqueLinks.values(),
+                    ).sort((a, b) => {
+                        // Primary sort by language code
+                        const langCompare = a.text.localeCompare(b.text);
+                        if (langCompare !== 0) {
+                            return langCompare;
+                        }
+                        // Secondary sort by href (version) for stable numbering
+                        return a.href.localeCompare(b.href);
+                    });
+
+                    const processedLangLinks = [];
+                    const langCounts = {};
+                    allLangLinksRaw.forEach((link) => {
+                        const langCode = link.text; // e.g., "en"
+                        langCounts[langCode] = (langCounts[langCode] || 0) + 1;
+                        let displayText = langCode.toUpperCase();
+                        if (langCounts[langCode] > 1) {
+                            displayText += ` (${langCounts[langCode]})`; // e.g., "EN (2)"
+                        }
+                        processedLangLinks.push({
+                            text: displayText,
+                            href: link.href,
+                        });
+                    });
+
+                    updateHeaderNavigation(processedLangLinks);
                 } else {
+                    // No Phelps ID, so only show current language
                     updateHeaderNavigation([
                         {
-                            text: prayer.language,
+                            text: prayer.language.toUpperCase(),
                             href: `#prayer/${prayer.version}`,
                         },
                     ]);
@@ -302,38 +376,25 @@
 
                 const languageDisplayName = langCode.toUpperCase();
 
-                // Use 'writings' table and its columns. SUBSTRING uses 'text'. 'author' is removed.
                 const sql = `SELECT version, name, language, SUBSTRING(text, 1, 70) AS opening_text FROM writings WHERE language = '${langCode}' ORDER BY name, opening_text, version`;
                 const prayers = await executeQuery(sql);
 
-                // executeQuery will set contentDiv.innerHTML to an error message and return [] if the query fails.
-                // If prayers is empty, we need to determine if it's because of a query failure (where an error
-                // message is already shown by executeQuery) or simply no data was found (in which case we
-                // show the "No prayers found" message).
                 if (prayers.length === 0) {
-                    // Check if contentDiv's first child is still the spinner.
-                    // If executeQuery encountered an error, it would have replaced the spinner
-                    // with an error message (typically a <p> element).
                     const firstChildInContent = contentDiv.firstChild;
                     const isSpinnerStillPresent =
                         firstChildInContent &&
-                        firstChildInContent.nodeName === "DIV" && // Spinner is a div
+                        firstChildInContent.nodeName === "DIV" &&
                         firstChildInContent.classList &&
                         firstChildInContent.classList.contains("mdl-spinner");
 
                     if (isSpinnerStillPresent) {
-                        // The spinner is still there, meaning executeQuery was successful but found no prayers.
                         contentDiv.innerHTML = `<p>No prayers found for language: ${languageDisplayName}.</p>`;
                     }
-                    // If the spinner is NOT present, it implies executeQuery already set an error message
-                    // in contentDiv. In this case, we don't overwrite it, allowing the more specific
-                    // error from executeQuery to be displayed.
-                    return; // Return whether it was "no data" or an error already handled by executeQuery.
+                    return;
                 }
 
                 let listHtml = prayers
                     .map((p) => {
-                        // Use p.name instead of p.title. Remove p.author.
                         const displayTitle =
                             p.name ||
                             (p.opening_text
@@ -362,7 +423,6 @@
                 }
                 updateHeaderNavigation([]);
 
-                // Use 'writings' table and 'language' column
                 const sql = `SELECT DISTINCT language FROM writings WHERE language IS NOT NULL AND language != '' ORDER BY language`;
                 const languages = await executeQuery(sql);
 
@@ -371,16 +431,12 @@
                     return;
                 }
 
-                // Changed to generate <a> tags directly for a side-by-side list
-                // The CSS rule #content a + a::before will add separators
                 let listHtml = languages
                     .map(
                         (lang) =>
-                            // Use lang.language instead of lang.language_code
-                            // Removed the <div class="prayer-list-item"> wrapper
                             `<a href="#prayers/${lang.language}">${lang.language.toUpperCase()}</a>`,
                     )
-                    .join(""); // Joins <a> tags like <a>EN</a><a>FR</a>...
+                    .join("");
 
                 contentDiv.innerHTML = `
                     <header>
@@ -397,57 +453,48 @@
                 const hash = window.location.hash;
 
                 if (hash.startsWith("#prayer/")) {
-                    const versionId = hash.substring("#prayer/".length); // This ID refers to 'version' column
+                    const versionId = hash.substring("#prayer/".length);
                     if (versionId) {
                         renderPrayer(versionId);
                     } else {
-                        renderLanguageList(); // Fallback if ID is missing
+                        renderLanguageList();
                     }
                 } else if (hash.startsWith("#prayers/")) {
                     const langCode = hash.substring("#prayers/".length);
                     if (langCode) {
                         renderPrayersForLanguage(langCode);
                     } else {
-                        renderLanguageList(); // Fallback if lang code is missing
+                        renderLanguageList();
                     }
                 } else if (hash === "#prayers" || hash === "" || hash === "#") {
                     renderLanguageList();
                 } else {
-                    // Fallback for other unrecognised hashes or initial load without specific prayer hash
-                    // For example, #songs, #books, #programs will currently fall here.
-                    // You might want to add specific handlers for these or a generic "not found" page.
                     console.log(
                         "Unhandled hash:",
                         hash,
-                        "defaulting to language list for now.", // Or render a specific "not implemented" message
+                        "defaulting to language list for now.",
                     );
-                    // For now, rendering language list or a more generic message for unhandled routes:
-                    // contentDiv.innerHTML = `<p>Section ${hash} is not yet implemented.</p><p><a href="#prayers">Go to Prayers</a></p>`;
-                    renderLanguageList(); // Defaulting to language list for any other hash.
+                    renderLanguageList();
                 }
             }
 
             window.addEventListener("hashchange", handleRouteChange);
             document.addEventListener("DOMContentLoaded", () => {
-                // Ensure MDL components are upgraded after initial dynamic content might be added
                 if (typeof componentHandler !== "undefined") {
                     componentHandler.upgradeDom();
                 }
-                handleRouteChange(); // Initial route handling
+                handleRouteChange();
             });
         </script>
 
         <!-- Add ServiceWorker and manup.js -->
         <script>
             //This is the "Offline copy of pages" service worker
-
-            //Add this below content to your HTML page, or add the js file to your page at the very top to register service worker
             if (navigator.serviceWorker.controller) {
                 console.log(
                     "[PWA Builder] active service worker found, no need to register",
                 );
             } else {
-                //Register the ServiceWorker
                 navigator.serviceWorker
                     .register("pwabuilder-sw.js", {
                         scope: "./",
