@@ -619,7 +619,7 @@
                             id="collected-matches-section"
                             style="margin-top: 15px"
                         >
-                            <h5>Collected Matches for Email:</h5>
+                            <h5>Collected Matches:</h5>
                             <ul
                                 id="collected-matches-list"
                                 style="
@@ -674,6 +674,23 @@
                                     >launch</i
                                 >
                                 SQL on DoltHub
+                            </button>
+                            <button
+                                id="clear-collected-matches-button"
+                                class="mdl-button mdl-js-button mdl-button--raised"
+                                disabled
+                                style="
+                                    flex-grow: 1;
+                                    background-color: #f44336;
+                                    color: white;
+                                "
+                            >
+                                <i
+                                    class="material-icons"
+                                    style="margin-right: 4px"
+                                    >delete_sweep</i
+                                >
+                                Clear Batch
                             </button>
                         </div>
                     </div>
@@ -909,6 +926,9 @@
                 const openSqlDoltHubButton = document.getElementById(
                     "open-sql-doltub-button",
                 );
+                const clearMatchesButton = document.getElementById(
+                    "clear-collected-matches-button",
+                );
 
                 // Pinned Prayer Display
                 if (pinnedPrayerDetails) {
@@ -929,7 +949,7 @@
                         "mdl-button mdl-js-button mdl-button--icon mdl-button--colored";
                     unpinButton.innerHTML =
                         '<i class="material-icons">cancel</i>';
-                    unpinButton.title = "Unpin Prayer & Clear All Matches";
+                    unpinButton.title = "Unpin Prayer (Match list preserved)";
                     unpinButton.onclick = unpinPrayer;
 
                     pinnedSection.innerHTML = ""; // Clear previous content
@@ -943,6 +963,29 @@
                         pinnedSection.appendChild(prayerTextDiv);
                     }
 
+                    // Add "Return to language list" link if applicable
+                    if (pinnedPrayerDetails.language) {
+                        let pageState =
+                            currentPageByLanguage[pinnedPrayerDetails.language];
+                        let returnUrlParams = "";
+                        if (pageState) {
+                            returnUrlParams = `?page=${pageState.page || 1}${pageState.showOnlyUnmatched ? "&filter=unmatched" : ""}`;
+                        } else {
+                            returnUrlParams = `?page=1`;
+                        }
+                        const returnLinkHref = `#prayers/${pinnedPrayerDetails.language}${returnUrlParams}`;
+                        const pinnedNameSnippet = (
+                            pinnedPrayerDetails.name ||
+                            `Version ${pinnedPrayerDetails.version}`
+                        ).substring(0, 30);
+
+                        const returnLinkP = document.createElement("p");
+                        returnLinkP.style.fontSize = "0.9em";
+                        returnLinkP.style.marginTop = "10px";
+                        returnLinkP.innerHTML = `To find more matches for pinned '${pinnedNameSnippet}...', return to <a href="${returnLinkHref}">${pinnedPrayerDetails.language.toUpperCase()} list</a>.`;
+                        pinnedSection.appendChild(returnLinkP);
+                    }
+
                     if (typeof componentHandler !== "undefined") {
                         componentHandler.upgradeElement(unpinButton);
                     }
@@ -953,45 +996,40 @@
 
                 // Collected Matches Display
                 matchesListUl.innerHTML = ""; // Clear previous
-                if (collectedMatchesForEmail.length > 0) {
+                const hasMatches = collectedMatchesForEmail.length > 0;
+                if (hasMatches) {
                     collectedMatchesForEmail.forEach((matchData) => {
                         const li = document.createElement("li");
                         li.textContent = matchData.description;
                         matchesListUl.appendChild(li);
                     });
-                    if (mailButton) mailButton.disabled = false;
-                    if (showSqlButton) showSqlButton.disabled = false;
-                    if (openSqlDoltHubButton)
-                        openSqlDoltHubButton.disabled = false;
                 } else {
                     const li = document.createElement("li");
                     li.textContent = "No matches collected yet.";
                     matchesListUl.appendChild(li);
-                    if (mailButton) mailButton.disabled = true;
-                    if (showSqlButton) showSqlButton.disabled = true;
-                    if (openSqlDoltHubButton)
-                        openSqlDoltHubButton.disabled = true;
                 }
 
+                if (mailButton) mailButton.disabled = !hasMatches;
+                if (showSqlButton) showSqlButton.disabled = !hasMatches;
+                if (openSqlDoltHubButton)
+                    openSqlDoltHubButton.disabled = !hasMatches;
+                if (clearMatchesButton)
+                    clearMatchesButton.disabled = !hasMatches;
+
                 if (typeof componentHandler !== "undefined") {
-                    if (
-                        mailButton &&
-                        mailButton.classList.contains("mdl-js-button")
-                    ) {
-                        componentHandler.upgradeElement(mailButton);
-                    }
-                    if (
-                        showSqlButton &&
-                        showSqlButton.classList.contains("mdl-js-button")
-                    ) {
-                        componentHandler.upgradeElement(showSqlButton);
-                    }
-                    if (
-                        openSqlDoltHubButton &&
-                        openSqlDoltHubButton.classList.contains("mdl-js-button")
-                    ) {
-                        componentHandler.upgradeElement(openSqlDoltHubButton);
-                    }
+                    [
+                        mailButton,
+                        showSqlButton,
+                        openSqlDoltHubButton,
+                        clearMatchesButton,
+                    ].forEach((button) => {
+                        if (
+                            button &&
+                            button.classList.contains("mdl-js-button")
+                        ) {
+                            componentHandler.upgradeElement(button);
+                        }
+                    });
                 }
             }
 
@@ -1001,29 +1039,23 @@
                     phelps: prayerData.phelps || null,
                     name: prayerData.name || `Prayer ${prayerData.version}`,
                     language: prayerData.language,
-                    text: prayerData.text || "Text not available.", // Store prayer text
+                    text: prayerData.text || "Text not available.",
                 };
                 updatePrayerMatchingToolDisplay();
                 handleRouteChange(); // Re-render current view to update action buttons
-                const snackbarContainer =
-                    document.querySelector(".mdl-js-snackbar");
-                if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
-                    snackbarContainer.MaterialSnackbar.showSnackbar({
-                        message: "Prayer pinned! Navigate to its match.",
-                    });
-                }
+                // Snackbar message handled by caller for context (initial pin vs. replace)
             }
 
             function unpinPrayer() {
                 pinnedPrayerDetails = null;
-                collectedMatchesForEmail = []; // Clear collected matches as well
+                // DO NOT CLEAR: collectedMatchesForEmail = [];
                 updatePrayerMatchingToolDisplay();
-                handleRouteChange(); // Re-render current view to update action buttons
+                handleRouteChange();
                 const snackbarContainer =
                     document.querySelector(".mdl-js-snackbar");
                 if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
                     snackbarContainer.MaterialSnackbar.showSnackbar({
-                        message: "Prayer unpinned and matches cleared.",
+                        message: "Prayer unpinned. Match list preserved.",
                     });
                 }
             }
@@ -1069,27 +1101,9 @@
                 const snackbarContainer =
                     document.querySelector(".mdl-js-snackbar");
                 if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
-                    let message = "Match added to list for emailing.";
-                    if (pinnedPrayerDetails && pinnedPrayerDetails.language) {
-                        let pageState =
-                            currentPageByLanguage[pinnedPrayerDetails.language];
-                        let returnUrlParams = "";
-                        if (pageState) {
-                            returnUrlParams = `?page=${pageState.page || 1}${pageState.showOnlyUnmatched ? "&filter=unmatched" : ""}`;
-                        } else {
-                            returnUrlParams = `?page=1`;
-                        }
-                        const returnLink = `#prayers/${pinnedPrayerDetails.language}${returnUrlParams}`;
-                        const pinnedNameSnippet = (
-                            pinnedPrayerDetails.name ||
-                            `Version ${pinnedPrayerDetails.version}`
-                        ).substring(0, 30);
-
-                        message += ` To find more for pinned '${pinnedNameSnippet}...', return to <a href="${returnLink}" style="color: #80cbc4; text-decoration: underline;">${pinnedPrayerDetails.language.toUpperCase()} list</a>.`;
-                    }
                     snackbarContainer.MaterialSnackbar.showSnackbar({
-                        message: message,
-                        timeout: 10000, // Longer timeout for link
+                        message: "Match added to list.",
+                        timeout: 5000,
                     });
                 } else {
                     console.log("Match added to list for emailing.");
@@ -1210,12 +1224,9 @@
                 tempLink.click();
                 document.body.removeChild(tempLink);
 
-                // Clear matches after attempting to send email for THIS BATCH.
-                // Pinned prayer remains for further matching unless user explicitly unpins or replaces.
-                // If the desire is to clear matches AND unpin, then unpinPrayer() should be called.
-                // For now, just clearing collectedMatchesForEmail for the current pin.
-                collectedMatchesForEmail = [];
-                updatePrayerMatchingToolDisplay();
+                // Assuming email sent, clear for next batch.
+                // collectedMatchesForEmail = []; // This is now handled by "Clear Batch" or implicitly if user unpins then repins (effectively starting new batch)
+                // updatePrayerMatchingToolDisplay();
             }
 
             // --- LocalStorage Cache Functions ---
@@ -1672,12 +1683,24 @@
                         replacePinButton.className =
                             "mdl-button mdl-js-button mdl-button--raised";
                         replacePinButton.innerHTML =
-                            '<i class="material-icons">swap_horiz</i> Pin This (New Batch)';
+                            '<i class="material-icons">swap_horiz</i> Replace Pin';
                         replacePinButton.title =
-                            "Unpins current, clears its matches, and pins this prayer for a new batch.";
+                            "Replaces the currently pinned prayer with this one. The collected match list is preserved.";
                         replacePinButton.onclick = () => {
-                            unpinPrayer();
-                            pinPrayer(prayer);
+                            pinPrayer(prayer); // Pin the new one, overwriting the old. Match list is not touched.
+                            const snackbarContainer =
+                                document.querySelector(".mdl-js-snackbar");
+                            if (
+                                snackbarContainer &&
+                                snackbarContainer.MaterialSnackbar
+                            ) {
+                                snackbarContainer.MaterialSnackbar.showSnackbar(
+                                    {
+                                        message:
+                                            "Pinned prayer replaced. Match list preserved.",
+                                    },
+                                );
+                            }
                         };
                         actionsDiv.appendChild(replacePinButton);
 
@@ -1697,7 +1720,20 @@
                         "mdl-button mdl-js-button mdl-button--raised mdl-button--colored";
                     pinButton.innerHTML =
                         '<i class="material-icons">push_pin</i> Pin this Prayer';
-                    pinButton.onclick = () => pinPrayer(prayer);
+                    pinButton.onclick = () => {
+                        pinPrayer(prayer);
+                        const snackbarContainer =
+                            document.querySelector(".mdl-js-snackbar");
+                        if (
+                            snackbarContainer &&
+                            snackbarContainer.MaterialSnackbar
+                        ) {
+                            snackbarContainer.MaterialSnackbar.showSnackbar({
+                                message:
+                                    "Prayer pinned! Navigate to its match.",
+                            });
+                        }
+                    };
                     actionsDiv.appendChild(pinButton);
                     if (typeof componentHandler !== "undefined")
                         componentHandler.upgradeElement(pinButton);
@@ -2715,6 +2751,46 @@
                     );
                 }
 
+                const clearMatchesButton = document.getElementById(
+                    "clear-collected-matches-button",
+                );
+                if (clearMatchesButton) {
+                    clearMatchesButton.addEventListener("click", () => {
+                        if (collectedMatchesForEmail.length > 0) {
+                            if (
+                                confirm(
+                                    "Are you sure you want to clear the entire list of collected matches? This cannot be undone.",
+                                )
+                            ) {
+                                collectedMatchesForEmail = [];
+                                updatePrayerMatchingToolDisplay();
+                                if (
+                                    snackbarContainer &&
+                                    snackbarContainer.MaterialSnackbar
+                                ) {
+                                    snackbarContainer.MaterialSnackbar.showSnackbar(
+                                        {
+                                            message:
+                                                "Collected matches cleared.",
+                                        },
+                                    );
+                                }
+                            }
+                        } else {
+                            if (
+                                snackbarContainer &&
+                                snackbarContainer.MaterialSnackbar
+                            ) {
+                                snackbarContainer.MaterialSnackbar.showSnackbar(
+                                    {
+                                        message: "Match list is already empty.",
+                                    },
+                                );
+                            }
+                        }
+                    });
+                }
+
                 const showSqlButton =
                     document.getElementById("show-sql-button");
                 const openSqlDoltHubButton = document.getElementById(
@@ -2793,9 +2869,7 @@
                             }
                             return;
                         }
-                        const fullQueryString =
-                            queries.join(";\n") +
-                            (queries.length > 0 ? ";" : ""); // Ensure semicolon termination
+                        const fullQueryString = queries.join("\n");
                         const doltHubUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(fullQueryString)}`;
                         window.open(doltHubUrl, "_blank");
                     });
