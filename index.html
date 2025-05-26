@@ -61,8 +61,9 @@
                 font-weight: bold;
                 padding: 3px;
             }
+            /* This rule for ' - ' separator between links will no longer apply to the language list,
+               as it will use buttons. It remains for other links in #content. */
             #content a + a::before {
-                /* This applies to adjacent <a> tags, good for horizontal lists */
                 content: " - ";
             }
             #content .prayer-list-item a + a::before {
@@ -104,7 +105,7 @@
                 margin-top: 100px;
             }
             .prayer-list-item {
-                margin-bottom: 0.5em; /* This applies to prayer lists, not the language list if it doesn't use this class */
+                margin-bottom: 0.5em;
             }
             .pagination {
                 margin-top: 20px;
@@ -119,6 +120,18 @@
             }
             .mdl-layout__header-row .mdl-textfield__label:after {
                 background-color: white; /* Or a suitable color for the underline */
+            }
+
+            /* Styles for the new language buttons container */
+            .language-buttons-container {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center; /* Center buttons if they don't fill the row */
+                padding: 10px 0; /* Add some vertical padding */
+            }
+            .language-buttons-container .mdl-button {
+                margin: 5px; /* Spacing around each button */
+                text-transform: uppercase; /* Ensure language codes are uppercase */
             }
         </style>
 
@@ -664,15 +677,15 @@
                 contentDiv.innerHTML =
                     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
                 if (typeof componentHandler !== "undefined")
-                    componentHandler.upgradeDom();
+                    componentHandler.upgradeDom(); // For spinner
                 updateHeaderNavigation([]);
                 currentPageByLanguage = {};
                 currentPageBySearchTerm = {};
 
-                const sql = `SELECT DISTINCT language FROM writings WHERE language IS NOT NULL AND language != '' ORDER BY language`;
-                const languages = await executeQuery(sql);
+                const sql = `SELECT language, COUNT(*) as prayer_count FROM writings WHERE language IS NOT NULL AND language != '' GROUP BY language ORDER BY language`;
+                const languagesWithCounts = await executeQuery(sql);
 
-                if (languages.length === 0) {
+                if (languagesWithCounts.length === 0) {
                     const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(sql)}`;
                     contentDiv.innerHTML = `
                         <p>No languages found in the database.</p>
@@ -682,12 +695,17 @@
                     `;
                     return;
                 }
-                let listHtml = languages
-                    .map(
-                        (lang) =>
-                            `<a href="#prayers/${lang.language}">${lang.language.toUpperCase()}</a>`,
-                    )
-                    .join("");
+
+                let listHtml = languagesWithCounts
+                    .map((langData) => {
+                        const langCode = langData.language;
+                        const prayerCount = langData.prayer_count;
+                        return `<button class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" onclick="window.location.hash='#prayers/${langCode}'">
+                                        ${langCode.toUpperCase()} (${prayerCount})
+                                    </button>`;
+                    })
+                    .join("\n");
+
                 contentDiv.innerHTML = `
                     <header>
                         <h2>
@@ -695,8 +713,12 @@
                             <span id="blocktitle">Available Languages</span>
                         </h2>
                     </header>
-                    <div>${listHtml}</div>
+                    <div class="language-buttons-container">${listHtml}</div>
                 `;
+
+                if (typeof componentHandler !== "undefined") {
+                    componentHandler.upgradeDom(); // Upgrade MDL components
+                }
             }
 
             async function renderSearchResults(searchTerm, page = 1) {
