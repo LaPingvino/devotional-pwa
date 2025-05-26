@@ -23,7 +23,6 @@
         <title>&#x1f7d9; Holywritings.net</title>
     </head>
     <body>
-        <!-- Uses a transparent header that draws on top of the layout's background -->
         <style>
             .star {
                 font-family: "Noto Sans Symbols 2";
@@ -32,25 +31,26 @@
             }
             body {
                 font-size: 1.3em;
+                /* A soft background color for the body, MDL might override for content area */
+                background-color: #f4f6f6;
             }
-            .demo-layout-transparent {
-                background: url("banner-1018812_1920.jpg") center / cover;
-            }
-            .demo-layout-transparent .mdl-layout__header,
-            .demo-layout-transparent .mdl-layout__drawer-button {
-                /* This background is dark, so we set text to white. Use 87% black (#222222) instead if
-     your background is light. */
-                color: #222222;
-            }
-            .mdl-layout__header-row .mdl-navigation {
-                background: gray;
-            }
+            /* .mdl-layout__header will now get its color from the MDL theme (blue_grey) */
+            /* .mdl-layout__content will also get its background from MDL theme (typically light grey) */
+
             #content {
                 margin: 25px 75px;
+                background-color: #ffffff; /* Ensuring content area within padding is white */
+                padding: 20px; /* Add some padding if margin is for spacing from edge */
+                border-radius: 4px;
+                box-shadow:
+                    0 2px 2px 0 rgba(0, 0, 0, 0.14),
+                    0 3px 1px -2px rgba(0, 0, 0, 0.2),
+                    0 1px 5px 0 rgba(0, 0, 0, 0.12);
             }
             @media screen and (max-width: 480px) {
                 #content {
-                    margin: 25px 25px;
+                    margin: 15px 15px; /* Adjusted margin for smaller screens */
+                    padding: 15px;
                 }
             }
             #content a {
@@ -63,7 +63,7 @@
             .author::before {
                 content: "--";
             }
-            header,
+            header, /* This refers to the <header> inside #content, not the main layout header */
             .scripture {
                 padding-left: 1em;
             }
@@ -96,8 +96,8 @@
             }
         </style>
 
-        <div class="demo-layout-transparent mdl-layout mdl-js-layout">
-            <header class="mdl-layout__header mdl-layout__header--transparent">
+        <div class="mdl-layout mdl-js-layout">
+            <header class="mdl-layout__header">
                 <div class="mdl-layout__header-row">
                     <!-- Title -->
                     <span class="mdl-layout-title"
@@ -141,28 +141,33 @@
                 />
                 <div>
                     <small
-                        >Contribute on https://tiddly.holywritings.net - Put
-                        together by Joop Kiefte</small
+                        >Contribute on
+                        <a href="https://tiddly.holywritings.net"
+                            >tiddly.holywritings.net</a
+                        >
+                        - Put together by Joop Kiefte</small
                     >
                 </div>
             </div>
-            <main class="mdl-layout__content" id="content">
-                <header>
-                    <h2>
-                        <span id="category">Prayers</span>
-                        <span id="blocktitle">Healing</span>
-                    </h2>
-                </header>
-                <div class="scripture">
-                    <div class="prayer">
-                        Thy name is my healing, O my God, and remembrance of
-                        Thee is my remedy. Nearness to Thee is my hope, and love
-                        for Thee is my companion. Thy mercy to me is my healing
-                        and my succor in both this world and the world to come.
-                        Thou, verily, art the All-Bountiful, the All-Knowing,
-                        the All-Wise.
+            <main class="mdl-layout__content">
+                <div id="content">
+                    <header>
+                        <h2>
+                            <span id="category">Prayers</span>
+                            <span id="blocktitle">Healing</span>
+                        </h2>
+                    </header>
+                    <div class="scripture">
+                        <div class="prayer">
+                            Thy name is my healing, O my God, and remembrance of
+                            Thee is my remedy. Nearness to Thee is my hope, and
+                            love for Thee is my companion. Thy mercy to me is my
+                            healing and my succor in both this world and the
+                            world to come. Thou, verily, art the All-Bountiful,
+                            the All-Knowing, the All-Wise.
+                        </div>
+                        <div class="author">Bahá'u'lláh</div>
                     </div>
-                    <div class="author">Bahá'u'lláh</div>
                 </div>
             </main>
         </div>
