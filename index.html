@@ -102,6 +102,13 @@
             .prayer-list-item {
                 margin-bottom: 0.5em; /* This applies to prayer lists, not the language list if it doesn't use this class */
             }
+            .pagination {
+                margin-top: 20px;
+                text-align: center;
+            }
+            .pagination button {
+                margin: 0 5px;
+            }
         </style>
 
         <div class="mdl-layout mdl-js-layout">
@@ -175,11 +182,14 @@
             const DOLTHUB_API_BASE_URL =
                 "https://www.dolthub.com/api/v1alpha1/holywritings/bahaiwritings/main?q=";
             const MAX_DIRECT_LINKS_IN_HEADER = 4; // Max links before switching to a menu
+            const ITEMS_PER_PAGE = 20; // Number of items per page for pagination
 
             const contentDiv = document.getElementById("content");
             const prayerLanguageNav = document.getElementById(
                 "prayer-language-nav",
             );
+
+            let currentPageByLanguage = {}; // To store current page for each language list
 
             async function executeQuery(sql) {
                 try {
@@ -197,6 +207,27 @@
                     console.error("Error executing query:", error);
                     contentDiv.innerHTML = `<p>Error loading data: ${error.message}. Please try again later.</p>`;
                     return [];
+                }
+            }
+
+            function getAuthorFromPhelps(phelpsCode) {
+                if (
+                    !phelpsCode ||
+                    typeof phelpsCode !== "string" ||
+                    phelpsCode.length < 2
+                ) {
+                    return null;
+                }
+                const prefix = phelpsCode.substring(0, 2).toUpperCase();
+                switch (prefix) {
+                    case "AB":
+                        return "`Abdu'l-Bahá";
+                    case "BH":
+                        return "Bahá'u'lláh";
+                    case "BB":
+                        return "The Báb";
+                    default:
+                        return null;
                 }
             }
 
@@ -276,6 +307,7 @@
                 }
 
                 const prayer = rows[0];
+                const authorName = getAuthorFromPhelps(prayer.phelps);
 
                 let prayerTitle;
                 if (prayer.name) {
@@ -295,6 +327,7 @@
                     </header>
                     <div class="scripture">
                         <div class="prayer" style="white-space: pre-wrap;">${prayer.text || "No text available."}</div>
+                        ${authorName ? `<div class="author">${authorName}</div>` : ""}
                         ${prayer.source ? `<div style="font-size: 0.8em; margin-left: 2em; margin-top: 0.5em; font-style: italic;">Source: ${prayer.source} ${prayer.link ? `(<a href="${prayer.link}" target="_blank">link</a>)` : ""}</div>` : ""}
                         ${prayer.phelps ? `<div style="font-size: 0.7em; margin-left: 2em; margin-top: 0.3em; color: #555;">Phelps ID: ${prayer.phelps}</div>` : ""}
                     </div>
@@ -310,43 +343,35 @@
                         href: `#prayer/${prayer.version}`,
                     };
 
-                    const otherLangLinks = translations
-                        // .filter(t => t.version !== prayer.version) // We will include current prayer version from currentLangLink
-                        .map((t) => ({
-                            text: t.language, // Raw language code
-                            href: `#prayer/${t.version}`,
-                        }));
+                    const otherLangLinks = translations.map((t) => ({
+                        text: t.language, // Raw language code
+                        href: `#prayer/${t.version}`,
+                    }));
 
-                    // Combine, sort, and process for display (numbering duplicates)
-                    // We use all translations from the query plus the current one if it wasn't in the list (e.g. phelps matches but version is unique)
-                    // To ensure the current prayer is in the list and correctly processed with others:
-                    // Create a Set of versions to avoid double-adding if current prayer is already in translations
                     const uniqueLinks = new Map();
                     otherLangLinks.forEach((link) =>
                         uniqueLinks.set(link.href, link),
                     );
-                    uniqueLinks.set(currentLangLink.href, currentLangLink); // Add/overwrite current prayer's link info
+                    uniqueLinks.set(currentLangLink.href, currentLangLink);
 
                     const allLangLinksRaw = Array.from(
                         uniqueLinks.values(),
                     ).sort((a, b) => {
-                        // Primary sort by language code
                         const langCompare = a.text.localeCompare(b.text);
                         if (langCompare !== 0) {
                             return langCompare;
                         }
-                        // Secondary sort by href (version) for stable numbering
                         return a.href.localeCompare(b.href);
                     });
 
                     const processedLangLinks = [];
                     const langCounts = {};
                     allLangLinksRaw.forEach((link) => {
-                        const langCode = link.text; // e.g., "en"
+                        const langCode = link.text;
                         langCounts[langCode] = (langCounts[langCode] || 0) + 1;
                         let displayText = langCode.toUpperCase();
                         if (langCounts[langCode] > 1) {
-                            displayText += ` (${langCounts[langCode]})`; // e.g., "EN (2)"
+                            displayText += ` (${langCounts[langCode]})`;
                         }
                         processedLangLinks.push({
                             text: displayText,
@@ -356,7 +381,6 @@
 
                     updateHeaderNavigation(processedLangLinks);
                 } else {
-                    // No Phelps ID, so only show current language
                     updateHeaderNavigation([
                         {
                             text: prayer.language.toUpperCase(),
@@ -366,7 +390,10 @@
                 }
             }
 
-            async function renderPrayersForLanguage(langCode) {
+            async function renderPrayersForLanguage(langCode, page = 1) {
+                currentPageByLanguage[langCode] = page;
+                const offset = (page - 1) * ITEMS_PER_PAGE;
+
                 contentDiv.innerHTML =
                     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
                 if (typeof componentHandler !== "undefined") {
@@ -376,20 +403,25 @@
 
                 const languageDisplayName = langCode.toUpperCase();
 
-                const sql = `SELECT version, name, language, SUBSTRING(text, 1, 70) AS opening_text FROM writings WHERE language = '${langCode}' ORDER BY name, opening_text, version`;
+                // Query for current page items
+                const sql = `SELECT version, name, language, SUBSTRING(text, 1, 70) AS opening_text FROM writings WHERE language = '${langCode}' ORDER BY name, opening_text, version LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
                 const prayers = await executeQuery(sql);
 
-                if (prayers.length === 0) {
-                    const firstChildInContent = contentDiv.firstChild;
-                    const isSpinnerStillPresent =
-                        firstChildInContent &&
-                        firstChildInContent.nodeName === "DIV" &&
-                        firstChildInContent.classList &&
-                        firstChildInContent.classList.contains("mdl-spinner");
+                // Query for total count for pagination (can be slow, consider alternatives if performance is an issue)
+                const countSql = `SELECT COUNT(*) as total FROM writings WHERE language = '${langCode}'`;
+                const countResult = await executeQuery(countSql);
+                const totalPrayers =
+                    countResult.length > 0 ? countResult[0].total : 0;
+                const totalPages = Math.ceil(totalPrayers / ITEMS_PER_PAGE);
 
-                    if (isSpinnerStillPresent) {
-                        contentDiv.innerHTML = `<p>No prayers found for language: ${languageDisplayName}.</p>`;
-                    }
+                if (prayers.length === 0 && page === 1) {
+                    contentDiv.innerHTML = `<p>No prayers found for language: ${languageDisplayName}.</p>`;
+                    return;
+                }
+                if (prayers.length === 0 && page > 1) {
+                    // This case means user tried to go to a page that doesn't exist (e.g. after items were deleted)
+                    // Go to the last valid page or first page.
+                    renderPrayersForLanguage(langCode, Math.max(1, totalPages));
                     return;
                 }
 
@@ -404,15 +436,32 @@
                     })
                     .join("");
 
+                let paginationHtml = "";
+                if (totalPages > 1) {
+                    paginationHtml = '<div class="pagination">';
+                    if (page > 1) {
+                        paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="renderPrayersForLanguage('${langCode}', ${page - 1})">Previous</button>`;
+                    }
+                    paginationHtml += ` <span>Page ${page} of ${totalPages}</span> `;
+                    if (page < totalPages) {
+                        paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="renderPrayersForLanguage('${langCode}', ${page + 1})">Next</button>`;
+                    }
+                    paginationHtml += "</div>";
+                }
+
                 contentDiv.innerHTML = `
                     <header>
                         <h2>
                             <span id="category">Prayers</span>
-                            <span id="blocktitle">Language: ${languageDisplayName}</span>
+                            <span id="blocktitle">Language: ${languageDisplayName} (Page ${page})</span>
                         </h2>
                     </header>
                     <div>${listHtml}</div>
+                    ${paginationHtml}
                 `;
+                if (typeof componentHandler !== "undefined") {
+                    componentHandler.upgradeDom(); // For MDL buttons in pagination
+                }
             }
 
             async function renderLanguageList() {
@@ -422,6 +471,7 @@
                     componentHandler.upgradeDom();
                 }
                 updateHeaderNavigation([]);
+                currentPageByLanguage = {}; // Reset page states when going to language list
 
                 const sql = `SELECT DISTINCT language FROM writings WHERE language IS NOT NULL AND language != '' ORDER BY language`;
                 const languages = await executeQuery(sql);
@@ -451,32 +501,65 @@
 
             function handleRouteChange() {
                 const hash = window.location.hash;
+                const hashParts = hash.split("?page=");
+                const mainHash = hashParts[0];
+                const pageParam = hashParts[1] ? parseInt(hashParts[1], 10) : 1;
 
-                if (hash.startsWith("#prayer/")) {
-                    const versionId = hash.substring("#prayer/".length);
+                if (mainHash.startsWith("#prayer/")) {
+                    const versionId = mainHash.substring("#prayer/".length);
                     if (versionId) {
                         renderPrayer(versionId);
                     } else {
                         renderLanguageList();
                     }
-                } else if (hash.startsWith("#prayers/")) {
-                    const langCode = hash.substring("#prayers/".length);
+                } else if (mainHash.startsWith("#prayers/")) {
+                    const langCode = mainHash.substring("#prayers/".length);
                     if (langCode) {
-                        renderPrayersForLanguage(langCode);
+                        // Use stored page for this language if available, else default to page from URL or 1
+                        const page =
+                            currentPageByLanguage[langCode] || pageParam || 1;
+                        renderPrayersForLanguage(langCode, page);
                     } else {
                         renderLanguageList();
                     }
-                } else if (hash === "#prayers" || hash === "" || hash === "#") {
+                } else if (
+                    mainHash === "#prayers" ||
+                    mainHash === "" ||
+                    mainHash === "#"
+                ) {
                     renderLanguageList();
                 } else {
-                    console.log(
-                        "Unhandled hash:",
-                        hash,
-                        "defaulting to language list for now.",
-                    );
-                    renderLanguageList();
+                    // Check for Phelps code hash (e.g. #BH001)
+                    const phelpsRegex = /^#([A-Z]{2}\d{3,5}[A-Z]{0,3})$/i;
+                    const phelpsMatch = mainHash.match(phelpsRegex);
+                    if (phelpsMatch && phelpsMatch[1]) {
+                        const phelpsCode = phelpsMatch[1].toUpperCase();
+                        // Attempt to find a prayer with this Phelps code (e.g., the English version or first found)
+                        // This might require an adjusted query or strategy, for now, we'll just log it
+                        // and potentially default to a prayer view if we can find one.
+                        // For now, we assume versionId is used for direct prayer linking.
+                        // To make this work, we'd need to query for `WHERE phelps = '${phelpsCode}' LIMIT 1`
+                        // and then call renderPrayer with the found `version`.
+                        console.log(
+                            "Phelps code detected:",
+                            phelpsCode,
+                            " - feature to directly link by Phelps not fully implemented for routing yet.",
+                        );
+                        // As a fallback or if direct Phelps routing isn't implemented, go to language list
+                        renderLanguageList();
+                    } else {
+                        console.log(
+                            "Unhandled hash:",
+                            mainHash,
+                            "defaulting to language list.",
+                        );
+                        renderLanguageList();
+                    }
                 }
             }
+
+            // Make renderPrayersForLanguage globally accessible for pagination buttons
+            window.renderPrayersForLanguage = renderPrayersForLanguage;
 
             window.addEventListener("hashchange", handleRouteChange);
             document.addEventListener("DOMContentLoaded", () => {
