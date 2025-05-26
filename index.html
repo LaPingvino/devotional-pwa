@@ -62,7 +62,7 @@
                 content: " - ";
             }
             #content .prayer-list-item a + a::before {
-                /* Disable for prayer list items */
+                /* Disable for prayer list items if multiple links are inside one item */
                 content: "";
             }
             .author::before {
@@ -100,7 +100,7 @@
                 margin-top: 100px;
             }
             .prayer-list-item {
-                margin-bottom: 0.5em;
+                margin-bottom: 0.5em; /* This applies to prayer lists, not the language list if it doesn't use this class */
             }
         </style>
 
@@ -350,13 +350,16 @@
                     return;
                 }
 
+                // Changed to generate <a> tags directly for a side-by-side list
+                // The CSS rule #content a + a::before will add separators
                 let listHtml = languages
                     .map(
                         (lang) =>
                             // Use lang.language instead of lang.language_code
-                            `<div class="prayer-list-item"><a href="#prayers/${lang.language}">${lang.language.toUpperCase()}</a></div>`,
+                            // Removed the <div class="prayer-list-item"> wrapper
+                            `<a href="#prayers/${lang.language}">${lang.language.toUpperCase()}</a>`,
                     )
-                    .join("");
+                    .join(""); // Joins <a> tags like <a>EN</a><a>FR</a>...
 
                 contentDiv.innerHTML = `
                     <header>
@@ -390,12 +393,16 @@
                     renderLanguageList();
                 } else {
                     // Fallback for other unrecognised hashes or initial load without specific prayer hash
+                    // For example, #songs, #books, #programs will currently fall here.
+                    // You might want to add specific handlers for these or a generic "not found" page.
                     console.log(
                         "Unhandled hash:",
                         hash,
-                        "defaulting to language list.",
+                        "defaulting to language list for now.", // Or render a specific "not implemented" message
                     );
-                    renderLanguageList();
+                    // For now, rendering language list or a more generic message for unhandled routes:
+                    // contentDiv.innerHTML = `<p>Section ${hash} is not yet implemented.</p><p><a href="#prayers">Go to Prayers</a></p>`;
+                    renderLanguageList(); // Defaulting to language list for any other hash.
                 }
             }
 
