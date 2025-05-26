@@ -194,6 +194,10 @@
             #content .prayer-code-list-item a + a::before {
                 content: "";
             }
+            #content .other-versions-in-lang-list a + a::before {
+                /* Remove dash for this specific list */
+                content: "";
+            }
 
             .author::before {
                 content: "--";
@@ -258,6 +262,19 @@
                 margin: 5px;
                 text-transform: uppercase;
             }
+            .language-buttons-container .mdl-button.lang-button-green {
+                background-color: #4caf50; /* Green */
+                color: white;
+            }
+            .language-buttons-container .mdl-button.lang-button-yellow {
+                background-color: #ffeb3b; /* Yellow */
+                color: #333; /* Darker text for yellow bg */
+            }
+            .language-buttons-container .mdl-button.lang-button-green:hover,
+            .language-buttons-container .mdl-button.lang-button-yellow:hover {
+                opacity: 0.8;
+            }
+
             #prayer-language-nav .mdl-menu__container {
                 /* Header language menu */
                 z-index: 10001 !important;
@@ -418,6 +435,7 @@
             }
 
             .favorite-prayer-card-translations-list {
+                /* For other language links */
                 list-style: none;
                 padding: 0;
                 margin: 0;
@@ -437,6 +455,24 @@
             }
             .favorite-prayer-card-translations-item a:hover {
                 background-color: #bbdefb;
+            }
+
+            .other-versions-in-lang-list {
+                /* For same language, different version links */
+                list-style: disc;
+                padding-left: 20px;
+                font-size: 0.8em; /* Slightly smaller */
+                margin: 0;
+            }
+            .other-versions-in-lang-list li {
+                margin-bottom: 3px;
+            }
+            .other-versions-in-lang-list a {
+                text-decoration: none;
+                color: #007bff;
+            }
+            .other-versions-in-lang-list a:hover {
+                text-decoration: underline;
             }
 
             .filter-switch-container {
@@ -693,10 +729,29 @@
             let currentPageByLanguage = {}; // { langCode: { page, showOnlyUnmatched } }
             let currentPageBySearchTerm = {}; // { searchTerm: page }
             let currentPageByPhelpsCode = {}; // { phelpsCode: page }
+            let currentPageByPhelpsLangCode = {}; // { phelps/lang : page } - not used yet for pagination but good for state
 
             let pinnedPrayerDetails = null; // Stores { version, phelps, name, language, text }
             let collectedMatchesForEmail = []; // Array of objects: { pinned: {}, current: {}, description: "" }
             let favoritePrayers = []; // Stores array of {version, name, language, phelps}
+
+            function getDomain(url) {
+                if (!url) return "";
+                try {
+                    // Ensure the URL has a protocol, otherwise URL constructor fails
+                    let fullUrl = url;
+                    if (
+                        !url.startsWith("http://") &&
+                        !url.startsWith("https://")
+                    ) {
+                        fullUrl = "http://" + url;
+                    }
+                    return new URL(fullUrl).hostname.replace(/^www\./, "");
+                } catch (e) {
+                    // console.warn("Could not parse domain from URL:", url, e);
+                    return ""; // Or return a snippet of the URL if desired
+                }
+            }
 
             // --- Favorite Prayer Functions ---
             function loadFavoritePrayers() {
@@ -1052,6 +1107,8 @@
                         name: prayerData.name || null,
                         language: prayerData.language || null,
                         phelps: prayerData.phelps || null,
+                        link: prayerData.link || null, // Cache link too
+                        source: prayerData.source || null, // Cache source
                         timestamp: Date.now(),
                     };
                     localStorage.setItem(key, JSON.stringify(dataToStore));
@@ -1150,17 +1207,16 @@
             }
 
             // --- Prayer Card Generation ---
-            function createPrayerCardHtml(
-                prayerData,
-                translationsByPhelps = {},
-            ) {
-                // prayerData expected: { version, name, language, phelps, opening_text }
+            function createPrayerCardHtml(prayerData, allPhelpsDetails = {}) {
+                // prayerData expected: { version, name, language, phelps, opening_text, link (source url) }
+                // allPhelpsDetails: { phelps1: [{version, language, name, link}, ...], ... }
                 const {
                     version,
                     name,
                     language = "N/A",
                     phelps,
                     opening_text,
+                    link, // Source URL for this specific prayer version on the card
                 } = prayerData;
 
                 let displayTitle;
@@ -1172,50 +1228,91 @@
                     displayTitle = `Prayer ${version}`;
                 }
 
+                const cardLinkHref = phelps
+                    ? `#prayercode/${phelps}/${language}`
+                    : `#prayer/${version}`;
+
                 const previewSnippet =
-                    opening_text || "No text preview available."; // opening_text should be pre-truncated
+                    opening_text || "No text preview available.";
 
-                let translationsHtml = "";
-                if (
-                    phelps &&
-                    translationsByPhelps &&
-                    translationsByPhelps[phelps]
-                ) {
-                    const availableTranslations = translationsByPhelps[
-                        phelps
-                    ].filter((t) => t.version !== version);
+                let otherVersionsHtml = "";
+                if (phelps && allPhelpsDetails && allPhelpsDetails[phelps]) {
+                    const allVersionsForThisPhelps = allPhelpsDetails[phelps];
+                    const currentVersionId = version;
+                    const currentLanguage = language;
 
-                    if (availableTranslations.length > 0) {
-                        translationsHtml = `
-                        <div class="favorite-prayer-card-translations">
-                            <h5>Translations:</h5>
-                            <ul class="favorite-prayer-card-translations-list">
-                                ${availableTranslations
-                                    .map(
-                                        (t) => `
-                                    <li class="favorite-prayer-card-translations-item">
-                                        <a href="#prayer/${t.version}">${t.language.toUpperCase()}</a>
-                                    </li>`,
-                                    )
-                                    .join("")}
-                            </ul>
-                        </div>`;
+                    const groupedByLanguage = {};
+                    allVersionsForThisPhelps.forEach((v) => {
+                        if (v.version === currentVersionId) return; // Skip self
+                        if (!groupedByLanguage[v.language]) {
+                            groupedByLanguage[v.language] = [];
+                        }
+                        groupedByLanguage[v.language].push(v);
+                    });
+
+                    let otherLanguageLinks = [];
+                    let sameLanguageAltVersions = [];
+
+                    // Sort language codes for consistent display
+                    const sortedLangCodes =
+                        Object.keys(groupedByLanguage).sort();
+
+                    for (const langCode of sortedLangCodes) {
+                        if (langCode !== currentLanguage) {
+                            // Create one link per other language
+                            otherLanguageLinks.push(`
+                                <li class="favorite-prayer-card-translations-item">
+                                    <a href="#prayercode/${phelps}/${langCode}">${langCode.toUpperCase()}</a>
+                                </li>`);
+                        } else {
+                            // Versions in the same language as the card
+                            groupedByLanguage[langCode].forEach(
+                                (altVersion) => {
+                                    sameLanguageAltVersions.push(`
+                                    <li>
+                                        <a href="#prayer/${altVersion.version}">
+                                            ${altVersion.name || "Version " + altVersion.version}
+                                            ${altVersion.link ? `(${getDomain(altVersion.link)})` : ""}
+                                        </a>
+                                    </li>`);
+                                },
+                            );
+                        }
+                    }
+
+                    if (
+                        otherLanguageLinks.length > 0 ||
+                        sameLanguageAltVersions.length > 0
+                    ) {
+                        otherVersionsHtml += `<div class="favorite-prayer-card-translations">`;
+                        if (otherLanguageLinks.length > 0) {
+                            otherVersionsHtml += `
+                                <h5>Translations:</h5>
+                                <ul class="favorite-prayer-card-translations-list">${otherLanguageLinks.join("")}</ul>`;
+                        }
+                        if (sameLanguageAltVersions.length > 0) {
+                            otherVersionsHtml += `
+                                <h5 style="margin-top: ${otherLanguageLinks.length > 0 ? "10px" : "0"};">Other versions in ${currentLanguage.toUpperCase()}:</h5>
+                                <ul class="other-versions-in-lang-list">${sameLanguageAltVersions.join("")}</ul>`;
+                        }
+                        otherVersionsHtml += `</div>`;
                     }
                 }
 
                 return `
-                <div class="favorite-prayer-card"> <!-- Reusing .favorite-prayer-card styles -->
+                <div class="favorite-prayer-card">
                     <div> <!-- Content wrapper -->
                         <div class="favorite-prayer-card-header">
-                            <a href="#prayer/${version}">${displayTitle}</a>
+                            <a href="${cardLinkHref}">${displayTitle}</a>
                         </div>
                         <p class="favorite-prayer-card-preview">${previewSnippet}</p>
                         <div class="favorite-prayer-card-meta">
                             <span>Lang: ${language.toUpperCase()}</span>
                             ${phelps ? `<span class="phelps-code">Phelps: <a href="#prayercode/${phelps}">${phelps}</a></span>` : ""}
+                            ${link ? `<span>Source: <a href="${link}" target="_blank">${getDomain(link) || "Link"}</a></span>` : ""}
                         </div>
                     </div>
-                    ${translationsHtml}
+                    ${otherVersionsHtml}
                 </div>`;
             }
 
@@ -1224,18 +1321,16 @@
                 prayerLanguageNav.innerHTML = "";
 
                 if (links.length === 0) {
-                    // Keep it empty or add a non-clickable placeholder if desired
                     const loadingLink = document.createElement("span");
                     loadingLink.className = "mdl-navigation__link";
-                    loadingLink.textContent = "N/A"; // Or keep "Loading..." if this state means still loading
-                    loadingLink.style.color = "rgba(255,255,255,0.7)"; // Dimmed text
+                    loadingLink.textContent = "N/A";
+                    loadingLink.style.color = "rgba(255,255,255,0.7)";
                     prayerLanguageNav.appendChild(loadingLink);
                     return;
                 }
 
                 if (links.length > MAX_DIRECT_LINKS_IN_HEADER) {
                     const buttonId = "languages-menu-button";
-                    // Check if button already exists to prevent duplicate IDs if function is called multiple times
                     let menuButton = document.getElementById(buttonId);
                     if (!menuButton) {
                         menuButton = document.createElement("button");
@@ -1249,7 +1344,6 @@
                         prayerLanguageNav.appendChild(menuButton);
                     }
 
-                    // Remove existing menu if any, to rebuild it
                     const existingMenuUl =
                         prayerLanguageNav.querySelector(".mdl-menu");
                     if (existingMenuUl) existingMenuUl.remove();
@@ -1268,6 +1362,10 @@
                         linkA.style.textDecoration = "none";
                         linkA.style.color = "inherit";
                         linkA.style.display = "block";
+                        if (linkInfo.isActive) {
+                            // Simple way to indicate active
+                            linkA.style.fontWeight = "bold";
+                        }
                         menuItemLi.appendChild(linkA);
                         menuUl.appendChild(menuItemLi);
                     });
@@ -1278,7 +1376,7 @@
                             componentHandler.upgradeElement(menuButton);
                         if (menuUl.MaterialMenu)
                             componentHandler.upgradeElement(menuUl);
-                        else componentHandler.upgradeDom(); // Fallback to wider upgrade if specific components aren't ready
+                        else componentHandler.upgradeDom();
                     }
                 } else {
                     links.forEach((linkInfo) => {
@@ -1286,6 +1384,10 @@
                         link.className = "mdl-navigation__link";
                         link.href = linkInfo.href;
                         link.textContent = linkInfo.text;
+                        if (linkInfo.isActive) {
+                            link.style.fontWeight = "bold";
+                            link.style.textDecoration = "underline";
+                        }
                         prayerLanguageNav.appendChild(link);
                     });
                 }
@@ -1293,7 +1395,7 @@
 
             function updateDrawerLanguageNavigation(links = []) {
                 if (!drawerPrayerLanguageNav) return;
-                drawerPrayerLanguageNav.innerHTML = ""; // Clear existing
+                drawerPrayerLanguageNav.innerHTML = "";
 
                 if (links.length === 0) {
                     const noLinksMsg = document.createElement("span");
@@ -1310,6 +1412,9 @@
                     link.className = "mdl-navigation__link";
                     link.href = linkInfo.href;
                     link.textContent = linkInfo.text;
+                    if (linkInfo.isActive) {
+                        link.style.fontWeight = "bold";
+                    }
                     link.addEventListener("click", () => {
                         const layout = document.querySelector(".mdl-layout");
                         if (
@@ -1324,11 +1429,16 @@
                 });
             }
 
-            async function renderPrayer(versionId) {
+            async function renderPrayer(
+                versionId,
+                phelpsCodeForNav = null,
+                activeLangForNav = null,
+            ) {
                 contentDiv.innerHTML =
                     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
                 if (typeof componentHandler !== "undefined")
                     componentHandler.upgradeDom();
+                // Clear navs initially, they will be repopulated
                 updateHeaderNavigation([]);
                 updateDrawerLanguageNavigation([]);
 
@@ -1349,17 +1459,20 @@
                 const prayer = rows[0];
 
                 cachePrayerText({
+                    // Ensure all relevant fields are passed for caching
                     version: prayer.version,
                     text: prayer.text,
                     name: prayer.name,
                     language: prayer.language,
                     phelps: prayer.phelps,
+                    link: prayer.link,
+                    source: prayer.source,
                 });
 
                 const authorName = getAuthorFromPhelps(prayer.phelps);
                 let prayerTitle =
                     prayer.name ||
-                    (prayer.phelps ? `Phelps: ${prayer.phelps}` : null) || // Added Phelps to title logic here too
+                    (prayer.phelps ? `Phelps: ${prayer.phelps}` : null) ||
                     (prayer.text
                         ? prayer.text.substring(0, 50) + "..."
                         : `Prayer ${prayer.version}`);
@@ -1378,13 +1491,13 @@
                     <div class="scripture">
                         <div class="prayer" style="white-space: pre-wrap;">${prayer.text || "No text available."}</div>
                         ${authorName ? `<div class="author">${authorName}</div>` : ""}
-                        ${prayer.source ? `<div style="font-size: 0.8em; margin-left: 2em; margin-top: 0.5em; font-style: italic;">Source: ${prayer.source} ${prayer.link ? `(<a href="${prayer.link}" target="_blank">link</a>)` : ""}</div>` : ""}
-                        ${prayer.phelps ? `<div style="font-size: 0.7em; margin-left: 2em; margin-top: 0.3em; color: #555;">Phelps ID: ${phelpsLinkHtml}</div>` : ""}
+                        ${prayer.source ? `<div style="font-size: 0.8em; margin-left: 2em; margin-top: 0.5em; font-style: italic;">Source: ${prayer.source} ${prayer.link ? `(<a href="${prayer.link}" target="_blank">${getDomain(prayer.link) || "link"}</a>)` : ""}</div>` : ""}
+                        ${prayer.phelps ? `<div style="font-size: 0.7em; margin-left: 2em; margin-top: 0.3em; color: #555;">Phelps ID: ${phelpsLinkHtml} (Lang: ${prayer.language.toUpperCase()})</div>` : ""}
+                        <div style="font-size: 0.7em; margin-left: 2em; margin-top: 0.3em; color: #555;">Version ID: ${prayer.version}</div>
                     </div>
                 `;
                 contentDiv.innerHTML = html;
 
-                // Add favorite toggle button
                 const favoriteButton = document.createElement("button");
                 favoriteButton.className =
                     "mdl-button mdl-js-button mdl-button--icon favorite-toggle-button";
@@ -1393,24 +1506,14 @@
 
                 if (isPrayerFavorite(prayer.version)) {
                     favoriteButton.classList.add("is-favorite");
-                    favoriteIcon.textContent = "star"; // Filled star
+                    favoriteIcon.textContent = "star";
                     favoriteButton.title = "Remove from Favorites";
                 } else {
-                    favoriteIcon.textContent = "star_border"; // Outline star
+                    favoriteIcon.textContent = "star_border";
                     favoriteButton.title = "Add to Favorites";
                 }
                 favoriteButton.appendChild(favoriteIcon);
-
-                const prayerForFavorite = {
-                    // Prepare data for toggling favorite
-                    version: prayer.version,
-                    name: prayer.name, // Use original name for storing favorite, title logic is for display
-                    language: prayer.language,
-                    phelps: prayer.phelps,
-                };
-                favoriteButton.onclick = () =>
-                    toggleFavoritePrayer(prayerForFavorite);
-
+                favoriteButton.onclick = () => toggleFavoritePrayer(prayer);
                 contentDiv.appendChild(favoriteButton);
                 if (typeof componentHandler !== "undefined") {
                     componentHandler.upgradeElement(favoriteButton);
@@ -1418,7 +1521,7 @@
 
                 const actionsDiv = document.createElement("div");
                 actionsDiv.className = "prayer-actions";
-
+                // Pin/Match buttons logic
                 if (pinnedPrayerDetails) {
                     if (pinnedPrayerDetails.version !== prayer.version) {
                         const addMatchButton = document.createElement("button");
@@ -1428,7 +1531,7 @@
                             pinnedPrayerDetails.name ||
                             `Version ${pinnedPrayerDetails.version}`
                         ).substring(0, 25);
-                        addMatchButton.innerHTML = `<i class="material-icons">playlist_add_check</i> Add this as Match for Pinned: ${pinnedNameSnippet}${pinnedNameSnippet.length === 25 ? "..." : ""}`;
+                        addMatchButton.innerHTML = `<i class="material-icons">playlist_add_check</i> Add Match for Pinned: ${pinnedNameSnippet}${pinnedNameSnippet.length === 25 ? "..." : ""}`;
                         addMatchButton.onclick = () =>
                             addCurrentPrayerAsMatch(prayer);
                         actionsDiv.appendChild(addMatchButton);
@@ -1437,7 +1540,7 @@
                     } else {
                         const p = document.createElement("p");
                         p.innerHTML =
-                            "<em>This prayer is currently pinned. Find another prayer to match it with, or unpin it using the helper tool.</em>";
+                            "<em>This prayer is currently pinned.</em>";
                         actionsDiv.appendChild(p);
                     }
                 } else {
@@ -1445,7 +1548,7 @@
                     pinButton.className =
                         "mdl-button mdl-js-button mdl-button--raised mdl-button--colored";
                     pinButton.innerHTML =
-                        '<i class="material-icons">push_pin</i> Pin this Prayer to Find Match';
+                        '<i class="material-icons">push_pin</i> Pin this Prayer';
                     pinButton.onclick = () => pinPrayer(prayer);
                     actionsDiv.appendChild(pinButton);
                     if (typeof componentHandler !== "undefined")
@@ -1453,50 +1556,29 @@
                 }
                 contentDiv.appendChild(actionsDiv);
 
-                if (prayer.phelps) {
-                    const transSql = `SELECT version, language FROM writings WHERE phelps = '${prayer.phelps}' AND phelps IS NOT NULL AND phelps != ''`;
-                    const translations = await executeQuery(transSql);
-                    const currentLangLink = {
-                        text: prayer.language,
-                        href: `#prayer/${prayer.version}`,
-                    };
-                    const otherLangLinks = translations.map((t) => ({
-                        text: t.language,
-                        href: `#prayer/${t.version}`,
+                // Navigation links for other languages/versions of the same Phelps code
+                const finalPhelpsCode = phelpsCodeForNav || prayer.phelps;
+                const finalActiveLang = activeLangForNav || prayer.language;
+
+                if (finalPhelpsCode) {
+                    const transSql = `SELECT DISTINCT language FROM writings WHERE phelps = '${finalPhelpsCode}' AND phelps IS NOT NULL AND phelps != '' ORDER BY language`;
+                    const distinctLangs = await executeQuery(transSql);
+
+                    const navLinks = distinctLangs.map((langRow) => ({
+                        text: langRow.language.toUpperCase(),
+                        href: `#prayercode/${finalPhelpsCode}/${langRow.language}`,
+                        isActive: langRow.language === finalActiveLang,
                     }));
-                    const uniqueLinks = new Map();
-                    otherLangLinks.forEach((link) =>
-                        uniqueLinks.set(link.href, link),
-                    );
-                    uniqueLinks.set(currentLangLink.href, currentLangLink);
-                    const allLangLinksRaw = Array.from(
-                        uniqueLinks.values(),
-                    ).sort((a, b) => {
-                        const langCompare = a.text.localeCompare(b.text);
-                        return langCompare !== 0
-                            ? langCompare
-                            : a.href.localeCompare(b.href);
-                    });
-                    const processedLangLinks = [];
-                    const langCounts = {};
-                    allLangLinksRaw.forEach((link) => {
-                        const langCode = link.text;
-                        langCounts[langCode] = (langCounts[langCode] || 0) + 1;
-                        let displayText = langCode.toUpperCase();
-                        if (langCounts[langCode] > 1)
-                            displayText += ` (${langCounts[langCode]})`;
-                        processedLangLinks.push({
-                            text: displayText,
-                            href: link.href,
-                        });
-                    });
-                    updateHeaderNavigation(processedLangLinks);
-                    updateDrawerLanguageNavigation(processedLangLinks);
+
+                    updateHeaderNavigation(navLinks);
+                    updateDrawerLanguageNavigation(navLinks);
                 } else {
+                    // No Phelps code, so just show current language (not really a "translation list")
                     const singleLink = [
                         {
                             text: prayer.language.toUpperCase(),
                             href: `#prayer/${prayer.version}`,
+                            isActive: true,
                         },
                     ];
                     updateHeaderNavigation(singleLink);
@@ -1515,8 +1597,8 @@
                     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
                 if (typeof componentHandler !== "undefined")
                     componentHandler.upgradeDom();
-                updateHeaderNavigation([]);
-                updateDrawerLanguageNavigation([]);
+                updateHeaderNavigation([]); // Clear nav
+                updateDrawerLanguageNavigation([]); // Clear nav
 
                 const languageDisplayName = langCode.toUpperCase();
                 let filterCondition = "";
@@ -1524,7 +1606,7 @@
                     filterCondition = " AND (phelps IS NULL OR phelps = '')";
                 }
 
-                const metadataSql = `SELECT version, name, language, phelps FROM writings WHERE language = '${langCode}'${filterCondition} ORDER BY name, version LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
+                const metadataSql = `SELECT version, name, language, phelps, link FROM writings WHERE language = '${langCode}'${filterCondition} ORDER BY name, version LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
                 const prayersMetadata = await executeQuery(metadataSql);
 
                 const countSql = `SELECT COUNT(*) as total FROM writings WHERE language = '${langCode}'${filterCondition}`;
@@ -1534,6 +1616,7 @@
                 const totalPages = Math.ceil(totalPrayers / ITEMS_PER_PAGE);
 
                 if (prayersMetadata.length === 0 && page === 1) {
+                    // ... (no change to this block for now)
                     const filterSwitchId = `filter-unmatched-${langCode}`;
                     const filterSwitchHtml = `
                         <div class="filter-switch-container">
@@ -1573,19 +1656,22 @@
                     const cached = getCachedPrayerText(pMeta.version);
                     if (cached) {
                         full_text_for_preview = cached.text;
-                        pMeta.name = cached.name || pMeta.name;
+                        pMeta.name = cached.name || pMeta.name; // Use cached if available
                         pMeta.phelps = cached.phelps || pMeta.phelps;
+                        pMeta.link = cached.link || pMeta.link;
                     } else {
                         const textSql = `SELECT text FROM writings WHERE version = '${pMeta.version}' LIMIT 1`;
                         const textRows = await executeQuery(textSql);
                         if (textRows.length > 0 && textRows[0].text) {
                             full_text_for_preview = textRows[0].text;
                             cachePrayerText({
+                                // Cache all relevant fields
                                 version: pMeta.version,
                                 text: full_text_for_preview,
                                 name: pMeta.name,
                                 language: pMeta.language,
                                 phelps: pMeta.phelps,
+                                link: pMeta.link,
                             });
                         }
                     }
@@ -1604,7 +1690,7 @@
                     });
                 }
 
-                let translationsForList = {};
+                let allPhelpsDetailsForCards = {};
                 const phelpsCodesInList = [
                     ...new Set(
                         prayersForDisplay
@@ -1616,32 +1702,38 @@
                     const phelpsInClause = phelpsCodesInList
                         .map((p) => `'${p.replace(/'/g, "''")}'`)
                         .join(",");
-                    const translationsSql = `SELECT version, language, phelps FROM writings WHERE phelps IN (${phelpsInClause})`;
+                    const translationsSql = `SELECT version, language, phelps, name, link FROM writings WHERE phelps IN (${phelpsInClause})`;
                     try {
                         const translationRows =
                             await executeQuery(translationsSql);
                         translationRows.forEach((row) => {
-                            if (!translationsForList[row.phelps])
-                                translationsForList[row.phelps] = [];
-                            translationsForList[row.phelps].push({
+                            if (!allPhelpsDetailsForCards[row.phelps])
+                                allPhelpsDetailsForCards[row.phelps] = [];
+                            allPhelpsDetailsForCards[row.phelps].push({
                                 version: row.version,
                                 language: row.language,
+                                name: row.name,
+                                link: row.link,
                             });
                         });
                     } catch (e) {
                         console.error(
-                            "Failed to fetch translations for language list:",
+                            "Failed to fetch details for phelps codes:",
                             e,
                         );
                     }
                 }
 
                 const listCardsHtmlArray = prayersForDisplay.map((pData) => {
-                    return createPrayerCardHtml(pData, translationsForList);
+                    return createPrayerCardHtml(
+                        pData,
+                        allPhelpsDetailsForCards,
+                    );
                 });
                 const listHtml = `<div class="favorite-prayer-grid">${listCardsHtmlArray.join("")}</div>`;
 
                 let paginationHtml = "";
+                // ... (pagination logic unchanged)
                 if (totalPages > 1) {
                     paginationHtml = '<div class="pagination">';
                     if (page > 1)
@@ -1653,6 +1745,7 @@
                 }
 
                 const filterSwitchId = `filter-unmatched-${langCode}`;
+                // ... (filter switch HTML unchanged)
                 const filterSwitchHtml = `
                     <div class="filter-switch-container">
                         <label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="${filterSwitchId}">
@@ -1686,19 +1779,29 @@
                     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
                 if (typeof componentHandler !== "undefined")
                     componentHandler.upgradeDom();
-                updateHeaderNavigation([]);
-                updateDrawerLanguageNavigation([]);
+                // Nav will be set by resolveAndRenderPrayerByPhelpsAndLang if used, or by renderPrayer, or here for the list.
+                // For a list of different languages for one phelps, the nav makes sense to show those languages.
+                const phelpsLangsSql = `SELECT DISTINCT language FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' ORDER BY language`;
+                const distinctLangs = await executeQuery(phelpsLangsSql);
+                const navLinks = distinctLangs.map((langRow) => ({
+                    text: langRow.language.toUpperCase(),
+                    href: `#prayercode/${phelpsCode}/${langRow.language}`,
+                    isActive: false, // No specific active lang for the general phelps list
+                }));
+                updateHeaderNavigation(navLinks);
+                updateDrawerLanguageNavigation(navLinks);
 
-                const metadataSql = `SELECT version, name, language, text, phelps FROM writings WHERE phelps = '${phelpsCode}' AND phelps IS NOT NULL AND phelps != '' ORDER BY language, name LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
+                const metadataSql = `SELECT version, name, language, text, phelps, link FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' AND phelps IS NOT NULL AND phelps != '' ORDER BY language, name LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
                 const prayersMetadata = await executeQuery(metadataSql);
 
-                const countSql = `SELECT COUNT(*) as total FROM writings WHERE phelps = '${phelpsCode}' AND phelps IS NOT NULL AND phelps != ''`;
+                const countSql = `SELECT COUNT(*) as total FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' AND phelps IS NOT NULL AND phelps != ''`;
                 const countResult = await executeQuery(countSql);
                 const totalPrayers =
                     countResult.length > 0 ? countResult[0].total : 0;
                 const totalPages = Math.ceil(totalPrayers / ITEMS_PER_PAGE);
 
                 if (prayersMetadata.length === 0 && page === 1) {
+                    // ... (no change)
                     const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(metadataSql)}`;
                     contentDiv.innerHTML = `
                         <p>No prayer versions found for Phelps Code: ${phelpsCode}.</p>
@@ -1713,25 +1816,24 @@
                 }
 
                 const prayersForDisplay = prayersMetadata.map((p) => {
-                    let full_text_for_preview = p.text;
-                    if (!full_text_for_preview) {
+                    let full_text_for_preview = p.text; // Text is fetched directly
+                    if (!getCachedPrayerText(p.version) && p.text) {
+                        // Cache if not already and text exists
+                        cachePrayerText({
+                            version: p.version,
+                            text: p.text,
+                            name: p.name,
+                            language: p.language,
+                            phelps: p.phelps,
+                            link: p.link,
+                        });
+                    } else if (!p.text) {
+                        // If text wasn't in direct query (e.g. if we remove it later for perf)
                         const cached = getCachedPrayerText(p.version);
-                        if (cached && cached.text) {
+                        if (cached && cached.text)
                             full_text_for_preview = cached.text;
-                            p.name = cached.name || p.name;
-                            p.phelps = cached.phelps || p.phelps;
-                        }
-                    } else {
-                        if (!getCachedPrayerText(p.version)) {
-                            cachePrayerText({
-                                version: p.version,
-                                text: p.text,
-                                name: p.name,
-                                language: p.language,
-                                phelps: p.phelps,
-                            });
-                        }
                     }
+
                     const opening_text_for_card = full_text_for_preview
                         ? full_text_for_preview.substring(
                               0,
@@ -1744,35 +1846,31 @@
                     return { ...p, opening_text: opening_text_for_card };
                 });
 
-                let translationsForPhelpsCodeView = {};
+                let allPhelpsDetailsForCards = {};
+                // For prayer code view, all cards share the same Phelps code.
+                // We need all versions for this specific Phelps code.
+                // prayersMetadata already contains these for the current page. To get all, we'd need another query or use prayersMetadata if it's all of them.
+                // For simplicity on card display, we can reuse prayersMetadata if it's comprehensive enough or make a specific call.
+                // Since prayersMetadata is paginated, it's not all versions. So we need to fetch all for this phelps.
                 if (phelpsCode) {
-                    const transSql = `SELECT version, language FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' AND phelps IS NOT NULL AND phelps != ''`;
-                    try {
-                        const translationRows = await executeQuery(transSql);
-                        if (translationRows.length > 0) {
-                            translationsForPhelpsCodeView[phelpsCode] =
-                                translationRows.map((t) => ({
-                                    version: t.version,
-                                    language: t.language,
-                                }));
-                        }
-                    } catch (e) {
-                        console.error(
-                            `Failed to fetch translations for Phelps code ${phelpsCode}:`,
-                            e,
-                        );
+                    const allVersionsSql = `SELECT version, language, phelps, name, link FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}'`;
+                    const allVersionRows = await executeQuery(allVersionsSql);
+                    if (allVersionRows.length > 0) {
+                        allPhelpsDetailsForCards[phelpsCode] =
+                            allVersionRows.map((r) => ({ ...r }));
                     }
                 }
 
                 const listCardsHtmlArray = prayersForDisplay.map((pData) => {
                     return createPrayerCardHtml(
                         pData,
-                        translationsForPhelpsCodeView,
+                        allPhelpsDetailsForCards,
                     );
                 });
                 const listHtml = `<div class="favorite-prayer-grid">${listCardsHtmlArray.join("")}</div>`;
 
                 let paginationHtml = "";
+                // ... (pagination logic unchanged)
                 if (totalPages > 1) {
                     paginationHtml = '<div class="pagination">';
                     if (page > 1)
@@ -1787,7 +1885,7 @@
                     <header>
                         <h2>
                             <span id="category">Prayer Code</span>
-                            <span id="blocktitle">${phelpsCode} (Page ${page})</span>
+                            <span id="blocktitle">${phelpsCode} (Page ${page}) - All Languages</span>
                         </h2>
                     </header>
                     ${listHtml}
@@ -1795,6 +1893,64 @@
                 `;
                 if (typeof componentHandler !== "undefined")
                     componentHandler.upgradeDom();
+            }
+
+            async function resolveAndRenderPrayerByPhelpsAndLang(
+                phelpsCode,
+                targetLanguageCode,
+            ) {
+                contentDiv.innerHTML =
+                    '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
+                if (typeof componentHandler !== "undefined")
+                    componentHandler.upgradeDom();
+
+                const sql = `SELECT version, text, language, phelps, name, source, link FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' AND language = '${targetLanguageCode.replace(/'/g, "''")}' ORDER BY LENGTH(text) DESC, name`;
+                const prayerVersions = await executeQuery(sql);
+
+                if (prayerVersions.length === 0) {
+                    contentDiv.innerHTML = `<p>No prayers found for Phelps Code ${phelpsCode} in language ${targetLanguageCode.toUpperCase()}.</p>`;
+                    // Attempt to populate nav with other languages for this Phelps code
+                    const transSql = `SELECT DISTINCT language FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' ORDER BY language`;
+                    const distinctLangs = await executeQuery(transSql);
+                    const navLinks = distinctLangs.map((langRow) => ({
+                        text: langRow.language.toUpperCase(),
+                        href: `#prayercode/${phelpsCode}/${langRow.language}`,
+                        isActive: false, // None active as current target failed
+                    }));
+                    updateHeaderNavigation(navLinks);
+                    updateDrawerLanguageNavigation(navLinks);
+                    return;
+                }
+
+                const primaryPrayer = prayerVersions[0]; // Longest text first due to ORDER BY
+                await renderPrayer(
+                    primaryPrayer.version,
+                    phelpsCode,
+                    targetLanguageCode,
+                ); // Pass phelps and lang for nav highlighting
+
+                // If there are other versions for the same phelps/lang, list them below the main prayer
+                if (prayerVersions.length > 1) {
+                    const otherVersionsDiv = document.createElement("div");
+                    otherVersionsDiv.style.marginTop = "20px";
+                    otherVersionsDiv.style.paddingTop = "15px";
+                    otherVersionsDiv.style.borderTop = "1px solid #eee";
+
+                    let listHtml = `<h5>Other versions in ${targetLanguageCode.toUpperCase()} for ${phelpsCode}:</h5><ul class="other-versions-in-lang-list">`;
+                    prayerVersions.slice(1).forEach((altVersion) => {
+                        const displayName =
+                            altVersion.name || `Version ${altVersion.version}`;
+                        const domain = altVersion.link
+                            ? `(${getDomain(altVersion.link)})`
+                            : "";
+                        listHtml += `<li><a href="#prayer/${altVersion.version}">${displayName} ${domain}</a></li>`;
+                    });
+                    listHtml += `</ul>`;
+                    otherVersionsDiv.innerHTML = listHtml;
+                    contentDiv.appendChild(otherVersionsDiv);
+                    if (typeof componentHandler !== "undefined")
+                        componentHandler.upgradeDom(); // For any new MDL elements
+                }
             }
 
             async function renderLanguageList() {
@@ -1808,75 +1964,84 @@
                 currentPageByLanguage = {};
                 currentPageBySearchTerm = {};
                 currentPageByPhelpsCode = {};
+                currentPageByPhelpsLangCode = {};
 
                 let favoritesDisplayHtml = "";
                 if (favoritePrayers.length > 0) {
                     favoritesDisplayHtml += `<div id="favorite-prayers-section"><h3>⭐ Your Favorite Prayers</h3>`;
 
-                    const phelpsCodesToFetch = favoritePrayers
-                        .map((fp) => {
-                            const cached = getCachedPrayerText(fp.version);
-                            return fp.phelps || (cached ? cached.phelps : null);
-                        })
-                        .filter((phelps) => phelps && phelps !== "");
+                    const phelpsCodesToFetchForFavs = [
+                        ...new Set(
+                            favoritePrayers
+                                .filter((fp) => fp.phelps)
+                                .map((fp) => fp.phelps),
+                        ),
+                    ];
+                    let allPhelpsDetailsForFavCards = {};
 
-                    let translationsByPhelps = {};
-                    if (phelpsCodesToFetch.length > 0) {
-                        const uniquePhelpsCodes = [
-                            ...new Set(phelpsCodesToFetch),
-                        ];
-                        const phelpsInClause = uniquePhelpsCodes
+                    if (phelpsCodesToFetchForFavs.length > 0) {
+                        const phelpsInClause = phelpsCodesToFetchForFavs
                             .map((p) => `'${p.replace(/'/g, "''")}'`)
                             .join(",");
-                        const translationsSql = `SELECT version, language, phelps FROM writings WHERE phelps IN (${phelpsInClause})`;
+                        const favTranslationsSql = `SELECT version, language, phelps, name, link FROM writings WHERE phelps IN (${phelpsInClause})`;
                         try {
                             const translationRows =
-                                await executeQuery(translationsSql);
+                                await executeQuery(favTranslationsSql);
                             translationRows.forEach((row) => {
-                                if (!translationsByPhelps[row.phelps])
-                                    translationsByPhelps[row.phelps] = [];
-                                translationsByPhelps[row.phelps].push({
-                                    version: row.version,
-                                    language: row.language,
+                                if (!allPhelpsDetailsForFavCards[row.phelps])
+                                    allPhelpsDetailsForFavCards[row.phelps] =
+                                        [];
+                                allPhelpsDetailsForFavCards[row.phelps].push({
+                                    ...row,
                                 });
                             });
                         } catch (e) {
                             console.error(
-                                "Failed to fetch translations for favorites:",
+                                "Failed to fetch details for favorite phelps codes:",
                                 e,
                             );
                         }
                     }
 
-                    const favoriteCardsHtmlArray = favoritePrayers.map((fp) => {
+                    const favoriteCardsHtmlArray = [];
+                    for (const fp of favoritePrayers) {
                         const cached = getCachedPrayerText(fp.version);
                         let textForCardPreview = "Preview not available.";
+                        let nameForCard =
+                            fp.name || (cached ? cached.name : null);
+                        let langForCard =
+                            fp.language || (cached ? cached.language : "N/A");
+                        let phelpsForCard =
+                            fp.phelps || (cached ? cached.phelps : null);
+                        let linkForCard = cached ? cached.link : null; // Link specific to this version
+
                         if (cached && cached.text) {
                             textForCardPreview =
                                 cached.text.substring(0, MAX_PREVIEW_LENGTH) +
                                 (cached.text.length > MAX_PREVIEW_LENGTH
                                     ? "..."
                                     : "");
-                        } else {
-                            textForCardPreview =
-                                "Cached text not found. Click to view prayer.";
+                        } else if (fp.version) {
+                            // If no cached text, try to fetch it just for preview
+                            // This could be slow if many favorites are not cached. Consider skipping or limiting.
+                            // For now, let's assume cache hit or "Preview not available" is acceptable.
                         }
 
                         const prayerDataForCard = {
                             version: fp.version,
-                            name: fp.name || (cached ? cached.name : null),
-                            language:
-                                fp.language ||
-                                (cached ? cached.language : "N/A"),
-                            phelps:
-                                fp.phelps || (cached ? cached.phelps : null),
+                            name: nameForCard,
+                            language: langForCard,
+                            phelps: phelpsForCard,
                             opening_text: textForCardPreview,
+                            link: linkForCard,
                         };
-                        return createPrayerCardHtml(
-                            prayerDataForCard,
-                            translationsByPhelps,
+                        favoriteCardsHtmlArray.push(
+                            createPrayerCardHtml(
+                                prayerDataForCard,
+                                allPhelpsDetailsForFavCards,
+                            ),
                         );
-                    });
+                    }
 
                     favoritesDisplayHtml += `<div class="favorite-prayer-grid">${favoriteCardsHtmlArray.join("")}</div>`;
                     favoritesDisplayHtml += `</div>`;
@@ -1888,19 +2053,29 @@
 
                 const sql = `
                     SELECT
-                        language,
-                        COUNT(*) as total_prayer_count,
-                        SUM(CASE WHEN phelps IS NOT NULL AND phelps != '' THEN 1 ELSE 0 END) as phelps_prayer_count
-                    FROM writings
-                    WHERE language IS NOT NULL AND language != ''
-                    GROUP BY language
-                    ORDER BY language`;
-                const languagesWithCounts = await executeQuery(sql);
+                        w.language,
+                        (
+                            SELECT COUNT(DISTINCT sub.phelps)
+                            FROM writings sub
+                            WHERE sub.language = w.language AND sub.phelps IS NOT NULL AND sub.phelps != ''
+                        ) AS phelps_covered_count,
+                        (
+                            SELECT COUNT(DISTINCT CASE WHEN sub.phelps IS NOT NULL AND sub.phelps != '' THEN NULL ELSE sub.version END)
+                            FROM writings sub
+                            WHERE sub.language = w.language
+                        ) AS versions_without_phelps_count
+                    FROM writings w
+                    WHERE w.language IS NOT NULL AND w.language != ''
+                    GROUP BY w.language
+                    ORDER BY w.language;
+                `;
+                const languagesWithStats = await executeQuery(sql);
 
                 if (
-                    languagesWithCounts.length === 0 &&
+                    languagesWithStats.length === 0 &&
                     favoritePrayers.length === 0
                 ) {
+                    // ... (no change)
                     const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(sql)}`;
                     contentDiv.innerHTML =
                         favoritesDisplayHtml +
@@ -1914,16 +2089,36 @@
                 }
 
                 let languageListHtml = "";
-                if (languagesWithCounts.length > 0) {
-                    languageListHtml = languagesWithCounts
+                if (languagesWithStats.length > 0) {
+                    languageListHtml = languagesWithStats
                         .map((langData) => {
                             const langCode = langData.language;
-                            const totalCount = langData.total_prayer_count;
                             const phelpsCount =
-                                langData.phelps_prayer_count || 0;
-                            return `<button class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" onclick="setLanguageView('${langCode}', 1, false)">
-                                            ${langCode.toUpperCase()} (${phelpsCount}/${totalCount})
-                                        </button>`;
+                                parseInt(langData.phelps_covered_count, 10) ||
+                                0;
+                            const nonPhelpsCount =
+                                parseInt(
+                                    langData.versions_without_phelps_count,
+                                    10,
+                                ) || 0;
+                            const totalConceptualPrayers =
+                                phelpsCount + nonPhelpsCount;
+
+                            let buttonClass =
+                                "mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect";
+                            if (totalConceptualPrayers > 0) {
+                                const coverageRatio =
+                                    phelpsCount / totalConceptualPrayers;
+                                if (coverageRatio === 1) {
+                                    buttonClass += " lang-button-green";
+                                } else if (coverageRatio > 0.5) {
+                                    buttonClass += " lang-button-yellow";
+                                }
+                            }
+
+                            return `<button class="${buttonClass}" onclick="setLanguageView('${langCode}', 1, false)">
+                                        ${langCode.toUpperCase()} (${phelpsCount}/${totalConceptualPrayers})
+                                    </button>`;
                         })
                         .join("\n");
                 }
@@ -1939,7 +2134,7 @@
                     </header>
                     <div class="language-buttons-container">${languageListHtml}</div>
                     <p style="text-align:center; font-size:0.9em; color: #555; margin-top:10px;">
-                        Counts are (Prayers with Phelps Code / Total Prayers). Click a language to browse.
+                        Counts are (Unique Phelps Codes / Total Unique Prayers). Click a language to browse.
                     </p>
                 `;
 
@@ -1989,24 +2184,23 @@
                         cachedPrayer.text
                             .toLowerCase()
                             .includes(lowerSearchTerm)
-                    ) {
+                    )
                         match = true;
-                    }
                     if (
                         !match &&
                         cachedPrayer.name &&
                         cachedPrayer.name
                             .toLowerCase()
                             .includes(lowerSearchTerm)
-                    ) {
+                    )
                         match = true;
-                    }
                     if (match) {
                         localFoundItems.push({
                             version: cachedPrayer.version,
                             name: cachedPrayer.name,
                             language: cachedPrayer.language,
                             phelps: cachedPrayer.phelps,
+                            link: cachedPrayer.link,
                             opening_text: cachedPrayer.text
                                 ? cachedPrayer.text.substring(
                                       0,
@@ -2021,7 +2215,7 @@
                     }
                 });
 
-                const dbNameSql = `SELECT version, name, language, phelps FROM writings WHERE name LIKE '%${saneSearchTermForSql}%' ORDER BY name, version`;
+                const dbNameSql = `SELECT version, name, language, phelps, link FROM writings WHERE name LIKE '%${saneSearchTermForSql}%' ORDER BY name, version`;
                 const dbNameItemsRaw = await executeQuery(dbNameSql);
                 const dbNameItems = dbNameItemsRaw.map((item) => ({
                     ...item,
@@ -2030,14 +2224,12 @@
 
                 let combinedResults = [];
                 const processedVersions = new Set();
-
                 localFoundItems.forEach((item) => {
                     if (!processedVersions.has(item.version)) {
                         combinedResults.push(item);
                         processedVersions.add(item.version);
                     }
                 });
-
                 dbNameItems.forEach((item) => {
                     if (!processedVersions.has(item.version)) {
                         combinedResults.push(item);
@@ -2047,14 +2239,9 @@
 
                 const totalResults = combinedResults.length;
                 const totalPages = Math.ceil(totalResults / ITEMS_PER_PAGE);
-
-                if (page > totalPages && totalPages > 0) {
-                    page = totalPages;
-                    currentPageBySearchTerm[searchTerm] = page;
-                } else if (totalPages === 0 && page > 1) {
-                    page = 1;
-                    currentPageBySearchTerm[searchTerm] = page;
-                }
+                if (page > totalPages && totalPages > 0) page = totalPages;
+                else if (totalPages === 0 && page > 1) page = 1;
+                currentPageBySearchTerm[searchTerm] = page;
 
                 const startIndex = (page - 1) * ITEMS_PER_PAGE;
                 const paginatedCombinedResults = combinedResults.slice(
@@ -2064,15 +2251,15 @@
 
                 const displayItems = [];
                 for (const item of paginatedCombinedResults) {
-                    let displayItem = { ...item }; // item already has opening_text if from cache
+                    let displayItem = { ...item };
                     if (item.source === "db_name" && !item.opening_text) {
-                        // if from DB, opening_text might be missing
                         const cached = getCachedPrayerText(item.version);
                         if (cached) {
                             displayItem.name = cached.name || item.name;
                             displayItem.phelps = cached.phelps || item.phelps;
                             displayItem.language =
                                 cached.language || item.language;
+                            displayItem.link = cached.link || item.link;
                             displayItem.opening_text = cached.text
                                 ? cached.text.substring(0, MAX_PREVIEW_LENGTH) +
                                   (cached.text.length > MAX_PREVIEW_LENGTH
@@ -2080,32 +2267,26 @@
                                       : "")
                                 : "No text preview.";
                         } else {
-                            const textQuerySql = `SELECT text, name, phelps, language FROM writings WHERE version = '${item.version}' LIMIT 1`;
+                            const textQuerySql = `SELECT text, name, phelps, language, link FROM writings WHERE version = '${item.version}' LIMIT 1`;
                             const textRows = await executeQuery(textQuerySql);
                             if (textRows.length > 0) {
-                                const fetchedText = textRows[0].text;
-                                displayItem.name =
-                                    textRows[0].name || item.name;
+                                const dbItem = textRows[0];
+                                displayItem.name = dbItem.name || item.name;
                                 displayItem.phelps =
-                                    textRows[0].phelps || item.phelps;
+                                    dbItem.phelps || item.phelps;
                                 displayItem.language =
-                                    textRows[0].language || item.language;
-                                displayItem.opening_text = fetchedText
-                                    ? fetchedText.substring(
+                                    dbItem.language || item.language;
+                                displayItem.link = dbItem.link || item.link;
+                                displayItem.opening_text = dbItem.text
+                                    ? dbItem.text.substring(
                                           0,
                                           MAX_PREVIEW_LENGTH,
                                       ) +
-                                      (fetchedText.length > MAX_PREVIEW_LENGTH
+                                      (dbItem.text.length > MAX_PREVIEW_LENGTH
                                           ? "..."
                                           : "")
                                     : "No text preview.";
-                                cachePrayerText({
-                                    version: item.version,
-                                    text: fetchedText,
-                                    name: displayItem.name,
-                                    language: displayItem.language,
-                                    phelps: displayItem.phelps,
-                                });
+                                cachePrayerText({ ...dbItem }); // Cache full fetched item
                             } else {
                                 displayItem.opening_text =
                                     "Text not found for preview.";
@@ -2116,6 +2297,7 @@
                 }
 
                 if (totalResults === 0) {
+                    // ... (no change to this block)
                     const searchExplanationForNoResults = `
                         <div style="margin-top: 15px; padding: 10px; background-color: #f0f0f0; border-radius: 4px; font-size: 0.9em;">
                             <p style="margin-bottom: 5px;"><strong>Search Information:</strong></p>
@@ -2135,7 +2317,7 @@
                     return;
                 }
 
-                let translationsForList = {};
+                let allPhelpsDetailsForCards = {};
                 const phelpsCodesInList = [
                     ...new Set(
                         displayItems
@@ -2147,32 +2329,32 @@
                     const phelpsInClause = phelpsCodesInList
                         .map((p) => `'${p.replace(/'/g, "''")}'`)
                         .join(",");
-                    const translationsSql = `SELECT version, language, phelps FROM writings WHERE phelps IN (${phelpsInClause})`;
+                    const translationsSql = `SELECT version, language, phelps, name, link FROM writings WHERE phelps IN (${phelpsInClause})`;
                     try {
                         const translationRows =
                             await executeQuery(translationsSql);
                         translationRows.forEach((row) => {
-                            if (!translationsForList[row.phelps])
-                                translationsForList[row.phelps] = [];
-                            translationsForList[row.phelps].push({
-                                version: row.version,
-                                language: row.language,
+                            if (!allPhelpsDetailsForCards[row.phelps])
+                                allPhelpsDetailsForCards[row.phelps] = [];
+                            allPhelpsDetailsForCards[row.phelps].push({
+                                ...row,
                             });
                         });
                     } catch (e) {
                         console.error(
-                            "Failed to fetch translations for search results:",
+                            "Failed to fetch details for phelps codes in search:",
                             e,
                         );
                     }
                 }
 
-                const listCardsHtmlArray = displayItems.map((pData) => {
-                    return createPrayerCardHtml(pData, translationsForList);
-                });
+                const listCardsHtmlArray = displayItems.map((pData) =>
+                    createPrayerCardHtml(pData, allPhelpsDetailsForCards),
+                );
                 const listHtml = `<div class="favorite-prayer-grid">${listCardsHtmlArray.join("")}</div>`;
 
                 let paginationHtml = "";
+                // ... (pagination logic unchanged)
                 if (totalPages > 1) {
                     const escapedSearchTerm = searchTerm
                         .replace(/'/g, "\\'")
@@ -2186,6 +2368,7 @@
                     paginationHtml += "</div>";
                 }
 
+                // ... (search info and tiddly suggestion unchanged)
                 const searchInfoHtml = `
                     <div style="margin-top: 15px; padding: 10px; background-color: #f0f0f0; border-radius: 4px; font-size: 0.9em;">
                         <p style="margin-bottom: 5px;"><strong>How this search works:</strong></p>
@@ -2195,7 +2378,6 @@
                             <li>To improve full-text search results for specific prayers, try viewing them first by navigating through the <a href="#prayers">language lists</a>. This adds their text to your local cache, making them searchable here.</li>
                         </ul>
                     </div>`;
-
                 const tiddlySuggestionHtml = `<p style="margin-top: 20px; text-align: center; font-size: 0.9em;">For more comprehensive text search, or if you can't find what you're looking for, try <a href="https://tiddly.holywritings.net/workspace" target="_blank">tiddly.holywritings.net/workspace</a>.</p>`;
 
                 contentDiv.innerHTML = `
@@ -2238,7 +2420,10 @@
                 }
 
                 const mainHash =
-                    mainHashPath || (hash.includes("?") ? "" : hash); // Handle case like "#?foo=bar"
+                    mainHashPath || (hash.includes("?") ? "" : hash);
+
+                const prayerCodeLangRegex = /^#prayercode\/([^/]+)\/([^/?]+)/; // phelps/lang
+                const prayerCodeLangMatch = mainHash.match(prayerCodeLangRegex);
 
                 if (mainHash.startsWith("#search/prayers/")) {
                     const searchTerm = decodeURIComponent(
@@ -2251,7 +2436,21 @@
                     } else {
                         renderLanguageList();
                     }
+                } else if (prayerCodeLangMatch) {
+                    const phelpsCode = decodeURIComponent(
+                        prayerCodeLangMatch[1],
+                    );
+                    const languageCode = decodeURIComponent(
+                        prayerCodeLangMatch[2],
+                    );
+                    // pageParam is not directly used by resolveAndRenderPrayerByPhelpsAndLang currently
+                    // It resolves to one main prayer and lists others, not a paginated list itself.
+                    resolveAndRenderPrayerByPhelpsAndLang(
+                        phelpsCode,
+                        languageCode,
+                    );
                 } else if (mainHash.startsWith("#prayercode/")) {
+                    // General phelps code, all languages list
                     const phelpsCode = decodeURIComponent(
                         mainHash.substring("#prayercode/".length),
                     );
@@ -2284,19 +2483,13 @@
                 ) {
                     renderLanguageList();
                 } else {
-                    const phelpsRegex = /^#([A-Z]{2}\d{3,5}[A-Z]{0,3})$/i;
+                    const phelpsRegex = /^#([A-Z]{2}\d{3,5}[A-Z]{0,3})$/i; // Old style direct phelps link
                     const phelpsMatch = mainHash.match(phelpsRegex);
                     if (phelpsMatch && phelpsMatch[1]) {
                         const phelpsCode = phelpsMatch[1].toUpperCase();
-                        console.log(
-                            "Old style Phelps code detected:",
-                            phelpsCode,
-                            " - Consider updating link to #prayercode/",
-                            phelpsCode,
-                        );
+                        // Redirect old #PHELPS to new #prayercode/PHELPS (which lists all langs)
                         let newHash = `#prayercode/${phelpsCode}`;
                         if (pageParam > 1) newHash += `?page=${pageParam}`;
-                        // Note: showOnlyUnmatchedParam is not relevant for prayercode view
                         window.location.hash = newHash;
                     } else {
                         console.log(
@@ -2316,14 +2509,14 @@
                 }
                 window.location.hash = newHash;
             }
-            window.setLanguageView = setLanguageView; // Make it globally accessible
+            window.setLanguageView = setLanguageView;
 
-            window.renderPrayersForLanguage = renderPrayersForLanguage; // Expose for pagination in older versions if any still used.
+            window.renderPrayersForLanguage = renderPrayersForLanguage;
             window.renderSearchResults = renderSearchResults;
             window.renderPrayerCodeView = renderPrayerCodeView;
 
             document.addEventListener("DOMContentLoaded", () => {
-                loadFavoritePrayers(); // Load favorites on startup
+                loadFavoritePrayers();
 
                 const headerSearchInput = document.getElementById(
                     "header-search-field",
@@ -2337,7 +2530,7 @@
                                 const searchTerm =
                                     headerSearchInput.value.trim();
                                 if (searchTerm) {
-                                    currentPageBySearchTerm[searchTerm] = 1; // Reset page for new search
+                                    currentPageBySearchTerm[searchTerm] = 1;
                                     window.location.hash = `#search/prayers/${encodeURIComponent(searchTerm)}`;
                                 }
                             }
@@ -2357,7 +2550,7 @@
                                 const searchTerm =
                                     drawerSearchInput.value.trim();
                                 if (searchTerm) {
-                                    currentPageBySearchTerm[searchTerm] = 1; // Reset page for new search
+                                    currentPageBySearchTerm[searchTerm] = 1;
                                     window.location.hash = `#search/prayers/${encodeURIComponent(searchTerm)}`;
                                     const layout =
                                         document.querySelector(".mdl-layout");
@@ -2405,8 +2598,8 @@
                 if (typeof componentHandler !== "undefined") {
                     componentHandler.upgradeDom();
                 }
-                updatePrayerMatchingToolDisplay(); // Initial call
-                handleRouteChange(); // Initial route
+                updatePrayerMatchingToolDisplay();
+                handleRouteChange();
             });
 
             window.addEventListener("hashchange", handleRouteChange);
