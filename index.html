@@ -123,7 +123,8 @@
             }
 
             /* Header fixes for mobile visibility */
-            @media screen and (max-width: 767px) { /* Mobile and small tablets */
+            @media screen and (max-width: 767px) {
+                /* Mobile and small tablets */
                 .mdl-layout__header-row {
                     padding-right: 8px; /* Reduce right padding for more space for icons/nav */
                 }
@@ -134,32 +135,52 @@
                     overflow: hidden;
                     text-overflow: ellipsis;
                 }
-                /* The div holding search has an inline margin-right: 10px.
-                   It's better to remove that from HTML if possible or override with !important if not.
-                   Assuming it's removed from HTML (as per thought process), or we style child: */
                 .mdl-layout__header-row .mdl-textfield--expandable {
-                    flex-shrink: 0; /* Don't shrink search icon container */
-                    /* margin-right: 2px !important; /* If inline style cannot be removed */
+                    flex-shrink: 0;
                 }
-                 .mdl-layout__header-row .mdl-textfield--expandable > .mdl-button--icon {
-                     margin-right: 2px; /* Reduce default spacing around search icon if needed */
+                .mdl-layout__header-row
+                    .mdl-textfield--expandable
+                    > .mdl-button--icon {
+                    margin-right: 2px;
                 }
 
                 .mdl-layout__header-row #prayer-language-nav {
-                    flex-shrink: 0; /* Don't shrink language nav container */
+                    flex-shrink: 0;
                 }
-                /* If language nav renders direct links, make them compact */
-                .mdl-layout__header-row #prayer-language-nav.mdl-navigation .mdl-navigation__link {
-                    padding: 0 4px; /* Compact padding */
-                    font-size: 0.75em; /* Smaller font (e.g. ~12px if body 1.3em -> ~16px base) */
-                    white-space: nowrap; /* Prevent ugly wrapping of short link texts */
+                .mdl-layout__header-row
+                    #prayer-language-nav.mdl-navigation
+                    .mdl-navigation__link {
+                    padding: 0 4px;
+                    font-size: 0.75em;
+                    white-space: nowrap;
                 }
-                 /* If language nav becomes a menu button (icon) */
                 .mdl-layout__header-row #prayer-language-nav .mdl-button--icon {
-                    margin-left: 2px; /* Small gap if search also has reduced margin */
+                    margin-left: 2px;
                 }
             }
-
+            /* Drawer specific styles */
+            .mdl-layout__drawer #drawer-prayer-language-nav {
+                padding-top: 0;
+                padding-bottom: 8px;
+                border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+                margin-bottom: 8px;
+                max-height: 150px; /* Limit height and make scrollable if many languages */
+                overflow-y: auto;
+            }
+            .mdl-layout__drawer
+                #drawer-prayer-language-nav
+                .mdl-navigation__link {
+                color: rgba(
+                    0,
+                    0,
+                    0,
+                    0.87
+                ); /* Standard text color for drawer links */
+            }
+            .mdl-layout__drawer .main-drawer-nav {
+                /* Class for original nav items */
+                padding-top: 8px;
+            }
 
             #content a {
                 font-weight: bold;
@@ -236,7 +257,12 @@
                 text-transform: uppercase;
             }
             #prayer-language-nav .mdl-menu__container {
+                /* Header language menu */
                 z-index: 10001 !important;
+            }
+            #drawer-prayer-language-nav .mdl-menu__container {
+                /* Drawer language menu, if it were to become one */
+                z-index: 10001 !important; /* Ensure drawer menus are also on top */
             }
             .prayer-actions {
                 margin-top: 20px;
@@ -283,13 +309,18 @@
         <div class="mdl-layout mdl-js-layout">
             <header class="mdl-layout__header">
                 <div class="mdl-layout__header-row">
-                    <a href="#" class="mdl-layout-title" style="color: white; text-decoration: none;">
+                    <a
+                        href="#"
+                        onclick="window.location.hash='#'; return false;"
+                        class="mdl-layout-title"
+                        style="color: white; text-decoration: none"
+                    >
                         <span class="star">&#x1f7d9;</span> Holy Writings Reader
                     </a>
                     <div class="mdl-layout-spacer"></div>
                     <div
                         class="mdl-textfield mdl-js-textfield mdl-textfield--expandable mdl-textfield--floating-label mdl-textfield--align-right"
-                        style="margin-right: 2px;" /* Adjusted inline style for tighter spacing on mobile */
+                        style="margin-right: 2px"
                     >
                         <label
                             class="mdl-button mdl-js-button mdl-button--icon"
@@ -316,8 +347,50 @@
                 </div>
             </header>
             <div class="mdl-layout__drawer">
-                <span class="mdl-layout-title">Menu</span>
-                <nav class="mdl-navigation">
+                <a
+                    href="#"
+                    onclick="window.location.hash='#'; document.querySelector('.mdl-layout').MaterialLayout.toggleDrawer(); return false;"
+                    class="mdl-layout-title"
+                    style="
+                        color: rgba(0, 0, 0, 0.87);
+                        text-decoration: none;
+                        display: block;
+                        padding: 16px;
+                        margin-bottom: 8px;
+                        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+                        font-size: 1.2em;
+                        font-weight: 500;
+                    "
+                >
+                    <span
+                        class="star"
+                        style="font-size: 1.2em; vertical-align: middle"
+                        >&#x1f7d9;</span
+                    >
+                    Holy Writings Reader
+                </a>
+                <div style="padding: 0 16px 8px 16px">
+                    <div
+                        class="mdl-textfield mdl-js-textfield"
+                        style="width: 100%; padding: 0"
+                    >
+                        <input
+                            class="mdl-textfield__input"
+                            type="text"
+                            id="drawer-search-field"
+                            placeholder="Search Prayers"
+                        />
+                        <!-- <label class="mdl-textfield__label" for="drawer-search-field">Search...</label> -->
+                    </div>
+                </div>
+                <nav class="mdl-navigation" id="drawer-prayer-language-nav">
+                    <span
+                        class="mdl-navigation__link"
+                        style="font-style: italic; color: #757575"
+                        >Languages N/A</span
+                    >
+                </nav>
+                <nav class="mdl-navigation main-drawer-nav">
                     <a class="mdl-navigation__link" href="#prayers">Prayers</a>
                     <a class="mdl-navigation__link" href="#songs">Songs</a>
                     <a class="mdl-navigation__link" href="#books">Books</a>
@@ -468,6 +541,9 @@
             const prayerLanguageNav = document.getElementById(
                 "prayer-language-nav",
             );
+            const drawerPrayerLanguageNav = document.getElementById(
+                "drawer-prayer-language-nav",
+            );
 
             let currentPageByLanguage = {}; // { langCode: page }
             let currentPageBySearchTerm = {}; // { searchTerm: page }
@@ -603,7 +679,8 @@
                 }
 
                 const p1 = pinnedPrayerDetails; // Already has { version, phelps, name, language, text }
-                const p2_for_match = { // Extract only needed fields for consistency
+                const p2_for_match = {
+                    // Extract only needed fields for consistency
                     version: currentPrayerData.version,
                     phelps: currentPrayerData.phelps || null,
                     name:
@@ -619,7 +696,8 @@
                     emailMatchDetail = `Pinned prayer (Version ${p1.version}) matches current prayer (Phelps ${p2_for_match.phelps}, Version ${p2_for_match.version}).`;
                 } else if (!p1.phelps && !p2_for_match.phelps) {
                     emailMatchDetail = `Pinned prayer (Version ${p1.version}) matches current prayer (Version ${p2_for_match.version}).`;
-                } else { // Both have phelps (could be same or different)
+                } else {
+                    // Both have phelps (could be same or different)
                     emailMatchDetail = `Pinned prayer (Phelps ${p1.phelps}, Version ${p1.version}) matches current prayer (Phelps ${p2_for_match.phelps}, Version ${p2_for_match.version}).`;
                 }
 
@@ -669,48 +747,67 @@
                 const sqlUpdateQueries = [];
                 const sqlSelectForReviewQueries = [];
 
-                collectedMatchesForEmail.forEach(matchData => {
+                collectedMatchesForEmail.forEach((matchData) => {
                     const p1 = matchData.pinned;
                     const p2 = matchData.current;
 
                     // Part 1: SQL UPDATE queries for missing Phelps codes
                     if (p1.phelps && !p2.phelps) {
-                        sqlUpdateQueries.push(`UPDATE writings SET phelps = '${p1.phelps}' WHERE version = '${p2.version}'; -- Auto-assign: Matched ${p2.version} (${p2.language}) with ${p1.version} (Phelps: ${p1.phelps})`);
+                        sqlUpdateQueries.push(
+                            `UPDATE writings SET phelps = '${p1.phelps}' WHERE version = '${p2.version}'; -- Auto-assign: Matched ${p2.version} (${p2.language}) with ${p1.version} (Phelps: ${p1.phelps})`,
+                        );
                     }
                     if (!p1.phelps && p2.phelps) {
-                        sqlUpdateQueries.push(`UPDATE writings SET phelps = '${p2.phelps}' WHERE version = '${p1.version}'; -- Auto-assign: Matched ${p1.version} (${p1.language}) with ${p2.version} (Phelps: ${p2.phelps})`);
+                        sqlUpdateQueries.push(
+                            `UPDATE writings SET phelps = '${p2.phelps}' WHERE version = '${p1.version}'; -- Auto-assign: Matched ${p1.version} (${p1.language}) with ${p2.version} (Phelps: ${p2.phelps})`,
+                        );
                     }
 
                     // Part 2: SQL SELECT queries for manual lookup/verification
                     if (p1.phelps && !p2.phelps) {
-                        sqlSelectForReviewQueries.push(`SELECT * FROM writings WHERE version = '${p2.version}'; -- MANUAL REVIEW: Version ${p2.version} (${p2.language}) is missing Phelps. Matched with ${p1.version} (Phelps: ${p1.phelps}). Update suggested.`);
+                        sqlSelectForReviewQueries.push(
+                            `SELECT * FROM writings WHERE version = '${p2.version}'; -- MANUAL REVIEW: Version ${p2.version} (${p2.language}) is missing Phelps. Matched with ${p1.version} (Phelps: ${p1.phelps}). Update suggested.`,
+                        );
                     }
                     if (!p1.phelps && p2.phelps) {
-                        sqlSelectForReviewQueries.push(`SELECT * FROM writings WHERE version = '${p1.version}'; -- MANUAL REVIEW: Version ${p1.version} (${p1.language}) is missing Phelps. Matched with ${p2.version} (Phelps: ${p2.phelps}). Update suggested.`);
+                        sqlSelectForReviewQueries.push(
+                            `SELECT * FROM writings WHERE version = '${p1.version}'; -- MANUAL REVIEW: Version ${p1.version} (${p1.language}) is missing Phelps. Matched with ${p2.version} (Phelps: ${p2.phelps}). Update suggested.`,
+                        );
                     }
                     if (!p1.phelps && !p2.phelps) {
-                        sqlSelectForReviewQueries.push(`SELECT * FROM writings WHERE version IN ('${p1.version}', '${p2.version}'); -- MANUAL REVIEW: Both matched prayers (V: ${p1.version}, ${p1.language} and V: ${p2.version}, ${p2.language}) are missing Phelps codes.`);
+                        sqlSelectForReviewQueries.push(
+                            `SELECT * FROM writings WHERE version IN ('${p1.version}', '${p2.version}'); -- MANUAL REVIEW: Both matched prayers (V: ${p1.version}, ${p1.language} and V: ${p2.version}, ${p2.language}) are missing Phelps codes.`,
+                        );
                     }
                     if (p1.phelps && p2.phelps && p1.phelps !== p2.phelps) {
-                        sqlSelectForReviewQueries.push(`SELECT * FROM writings WHERE version IN ('${p1.version}', '${p2.version}'); -- MANUAL REVIEW (Conflict): Matched prayers have different Phelps codes: ${p1.version} (${p1.phelps}) vs ${p2.version} (${p2.phelps}).`);
+                        sqlSelectForReviewQueries.push(
+                            `SELECT * FROM writings WHERE version IN ('${p1.version}', '${p2.version}'); -- MANUAL REVIEW (Conflict): Matched prayers have different Phelps codes: ${p1.version} (${p1.phelps}) vs ${p2.version} (${p2.phelps}).`,
+                        );
                     }
                 });
 
                 if (sqlUpdateQueries.length > 0) {
-                    bodyLines.push("--- Suggested SQL UPDATE Statements (for auto-assigning Phelps codes) ---");
-                    sqlUpdateQueries.forEach(q => bodyLines.push(q));
+                    bodyLines.push(
+                        "--- Suggested SQL UPDATE Statements (for auto-assigning Phelps codes) ---",
+                    );
+                    sqlUpdateQueries.forEach((q) => bodyLines.push(q));
                 } else {
-                    bodyLines.push("--- No SQL UPDATE Statements Suggested ---");
+                    bodyLines.push(
+                        "--- No SQL UPDATE Statements Suggested ---",
+                    );
                 }
                 bodyLines.push("");
 
                 if (sqlSelectForReviewQueries.length > 0) {
-                    bodyLines.push("--- SQL SELECT Statements for Manual Review/Verification ---");
-                    sqlSelectForReviewQueries.forEach(q => bodyLines.push(q));
+                    bodyLines.push(
+                        "--- SQL SELECT Statements for Manual Review/Verification ---",
+                    );
+                    sqlSelectForReviewQueries.forEach((q) => bodyLines.push(q));
                 } else {
-                    bodyLines.push("--- No specific SQL SELECT Statements for manual review based on these matches ---");
+                    bodyLines.push(
+                        "--- No specific SQL SELECT Statements for manual review based on these matches ---",
+                    );
                 }
-
 
                 const mailBody = encodeURIComponent(bodyLines.join("\n"));
                 const mailtoLink = `mailto:ikojba@gmail.com?subject=${encodeURIComponent(subject)}&body=${mailBody}`;
@@ -721,10 +818,8 @@
                 tempLink.click();
                 document.body.removeChild(tempLink);
 
-                // Clear matches after attempting to send
-                // unpinPrayer(); // This would also clear pinnedPrayerDetails, which might not be desired yet.
                 collectedMatchesForEmail = [];
-                updatePrayerMatchingToolDisplay(); // Update UI to show cleared list and disabled button
+                updatePrayerMatchingToolDisplay();
             }
 
             // --- LocalStorage Cache Functions ---
@@ -846,22 +941,39 @@
             }
 
             function updateHeaderNavigation(links = []) {
+                if (!prayerLanguageNav) return;
                 prayerLanguageNav.innerHTML = "";
 
                 if (links.length === 0) {
+                    // Keep it empty or add a non-clickable placeholder if desired
+                    const loadingLink = document.createElement("span");
+                    loadingLink.className = "mdl-navigation__link";
+                    loadingLink.textContent = "N/A"; // Or keep "Loading..." if this state means still loading
+                    loadingLink.style.color = "rgba(255,255,255,0.7)"; // Dimmed text
+                    prayerLanguageNav.appendChild(loadingLink);
                     return;
                 }
 
                 if (links.length > MAX_DIRECT_LINKS_IN_HEADER) {
                     const buttonId = "languages-menu-button";
-                    const menuButton = document.createElement("button");
-                    menuButton.id = buttonId;
-                    menuButton.className =
-                        "mdl-button mdl-js-button mdl-button--icon";
-                    const icon = document.createElement("i");
-                    icon.className = "material-icons";
-                    icon.textContent = "language";
-                    menuButton.appendChild(icon);
+                    // Check if button already exists to prevent duplicate IDs if function is called multiple times
+                    let menuButton = document.getElementById(buttonId);
+                    if (!menuButton) {
+                        menuButton = document.createElement("button");
+                        menuButton.id = buttonId;
+                        menuButton.className =
+                            "mdl-button mdl-js-button mdl-button--icon";
+                        const icon = document.createElement("i");
+                        icon.className = "material-icons";
+                        icon.textContent = "language";
+                        menuButton.appendChild(icon);
+                        prayerLanguageNav.appendChild(menuButton);
+                    }
+
+                    // Remove existing menu if any, to rebuild it
+                    const existingMenuUl =
+                        prayerLanguageNav.querySelector(".mdl-menu");
+                    if (existingMenuUl) existingMenuUl.remove();
 
                     const menuUl = document.createElement("ul");
                     menuUl.className =
@@ -880,13 +992,14 @@
                         menuItemLi.appendChild(linkA);
                         menuUl.appendChild(menuItemLi);
                     });
-
-                    prayerLanguageNav.appendChild(menuButton);
                     prayerLanguageNav.appendChild(menuUl);
 
                     if (typeof componentHandler !== "undefined") {
-                        componentHandler.upgradeElement(menuButton);
-                        componentHandler.upgradeElement(menuUl);
+                        if (menuButton.MaterialButton)
+                            componentHandler.upgradeElement(menuButton);
+                        if (menuUl.MaterialMenu)
+                            componentHandler.upgradeElement(menuUl);
+                        else componentHandler.upgradeDom(); // Fallback to wider upgrade if specific components aren't ready
                     }
                 } else {
                     links.forEach((linkInfo) => {
@@ -899,12 +1012,46 @@
                 }
             }
 
+            function updateDrawerLanguageNavigation(links = []) {
+                if (!drawerPrayerLanguageNav) return;
+                drawerPrayerLanguageNav.innerHTML = ""; // Clear existing
+
+                if (links.length === 0) {
+                    const noLinksMsg = document.createElement("span");
+                    noLinksMsg.className = "mdl-navigation__link";
+                    noLinksMsg.textContent = "Languages N/A";
+                    noLinksMsg.style.fontStyle = "italic";
+                    noLinksMsg.style.color = "#757575";
+                    drawerPrayerLanguageNav.appendChild(noLinksMsg);
+                    return;
+                }
+
+                links.forEach((linkInfo) => {
+                    const link = document.createElement("a");
+                    link.className = "mdl-navigation__link";
+                    link.href = linkInfo.href;
+                    link.textContent = linkInfo.text;
+                    link.addEventListener("click", () => {
+                        const layout = document.querySelector(".mdl-layout");
+                        if (
+                            layout &&
+                            layout.MaterialLayout &&
+                            layout.MaterialLayout.drawer_
+                        ) {
+                            layout.MaterialLayout.toggleDrawer();
+                        }
+                    });
+                    drawerPrayerLanguageNav.appendChild(link);
+                });
+            }
+
             async function renderPrayer(versionId) {
                 contentDiv.innerHTML =
                     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
                 if (typeof componentHandler !== "undefined")
                     componentHandler.upgradeDom();
                 updateHeaderNavigation([]);
+                updateDrawerLanguageNavigation([]);
 
                 const sql = `SELECT version, text, language, phelps, name, source, link FROM writings WHERE version = '${versionId}' LIMIT 1`;
                 const rows = await executeQuery(sql);
@@ -987,7 +1134,7 @@
                         "mdl-button mdl-js-button mdl-button--raised mdl-button--colored";
                     pinButton.innerHTML =
                         '<i class="material-icons">push_pin</i> Pin this Prayer to Find Match';
-                    pinButton.onclick = () => pinPrayer(prayer); // prayer object here contains .text
+                    pinButton.onclick = () => pinPrayer(prayer);
                     actionsDiv.appendChild(pinButton);
                     if (typeof componentHandler !== "undefined")
                         componentHandler.upgradeElement(pinButton);
@@ -1032,13 +1179,16 @@
                         });
                     });
                     updateHeaderNavigation(processedLangLinks);
+                    updateDrawerLanguageNavigation(processedLangLinks);
                 } else {
-                    updateHeaderNavigation([
+                    const singleLink = [
                         {
                             text: prayer.language.toUpperCase(),
                             href: `#prayer/${prayer.version}`,
                         },
-                    ]);
+                    ];
+                    updateHeaderNavigation(singleLink);
+                    updateDrawerLanguageNavigation(singleLink);
                 }
             }
 
@@ -1050,6 +1200,8 @@
                 if (typeof componentHandler !== "undefined")
                     componentHandler.upgradeDom();
                 updateHeaderNavigation([]);
+                updateDrawerLanguageNavigation([]);
+
                 const languageDisplayName = langCode.toUpperCase();
 
                 const metadataSql = `SELECT version, name, language, phelps FROM writings WHERE language = '${langCode}' ORDER BY name, version LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
@@ -1160,6 +1312,7 @@
                 if (typeof componentHandler !== "undefined")
                     componentHandler.upgradeDom();
                 updateHeaderNavigation([]);
+                updateDrawerLanguageNavigation([]);
 
                 const metadataSql = `SELECT version, name, language, text, phelps FROM writings WHERE phelps = '${phelpsCode}' AND phelps IS NOT NULL AND phelps != '' ORDER BY language, name LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
                 const prayersMetadata = await executeQuery(metadataSql);
@@ -1246,6 +1399,8 @@
                 if (typeof componentHandler !== "undefined")
                     componentHandler.upgradeDom();
                 updateHeaderNavigation([]);
+                updateDrawerLanguageNavigation([]);
+
                 currentPageByLanguage = {};
                 currentPageBySearchTerm = {};
                 currentPageByPhelpsCode = {};
@@ -1297,6 +1452,7 @@
                 if (typeof componentHandler !== "undefined")
                     componentHandler.upgradeDom();
                 updateHeaderNavigation([]);
+                updateDrawerLanguageNavigation([]);
 
                 const headerSearchInput = document.getElementById(
                     "header-search-field",
@@ -1306,6 +1462,15 @@
                     headerSearchInput.value !== searchTerm
                 ) {
                     headerSearchInput.value = searchTerm;
+                }
+                const drawerSearchInput = document.getElementById(
+                    "drawer-search-field",
+                );
+                if (
+                    drawerSearchInput &&
+                    drawerSearchInput.value !== searchTerm
+                ) {
+                    drawerSearchInput.value = searchTerm;
                 }
 
                 const saneSearchTermForSql = searchTerm.replace(/'/g, "''");
@@ -1585,21 +1750,72 @@
             window.renderPrayerCodeView = renderPrayerCodeView;
 
             document.addEventListener("DOMContentLoaded", () => {
-                const searchInput = document.getElementById(
+                const headerSearchInput = document.getElementById(
                     "header-search-field",
                 );
-                if (searchInput) {
-                    searchInput.addEventListener("keypress", function (e) {
-                        if (e.key === "Enter") {
-                            e.preventDefault();
-                            const searchTerm = searchInput.value.trim();
-                            if (searchTerm) {
-                                currentPageBySearchTerm[searchTerm] = 1; // Reset page for new search
-                                window.location.hash = `#search/prayers/${encodeURIComponent(searchTerm)}`;
+                if (headerSearchInput) {
+                    headerSearchInput.addEventListener(
+                        "keypress",
+                        function (e) {
+                            if (e.key === "Enter") {
+                                e.preventDefault();
+                                const searchTerm =
+                                    headerSearchInput.value.trim();
+                                if (searchTerm) {
+                                    currentPageBySearchTerm[searchTerm] = 1;
+                                    window.location.hash = `#search/prayers/${encodeURIComponent(searchTerm)}`;
+                                }
                             }
-                        }
-                    });
+                        },
+                    );
                 }
+
+                const drawerSearchInput = document.getElementById(
+                    "drawer-search-field",
+                );
+                if (drawerSearchInput) {
+                    drawerSearchInput.addEventListener(
+                        "keypress",
+                        function (e) {
+                            if (e.key === "Enter") {
+                                e.preventDefault();
+                                const searchTerm =
+                                    drawerSearchInput.value.trim();
+                                if (searchTerm) {
+                                    currentPageBySearchTerm[searchTerm] = 1;
+                                    window.location.hash = `#search/prayers/${encodeURIComponent(searchTerm)}`;
+                                    const layout =
+                                        document.querySelector(".mdl-layout");
+                                    if (
+                                        layout &&
+                                        layout.MaterialLayout &&
+                                        layout.MaterialLayout.drawer_
+                                    ) {
+                                        layout.MaterialLayout.toggleDrawer();
+                                    }
+                                }
+                            }
+                        },
+                    );
+                }
+
+                document
+                    .querySelectorAll(
+                        ".mdl-layout__drawer .main-drawer-nav .mdl-navigation__link",
+                    )
+                    .forEach((link) => {
+                        link.addEventListener("click", () => {
+                            const layout =
+                                document.querySelector(".mdl-layout");
+                            if (
+                                layout &&
+                                layout.MaterialLayout &&
+                                layout.MaterialLayout.drawer_
+                            ) {
+                                layout.MaterialLayout.toggleDrawer();
+                            }
+                        });
+                    });
 
                 const mailMatchesButton = document.getElementById(
                     "mail-collected-matches-button",
@@ -1614,8 +1830,8 @@
                 if (typeof componentHandler !== "undefined") {
                     componentHandler.upgradeDom();
                 }
-                updatePrayerMatchingToolDisplay(); // Initial display update
-                handleRouteChange(); // Initial route handling
+                updatePrayerMatchingToolDisplay();
+                handleRouteChange();
             });
 
             window.addEventListener("hashchange", handleRouteChange);
