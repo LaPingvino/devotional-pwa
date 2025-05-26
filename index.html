@@ -1,141 +1,191 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-<link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
-<link rel="stylesheet" href="https://code.getmdl.io/1.3.0/material.blue_grey-blue.min.css">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="manifest" href="devotional.webmanifest">
-<link rel="icon" href="/chrome/chrome-favicon-16-16.png">
-<script defer src="https://code.getmdl.io/1.3.0/material.min.js"></script>
-<title>
-	Devotionals of Great Quality
-</title>
-</head>
-<body>
-<!-- Uses a transparent header that draws on top of the layout's background -->
-<style>
-body {
-	font-size: 1.3em;
-}
-.demo-layout-transparent {
-  background: url('banner-1018812_1920.jpg') center / cover;
-}
-.demo-layout-transparent .mdl-layout__header,
-.demo-layout-transparent .mdl-layout__drawer-button {
-  /* This background is dark, so we set text to white. Use 87% black (#222222) instead if
+    <head>
+        <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/icon?family=Material+Icons"
+        />
+        <link
+            rel="stylesheet"
+            href="https://fonts.googleapis.com/icon?family=Noto+Sans+Symbols+2"
+        />
+        <link
+            rel="stylesheet"
+            href="https://code.getmdl.io/1.3.0/material.blue_grey-blue.min.css"
+        />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="manifest" href="devotional.webmanifest" />
+        <link rel="icon" href="/chrome/chrome-favicon-16-16.png" />
+        <script
+            defer
+            src="https://code.getmdl.io/1.3.0/material.min.js"
+        ></script>
+        <title>&#x1f7d9; Holywritings.net</title>
+    </head>
+    <body>
+        <!-- Uses a transparent header that draws on top of the layout's background -->
+        <style>
+            .star {
+                font-family: "Noto Sans Symbols 2";
+                font-size: 1.5em;
+                color: gold;
+            }
+            body {
+                font-size: 1.3em;
+            }
+            .demo-layout-transparent {
+                background: url("banner-1018812_1920.jpg") center / cover;
+            }
+            .demo-layout-transparent .mdl-layout__header,
+            .demo-layout-transparent .mdl-layout__drawer-button {
+                /* This background is dark, so we set text to white. Use 87% black (#222222) instead if
      your background is light. */
-  color: #222222;
-}
-.mdl-layout__header-row .mdl-navigation {
-	background: gray;
-}
-#content {
-	margin: 25px 75px;
-}
-@media screen and (max-width: 480px) {
-	#content {
-		margin: 25px 25px;
-	}
-}
-#content a {
-	font-weight: bold;
-	padding: 3px;
-}
-#content a+a::before {
-	content: " - "; 
-}
-.author::before {
-	content: "--";
-}
-header, .scripture {
-	padding-left: 1em;
-}
-.scripture {
-	font-family: "Gentium", "Times New Roman", serif;
-	border-left: black solid 2px;
-	max-width: 800px;
-}
-.author {
-	margin-top: 1em;
-	margin-left: 2em;
-	font-weight: bold;
-}
-h2 {
-	font-size: 1.2em;
-}
-#category {
-	font-size: 1.2em;
-	font-weight: bold;
-}
-#blocktitle {
-	color: #777777;
-}
-small {
-	font-family: "Gentium", "Times New Roman", serif;
-	font-size: 0.6em;
-	display: block;
-	margin: 5px;
-	margin-top: 100px;
-}
-</style>
+                color: #222222;
+            }
+            .mdl-layout__header-row .mdl-navigation {
+                background: gray;
+            }
+            #content {
+                margin: 25px 75px;
+            }
+            @media screen and (max-width: 480px) {
+                #content {
+                    margin: 25px 25px;
+                }
+            }
+            #content a {
+                font-weight: bold;
+                padding: 3px;
+            }
+            #content a + a::before {
+                content: " - ";
+            }
+            .author::before {
+                content: "--";
+            }
+            header,
+            .scripture {
+                padding-left: 1em;
+            }
+            .scripture {
+                font-family: "Gentium", "Times New Roman", serif;
+                border-left: black solid 2px;
+                max-width: 800px;
+            }
+            .author {
+                margin-top: 1em;
+                margin-left: 2em;
+                font-weight: bold;
+            }
+            h2 {
+                font-size: 1.2em;
+            }
+            #category {
+                font-size: 1.2em;
+                font-weight: bold;
+            }
+            #blocktitle {
+                color: #777777;
+            }
+            small {
+                font-family: "Gentium", "Times New Roman", serif;
+                font-size: 0.6em;
+                display: block;
+                margin: 5px;
+                margin-top: 100px;
+            }
+        </style>
 
-<div class="demo-layout-transparent mdl-layout mdl-js-layout">
-  <header class="mdl-layout__header mdl-layout__header--transparent">
-    <div class="mdl-layout__header-row">
-      <!-- Title -->
-      <span class="mdl-layout-title">Devotionals of Great Quality</span>
-      <!-- Add spacer, to align navigation to the right -->
-      <div class="mdl-layout-spacer"></div>
-      <!-- Navigation -->
-      <nav class="mdl-navigation">
-      <a class="mdl-navigation__link" href=""><span class="material-icons mdl-badge" data-badge="js">extension</span></a>
-        <a class="mdl-navigation__link" href="">This app needs JavaScript...</a>
-      </nav>
-    </div>
-  </header>
-  <div class="mdl-layout__drawer">
-    <span class="mdl-layout-title">Menu</span>
-    <nav class="mdl-navigation">
-      <a class="mdl-navigation__link" href="">Prayers</a>
-      <a class="mdl-navigation__link" href="">Songs</a>
-      <a class="mdl-navigation__link" href="">Books</a>
-      <a class="mdl-navigation__link" href="">Programs</a>
-    </nav>
-      <img src="windows10/StoreLogo.scale-400.png" style="margin: 50px auto; width: 100px; height: 100px; display: block; clear: both;" />
-      <div>
-	      <small>Content Bahá'í sacred writings via bahaiprayers.net API made by Ian Vink, usage conditions apply as seen on bahaiprayers.net<br />This Progressive Web App put together by Joop Kiefte.</small>
-      </div>
-  </div>
-  <main class="mdl-layout__content" id="content">
-	  <header>
-		  <h2><span id="category">Prayers</span> <span id="blocktitle">Healing</span></h2>
-	  </header>
-	<div class="scripture">
-		<div class="prayer">
-			Thy name is my healing, O my God, and remembrance of Thee is my remedy.  Nearness to Thee is my hope, and love for Thee is my companion.  Thy mercy to me is my healing and my succor in both this world and the world to come.  Thou, verily, art the All-Bountiful, the All-Knowing, the All-Wise.
-		</div>
-		<div class="author">
-			Bahá'u'lláh
-		</div>
-	</div>
-  </main>
-</div>
-<!-- Add ServiceWorker and manup.js -->
-<script>
-//This is the "Offline copy of pages" service worker
+        <div class="demo-layout-transparent mdl-layout mdl-js-layout">
+            <header class="mdl-layout__header mdl-layout__header--transparent">
+                <div class="mdl-layout__header-row">
+                    <!-- Title -->
+                    <span class="mdl-layout-title"
+                        ><span class="star">&#x1f7d9;</span> Holy Writings
+                        Reader</span
+                    >
+                    <!-- Add spacer, to align navigation to the right -->
+                    <div class="mdl-layout-spacer"></div>
+                    <!-- Navigation -->
+                    <nav class="mdl-navigation">
+                        <a class="mdl-navigation__link" href=""
+                            ><span
+                                class="material-icons mdl-badge"
+                                data-badge="js"
+                                >extension</span
+                            ></a
+                        >
+                        <a class="mdl-navigation__link" href=""
+                            >This app needs JavaScript...</a
+                        >
+                    </nav>
+                </div>
+            </header>
+            <div class="mdl-layout__drawer">
+                <span class="mdl-layout-title">Menu</span>
+                <nav class="mdl-navigation">
+                    <a class="mdl-navigation__link" href="">Prayers</a>
+                    <a class="mdl-navigation__link" href="">Songs</a>
+                    <a class="mdl-navigation__link" href="">Books</a>
+                    <a class="mdl-navigation__link" href="">Programs</a>
+                </nav>
+                <img
+                    src="windows10/StoreLogo.scale-400.png"
+                    style="
+                        margin: 50px auto;
+                        width: 100px;
+                        height: 100px;
+                        display: block;
+                        clear: both;
+                    "
+                />
+                <div>
+                    <small></small>
+                </div>
+            </div>
+            <main class="mdl-layout__content" id="content">
+                <header>
+                    <h2>
+                        <span id="category">Prayers</span>
+                        <span id="blocktitle">Healing</span>
+                    </h2>
+                </header>
+                <div class="scripture">
+                    <div class="prayer">
+                        Thy name is my healing, O my God, and remembrance of
+                        Thee is my remedy. Nearness to Thee is my hope, and love
+                        for Thee is my companion. Thy mercy to me is my healing
+                        and my succor in both this world and the world to come.
+                        Thou, verily, art the All-Bountiful, the All-Knowing,
+                        the All-Wise.
+                    </div>
+                    <div class="author">Bahá'u'lláh</div>
+                </div>
+            </main>
+        </div>
+        <!-- Add ServiceWorker and manup.js -->
+        <script>
+            //This is the "Offline copy of pages" service worker
 
-//Add this below content to your HTML page, or add the js file to your page at the very top to register service worker
-if (navigator.serviceWorker.controller) {
-  console.log('[PWA Builder] active service worker found, no need to register')
-} else {
-  //Register the ServiceWorker
-  navigator.serviceWorker.register('pwabuilder-sw.js', {
-    scope: './'
-  }).then(function(reg) {
-    console.log('Service worker has been registered for scope:'+ reg.scope);
-  });
-}
-</script>
-<script defer src="logic.js"></script>
-</body>
+            //Add this below content to your HTML page, or add the js file to your page at the very top to register service worker
+            if (navigator.serviceWorker.controller) {
+                console.log(
+                    "[PWA Builder] active service worker found, no need to register",
+                );
+            } else {
+                //Register the ServiceWorker
+                navigator.serviceWorker
+                    .register("pwabuilder-sw.js", {
+                        scope: "./",
+                    })
+                    .then(function (reg) {
+                        console.log(
+                            "Service worker has been registered for scope:" +
+                                reg.scope,
+                        );
+                    });
+            }
+        </script>
+        <script defer src="logic.js"></script>
+    </body>
 </html>
