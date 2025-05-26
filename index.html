@@ -56,6 +56,10 @@
                     /* Ensure nav items don't overflow on small screens with search */
                     padding-left: 0;
                 }
+                #prayer-matching-tool {
+                    /* Adjust margins for smaller screens */
+                    margin: 15px 15px;
+                }
             }
             #content a {
                 font-weight: bold;
@@ -138,6 +142,29 @@
                 margin: 5px; /* Spacing around each button */
                 text-transform: uppercase; /* Ensure language codes are uppercase */
             }
+            .prayer-actions {
+                margin-top: 20px;
+                padding-top: 15px;
+                border-top: 1px solid #eee;
+            }
+            .prayer-actions .mdl-button .material-icons {
+                margin-right: 8px;
+            }
+            #prayer-matching-tool h4 {
+                margin-top: 0;
+                color: #3f51b5; /* Material Blue Grey 700 */
+            }
+            #prayer-matching-tool h5 {
+                color: #546e7a; /* Blue Grey 500 */
+            }
+            #pinned-prayer-section p {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+            }
+            #pinned-prayer-section .mdl-button--icon {
+                margin-left: 10px;
+            }
         </style>
 
         <div class="mdl-layout mdl-js-layout">
@@ -216,6 +243,50 @@
                     <p>Loading content...</p>
                 </div>
                 <div
+                    id="prayer-matching-tool"
+                    style="
+                        margin: 25px 75px;
+                        padding: 20px;
+                        background-color: #fffde7; /* Light Yellow */
+                        border-radius: 4px;
+                        box-shadow:
+                            0 2px 2px 0 rgba(0, 0, 0, 0.14),
+                            0 3px 1px -2px rgba(0, 0, 0, 0.2),
+                            0 1px 5px 0 rgba(0, 0, 0, 0.12);
+                    "
+                >
+                    <h4>Prayer Matching Helper</h4>
+                    <div id="pinned-prayer-section">
+                        <!-- Pinned prayer info and Unpin button will go here -->
+                        <p>No prayer is currently pinned.</p>
+                    </div>
+                    <div
+                        id="collected-matches-section"
+                        style="margin-top: 15px"
+                    >
+                        <h5>Collected Matches for Email:</h5>
+                        <ul
+                            id="collected-matches-list"
+                            style="
+                                list-style-type: disc;
+                                padding-left: 20px;
+                                margin-top: 5px;
+                            "
+                        >
+                            <li>No matches collected yet.</li>
+                        </ul>
+                    </div>
+                    <button
+                        id="mail-collected-matches-button"
+                        class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent"
+                        disabled
+                        style="margin-top: 15px"
+                    >
+                        <i class="material-icons">email</i> Mail Collected
+                        Matches
+                    </button>
+                </div>
+                <div
                     style="
                         margin: 25px 75px;
                         padding: 20px;
@@ -242,7 +313,8 @@
                             prayer, to
                             <a href="mailto:ikojba@gmail.com"
                                 >ikojba@gmail.com</a
-                            >.
+                            >. You can also use the "Prayer Matching Helper"
+                            tool above.
                         </li>
                         <li>
                             <strong>Contribute directly on DoltHub:</strong> You
@@ -284,6 +356,10 @@
                 </div>
             </main>
         </div>
+        <div class="mdl-js-snackbar mdl-snackbar">
+            <div class="mdl-snackbar__text"></div>
+            <button class="mdl-snackbar__action" type="button"></button>
+        </div>
 
         <script>
             // DATABASE STRUCTURE ASSUMPTIONS (holywritings/bahaiwritings):
@@ -307,6 +383,208 @@
             let currentPageBySearchTerm = {}; // { searchTerm: page }
             let currentPageByPhelpsCode = {}; // { phelpsCode: page }
 
+            let pinnedPrayerDetails = null; // Stores { version, phelps, name, language }
+            let collectedMatchesForEmail = []; // Array of strings, each being a formatted match description for email.
+
+            // --- Prayer Matching Helper Functions ---
+            function updatePrayerMatchingToolDisplay() {
+                const pinnedSection = document.getElementById(
+                    "pinned-prayer-section",
+                );
+                const matchesListUl = document.getElementById(
+                    "collected-matches-list",
+                );
+                const mailButton = document.getElementById(
+                    "mail-collected-matches-button",
+                );
+                const snackbarContainer =
+                    document.querySelector(".mdl-js-snackbar");
+
+                // Pinned Prayer Display
+                if (pinnedPrayerDetails) {
+                    let pinnedName =
+                        pinnedPrayerDetails.name ||
+                        `Prayer ${pinnedPrayerDetails.version}`;
+                    let pinnedText = `<strong>Pinned Prayer:</strong> ${pinnedName} (Ver: <a href="#prayer/${pinnedPrayerDetails.version}">${pinnedPrayerDetails.version}</a>, Lang: ${pinnedPrayerDetails.language}`;
+                    if (pinnedPrayerDetails.phelps) {
+                        pinnedText += `, Phelps: <a href="#prayercode/${pinnedPrayerDetails.phelps}">${pinnedPrayerDetails.phelps}</a>`;
+                    }
+                    pinnedText += `)`;
+
+                    const p = document.createElement("p");
+                    p.innerHTML = pinnedText;
+
+                    const unpinButton = document.createElement("button");
+                    unpinButton.className =
+                        "mdl-button mdl-js-button mdl-button--icon mdl-button--colored";
+                    unpinButton.innerHTML =
+                        '<i class="material-icons">cancel</i>';
+                    unpinButton.title = "Unpin Prayer";
+                    unpinButton.onclick = unpinPrayer;
+
+                    pinnedSection.innerHTML = ""; // Clear previous
+                    pinnedSection.appendChild(p);
+                    p.appendChild(unpinButton); // Append button inside paragraph for flex alignment
+
+                    if (typeof componentHandler !== "undefined") {
+                        // componentHandler.upgradeElement(p); // Not needed for p
+                        componentHandler.upgradeElement(unpinButton);
+                    }
+                } else {
+                    pinnedSection.innerHTML =
+                        '<p>No prayer is currently pinned. Navigate to a prayer and click "Pin this Prayer" to start.</p>';
+                }
+
+                // Collected Matches Display
+                matchesListUl.innerHTML = ""; // Clear previous
+                if (collectedMatchesForEmail.length > 0) {
+                    collectedMatchesForEmail.forEach((matchStr) => {
+                        const li = document.createElement("li");
+                        li.textContent = matchStr;
+                        matchesListUl.appendChild(li);
+                    });
+                    mailButton.disabled = false;
+                } else {
+                    const li = document.createElement("li");
+                    li.textContent = "No matches collected yet.";
+                    matchesListUl.appendChild(li);
+                    mailButton.disabled = true;
+                }
+                if (
+                    typeof componentHandler !== "undefined" &&
+                    mailButton.classList.contains("mdl-js-button")
+                ) {
+                    // MDL buttons might need their disabled state programmatically updated for visual cues
+                    if (mailButton.disabled) {
+                        mailButton.setAttribute("disabled", "disabled");
+                    } else {
+                        mailButton.removeAttribute("disabled");
+                    }
+                    componentHandler.upgradeElement(mailButton);
+                }
+            }
+
+            function pinPrayer(prayerData) {
+                pinnedPrayerDetails = {
+                    version: prayerData.version,
+                    phelps: prayerData.phelps || null,
+                    name: prayerData.name || `Prayer ${prayerData.version}`,
+                    language: prayerData.language,
+                };
+                updatePrayerMatchingToolDisplay();
+                // Re-render current view to update buttons in prayer actions div
+                handleRouteChange(); // This will re-run renderPrayer for the current prayer
+                const snackbarContainer =
+                    document.querySelector(".mdl-js-snackbar");
+                if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
+                    snackbarContainer.MaterialSnackbar.showSnackbar({
+                        message: "Prayer pinned! Navigate to its match.",
+                    });
+                }
+            }
+
+            function unpinPrayer() {
+                pinnedPrayerDetails = null;
+                updatePrayerMatchingToolDisplay();
+                handleRouteChange(); // Re-render current view
+                const snackbarContainer =
+                    document.querySelector(".mdl-js-snackbar");
+                if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
+                    snackbarContainer.MaterialSnackbar.showSnackbar({
+                        message: "Prayer unpinned.",
+                    });
+                }
+            }
+
+            function addCurrentPrayerAsMatch(currentPrayerData) {
+                if (!pinnedPrayerDetails) {
+                    alert("Error: No prayer is pinned to match against.");
+                    return;
+                }
+                if (pinnedPrayerDetails.version === currentPrayerData.version) {
+                    alert("Cannot match a prayer with itself.");
+                    return;
+                }
+
+                const p1 = pinnedPrayerDetails; // Pinned prayer
+                const p2 = {
+                    // Current prayer
+                    version: currentPrayerData.version,
+                    phelps: currentPrayerData.phelps || null,
+                    name:
+                        currentPrayerData.name ||
+                        `Prayer ${currentPrayerData.version}`,
+                    language: currentPrayerData.language,
+                };
+
+                let emailMatchDetail = "";
+                if (p1.phelps && !p2.phelps) {
+                    emailMatchDetail = `Pinned prayer (Phelps ${p1.phelps}, Version ${p1.version}) matches current prayer (Version ${p2.version}).`;
+                } else if (!p1.phelps && p2.phelps) {
+                    emailMatchDetail = `Pinned prayer (Version ${p1.version}) matches current prayer (Phelps ${p2.phelps}, Version ${p2.version}).`;
+                } else if (!p1.phelps && !p2.phelps) {
+                    emailMatchDetail = `Pinned prayer (Version ${p1.version}) matches current prayer (Version ${p2.version}).`;
+                } else {
+                    // Both have Phelps codes
+                    emailMatchDetail = `Pinned prayer (Phelps ${p1.phelps}, Version ${p1.version}) matches current prayer (Phelps ${p2.phelps}, Version ${p2.version}).`;
+                }
+
+                collectedMatchesForEmail.push(emailMatchDetail);
+                updatePrayerMatchingToolDisplay();
+
+                const snackbarContainer =
+                    document.querySelector(".mdl-js-snackbar");
+                if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
+                    snackbarContainer.MaterialSnackbar.showSnackbar({
+                        message: "Match added to list for emailing.",
+                    });
+                } else {
+                    console.log("Match added to list for emailing.");
+                }
+            }
+
+            function sendMatchesByEmail() {
+                if (collectedMatchesForEmail.length === 0) {
+                    alert("No matches to send.");
+                    return;
+                }
+
+                const subject =
+                    "holywritings.net: I found matching prayers for you";
+                const bodyLines = [
+                    "Hello,",
+                    "I've found the following prayer matches on holywritings.net:",
+                    "",
+                ];
+                collectedMatchesForEmail.forEach((match, index) => {
+                    bodyLines.push(`${index + 1}. ${match}`);
+                });
+                bodyLines.push("");
+                bodyLines.push(
+                    "Thank you for maintaining this wonderful resource!",
+                );
+                bodyLines.push(
+                    `Base URL for reference: ${window.location.origin}${window.location.pathname}`,
+                );
+
+                const mailBody = encodeURIComponent(bodyLines.join("\n"));
+                const mailtoLink = `mailto:ikojba@gmail.com?subject=${encodeURIComponent(subject)}&body=${mailBody}`;
+
+                // Create a temporary anchor to trigger mailto link
+                const tempLink = document.createElement("a");
+                tempLink.href = mailtoLink;
+                // tempLink.target = '_blank'; // Not always respected for mailto, but good practice
+                document.body.appendChild(tempLink);
+                tempLink.click();
+                document.body.removeChild(tempLink);
+
+                // Clear collected matches after attempting to send
+                collectedMatchesForEmail = [];
+                // Let's also unpin the prayer as the "session" of matching for this pin is likely complete.
+                // pinnedPrayerDetails = null; // User might want to keep it pinned. Let's not unpin.
+                updatePrayerMatchingToolDisplay();
+            }
+
             // --- LocalStorage Cache Functions ---
             function cachePrayerText(prayerData) {
                 if (
@@ -328,6 +606,7 @@
                         text: prayerData.text,
                         name: prayerData.name || null,
                         language: prayerData.language || null,
+                        phelps: prayerData.phelps || null, // Also cache phelps
                         timestamp: Date.now(),
                     };
                     localStorage.setItem(key, JSON.stringify(dataToStore));
@@ -336,7 +615,6 @@
                         "Error caching prayer text to localStorage:",
                         e,
                     );
-                    // Potentially handle quota exceeded error, though not required by prompt
                 }
             }
 
@@ -366,7 +644,6 @@
                     ) {
                         try {
                             const item = JSON.parse(localStorage.getItem(key));
-                            // Ensure item has at least version and text (text can be null if prayer genuinely has no text)
                             if (
                                 item &&
                                 item.version &&
@@ -504,12 +781,13 @@
 
                 const prayer = rows[0];
 
-                // Cache the fetched prayer text
                 cachePrayerText({
+                    // Ensure phelps is included for caching
                     version: prayer.version,
                     text: prayer.text,
                     name: prayer.name,
                     language: prayer.language,
+                    phelps: prayer.phelps,
                 });
 
                 const authorName = getAuthorFromPhelps(prayer.phelps);
@@ -517,7 +795,7 @@
                     prayer.name ||
                     (prayer.text
                         ? prayer.text.substring(0, 50) + "..."
-                        : "Prayer");
+                        : `Prayer ${prayer.version}`);
 
                 const phelpsLinkHtml = prayer.phelps
                     ? `<a href="#prayercode/${prayer.phelps}">${prayer.phelps}</a>`
@@ -538,6 +816,46 @@
                     </div>
                 `;
                 contentDiv.innerHTML = html;
+
+                // Add Prayer Matching Action Buttons
+                const actionsDiv = document.createElement("div");
+                actionsDiv.className = "prayer-actions";
+
+                if (pinnedPrayerDetails) {
+                    if (pinnedPrayerDetails.version !== prayer.version) {
+                        const addMatchButton = document.createElement("button");
+                        addMatchButton.className =
+                            "mdl-button mdl-js-button mdl-button--raised mdl-button--accent";
+                        const pinnedNameSnippet = (
+                            pinnedPrayerDetails.name ||
+                            `Version ${pinnedPrayerDetails.version}`
+                        ).substring(0, 25);
+                        addMatchButton.innerHTML = `<i class="material-icons">playlist_add_check</i> Add this as Match for Pinned: ${pinnedNameSnippet}${pinnedNameSnippet.length === 25 ? "..." : ""}`;
+                        addMatchButton.onclick = () =>
+                            addCurrentPrayerAsMatch(prayer);
+                        actionsDiv.appendChild(addMatchButton);
+                        if (typeof componentHandler !== "undefined")
+                            componentHandler.upgradeElement(addMatchButton);
+                    } else {
+                        // Current prayer is the pinned prayer, no "add match" button.
+                        // Message about it being pinned is in the prayer-matching-tool.
+                        const p = document.createElement("p");
+                        p.innerHTML =
+                            "<em>This prayer is currently pinned. Find another prayer to match it with, or unpin it using the helper tool below.</em>";
+                        actionsDiv.appendChild(p);
+                    }
+                } else {
+                    const pinButton = document.createElement("button");
+                    pinButton.className =
+                        "mdl-button mdl-js-button mdl-button--raised mdl-button--colored";
+                    pinButton.innerHTML =
+                        '<i class="material-icons">push_pin</i> Pin this Prayer to Find Match';
+                    pinButton.onclick = () => pinPrayer(prayer);
+                    actionsDiv.appendChild(pinButton);
+                    if (typeof componentHandler !== "undefined")
+                        componentHandler.upgradeElement(pinButton);
+                }
+                contentDiv.appendChild(actionsDiv);
 
                 if (prayer.phelps) {
                     const transSql = `SELECT version, language FROM writings WHERE phelps = '${prayer.phelps}' AND phelps IS NOT NULL AND phelps != ''`;
@@ -597,8 +915,7 @@
                 updateHeaderNavigation([]);
                 const languageDisplayName = langCode.toUpperCase();
 
-                // Step 1: Fetch metadata (version, name, language) without text
-                const metadataSql = `SELECT version, name, language FROM writings WHERE language = '${langCode}' ORDER BY name, version LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
+                const metadataSql = `SELECT version, name, language, phelps FROM writings WHERE language = '${langCode}' ORDER BY name, version LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
                 const prayersMetadata = await executeQuery(metadataSql);
 
                 const countSql = `SELECT COUNT(*) as total FROM writings WHERE language = '${langCode}'`;
@@ -620,11 +937,10 @@
                     return;
                 }
                 if (prayersMetadata.length === 0 && page > 1) {
-                    renderPrayersForLanguage(langCode, Math.max(1, totalPages)); // Go to last valid page
+                    renderPrayersForLanguage(langCode, Math.max(1, totalPages));
                     return;
                 }
 
-                // Step 2: Fetch text for each prayer and prepare for display
                 const prayersForDisplay = [];
                 for (const pMeta of prayersMetadata) {
                     let opening_text = "Loading text...";
@@ -633,17 +949,20 @@
                     const cached = getCachedPrayerText(pMeta.version);
                     if (cached) {
                         full_text = cached.text;
-                        pMeta.name = cached.name || pMeta.name; // Use cached name if available
+                        pMeta.name = cached.name || pMeta.name;
+                        pMeta.phelps = cached.phelps || pMeta.phelps;
                     } else {
                         const textSql = `SELECT text FROM writings WHERE version = '${pMeta.version}' LIMIT 1`;
                         const textRows = await executeQuery(textSql);
                         if (textRows.length > 0) {
                             full_text = textRows[0].text;
                             cachePrayerText({
+                                // Cache with phelps
                                 version: pMeta.version,
                                 text: full_text,
                                 name: pMeta.name,
                                 language: pMeta.language,
+                                phelps: pMeta.phelps,
                             });
                         }
                     }
@@ -666,7 +985,7 @@
                             p.opening_text !== "No text available." &&
                             p.opening_text !== "Loading text..."
                                 ? p.opening_text
-                                : "Untitled Prayer");
+                                : `Untitled Prayer ${p.version}`);
                         return `<div class="prayer-list-item"><a href="#prayer/${p.version}">${displayTitle}</a></div>`;
                     })
                     .join("");
@@ -704,9 +1023,9 @@
                     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
                 if (typeof componentHandler !== "undefined")
                     componentHandler.upgradeDom();
-                updateHeaderNavigation([]); // Clear previous prayer-specific navigation
+                updateHeaderNavigation([]);
 
-                const metadataSql = `SELECT version, name, language, text FROM writings WHERE phelps = '${phelpsCode}' AND phelps IS NOT NULL AND phelps != '' ORDER BY language, name LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
+                const metadataSql = `SELECT version, name, language, text, phelps FROM writings WHERE phelps = '${phelpsCode}' AND phelps IS NOT NULL AND phelps != '' ORDER BY language, name LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
                 const prayersMetadata = await executeQuery(metadataSql);
 
                 const countSql = `SELECT COUNT(*) as total FROM writings WHERE phelps = '${phelpsCode}' AND phelps IS NOT NULL AND phelps != ''`;
@@ -725,18 +1044,19 @@
                     return;
                 }
                 if (prayersMetadata.length === 0 && page > 1) {
-                    renderPrayerCodeView(phelpsCode, Math.max(1, totalPages)); // Go to last valid page
+                    renderPrayerCodeView(phelpsCode, Math.max(1, totalPages));
                     return;
                 }
 
                 const prayersForDisplay = prayersMetadata.map((p) => {
-                    // Cache text if fetched directly
                     if (p.text && !getCachedPrayerText(p.version)) {
                         cachePrayerText({
+                            // Cache with phelps
                             version: p.version,
                             text: p.text,
                             name: p.name,
                             language: p.language,
+                            phelps: p.phelps,
                         });
                     }
                     const opening_text = p.text
@@ -749,7 +1069,9 @@
                 let listHtml = prayersForDisplay
                     .map((p) => {
                         const displayTitle =
-                            p.name || p.opening_text || "Untitled Prayer";
+                            p.name ||
+                            p.opening_text ||
+                            `Untitled Prayer ${p.version}`;
                         return `<div class="prayer-code-list-item">
                                     <a href="#prayer/${p.version}">
                                         ${p.language.toUpperCase()}: ${displayTitle}
@@ -787,7 +1109,7 @@
                 contentDiv.innerHTML =
                     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
                 if (typeof componentHandler !== "undefined")
-                    componentHandler.upgradeDom(); // For spinner
+                    componentHandler.upgradeDom();
                 updateHeaderNavigation([]);
                 currentPageByLanguage = {};
                 currentPageBySearchTerm = {};
@@ -828,7 +1150,7 @@
                 `;
 
                 if (typeof componentHandler !== "undefined") {
-                    componentHandler.upgradeDom(); // Upgrade MDL components
+                    componentHandler.upgradeDom();
                 }
             }
 
@@ -851,10 +1173,9 @@
                     headerSearchInput.value = searchTerm;
                 }
 
-                const saneSearchTermForSql = searchTerm.replace(/'/g, "''"); // For SQL LIKE
-                const lowerSearchTerm = searchTerm.toLowerCase(); // For JS string includes
+                const saneSearchTermForSql = searchTerm.replace(/'/g, "''");
+                const lowerSearchTerm = searchTerm.toLowerCase();
 
-                // 1. Local Cache Search
                 const localFoundItems = [];
                 const allCached = getAllCachedPrayers();
                 allCached.forEach((cachedPrayer) => {
@@ -881,6 +1202,7 @@
                             version: cachedPrayer.version,
                             name: cachedPrayer.name,
                             language: cachedPrayer.language,
+                            phelps: cachedPrayer.phelps, // Include phelps
                             opening_text: cachedPrayer.text
                                 ? cachedPrayer.text.substring(0, 100) +
                                   (cachedPrayer.text.length > 100 ? "..." : "")
@@ -890,15 +1212,13 @@
                     }
                 });
 
-                // 2. Database `name` Search
-                const dbNameSql = `SELECT version, name, language FROM writings WHERE name LIKE '%${saneSearchTermForSql}%' ORDER BY name, version`;
+                const dbNameSql = `SELECT version, name, language, phelps FROM writings WHERE name LIKE '%${saneSearchTermForSql}%' ORDER BY name, version`;
                 const dbNameItemsRaw = await executeQuery(dbNameSql);
                 const dbNameItems = dbNameItemsRaw.map((item) => ({
                     ...item,
                     source: "db_name",
                 }));
 
-                // 3. Combine & Deduplicate
                 let combinedResults = [];
                 const processedVersions = new Set();
 
@@ -916,7 +1236,6 @@
                     }
                 });
 
-                // 4. Pagination (Client-Side for Combined Results)
                 const totalResults = combinedResults.length;
                 const totalPages = Math.ceil(totalResults / ITEMS_PER_PAGE);
 
@@ -924,7 +1243,6 @@
                     page = totalPages;
                     currentPageBySearchTerm[searchTerm] = page;
                 } else if (totalPages === 0 && page > 1) {
-                    // Handles case where search yields 0 results but URL has page > 1
                     page = 1;
                     currentPageBySearchTerm[searchTerm] = page;
                 }
@@ -935,7 +1253,6 @@
                     startIndex + ITEMS_PER_PAGE,
                 );
 
-                // 5. Prepare display items (fetch missing texts for DB items if necessary)
                 const displayItems = [];
                 for (const item of paginatedCombinedResults) {
                     let displayItem = { ...item };
@@ -943,26 +1260,32 @@
                         const cached = getCachedPrayerText(item.version);
                         if (cached) {
                             displayItem.name = cached.name || item.name;
+                            displayItem.phelps = cached.phelps || item.phelps;
                             displayItem.opening_text = cached.text
                                 ? cached.text.substring(0, 100) +
                                   (cached.text.length > 100 ? "..." : "")
                                 : "No text preview.";
                         } else {
-                            const textQuerySql = `SELECT text, name FROM writings WHERE version = '${item.version}' LIMIT 1`;
+                            const textQuerySql = `SELECT text, name, phelps FROM writings WHERE version = '${item.version}' LIMIT 1`;
                             const textRows = await executeQuery(textQuerySql);
                             if (textRows.length > 0) {
                                 const fetchedText = textRows[0].text;
                                 const fetchedName = textRows[0].name;
+                                const fetchedPhelps = textRows[0].phelps;
                                 displayItem.name = fetchedName || item.name;
+                                displayItem.phelps =
+                                    fetchedPhelps || item.phelps;
                                 displayItem.opening_text = fetchedText
                                     ? fetchedText.substring(0, 100) +
                                       (fetchedText.length > 100 ? "..." : "")
                                     : "No text preview.";
                                 cachePrayerText({
+                                    // Cache with phelps
                                     version: item.version,
                                     text: fetchedText,
                                     name: displayItem.name,
                                     language: item.language,
+                                    phelps: displayItem.phelps,
                                 });
                             } else {
                                 displayItem.opening_text =
@@ -1000,7 +1323,7 @@
                             (p.opening_text !== "No text preview." &&
                             p.opening_text !== "Text not found for preview."
                                 ? p.opening_text
-                                : "Untitled Prayer");
+                                : `Untitled Prayer ${p.version}`);
                         return `<div class="prayer-list-item"><a href="#prayer/${p.version}">${displayTitle}</a> (${p.language ? p.language.toUpperCase() : "N/A"})</div>`;
                     })
                     .join("");
@@ -1079,7 +1402,7 @@
                             currentPageByPhelpsCode[phelpsCode] || pageParam;
                         renderPrayerCodeView(phelpsCode, page);
                     } else {
-                        renderLanguageList(); // Fallback if no phelps code provided
+                        renderLanguageList();
                     }
                 } else if (mainHash.startsWith("#prayer/")) {
                     const versionId = mainHash.substring("#prayer/".length);
@@ -1101,23 +1424,18 @@
                 ) {
                     renderLanguageList();
                 } else {
-                    // This regex was for old-style phelps links.
-                    // The new #prayercode/ route is preferred.
-                    // We can keep this for backward compatibility or remove.
-                    // For now, let it default to language list.
                     const phelpsRegex = /^#([A-Z]{2}\d{3,5}[A-Z]{0,3})$/i;
                     const phelpsMatch = mainHash.match(phelpsRegex);
                     if (phelpsMatch && phelpsMatch[1]) {
                         const phelpsCode = phelpsMatch[1].toUpperCase();
-                        // Redirect to new prayercode view or handle as before
                         console.log(
                             "Old style Phelps code detected:",
                             phelpsCode,
                             " - Consider updating link to #prayercode/",
                             phelpsCode,
                         );
-                        // Optionally, redirect: window.location.hash = `#prayercode/${phelpsCode}`;
-                        renderPrayerCodeView(phelpsCode, 1); // Or redirect to new format
+                        window.location.hash = `#prayercode/${phelpsCode}${pageParam > 1 ? "?page=" + pageParam : ""}`; // Redirect to new format, preserve page
+                        // renderPrayerCodeView(phelpsCode, pageParam); // Or render directly (will be caught by hashchange again if redirecting)
                     } else {
                         console.log(
                             "Unhandled hash:",
@@ -1150,9 +1468,20 @@
                     });
                 }
 
+                const mailMatchesButton = document.getElementById(
+                    "mail-collected-matches-button",
+                );
+                if (mailMatchesButton) {
+                    mailMatchesButton.addEventListener(
+                        "click",
+                        sendMatchesByEmail,
+                    );
+                }
+
                 if (typeof componentHandler !== "undefined") {
                     componentHandler.upgradeDom();
                 }
+                updatePrayerMatchingToolDisplay(); // Initialize the matching tool display
                 handleRouteChange();
             });
 
