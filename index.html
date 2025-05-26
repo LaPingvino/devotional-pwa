@@ -863,11 +863,21 @@
                 }
 
                 if (totalResults === 0) {
+                    const searchExplanationForNoResults = `
+                        <div style="margin-top: 15px; padding: 10px; background-color: #f0f0f0; border-radius: 4px; font-size: 0.9em;">
+                            <p style="margin-bottom: 5px;"><strong>Search Information:</strong></p>
+                            <ul style="margin-top: 0; padding-left: 20px;">
+                                <li>This search looked for "${searchTerm}" in prayer <strong>titles</strong> from the main database.</li>
+                                <li>It also checked the <strong>full text</strong> of ${allCached.length} prayer(s) stored in your browser's local cache (from previously viewed or searched items).</li>
+                                <li>If you can't find a prayer, try browsing the <a href="#prayers">language lists</a> to view prayers. This adds them to your local cache, which can help future searches find them by their text.</li>
+                            </ul>
+                        </div>`;
+
                     contentDiv.innerHTML = `
-                        <p>No prayers found matching "${searchTerm}" in cache or by name.</p>
-                        <p>Searched ${allCached.length} cached items and queried database for names matching <pre style="display:inline; font-size:0.8em; background:#eee; padding:2px;">${searchTerm}</pre>.</p>
-                        <p>For more comprehensive text search, try <a href="https://tiddly.holywritings.net/workspace" target="_blank">tiddly.holywritings.net/workspace</a>.</p>
-                         <p>Debug: <a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(dbNameSql)}" target="_blank">View DB Name Query</a></p>
+                        <p>No prayers found matching "${searchTerm}".</p>
+                        ${searchExplanationForNoResults}
+                        <p style="margin-top: 15px;">For a more comprehensive text search across the entire database (not just titles or your local cache), try <a href="https://tiddly.holywritings.net/workspace" target="_blank">tiddly.holywritings.net/workspace</a>.</p>
+                        <p>Debug: <a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(dbNameSql)}" target="_blank">View DB Name Query (Titles)</a></p>
                     `;
                     return;
                 }
@@ -898,6 +908,16 @@
                     paginationHtml += "</div>";
                 }
 
+                const searchInfoHtml = `
+                    <div style="margin-top: 15px; padding: 10px; background-color: #f0f0f0; border-radius: 4px; font-size: 0.9em;">
+                        <p style="margin-bottom: 5px;"><strong>How this search works:</strong></p>
+                        <ul style="margin-top: 0; padding-left: 20px;">
+                            <li>It searches prayer <strong>titles</strong> in the main database.</li>
+                            <li>It also searches the <strong>full text</strong> of prayers you have previously viewed or found in other searches (these are stored in your browser's local cache).</li>
+                            <li>To improve full-text search results for specific prayers, try viewing them first by navigating through the <a href="#prayers">language lists</a>. This adds their text to your local cache, making them searchable here.</li>
+                        </ul>
+                    </div>`;
+
                 const tiddlySuggestionHtml = `<p style="margin-top: 20px; text-align: center; font-size: 0.9em;">For more comprehensive text search, or if you can't find what you're looking for, try <a href="https://tiddly.holywritings.net/workspace" target="_blank">tiddly.holywritings.net/workspace</a>.</p>`;
 
                 contentDiv.innerHTML = `
@@ -909,6 +929,7 @@
                     </header>
                     <div>${listHtml}</div>
                     ${paginationHtml}
+                    ${searchInfoHtml}
                     ${tiddlySuggestionHtml}
                 `;
                 if (typeof componentHandler !== "undefined")
