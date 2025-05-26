@@ -1419,10 +1419,61 @@
                     `Submitted from: ${window.location.origin}${window.location.pathname} (current hash: ${window.location.hash})`,
                 );
 
-                const issueBody = encodeURIComponent(bodyLines.join("\n"));
-                const issueUrl = `${DOLTHUB_REPO_ISSUES_NEW_URL_BASE}?title=${encodeURIComponent(title)}&body=${issueBody}`;
+                const issueBodyString = bodyLines.join("\n");
+                const doltHubNewIssueUrl = DOLTHUB_REPO_ISSUES_NEW_URL_BASE; // URL without query parameters
 
-                window.open(issueUrl, "_blank");
+                const snackbarContainer =
+                    document.querySelector(".mdl-js-snackbar");
+
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard
+                        .writeText(issueBodyString)
+                        .then(() => {
+                            window.open(doltHubNewIssueUrl, "_blank");
+                            if (
+                                snackbarContainer &&
+                                snackbarContainer.MaterialSnackbar
+                            ) {
+                                snackbarContainer.MaterialSnackbar.showSnackbar(
+                                    {
+                                        message: `Issue content copied! Paste into DoltHub's issue body. Suggested title: "${title}"`,
+                                        timeout: 7000, // Longer for more info
+                                    },
+                                );
+                            } else {
+                                alert(
+                                    `Issue content copied! Please paste it into the DoltHub issue form. Suggested title: "${title}"`,
+                                );
+                            }
+                        })
+                        .catch((err) => {
+                            console.error(
+                                "Failed to copy issue body to clipboard:",
+                                err,
+                            );
+                            alert(
+                                `Could not copy issue content to clipboard. DoltHub will open. Please copy the details from the browser console and paste them manually. Suggested title: "${title}"`,
+                            );
+                            console.log(
+                                "--- DoltHub Issue Title (Suggestion) ---",
+                            );
+                            console.log(title);
+                            console.log(
+                                "--- DoltHub Issue Body (Copy Manually) ---",
+                            );
+                            console.log(issueBodyString);
+                            window.open(doltHubNewIssueUrl, "_blank");
+                        });
+                } else {
+                    alert(
+                        `Clipboard API not supported by your browser. DoltHub will open. Please copy the details from the browser console and paste them manually. Suggested title: "${title}"`,
+                    );
+                    console.log("--- DoltHub Issue Title (Suggestion) ---");
+                    console.log(title);
+                    console.log("--- DoltHub Issue Body (Copy Manually) ---");
+                    console.log(issueBodyString);
+                    window.open(doltHubNewIssueUrl, "_blank");
+                }
             }
 
             // --- LocalStorage Cache Functions ---
