@@ -265,6 +265,7 @@
                 "https://www.dolthub.com/repositories/holywritings/bahaiwritings/query/main?q=";
             const MAX_DIRECT_LINKS_IN_HEADER = 4;
             const ITEMS_PER_PAGE = 20;
+            const LOCALSTORAGE_PRAYER_CACHE_PREFIX = "hw_prayer_cache_";
 
             const contentDiv = document.getElementById("content");
             const prayerLanguageNav = document.getElementById(
@@ -273,6 +274,86 @@
 
             let currentPageByLanguage = {}; // { langCode: page }
             let currentPageBySearchTerm = {}; // { searchTerm: page }
+
+            // --- LocalStorage Cache Functions ---
+            function cachePrayerText(prayerData) {
+                if (
+                    !prayerData ||
+                    !prayerData.version ||
+                    typeof prayerData.text === "undefined"
+                ) {
+                    //text can be null
+                    console.warn(
+                        "Attempted to cache invalid prayer data",
+                        prayerData,
+                    );
+                    return;
+                }
+                try {
+                    const key = `${LOCALSTORAGE_PRAYER_CACHE_PREFIX}${prayerData.version}`;
+                    const dataToStore = {
+                        version: prayerData.version,
+                        text: prayerData.text,
+                        name: prayerData.name || null,
+                        language: prayerData.language || null,
+                        timestamp: Date.now(),
+                    };
+                    localStorage.setItem(key, JSON.stringify(dataToStore));
+                } catch (e) {
+                    console.error(
+                        "Error caching prayer text to localStorage:",
+                        e,
+                    );
+                    // Potentially handle quota exceeded error, though not required by prompt
+                }
+            }
+
+            function getCachedPrayerText(versionId) {
+                try {
+                    const key = `${LOCALSTORAGE_PRAYER_CACHE_PREFIX}${versionId}`;
+                    const storedData = localStorage.getItem(key);
+                    if (storedData) {
+                        return JSON.parse(storedData);
+                    }
+                } catch (e) {
+                    console.error(
+                        "Error retrieving cached prayer text from localStorage:",
+                        e,
+                    );
+                }
+                return null;
+            }
+
+            function getAllCachedPrayers() {
+                const cachedPrayers = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (
+                        key &&
+                        key.startsWith(LOCALSTORAGE_PRAYER_CACHE_PREFIX)
+                    ) {
+                        try {
+                            const item = JSON.parse(localStorage.getItem(key));
+                            // Ensure item has at least version and text (text can be null if prayer genuinely has no text)
+                            if (
+                                item &&
+                                item.version &&
+                                typeof item.text !== "undefined"
+                            ) {
+                                cachedPrayers.push(item);
+                            }
+                        } catch (e) {
+                            console.warn(
+                                "Error parsing a cached prayer from localStorage:",
+                                key,
+                                e,
+                            );
+                        }
+                    }
+                }
+                return cachedPrayers;
+            }
+            // --- End LocalStorage Cache Functions ---
 
             async function executeQuery(sql) {
                 try {
@@ -318,13 +399,6 @@
                 prayerLanguageNav.innerHTML = "";
 
                 if (links.length === 0) {
-                    // Keep some default or empty state if needed, or ensure it's visually okay
-                    const loadingLink = document.createElement("a");
-                    loadingLink.className = "mdl-navigation__link";
-                    loadingLink.href = ""; // No action
-                    // loadingLink.textContent = ""; // Or some placeholder if absolutely necessary
-                    // prayerLanguageNav.appendChild(loadingLink);
-                    // Better to just leave it empty if no links are relevant
                     return;
                 }
 
@@ -397,6 +471,15 @@
                 }
 
                 const prayer = rows[0];
+
+                // Cache the fetched prayer text
+                cachePrayerText({
+                    version: prayer.version,
+                    text: prayer.text,
+                    name: prayer.name,
+                    language: prayer.language,
+                });
+
                 const authorName = getAuthorFromPhelps(prayer.phelps);
                 let prayerTitle =
                     prayer.name ||
@@ -478,39 +561,75 @@
                 updateHeaderNavigation([]);
                 const languageDisplayName = langCode.toUpperCase();
 
-                const sql = `SELECT version, name, language, SUBSTRING(text, 1, 70) AS opening_text FROM writings WHERE language = '${langCode}' ORDER BY name, opening_text, version LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
-                const prayers = await executeQuery(sql);
+                // Step 1: Fetch metadata (version, name, language) without text
+                const metadataSql = `SELECT version, name, language FROM writings WHERE language = '${langCode}' ORDER BY name, version LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
+                const prayersMetadata = await executeQuery(metadataSql);
+
                 const countSql = `SELECT COUNT(*) as total FROM writings WHERE language = '${langCode}'`;
                 const countResult = await executeQuery(countSql);
                 const totalPrayers =
                     countResult.length > 0 ? countResult[0].total : 0;
                 const totalPages = Math.ceil(totalPrayers / ITEMS_PER_PAGE);
 
-                if (prayers.length === 0 && page === 1) {
-                    const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(sql)}`;
+                if (prayersMetadata.length === 0 && page === 1) {
                     contentDiv.innerHTML = `
                         <p>No prayers found for language: ${languageDisplayName}.</p>
-                        <p>Query used:</p>
-                        <pre style="white-space: pre-wrap; word-break: break-all; background: #eee; padding: 10px; border-radius: 4px;">${sql}</pre>
-                        <p><a href="${debugQueryUrl}" target="_blank">Debug this query on DoltHub</a></p>
+                        <p>Query used for metadata:</p>
+                        <pre style="white-space: pre-wrap; word-break: break-all; background: #eee; padding: 10px; border-radius: 4px;">${metadataSql}</pre>
+                        <p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(metadataSql)}" target="_blank">Debug metadata query on DoltHub</a></p>
                         <p>Count query used:</p>
                         <pre style="white-space: pre-wrap; word-break: break-all; background: #eee; padding: 10px; border-radius: 4px;">${countSql}</pre>
                         <p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(countSql)}" target="_blank">Debug count query on DoltHub</a></p>
-
                     `;
                     return;
                 }
-                if (prayers.length === 0 && page > 1) {
-                    renderPrayersForLanguage(langCode, Math.max(1, totalPages));
+                if (prayersMetadata.length === 0 && page > 1) {
+                    renderPrayersForLanguage(langCode, Math.max(1, totalPages)); // Go to last valid page
                     return;
                 }
 
-                let listHtml = prayers
+                // Step 2: Fetch text for each prayer and prepare for display
+                const prayersForDisplay = [];
+                for (const pMeta of prayersMetadata) {
+                    let opening_text = "Loading text...";
+                    let full_text = null;
+
+                    const cached = getCachedPrayerText(pMeta.version);
+                    if (cached) {
+                        full_text = cached.text;
+                        pMeta.name = cached.name || pMeta.name; // Use cached name if available
+                    } else {
+                        const textSql = `SELECT text FROM writings WHERE version = '${pMeta.version}' LIMIT 1`;
+                        const textRows = await executeQuery(textSql);
+                        if (textRows.length > 0) {
+                            full_text = textRows[0].text;
+                            cachePrayerText({
+                                version: pMeta.version,
+                                text: full_text,
+                                name: pMeta.name,
+                                language: pMeta.language,
+                            });
+                        }
+                    }
+                    opening_text = full_text
+                        ? full_text.substring(0, 70) +
+                          (full_text.length > 70 ? "..." : "")
+                        : "No text available.";
+
+                    prayersForDisplay.push({
+                        ...pMeta,
+                        opening_text: opening_text,
+                    });
+                }
+
+                let listHtml = prayersForDisplay
                     .map((p) => {
                         const displayTitle =
                             p.name ||
-                            (p.opening_text
-                                ? p.opening_text + "..."
+                            (p.opening_text &&
+                            p.opening_text !== "No text available." &&
+                            p.opening_text !== "Loading text..."
+                                ? p.opening_text
                                 : "Untitled Prayer");
                         return `<div class="prayer-list-item"><a href="#prayer/${p.version}">${displayTitle}</a></div>`;
                     })
@@ -548,7 +667,7 @@
                     componentHandler.upgradeDom();
                 updateHeaderNavigation([]);
                 currentPageByLanguage = {};
-                currentPageBySearchTerm = {}; // Clear search pagination state when viewing language list
+                currentPageBySearchTerm = {};
 
                 const sql = `SELECT DISTINCT language FROM writings WHERE language IS NOT NULL AND language != '' ORDER BY language`;
                 const languages = await executeQuery(sql);
@@ -582,24 +701,12 @@
 
             async function renderSearchResults(searchTerm, page = 1) {
                 currentPageBySearchTerm[searchTerm] = page;
-                const offset = (page - 1) * ITEMS_PER_PAGE;
 
                 contentDiv.innerHTML =
                     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
                 if (typeof componentHandler !== "undefined")
                     componentHandler.upgradeDom();
-                updateHeaderNavigation([]); // Clear language links during search results
-
-                // Basic sanitization for SQL LIKE (escape single quotes)
-                const saneSearchTerm = searchTerm.replace(/'/g, "''");
-
-                const sql = `SELECT version, name, language, SUBSTRING(text, 1, 100) AS opening_text FROM writings WHERE text LIKE '%${saneSearchTerm}%' ORDER BY name, opening_text, version LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
-                const results = await executeQuery(sql);
-                const countSql = `SELECT COUNT(*) as total FROM writings WHERE text LIKE '%${saneSearchTerm}%'`;
-                const countResult = await executeQuery(countSql);
-                const totalResults =
-                    countResult.length > 0 ? countResult[0].total : 0;
-                const totalPages = Math.ceil(totalResults / ITEMS_PER_PAGE);
+                updateHeaderNavigation([]);
 
                 const headerSearchInput = document.getElementById(
                     "header-search-field",
@@ -608,41 +715,155 @@
                     headerSearchInput &&
                     headerSearchInput.value !== searchTerm
                 ) {
-                    headerSearchInput.value = searchTerm; // Keep search box synced if navigated via hash
+                    headerSearchInput.value = searchTerm;
                 }
 
-                if (results.length === 0 && page === 1) {
-                    const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(sql)}`;
+                const saneSearchTermForSql = searchTerm.replace(/'/g, "''"); // For SQL LIKE
+                const lowerSearchTerm = searchTerm.toLowerCase(); // For JS string includes
+
+                // 1. Local Cache Search
+                const localFoundItems = [];
+                const allCached = getAllCachedPrayers();
+                allCached.forEach((cachedPrayer) => {
+                    let match = false;
+                    if (
+                        cachedPrayer.text &&
+                        cachedPrayer.text
+                            .toLowerCase()
+                            .includes(lowerSearchTerm)
+                    ) {
+                        match = true;
+                    }
+                    if (
+                        !match &&
+                        cachedPrayer.name &&
+                        cachedPrayer.name
+                            .toLowerCase()
+                            .includes(lowerSearchTerm)
+                    ) {
+                        match = true;
+                    }
+                    if (match) {
+                        localFoundItems.push({
+                            version: cachedPrayer.version,
+                            name: cachedPrayer.name,
+                            language: cachedPrayer.language,
+                            opening_text: cachedPrayer.text
+                                ? cachedPrayer.text.substring(0, 100) +
+                                  (cachedPrayer.text.length > 100 ? "..." : "")
+                                : "No text preview.",
+                            source: "cache",
+                        });
+                    }
+                });
+
+                // 2. Database `name` Search
+                const dbNameSql = `SELECT version, name, language FROM writings WHERE name LIKE '%${saneSearchTermForSql}%' ORDER BY name, version`;
+                const dbNameItemsRaw = await executeQuery(dbNameSql);
+                const dbNameItems = dbNameItemsRaw.map((item) => ({
+                    ...item,
+                    source: "db_name",
+                }));
+
+                // 3. Combine & Deduplicate
+                let combinedResults = [];
+                const processedVersions = new Set();
+
+                localFoundItems.forEach((item) => {
+                    if (!processedVersions.has(item.version)) {
+                        combinedResults.push(item);
+                        processedVersions.add(item.version);
+                    }
+                });
+
+                dbNameItems.forEach((item) => {
+                    if (!processedVersions.has(item.version)) {
+                        combinedResults.push(item);
+                        processedVersions.add(item.version);
+                    }
+                });
+
+                // 4. Pagination (Client-Side for Combined Results)
+                const totalResults = combinedResults.length;
+                const totalPages = Math.ceil(totalResults / ITEMS_PER_PAGE);
+
+                if (page > totalPages && totalPages > 0) {
+                    page = totalPages;
+                    currentPageBySearchTerm[searchTerm] = page;
+                } else if (totalPages === 0 && page > 1) {
+                    // Handles case where search yields 0 results but URL has page > 1
+                    page = 1;
+                    currentPageBySearchTerm[searchTerm] = page;
+                }
+
+                const startIndex = (page - 1) * ITEMS_PER_PAGE;
+                const paginatedCombinedResults = combinedResults.slice(
+                    startIndex,
+                    startIndex + ITEMS_PER_PAGE,
+                );
+
+                // 5. Prepare display items (fetch missing texts for DB items if necessary)
+                const displayItems = [];
+                for (const item of paginatedCombinedResults) {
+                    let displayItem = { ...item };
+                    if (item.source === "db_name" && !item.opening_text) {
+                        const cached = getCachedPrayerText(item.version);
+                        if (cached) {
+                            displayItem.name = cached.name || item.name;
+                            displayItem.opening_text = cached.text
+                                ? cached.text.substring(0, 100) +
+                                  (cached.text.length > 100 ? "..." : "")
+                                : "No text preview.";
+                        } else {
+                            const textQuerySql = `SELECT text, name FROM writings WHERE version = '${item.version}' LIMIT 1`;
+                            const textRows = await executeQuery(textQuerySql);
+                            if (textRows.length > 0) {
+                                const fetchedText = textRows[0].text;
+                                const fetchedName = textRows[0].name;
+                                displayItem.name = fetchedName || item.name;
+                                displayItem.opening_text = fetchedText
+                                    ? fetchedText.substring(0, 100) +
+                                      (fetchedText.length > 100 ? "..." : "")
+                                    : "No text preview.";
+                                cachePrayerText({
+                                    version: item.version,
+                                    text: fetchedText,
+                                    name: displayItem.name,
+                                    language: item.language,
+                                });
+                            } else {
+                                displayItem.opening_text =
+                                    "Text not found for preview.";
+                            }
+                        }
+                    }
+                    displayItems.push(displayItem);
+                }
+
+                if (totalResults === 0) {
                     contentDiv.innerHTML = `
-                        <p>No prayers found matching "${searchTerm}".</p>
-                        <p>Query used:</p>
-                        <pre style="white-space: pre-wrap; word-break: break-all; background: #eee; padding: 10px; border-radius: 4px;">${sql}</pre>
-                        <p><a href="${debugQueryUrl}" target="_blank">Debug this query on DoltHub</a></p>
-                        <p>Count query used:</p>
-                        <pre style="white-space: pre-wrap; word-break: break-all; background: #eee; padding: 10px; border-radius: 4px;">${countSql}</pre>
-                        <p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(countSql)}" target="_blank">Debug count query on DoltHub</a></p>
+                        <p>No prayers found matching "${searchTerm}" in cache or by name.</p>
+                        <p>Searched ${allCached.length} cached items and queried database for names matching <pre style="display:inline; font-size:0.8em; background:#eee; padding:2px;">${searchTerm}</pre>.</p>
+                        <p>For more comprehensive text search, try <a href="https://tiddly.holywritings.net/workspace" target="_blank">tiddly.holywritings.net/workspace</a>.</p>
+                         <p>Debug: <a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(dbNameSql)}" target="_blank">View DB Name Query</a></p>
                     `;
                     return;
                 }
-                if (results.length === 0 && page > 1) {
-                    renderSearchResults(searchTerm, Math.max(1, totalPages));
-                    return;
-                }
 
-                let listHtml = results
+                let listHtml = displayItems
                     .map((p) => {
                         const displayTitle =
                             p.name ||
-                            (p.opening_text
-                                ? p.opening_text + "..."
+                            (p.opening_text !== "No text preview." &&
+                            p.opening_text !== "Text not found for preview."
+                                ? p.opening_text
                                 : "Untitled Prayer");
-                        return `<div class="prayer-list-item"><a href="#prayer/${p.version}">${displayTitle}</a> (${p.language.toUpperCase()})</div>`;
+                        return `<div class="prayer-list-item"><a href="#prayer/${p.version}">${displayTitle}</a> (${p.language ? p.language.toUpperCase() : "N/A"})</div>`;
                     })
                     .join("");
 
                 let paginationHtml = "";
                 if (totalPages > 1) {
-                    // Escape searchTerm for use in onclick attribute string
                     const escapedSearchTerm = searchTerm
                         .replace(/'/g, "\\'")
                         .replace(/"/g, '\\"');
@@ -655,6 +876,8 @@
                     paginationHtml += "</div>";
                 }
 
+                const tiddlySuggestionHtml = `<p style="margin-top: 20px; text-align: center; font-size: 0.9em;">For more comprehensive text search, or if you can't find what you're looking for, try <a href="https://tiddly.holywritings.net/workspace" target="_blank">tiddly.holywritings.net/workspace</a>.</p>`;
+
                 contentDiv.innerHTML = `
                     <header>
                         <h2>
@@ -664,6 +887,7 @@
                     </header>
                     <div>${listHtml}</div>
                     ${paginationHtml}
+                    ${tiddlySuggestionHtml}
                 `;
                 if (typeof componentHandler !== "undefined")
                     componentHandler.upgradeDom();
@@ -671,10 +895,9 @@
 
             function handleRouteChange() {
                 const hash = window.location.hash;
-                // Split by ?page= first to separate main route from page parameter
                 const hashParts = hash.split("?page=");
                 const mainHash = hashParts[0];
-                let pageParam = 1; // Default page is 1
+                let pageParam = 1;
                 if (hashParts.length > 1 && hashParts[1]) {
                     const parsedPage = parseInt(hashParts[1], 10);
                     if (!isNaN(parsedPage) && parsedPage > 0) {
@@ -691,7 +914,7 @@
                             currentPageBySearchTerm[searchTerm] || pageParam;
                         renderSearchResults(searchTerm, page);
                     } else {
-                        renderLanguageList(); // Fallback if search term is empty
+                        renderLanguageList();
                     }
                 } else if (mainHash.startsWith("#prayer/")) {
                     const versionId = mainHash.substring("#prayer/".length);
@@ -722,8 +945,6 @@
                             phelpsCode,
                             " - direct linking by Phelps not fully implemented for routing.",
                         );
-                        // To implement: find versionId for phelpsCode then renderPrayer(versionId)
-                        // For now, fallback:
                         renderLanguageList();
                     } else {
                         console.log(
@@ -737,7 +958,7 @@
             }
 
             window.renderPrayersForLanguage = renderPrayersForLanguage;
-            window.renderSearchResults = renderSearchResults; // Make globally accessible for pagination
+            window.renderSearchResults = renderSearchResults;
 
             document.addEventListener("DOMContentLoaded", () => {
                 const searchInput = document.getElementById(
@@ -749,21 +970,8 @@
                             e.preventDefault();
                             const searchTerm = searchInput.value.trim();
                             if (searchTerm) {
-                                // Reset pagination for this specific search term to page 1 for a new search action
                                 currentPageBySearchTerm[searchTerm] = 1;
                                 window.location.hash = `#search/prayers/${encodeURIComponent(searchTerm)}`;
-                                // searchInput.blur(); // Optional: collapse search field if it's an expandable one
-                                // For MDL expandable, blur often collapses it.
-                                const layout =
-                                    document.querySelector(".mdl-layout");
-                                if (
-                                    layout &&
-                                    layout.MaterialLayout &&
-                                    layout.classList.contains("is-focused")
-                                ) {
-                                    // This is tricky for MDL's own expandable behavior.
-                                    // Blurring might be enough or MDL might handle it.
-                                }
                             }
                         }
                     });
