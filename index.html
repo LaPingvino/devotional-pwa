@@ -335,6 +335,14 @@
             #favorite-prayers-section .prayer-list-item {
                 margin-left: 1em; /* Indent favorite items slightly */
             }
+            .filter-switch-container {
+                margin-bottom: 15px;
+                padding: 10px;
+                background-color: #f9f9f9;
+                border-radius: 4px;
+                display: flex;
+                align-items: center;
+            }
         </style>
 
         <div class="mdl-layout mdl-js-layout">
@@ -577,7 +585,7 @@
                 "drawer-prayer-language-nav",
             );
 
-            let currentPageByLanguage = {}; // { langCode: page }
+            let currentPageByLanguage = {}; // { langCode: { page, showOnlyUnmatched } }
             let currentPageBySearchTerm = {}; // { searchTerm: page }
             let currentPageByPhelpsCode = {}; // { phelpsCode: page }
 
@@ -1315,8 +1323,12 @@
                 }
             }
 
-            async function renderPrayersForLanguage(langCode, page = 1) {
-                currentPageByLanguage[langCode] = page;
+            async function renderPrayersForLanguage(
+                langCode,
+                page = 1,
+                showOnlyUnmatched = false,
+            ) {
+                currentPageByLanguage[langCode] = { page, showOnlyUnmatched };
                 const offset = (page - 1) * ITEMS_PER_PAGE;
                 contentDiv.innerHTML =
                     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
@@ -1326,19 +1338,34 @@
                 updateDrawerLanguageNavigation([]);
 
                 const languageDisplayName = langCode.toUpperCase();
+                let filterCondition = "";
+                if (showOnlyUnmatched) {
+                    filterCondition = " AND (phelps IS NULL OR phelps = '')";
+                }
 
-                const metadataSql = `SELECT version, name, language, phelps FROM writings WHERE language = '${langCode}' ORDER BY name, version LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
+                const metadataSql = `SELECT version, name, language, phelps FROM writings WHERE language = '${langCode}'${filterCondition} ORDER BY name, version LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
                 const prayersMetadata = await executeQuery(metadataSql);
 
-                const countSql = `SELECT COUNT(*) as total FROM writings WHERE language = '${langCode}'`;
+                const countSql = `SELECT COUNT(*) as total FROM writings WHERE language = '${langCode}'${filterCondition}`;
                 const countResult = await executeQuery(countSql);
                 const totalPrayers =
                     countResult.length > 0 ? countResult[0].total : 0;
                 const totalPages = Math.ceil(totalPrayers / ITEMS_PER_PAGE);
 
                 if (prayersMetadata.length === 0 && page === 1) {
+                    const filterSwitchId = `filter-unmatched-${langCode}`;
+                    const filterSwitchHtml = `
+                        <div class="filter-switch-container">
+                            <label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="${filterSwitchId}">
+                                <input type="checkbox" id="${filterSwitchId}" class="mdl-switch__input"
+                                       onchange="setLanguageView('${langCode}', 1, this.checked)"
+                                       ${showOnlyUnmatched ? "checked" : ""}>
+                                <span class="mdl-switch__label">Show only prayers without Phelps code</span>
+                            </label>
+                        </div>`;
                     contentDiv.innerHTML = `
-                        <p>No prayers found for language: ${languageDisplayName}.</p>
+                        ${filterSwitchHtml}
+                        <p>No prayers found for language: ${languageDisplayName} ${showOnlyUnmatched ? " (matching filter)" : ""}.</p>
                         <p>Query used for metadata:</p>
                         <pre style="white-space: pre-wrap; word-break: break-all; background: #eee; padding: 10px; border-radius: 4px;">${metadataSql}</pre>
                         <p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(metadataSql)}" target="_blank">Debug metadata query on DoltHub</a></p>
@@ -1346,10 +1373,17 @@
                         <pre style="white-space: pre-wrap; word-break: break-all; background: #eee; padding: 10px; border-radius: 4px;">${countSql}</pre>
                         <p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(countSql)}" target="_blank">Debug count query on DoltHub</a></p>
                     `;
+                    if (typeof componentHandler !== "undefined")
+                        componentHandler.upgradeDom();
                     return;
                 }
                 if (prayersMetadata.length === 0 && page > 1) {
-                    renderPrayersForLanguage(langCode, Math.max(1, totalPages));
+                    // If current page is empty but there are other pages, go to the last valid page.
+                    setLanguageView(
+                        langCode,
+                        Math.max(1, totalPages),
+                        showOnlyUnmatched,
+                    );
                     return;
                 }
 
@@ -1405,20 +1439,32 @@
                 if (totalPages > 1) {
                     paginationHtml = '<div class="pagination">';
                     if (page > 1)
-                        paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="renderPrayersForLanguage('${langCode}', ${page - 1})">Previous</button>`;
+                        paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="setLanguageView('${langCode}', ${page - 1}, ${showOnlyUnmatched})">Previous</button>`;
                     paginationHtml += ` <span>Page ${page} of ${totalPages}</span> `;
                     if (page < totalPages)
-                        paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="renderPrayersForLanguage('${langCode}', ${page + 1})">Next</button>`;
+                        paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="setLanguageView('${langCode}', ${page + 1}, ${showOnlyUnmatched})">Next</button>`;
                     paginationHtml += "</div>";
                 }
+
+                const filterSwitchId = `filter-unmatched-${langCode}`;
+                const filterSwitchHtml = `
+                    <div class="filter-switch-container">
+                        <label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="${filterSwitchId}">
+                            <input type="checkbox" id="${filterSwitchId}" class="mdl-switch__input"
+                                   onchange="setLanguageView('${langCode}', 1, this.checked)"
+                                   ${showOnlyUnmatched ? "checked" : ""}>
+                            <span class="mdl-switch__label">Show only prayers without Phelps code</span>
+                        </label>
+                    </div>`;
 
                 contentDiv.innerHTML = `
                     <header>
                         <h2>
                             <span id="category">Prayers</span>
-                            <span id="blocktitle">Language: ${languageDisplayName} (Page ${page})</span>
+                            <span id="blocktitle">Language: ${languageDisplayName} (Page ${page})${showOnlyUnmatched ? " - Unmatched" : ""}</span>
                         </h2>
                     </header>
+                    ${filterSwitchHtml}
                     <div>${listHtml}</div>
                     ${paginationHtml}
                 `;
@@ -1554,7 +1600,15 @@
                                            </div>`;
                 }
 
-                const sql = `SELECT language, COUNT(*) as prayer_count FROM writings WHERE language IS NOT NULL AND language != '' GROUP BY language ORDER BY language`;
+                const sql = `
+                    SELECT
+                        language,
+                        COUNT(*) as total_prayer_count,
+                        SUM(CASE WHEN phelps IS NOT NULL AND phelps != '' THEN 1 ELSE 0 END) as phelps_prayer_count
+                    FROM writings
+                    WHERE language IS NOT NULL AND language != ''
+                    GROUP BY language
+                    ORDER BY language`;
                 const languagesWithCounts = await executeQuery(sql);
 
                 if (
@@ -1579,9 +1633,11 @@
                     languageListHtml = languagesWithCounts
                         .map((langData) => {
                             const langCode = langData.language;
-                            const prayerCount = langData.prayer_count;
-                            return `<button class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" onclick="window.location.hash='#prayers/${langCode}'">
-                                            ${langCode.toUpperCase()} (${prayerCount})
+                            const totalCount = langData.total_prayer_count;
+                            const phelpsCount =
+                                langData.phelps_prayer_count || 0;
+                            return `<button class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" onclick="setLanguageView('${langCode}', 1, false)">
+                                            ${langCode.toUpperCase()} (${phelpsCount}/${totalCount})
                                         </button>`;
                         })
                         .join("\n");
@@ -1597,6 +1653,9 @@
                         </h2>
                     </header>
                     <div class="language-buttons-container">${languageListHtml}</div>
+                    <p style="text-align:center; font-size:0.9em; color: #555; margin-top:10px;">
+                        Counts are (Prayers with Phelps Code / Total Prayers). Click a language to browse.
+                    </p>
                 `;
 
                 if (typeof componentHandler !== "undefined") {
@@ -1831,15 +1890,29 @@
 
             function handleRouteChange() {
                 const hash = window.location.hash;
-                const hashParts = hash.split("?page=");
-                const mainHash = hashParts[0];
+                const [mainHashPath, queryParamsStr] = hash.split("?");
+
                 let pageParam = 1;
-                if (hashParts.length > 1 && hashParts[1]) {
-                    const parsedPage = parseInt(hashParts[1], 10);
-                    if (!isNaN(parsedPage) && parsedPage > 0) {
-                        pageParam = parsedPage;
+                let showOnlyUnmatchedParam = false;
+
+                if (queryParamsStr) {
+                    const params = new URLSearchParams(queryParamsStr);
+                    if (params.has("page")) {
+                        const parsedPage = parseInt(params.get("page"), 10);
+                        if (!isNaN(parsedPage) && parsedPage > 0) {
+                            pageParam = parsedPage;
+                        }
+                    }
+                    if (
+                        params.has("filter") &&
+                        params.get("filter") === "unmatched"
+                    ) {
+                        showOnlyUnmatchedParam = true;
                     }
                 }
+
+                const mainHash =
+                    mainHashPath || (hash.includes("?") ? "" : hash); // Handle case like "#?foo=bar"
 
                 if (mainHash.startsWith("#search/prayers/")) {
                     const searchTerm = decodeURIComponent(
@@ -1870,9 +1943,11 @@
                 } else if (mainHash.startsWith("#prayers/")) {
                     const langCode = mainHash.substring("#prayers/".length);
                     if (langCode) {
-                        const page =
-                            currentPageByLanguage[langCode] || pageParam;
-                        renderPrayersForLanguage(langCode, page);
+                        renderPrayersForLanguage(
+                            langCode,
+                            pageParam,
+                            showOnlyUnmatchedParam,
+                        );
                     } else {
                         renderLanguageList();
                     }
@@ -1893,7 +1968,10 @@
                             " - Consider updating link to #prayercode/",
                             phelpsCode,
                         );
-                        window.location.hash = `#prayercode/${phelpsCode}${pageParam > 1 ? "?page=" + pageParam : ""}`;
+                        let newHash = `#prayercode/${phelpsCode}`;
+                        if (pageParam > 1) newHash += `?page=${pageParam}`;
+                        // Note: showOnlyUnmatchedParam is not relevant for prayercode view
+                        window.location.hash = newHash;
                     } else {
                         console.log(
                             "Unhandled hash:",
@@ -1905,7 +1983,16 @@
                 }
             }
 
-            window.renderPrayersForLanguage = renderPrayersForLanguage;
+            function setLanguageView(langCode, page, showOnlyUnmatched) {
+                let newHash = `#prayers/${langCode}?page=${page}`;
+                if (showOnlyUnmatched) {
+                    newHash += "&filter=unmatched";
+                }
+                window.location.hash = newHash;
+            }
+            window.setLanguageView = setLanguageView; // Make it globally accessible
+
+            window.renderPrayersForLanguage = renderPrayersForLanguage; // Expose for pagination in older versions if any still used.
             window.renderSearchResults = renderSearchResults;
             window.renderPrayerCodeView = renderPrayerCodeView;
 
@@ -1924,7 +2011,7 @@
                                 const searchTerm =
                                     headerSearchInput.value.trim();
                                 if (searchTerm) {
-                                    currentPageBySearchTerm[searchTerm] = 1;
+                                    currentPageBySearchTerm[searchTerm] = 1; // Reset page for new search
                                     window.location.hash = `#search/prayers/${encodeURIComponent(searchTerm)}`;
                                 }
                             }
@@ -1944,7 +2031,7 @@
                                 const searchTerm =
                                     drawerSearchInput.value.trim();
                                 if (searchTerm) {
-                                    currentPageBySearchTerm[searchTerm] = 1;
+                                    currentPageBySearchTerm[searchTerm] = 1; // Reset page for new search
                                     window.location.hash = `#search/prayers/${encodeURIComponent(searchTerm)}`;
                                     const layout =
                                         document.querySelector(".mdl-layout");
