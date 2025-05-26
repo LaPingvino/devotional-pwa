@@ -745,69 +745,78 @@
                 bodyLines.push("");
 
                 const sqlUpdateQueries = [];
-                const sqlSelectForReviewQueries = [];
+
+                function uuidToBase36(uuid_string) {
+                    if (!uuid_string || typeof uuid_string !== "string")
+                        return "INVALID_UUID_INPUT";
+                    const hexString = uuid_string.replace(/-/g, "");
+                    try {
+                        // Ensure it's a valid hex string for BigInt conversion
+                        if (!/^[0-9a-fA-F]+$/.test(hexString)) {
+                            console.error(
+                                "Invalid characters in UUID hex string:",
+                                hexString,
+                            );
+                            return "INVALID_HEX_IN_UUID";
+                        }
+                        return BigInt("0x" + hexString).toString(36);
+                    } catch (e) {
+                        console.error(
+                            "Error converting UUID to Base36:",
+                            uuid_string,
+                            e,
+                        );
+                        // Provide a fallback that's still somewhat unique, or a fixed error string
+                        // For simplicity, let's use a portion of the original UUID if conversion fails
+                        return "CONV_ERR_" + hexString.substring(0, 8);
+                    }
+                }
 
                 collectedMatchesForEmail.forEach((matchData) => {
-                    const p1 = matchData.pinned;
-                    const p2 = matchData.current;
+                    const p1 = matchData.pinned; // Pinned prayer
+                    const p2 = matchData.current; // Current prayer matched against pinned
 
-                    // Part 1: SQL UPDATE queries for missing Phelps codes
                     if (p1.phelps && !p2.phelps) {
+                        // Pinned has Phelps, current does not: Assign pinned's Phelps to current
                         sqlUpdateQueries.push(
-                            `UPDATE writings SET phelps = '${p1.phelps}' WHERE version = '${p2.version}'; -- Auto-assign: Matched ${p2.version} (${p2.language}) with ${p1.version} (Phelps: ${p1.phelps})`,
+                            `UPDATE writings SET phelps = '${p1.phelps}' WHERE version = '${p2.version}'; -- Auto-assign from pinned ${p1.version} (Phelps: ${p1.phelps}) to ${p2.version} (${p2.language})`,
                         );
-                    }
-                    if (!p1.phelps && p2.phelps) {
+                    } else if (!p1.phelps && p2.phelps) {
+                        // Current has Phelps, pinned does not: Assign current's Phelps to pinned
                         sqlUpdateQueries.push(
-                            `UPDATE writings SET phelps = '${p2.phelps}' WHERE version = '${p1.version}'; -- Auto-assign: Matched ${p1.version} (${p1.language}) with ${p2.version} (Phelps: ${p2.phelps})`,
+                            `UPDATE writings SET phelps = '${p2.phelps}' WHERE version = '${p1.version}'; -- Auto-assign from current ${p2.version} (Phelps: ${p2.phelps}) to ${p1.version} (${p1.language})`,
                         );
-                    }
+                    } else if (!p1.phelps && !p2.phelps) {
+                        // Neither has Phelps: Create a new temporary Phelps code and assign to both
+                        const base36Version = uuidToBase36(p1.version);
+                        const fakePhelps = `TODO${base36Version}`;
 
-                    // Part 2: SQL SELECT queries for manual lookup/verification
-                    if (p1.phelps && !p2.phelps) {
-                        sqlSelectForReviewQueries.push(
-                            `SELECT * FROM writings WHERE version = '${p2.version}'; -- MANUAL REVIEW: Version ${p2.version} (${p2.language}) is missing Phelps. Matched with ${p1.version} (Phelps: ${p1.phelps}). Update suggested.`,
+                        sqlUpdateQueries.push(
+                            `UPDATE writings SET phelps = '${fakePhelps}' WHERE version = '${p1.version}'; -- Assign new temp Phelps: ${p1.version} (${p1.language}) linked with ${p2.version} (${p2.language}) using ${fakePhelps}`,
+                        );
+                        sqlUpdateQueries.push(
+                            `UPDATE writings SET phelps = '${fakePhelps}' WHERE version = '${p2.version}'; -- Assign new temp Phelps: ${p2.version} (${p2.language}) linked with ${p1.version} (${p1.language}) using ${fakePhelps}`,
                         );
                     }
-                    if (!p1.phelps && p2.phelps) {
-                        sqlSelectForReviewQueries.push(
-                            `SELECT * FROM writings WHERE version = '${p1.version}'; -- MANUAL REVIEW: Version ${p1.version} (${p1.language}) is missing Phelps. Matched with ${p2.version} (Phelps: ${p2.phelps}). Update suggested.`,
-                        );
-                    }
-                    if (!p1.phelps && !p2.phelps) {
-                        sqlSelectForReviewQueries.push(
-                            `SELECT * FROM writings WHERE version IN ('${p1.version}', '${p2.version}'); -- MANUAL REVIEW: Both matched prayers (V: ${p1.version}, ${p1.language} and V: ${p2.version}, ${p2.language}) are missing Phelps codes.`,
-                        );
-                    }
-                    if (p1.phelps && p2.phelps && p1.phelps !== p2.phelps) {
-                        sqlSelectForReviewQueries.push(
-                            `SELECT * FROM writings WHERE version IN ('${p1.version}', '${p2.version}'); -- MANUAL REVIEW (Conflict): Matched prayers have different Phelps codes: ${p1.version} (${p1.phelps}) vs ${p2.version} (${p2.phelps}).`,
-                        );
-                    }
+                    // If p1.phelps && p2.phelps && p1.phelps !== p2.phelps:
+                    // This is a conflict. The matchData.description should already highlight this.
+                    // No automatic SQL UPDATE is generated as per the prompt's focus.
+                    // If p1.phelps && p2.phelps && p1.phelps === p2.phelps:
+                    // Both have the same Phelps, no action needed.
                 });
 
                 if (sqlUpdateQueries.length > 0) {
-                    bodyLines.push(
-                        "--- Suggested SQL UPDATE Statements (for auto-assigning Phelps codes) ---",
-                    );
+                    bodyLines.push("--- Suggested SQL UPDATE Statements ---");
                     sqlUpdateQueries.forEach((q) => bodyLines.push(q));
                 } else {
                     bodyLines.push(
-                        "--- No SQL UPDATE Statements Suggested ---",
+                        "--- No SQL UPDATE Statements Suggested for these matches ---",
                     );
                 }
                 bodyLines.push("");
 
-                if (sqlSelectForReviewQueries.length > 0) {
-                    bodyLines.push(
-                        "--- SQL SELECT Statements for Manual Review/Verification ---",
-                    );
-                    sqlSelectForReviewQueries.forEach((q) => bodyLines.push(q));
-                } else {
-                    bodyLines.push(
-                        "--- No specific SQL SELECT Statements for manual review based on these matches ---",
-                    );
-                }
+                // Remove the section for SELECT queries as per prompt
+                // if (sqlSelectForReviewQueries.length > 0) { ... } else { ... }
 
                 const mailBody = encodeURIComponent(bodyLines.join("\n"));
                 const mailtoLink = `mailto:ikojba@gmail.com?subject=${encodeURIComponent(subject)}&body=${mailBody}`;
@@ -818,6 +827,7 @@
                 tempLink.click();
                 document.body.removeChild(tempLink);
 
+                // Clear matches after attempting to send email
                 collectedMatchesForEmail = [];
                 updatePrayerMatchingToolDisplay();
             }
