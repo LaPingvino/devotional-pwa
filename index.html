@@ -232,6 +232,7 @@
                 margin-top: 20px;
             }
             .prayer-list-item {
+                /* May become unused but kept for now */
                 margin-bottom: 0.5em;
             }
             .pagination {
@@ -306,7 +307,7 @@
                 line-height: 1.4;
             }
 
-            /* Favorite Prayer Styles */
+            /* Favorite Prayer Styles (now general prayer card styles) */
             .favorite-toggle-button {
                 position: absolute;
                 top: 10px; /* Adjusted to be slightly inside padding */
@@ -322,6 +323,7 @@
             }
 
             #favorite-prayers-section {
+                /* Specific container for favorites on home page */
                 margin-bottom: 20px;
                 padding-bottom: 15px;
                 border-bottom: 1px solid #ddd;
@@ -332,10 +334,10 @@
                 margin-top: 0; /* Align with card content */
                 margin-bottom: 10px;
             }
-            /* Removed simple .prayer-list-item from #favorite-prayers-section */
 
-            /* Favorite Prayer Card Styles */
-            #favorite-prayers-section .favorite-prayer-grid {
+            /* General Prayer Card Grid Styles (reusing .favorite-prayer-grid) */
+            .favorite-prayer-grid {
+                /* Applied to all card lists now */
                 display: grid;
                 grid-template-columns: repeat(
                     auto-fill,
@@ -344,7 +346,9 @@
                 gap: 15px; /* Space between cards */
             }
 
+            /* General Prayer Card Styles (reusing .favorite-prayer-card) */
             .favorite-prayer-card {
+                /* Applied to all prayer cards now */
                 background-color: #fff;
                 border: 1px solid #e0e0e0;
                 border-radius: 4px;
@@ -374,9 +378,7 @@
                 color: #555;
                 margin-bottom: 10px;
                 line-height: 1.4;
-                /* max-height: 60px; Approx 3-4 lines */
                 overflow: hidden;
-                /* text-overflow: ellipsis; Not reliable for multiline */
                 display: -webkit-box;
                 -webkit-line-clamp: 3; /* Limit to 3 lines */
                 -webkit-box-orient: vertical;
@@ -395,7 +397,6 @@
                 display: inline-block; /* Ensure proper spacing */
             }
             .favorite-prayer-card-meta .phelps-code a {
-                /* Class added in JS for phelps link */
                 color: #007bff;
                 text-decoration: none;
             }
@@ -679,6 +680,7 @@
             const ITEMS_PER_PAGE = 20;
             const LOCALSTORAGE_PRAYER_CACHE_PREFIX = "hw_prayer_cache_";
             const FAVORITES_STORAGE_KEY = "hw_favorite_prayers";
+            const MAX_PREVIEW_LENGTH = 120; // Max length for card preview text
 
             const contentDiv = document.getElementById("content");
             const prayerLanguageNav = document.getElementById(
@@ -1147,6 +1149,76 @@
                 }
             }
 
+            // --- Prayer Card Generation ---
+            function createPrayerCardHtml(
+                prayerData,
+                translationsByPhelps = {},
+            ) {
+                // prayerData expected: { version, name, language, phelps, opening_text }
+                const {
+                    version,
+                    name,
+                    language = "N/A",
+                    phelps,
+                    opening_text,
+                } = prayerData;
+
+                let displayTitle;
+                if (name) {
+                    displayTitle = name;
+                } else if (phelps) {
+                    displayTitle = `Phelps: ${phelps}`;
+                } else {
+                    displayTitle = `Prayer ${version}`;
+                }
+
+                const previewSnippet =
+                    opening_text || "No text preview available."; // opening_text should be pre-truncated
+
+                let translationsHtml = "";
+                if (
+                    phelps &&
+                    translationsByPhelps &&
+                    translationsByPhelps[phelps]
+                ) {
+                    const availableTranslations = translationsByPhelps[
+                        phelps
+                    ].filter((t) => t.version !== version);
+
+                    if (availableTranslations.length > 0) {
+                        translationsHtml = `
+                        <div class="favorite-prayer-card-translations">
+                            <h5>Translations:</h5>
+                            <ul class="favorite-prayer-card-translations-list">
+                                ${availableTranslations
+                                    .map(
+                                        (t) => `
+                                    <li class="favorite-prayer-card-translations-item">
+                                        <a href="#prayer/${t.version}">${t.language.toUpperCase()}</a>
+                                    </li>`,
+                                    )
+                                    .join("")}
+                            </ul>
+                        </div>`;
+                    }
+                }
+
+                return `
+                <div class="favorite-prayer-card"> <!-- Reusing .favorite-prayer-card styles -->
+                    <div> <!-- Content wrapper -->
+                        <div class="favorite-prayer-card-header">
+                            <a href="#prayer/${version}">${displayTitle}</a>
+                        </div>
+                        <p class="favorite-prayer-card-preview">${previewSnippet}</p>
+                        <div class="favorite-prayer-card-meta">
+                            <span>Lang: ${language.toUpperCase()}</span>
+                            ${phelps ? `<span class="phelps-code">Phelps: <a href="#prayercode/${phelps}">${phelps}</a></span>` : ""}
+                        </div>
+                    </div>
+                    ${translationsHtml}
+                </div>`;
+            }
+
             function updateHeaderNavigation(links = []) {
                 if (!prayerLanguageNav) return;
                 prayerLanguageNav.innerHTML = "";
@@ -1287,9 +1359,10 @@
                 const authorName = getAuthorFromPhelps(prayer.phelps);
                 let prayerTitle =
                     prayer.name ||
+                    (prayer.phelps ? `Phelps: ${prayer.phelps}` : null) || // Added Phelps to title logic here too
                     (prayer.text
                         ? prayer.text.substring(0, 50) + "..."
-                        : `Prayer ${prayer.version}`); // Fallback if name and text are null
+                        : `Prayer ${prayer.version}`);
 
                 const phelpsLinkHtml = prayer.phelps
                     ? `<a href="#prayercode/${prayer.phelps}">${prayer.phelps}</a>`
@@ -1331,7 +1404,7 @@
                 const prayerForFavorite = {
                     // Prepare data for toggling favorite
                     version: prayer.version,
-                    name: prayerTitle, // Use the determined prayerTitle for consistency
+                    name: prayer.name, // Use original name for storing favorite, title logic is for display
                     language: prayer.language,
                     phelps: prayer.phelps,
                 };
@@ -1486,7 +1559,6 @@
                     return;
                 }
                 if (prayersMetadata.length === 0 && page > 1) {
-                    // If current page is empty but there are other pages, go to the last valid page.
                     setLanguageView(
                         langCode,
                         Math.max(1, totalPages),
@@ -1497,51 +1569,77 @@
 
                 const prayersForDisplay = [];
                 for (const pMeta of prayersMetadata) {
-                    let opening_text = "Loading text...";
-                    let full_text = null;
-
+                    let full_text_for_preview = null;
                     const cached = getCachedPrayerText(pMeta.version);
                     if (cached) {
-                        full_text = cached.text;
+                        full_text_for_preview = cached.text;
                         pMeta.name = cached.name || pMeta.name;
                         pMeta.phelps = cached.phelps || pMeta.phelps;
                     } else {
                         const textSql = `SELECT text FROM writings WHERE version = '${pMeta.version}' LIMIT 1`;
                         const textRows = await executeQuery(textSql);
-                        if (textRows.length > 0) {
-                            full_text = textRows[0].text;
+                        if (textRows.length > 0 && textRows[0].text) {
+                            full_text_for_preview = textRows[0].text;
                             cachePrayerText({
                                 version: pMeta.version,
-                                text: full_text,
+                                text: full_text_for_preview,
                                 name: pMeta.name,
                                 language: pMeta.language,
                                 phelps: pMeta.phelps,
                             });
                         }
                     }
-                    opening_text = full_text
-                        ? full_text.substring(0, 70) +
-                          (full_text.length > 70 ? "..." : "")
-                        : "No text available.";
-
+                    const opening_text_for_card = full_text_for_preview
+                        ? full_text_for_preview.substring(
+                              0,
+                              MAX_PREVIEW_LENGTH,
+                          ) +
+                          (full_text_for_preview.length > MAX_PREVIEW_LENGTH
+                              ? "..."
+                              : "")
+                        : "No text preview available.";
                     prayersForDisplay.push({
                         ...pMeta,
-                        opening_text: opening_text,
+                        opening_text: opening_text_for_card,
                     });
                 }
 
-                let listHtml = prayersForDisplay
-                    .map((p) => {
-                        const displayTitle =
-                            p.name ||
-                            (p.opening_text &&
-                            p.opening_text !== "No text available." &&
-                            p.opening_text !== "Loading text..."
-                                ? p.opening_text
-                                : `Untitled Prayer ${p.version}`);
-                        return `<div class="prayer-list-item"><a href="#prayer/${p.version}">${displayTitle}</a></div>`;
-                    })
-                    .join("");
+                let translationsForList = {};
+                const phelpsCodesInList = [
+                    ...new Set(
+                        prayersForDisplay
+                            .filter((p) => p.phelps)
+                            .map((p) => p.phelps),
+                    ),
+                ];
+                if (phelpsCodesInList.length > 0) {
+                    const phelpsInClause = phelpsCodesInList
+                        .map((p) => `'${p.replace(/'/g, "''")}'`)
+                        .join(",");
+                    const translationsSql = `SELECT version, language, phelps FROM writings WHERE phelps IN (${phelpsInClause})`;
+                    try {
+                        const translationRows =
+                            await executeQuery(translationsSql);
+                        translationRows.forEach((row) => {
+                            if (!translationsForList[row.phelps])
+                                translationsForList[row.phelps] = [];
+                            translationsForList[row.phelps].push({
+                                version: row.version,
+                                language: row.language,
+                            });
+                        });
+                    } catch (e) {
+                        console.error(
+                            "Failed to fetch translations for language list:",
+                            e,
+                        );
+                    }
+                }
+
+                const listCardsHtmlArray = prayersForDisplay.map((pData) => {
+                    return createPrayerCardHtml(pData, translationsForList);
+                });
+                const listHtml = `<div class="favorite-prayer-grid">${listCardsHtmlArray.join("")}</div>`;
 
                 let paginationHtml = "";
                 if (totalPages > 1) {
@@ -1573,7 +1671,7 @@
                         </h2>
                     </header>
                     ${filterSwitchHtml}
-                    <div>${listHtml}</div>
+                    ${listHtml}
                     ${paginationHtml}
                 `;
                 if (typeof componentHandler !== "undefined")
@@ -1615,35 +1713,64 @@
                 }
 
                 const prayersForDisplay = prayersMetadata.map((p) => {
-                    if (p.text && !getCachedPrayerText(p.version)) {
-                        cachePrayerText({
-                            version: p.version,
-                            text: p.text,
-                            name: p.name,
-                            language: p.language,
-                            phelps: p.phelps,
-                        });
+                    let full_text_for_preview = p.text;
+                    if (!full_text_for_preview) {
+                        const cached = getCachedPrayerText(p.version);
+                        if (cached && cached.text) {
+                            full_text_for_preview = cached.text;
+                            p.name = cached.name || p.name;
+                            p.phelps = cached.phelps || p.phelps;
+                        }
+                    } else {
+                        if (!getCachedPrayerText(p.version)) {
+                            cachePrayerText({
+                                version: p.version,
+                                text: p.text,
+                                name: p.name,
+                                language: p.language,
+                                phelps: p.phelps,
+                            });
+                        }
                     }
-                    const opening_text = p.text
-                        ? p.text.substring(0, 70) +
-                          (p.text.length > 70 ? "..." : "")
-                        : "No text preview.";
-                    return { ...p, opening_text };
+                    const opening_text_for_card = full_text_for_preview
+                        ? full_text_for_preview.substring(
+                              0,
+                              MAX_PREVIEW_LENGTH,
+                          ) +
+                          (full_text_for_preview.length > MAX_PREVIEW_LENGTH
+                              ? "..."
+                              : "")
+                        : "No text preview available.";
+                    return { ...p, opening_text: opening_text_for_card };
                 });
 
-                let listHtml = prayersForDisplay
-                    .map((p) => {
-                        const displayTitle =
-                            p.name ||
-                            p.opening_text ||
-                            `Untitled Prayer ${p.version}`;
-                        return `<div class="prayer-code-list-item">
-                                    <a href="#prayer/${p.version}">
-                                        ${p.language.toUpperCase()}: ${displayTitle}
-                                    </a>
-                                </div>`;
-                    })
-                    .join("");
+                let translationsForPhelpsCodeView = {};
+                if (phelpsCode) {
+                    const transSql = `SELECT version, language FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' AND phelps IS NOT NULL AND phelps != ''`;
+                    try {
+                        const translationRows = await executeQuery(transSql);
+                        if (translationRows.length > 0) {
+                            translationsForPhelpsCodeView[phelpsCode] =
+                                translationRows.map((t) => ({
+                                    version: t.version,
+                                    language: t.language,
+                                }));
+                        }
+                    } catch (e) {
+                        console.error(
+                            `Failed to fetch translations for Phelps code ${phelpsCode}:`,
+                            e,
+                        );
+                    }
+                }
+
+                const listCardsHtmlArray = prayersForDisplay.map((pData) => {
+                    return createPrayerCardHtml(
+                        pData,
+                        translationsForPhelpsCodeView,
+                    );
+                });
+                const listHtml = `<div class="favorite-prayer-grid">${listCardsHtmlArray.join("")}</div>`;
 
                 let paginationHtml = "";
                 if (totalPages > 1) {
@@ -1663,7 +1790,7 @@
                             <span id="blocktitle">${phelpsCode} (Page ${page})</span>
                         </h2>
                     </header>
-                    <div>${listHtml}</div>
+                    ${listHtml}
                     ${paginationHtml}
                 `;
                 if (typeof componentHandler !== "undefined")
@@ -1686,7 +1813,6 @@
                 if (favoritePrayers.length > 0) {
                     favoritesDisplayHtml += `<div id="favorite-prayers-section"><h3>⭐ Your Favorite Prayers</h3>`;
 
-                    // Collect all Phelps codes from favorites or cache
                     const phelpsCodesToFetch = favoritePrayers
                         .map((fp) => {
                             const cached = getCachedPrayerText(fp.version);
@@ -1707,9 +1833,8 @@
                             const translationRows =
                                 await executeQuery(translationsSql);
                             translationRows.forEach((row) => {
-                                if (!translationsByPhelps[row.phelps]) {
+                                if (!translationsByPhelps[row.phelps])
                                     translationsByPhelps[row.phelps] = [];
-                                }
                                 translationsByPhelps[row.phelps].push({
                                     version: row.version,
                                     language: row.language,
@@ -1723,89 +1848,37 @@
                         }
                     }
 
-                    const favoriteCardsHtmlPromises = favoritePrayers.map(
-                        async (fp) => {
-                            const cached = getCachedPrayerText(fp.version);
+                    const favoriteCardsHtmlArray = favoritePrayers.map((fp) => {
+                        const cached = getCachedPrayerText(fp.version);
+                        let textForCardPreview = "Preview not available.";
+                        if (cached && cached.text) {
+                            textForCardPreview =
+                                cached.text.substring(0, MAX_PREVIEW_LENGTH) +
+                                (cached.text.length > MAX_PREVIEW_LENGTH
+                                    ? "..."
+                                    : "");
+                        } else {
+                            textForCardPreview =
+                                "Cached text not found. Click to view prayer.";
+                        }
 
-                            const nameOnCard =
-                                fp.name ||
-                                (cached ? cached.name : null) ||
-                                "Untitled Prayer";
-                            const phelpsOnCard =
-                                fp.phelps || (cached ? cached.phelps : null);
-                            const langOnCard =
+                        const prayerDataForCard = {
+                            version: fp.version,
+                            name: fp.name || (cached ? cached.name : null),
+                            language:
                                 fp.language ||
-                                (cached ? cached.language : "N/A");
-                            const textForPreview = cached
-                                ? cached.text
-                                : "Full text not cached. Click to view prayer.";
-
-                            const previewSnippet = textForPreview
-                                ? textForPreview.substring(0, 120) +
-                                  (textForPreview.length > 120 ? "..." : "")
-                                : "No text preview.";
-
-                            let translationsHtml = "";
-                            if (
-                                phelpsOnCard &&
-                                translationsByPhelps[phelpsOnCard]
-                            ) {
-                                const availableTranslations =
-                                    translationsByPhelps[phelpsOnCard].filter(
-                                        (t) => t.version !== fp.version,
-                                    );
-
-                                if (availableTranslations.length > 0) {
-                                    translationsHtml = `
-                                    <div class="favorite-prayer-card-translations">
-                                        <h5>Translations:</h5>
-                                        <ul class="favorite-prayer-card-translations-list">
-                                            ${availableTranslations
-                                                .map(
-                                                    (t) => `
-                                                <li class="favorite-prayer-card-translations-item">
-                                                    <a href="#prayer/${t.version}">${t.language.toUpperCase()}</a>
-                                                </li>
-                                            `,
-                                                )
-                                                .join("")}
-                                        </ul>
-                                    </div>
-                                `;
-                                }
-                            }
-
-                            return `
-                            <div class="favorite-prayer-card">
-                                <div> <!-- Content wrapper -->
-                                    <div class="favorite-prayer-card-header">
-                                        <a href="#prayer/${fp.version}">${nameOnCard}</a>
-                                    </div>
-                                    <p class="favorite-prayer-card-preview">${previewSnippet}</p>
-                                    <div class="favorite-prayer-card-meta">
-                                        <span>Lang: ${langOnCard.toUpperCase()}</span>
-                                        ${phelpsOnCard ? `<span class="phelps-code">Phelps: <a href="#prayercode/${phelpsOnCard}">${phelpsOnCard}</a></span>` : ""}
-                                    </div>
-                                </div>
-                                ${translationsHtml}
-                            </div>
-                        `;
-                        },
-                    );
-
-                    try {
-                        const favoriteCardsHtmlArray = await Promise.all(
-                            favoriteCardsHtmlPromises,
+                                (cached ? cached.language : "N/A"),
+                            phelps:
+                                fp.phelps || (cached ? cached.phelps : null),
+                            opening_text: textForCardPreview,
+                        };
+                        return createPrayerCardHtml(
+                            prayerDataForCard,
+                            translationsByPhelps,
                         );
-                        favoritesDisplayHtml += `<div class="favorite-prayer-grid">${favoriteCardsHtmlArray.join("")}</div>`;
-                    } catch (e) {
-                        console.error(
-                            "Error rendering favorite prayer cards:",
-                            e,
-                        );
-                        favoritesDisplayHtml +=
-                            "<p>Error displaying favorite prayers.</p>";
-                    }
+                    });
+
+                    favoritesDisplayHtml += `<div class="favorite-prayer-grid">${favoriteCardsHtmlArray.join("")}</div>`;
                     favoritesDisplayHtml += `</div>`;
                 } else {
                     favoritesDisplayHtml += `<div id="favorite-prayers-section" style="text-align: center; padding: 10px 0; margin-bottom:10px;">
@@ -1935,8 +2008,13 @@
                             language: cachedPrayer.language,
                             phelps: cachedPrayer.phelps,
                             opening_text: cachedPrayer.text
-                                ? cachedPrayer.text.substring(0, 100) +
-                                  (cachedPrayer.text.length > 100 ? "..." : "")
+                                ? cachedPrayer.text.substring(
+                                      0,
+                                      MAX_PREVIEW_LENGTH,
+                                  ) +
+                                  (cachedPrayer.text.length > MAX_PREVIEW_LENGTH
+                                      ? "..."
+                                      : "")
                                 : "No text preview.",
                             source: "cache",
                         });
@@ -1986,35 +2064,46 @@
 
                 const displayItems = [];
                 for (const item of paginatedCombinedResults) {
-                    let displayItem = { ...item };
+                    let displayItem = { ...item }; // item already has opening_text if from cache
                     if (item.source === "db_name" && !item.opening_text) {
+                        // if from DB, opening_text might be missing
                         const cached = getCachedPrayerText(item.version);
                         if (cached) {
                             displayItem.name = cached.name || item.name;
                             displayItem.phelps = cached.phelps || item.phelps;
+                            displayItem.language =
+                                cached.language || item.language;
                             displayItem.opening_text = cached.text
-                                ? cached.text.substring(0, 100) +
-                                  (cached.text.length > 100 ? "..." : "")
+                                ? cached.text.substring(0, MAX_PREVIEW_LENGTH) +
+                                  (cached.text.length > MAX_PREVIEW_LENGTH
+                                      ? "..."
+                                      : "")
                                 : "No text preview.";
                         } else {
-                            const textQuerySql = `SELECT text, name, phelps FROM writings WHERE version = '${item.version}' LIMIT 1`;
+                            const textQuerySql = `SELECT text, name, phelps, language FROM writings WHERE version = '${item.version}' LIMIT 1`;
                             const textRows = await executeQuery(textQuerySql);
                             if (textRows.length > 0) {
                                 const fetchedText = textRows[0].text;
-                                const fetchedName = textRows[0].name;
-                                const fetchedPhelps = textRows[0].phelps;
-                                displayItem.name = fetchedName || item.name;
+                                displayItem.name =
+                                    textRows[0].name || item.name;
                                 displayItem.phelps =
-                                    fetchedPhelps || item.phelps;
+                                    textRows[0].phelps || item.phelps;
+                                displayItem.language =
+                                    textRows[0].language || item.language;
                                 displayItem.opening_text = fetchedText
-                                    ? fetchedText.substring(0, 100) +
-                                      (fetchedText.length > 100 ? "..." : "")
+                                    ? fetchedText.substring(
+                                          0,
+                                          MAX_PREVIEW_LENGTH,
+                                      ) +
+                                      (fetchedText.length > MAX_PREVIEW_LENGTH
+                                          ? "..."
+                                          : "")
                                     : "No text preview.";
                                 cachePrayerText({
                                     version: item.version,
                                     text: fetchedText,
                                     name: displayItem.name,
-                                    language: item.language,
+                                    language: displayItem.language,
                                     phelps: displayItem.phelps,
                                 });
                             } else {
@@ -2046,17 +2135,42 @@
                     return;
                 }
 
-                let listHtml = displayItems
-                    .map((p) => {
-                        const displayTitle =
-                            p.name ||
-                            (p.opening_text !== "No text preview." &&
-                            p.opening_text !== "Text not found for preview."
-                                ? p.opening_text
-                                : `Untitled Prayer ${p.version}`);
-                        return `<div class="prayer-list-item"><a href="#prayer/${p.version}">${displayTitle}</a> (${p.language ? p.language.toUpperCase() : "N/A"})</div>`;
-                    })
-                    .join("");
+                let translationsForList = {};
+                const phelpsCodesInList = [
+                    ...new Set(
+                        displayItems
+                            .filter((p) => p.phelps)
+                            .map((p) => p.phelps),
+                    ),
+                ];
+                if (phelpsCodesInList.length > 0) {
+                    const phelpsInClause = phelpsCodesInList
+                        .map((p) => `'${p.replace(/'/g, "''")}'`)
+                        .join(",");
+                    const translationsSql = `SELECT version, language, phelps FROM writings WHERE phelps IN (${phelpsInClause})`;
+                    try {
+                        const translationRows =
+                            await executeQuery(translationsSql);
+                        translationRows.forEach((row) => {
+                            if (!translationsForList[row.phelps])
+                                translationsForList[row.phelps] = [];
+                            translationsForList[row.phelps].push({
+                                version: row.version,
+                                language: row.language,
+                            });
+                        });
+                    } catch (e) {
+                        console.error(
+                            "Failed to fetch translations for search results:",
+                            e,
+                        );
+                    }
+                }
+
+                const listCardsHtmlArray = displayItems.map((pData) => {
+                    return createPrayerCardHtml(pData, translationsForList);
+                });
+                const listHtml = `<div class="favorite-prayer-grid">${listCardsHtmlArray.join("")}</div>`;
 
                 let paginationHtml = "";
                 if (totalPages > 1) {
@@ -2091,7 +2205,7 @@
                             <span id="blocktitle">For "${searchTerm}" (Page ${page})</span>
                         </h2>
                     </header>
-                    <div>${listHtml}</div>
+                    ${listHtml}
                     ${paginationHtml}
                     ${searchInfoHtml}
                     ${tiddlySuggestionHtml}
