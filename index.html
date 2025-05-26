@@ -31,50 +31,103 @@
             }
             body {
                 font-size: 1.3em;
-                /* A soft background color for the body, MDL might override for content area */
                 background-color: #f4f6f6;
             }
-            /* .mdl-layout__header will now get its color from the MDL theme (blue_grey) */
-            /* .mdl-layout__content will also get its background from MDL theme (typically light grey) */
+
+            /* New styles for two-column layout */
+            #main-view-container {
+                display: flex;
+                flex-wrap: wrap; /* Allow columns to wrap on smaller screens */
+                padding: 10px; /* Outer padding for the entire two-column area */
+            }
+
+            #content-column {
+                flex: 3; /* Main content takes more space, e.g., ~75% */
+                min-width: 0; /* Important for flex item shrinking */
+                display: flex; /* To allow #content to be a card within */
+                flex-direction: column;
+            }
 
             #content {
-                margin: 25px 75px;
-                background-color: #ffffff; /* Ensuring content area within padding is white */
-                padding: 20px; /* Add some padding if margin is for spacing from edge */
+                margin: 15px; /* Card-like margin */
+                background-color: #ffffff;
+                padding: 20px;
                 border-radius: 4px;
                 box-shadow:
                     0 2px 2px 0 rgba(0, 0, 0, 0.14),
                     0 3px 1px -2px rgba(0, 0, 0, 0.2),
                     0 1px 5px 0 rgba(0, 0, 0, 0.12);
             }
-            @media screen and (max-width: 480px) {
-                #content {
-                    margin: 15px 15px; /* Adjusted margin for smaller screens */
-                    padding: 15px;
+
+            #prayer-matching-tool {
+                flex: 1; /* Tool takes less space, e.g., ~25% */
+                min-width: 320px; /* Minimum width for the tool */
+                margin: 15px; /* Card-like margin */
+                padding: 20px;
+                background-color: #fffde7; /* Light Yellow */
+                border-radius: 4px;
+                box-shadow:
+                    0 2px 2px 0 rgba(0, 0, 0, 0.14),
+                    0 3px 1px -2px rgba(0, 0, 0, 0.2),
+                    0 1px 5px 0 rgba(0, 0, 0, 0.12);
+                align-self: flex-start; /* Keep it at the top of the flex row */
+                max-height: calc(
+                    100vh - 100px
+                ); /* Adjust based on header/margins */
+                overflow-y: auto; /* Make tool scrollable if content exceeds max-height */
+            }
+
+            #contribution-section {
+                margin: 0 25px 25px 25px; /* Align with cards above (10px padding + 15px margin) */
+                padding: 20px;
+                background-color: #e8f5e9;
+                border-radius: 4px;
+                box-shadow:
+                    0 2px 2px 0 rgba(0, 0, 0, 0.14),
+                    0 3px 1px -2px rgba(0, 0, 0, 0.2),
+                    0 1px 5px 0 rgba(0, 0, 0, 0.12);
+            }
+
+            @media screen and (max-width: 1024px) {
+                /* Breakpoint for stacking columns */
+                #main-view-container {
+                    flex-direction: column;
+                    padding: 5px; /* Reduce padding when stacked */
                 }
-                .mdl-layout__header-row .mdl-navigation {
-                    /* Ensure nav items don't overflow on small screens with search */
-                    padding-left: 0;
+                #content-column {
+                    order: 1; /* Content first */
                 }
                 #prayer-matching-tool {
-                    /* Adjust margins for smaller screens */
-                    margin: 15px 15px;
+                    order: 2; /* Tool second */
+                    min-width: unset; /* Allow it to be full width */
+                    max-height: none; /* Allow full height for content */
+                    overflow-y: visible;
+                }
+                #contribution-section {
+                    margin: 15px; /* Consistent margin for stacked layout */
                 }
             }
+
+            @media screen and (max-width: 480px) {
+                #main-view-container {
+                    padding: 0; /* No padding for the container on very small screens */
+                }
+                #content,
+                #prayer-matching-tool,
+                #contribution-section {
+                    margin: 10px; /* Reduce margins for cards */
+                    padding: 15px; /* Reduce padding inside cards */
+                }
+            }
+
             #content a {
                 font-weight: bold;
                 padding: 3px;
             }
-            /* This rule for ' - ' separator between links will no longer apply to the language list,
-               as it will use buttons. It remains for other links in #content. */
             #content a + a::before {
                 content: " - ";
             }
-            #content .prayer-list-item a + a::before {
-                /* Disable for prayer list items if multiple links are inside one item */
-                content: "";
-            }
-            /* Specific style for prayer code list items, to avoid double separators */
+            #content .prayer-list-item a + a::before,
             #content .prayer-code-list-item a + a::before {
                 content: "";
             }
@@ -89,7 +142,7 @@
             .scripture {
                 font-family: "Gentium", "Times New Roman", serif;
                 border-left: black solid 2px;
-                max-width: 800px;
+                max-width: 800px; /* Keep scripture text from being too wide */
             }
             .author {
                 margin-top: 1em;
@@ -97,6 +150,7 @@
                 font-weight: bold;
             }
             h2 {
+                /* Applies to h2 within #content and #prayer-matching-tool */
                 font-size: 1.2em;
             }
             #category {
@@ -107,11 +161,12 @@
                 color: #777777;
             }
             small {
+                /* Applies to small in drawer */
                 font-family: "Gentium", "Times New Roman", serif;
-                font-size: 0.9em; /* Increased from 0.6em for better readability */
+                font-size: 0.9em;
                 display: block;
                 margin: 5px;
-                margin-top: 20px; /* Reduced from 100px, more appropriate for drawer context */
+                margin-top: 20px;
             }
             .prayer-list-item {
                 margin-bottom: 0.5em;
@@ -123,32 +178,25 @@
             .pagination button {
                 margin: 0 5px;
             }
-            /* Style for header search field */
             .mdl-layout__header-row .mdl-textfield__input {
-                color: white; /* Or contrast color depending on header */
+                color: white;
             }
             .mdl-layout__header-row .mdl-textfield__label:after {
-                background-color: white; /* Or a suitable color for the underline */
+                background-color: white;
             }
-
-            /* Styles for the new language buttons container */
             .language-buttons-container {
                 display: flex;
                 flex-wrap: wrap;
-                justify-content: center; /* Center buttons if they don't fill the row */
-                padding: 10px 0; /* Add some vertical padding */
+                justify-content: center;
+                padding: 10px 0;
             }
             .language-buttons-container .mdl-button {
-                margin: 5px; /* Spacing around each button */
-                text-transform: uppercase; /* Ensure language codes are uppercase */
+                margin: 5px;
+                text-transform: uppercase;
             }
-
-            /* Ensure MDL menu for languages is above other elements like drawer obfuscator/header */
-            /* This is important because MDL's default menu z-index (999) can be lower than header (1000) or drawer (10000) */
             #prayer-language-nav .mdl-menu__container {
                 z-index: 10001 !important;
             }
-
             .prayer-actions {
                 margin-top: 20px;
                 padding-top: 15px;
@@ -157,33 +205,47 @@
             .prayer-actions .mdl-button .material-icons {
                 margin-right: 8px;
             }
+
+            /* Prayer Matching Tool Specific Styles */
             #prayer-matching-tool h4 {
                 margin-top: 0;
-                color: #3f51b5; /* Material Blue Grey 700 */
+                color: #3f51b5;
             }
             #prayer-matching-tool h5 {
-                color: #546e7a; /* Blue Grey 500 */
+                color: #546e7a;
             }
-            #pinned-prayer-section p {
+            #pinned-prayer-section > p {
+                /* Styles the metadata paragraph */
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
+                margin-bottom: 10px; /* Space before text display or if no text */
             }
             #pinned-prayer-section .mdl-button--icon {
                 margin-left: 10px;
+            }
+            #pinned-prayer-text-display {
+                /* For the actual pinned prayer text */
+                margin-top: 10px;
+                padding: 10px;
+                background-color: #fdfdfd;
+                border: 1px solid #e0e0e0;
+                border-radius: 4px;
+                max-height: 250px;
+                overflow-y: auto;
+                white-space: pre-wrap;
+                font-size: 0.9em;
+                line-height: 1.4;
             }
         </style>
 
         <div class="mdl-layout mdl-js-layout">
             <header class="mdl-layout__header">
                 <div class="mdl-layout__header-row">
-                    <!-- Title -->
                     <span class="mdl-layout-title">
                         <span class="star">&#x1f7d9;</span> Holy Writings Reader
                     </span>
-                    <!-- Add spacer, to align navigation to the right -->
                     <div class="mdl-layout-spacer"></div>
-                    <!-- Header Search -->
                     <div
                         class="mdl-textfield mdl-js-textfield mdl-textfield--expandable mdl-textfield--floating-label mdl-textfield--align-right"
                         style="margin-right: 10px"
@@ -207,9 +269,7 @@
                             ></label>
                         </div>
                     </div>
-                    <!-- Navigation -->
                     <nav class="mdl-navigation" id="prayer-language-nav">
-                        <!-- Language links for current prayer will be inserted here by JS -->
                         <a class="mdl-navigation__link" href="">Loading...</a>
                     </nav>
                 </div>
@@ -245,66 +305,48 @@
                 </div>
             </div>
             <main class="mdl-layout__content">
-                <div id="content">
-                    <!-- Content will be dynamically loaded here -->
-                    <p>Loading content...</p>
-                </div>
-                <div
-                    id="prayer-matching-tool"
-                    style="
-                        margin: 25px 75px;
-                        padding: 20px;
-                        background-color: #fffde7; /* Light Yellow */
-                        border-radius: 4px;
-                        box-shadow:
-                            0 2px 2px 0 rgba(0, 0, 0, 0.14),
-                            0 3px 1px -2px rgba(0, 0, 0, 0.2),
-                            0 1px 5px 0 rgba(0, 0, 0, 0.12);
-                    "
-                >
-                    <h4>Prayer Matching Helper</h4>
-                    <div id="pinned-prayer-section">
-                        <!-- Pinned prayer info and Unpin button will go here -->
-                        <p>No prayer is currently pinned.</p>
+                <div id="main-view-container">
+                    <div id="content-column">
+                        <div id="content">
+                            <!-- Content will be dynamically loaded here -->
+                            <p>Loading content...</p>
+                        </div>
                     </div>
-                    <div
-                        id="collected-matches-section"
-                        style="margin-top: 15px"
-                    >
-                        <h5>Collected Matches for Email:</h5>
-                        <ul
-                            id="collected-matches-list"
-                            style="
-                                list-style-type: disc;
-                                padding-left: 20px;
-                                margin-top: 5px;
-                            "
+                    <div id="prayer-matching-tool">
+                        <h4>Prayer Matching Helper</h4>
+                        <div id="pinned-prayer-section">
+                            <!-- Pinned prayer info and Unpin button will go here -->
+                            <p>No prayer is currently pinned.</p>
+                            <!-- Pinned prayer text will be appended here by JS -->
+                        </div>
+                        <div
+                            id="collected-matches-section"
+                            style="margin-top: 15px"
                         >
-                            <li>No matches collected yet.</li>
-                        </ul>
+                            <h5>Collected Matches for Email:</h5>
+                            <ul
+                                id="collected-matches-list"
+                                style="
+                                    list-style-type: disc;
+                                    padding-left: 20px;
+                                    margin-top: 5px;
+                                "
+                            >
+                                <li>No matches collected yet.</li>
+                            </ul>
+                        </div>
+                        <button
+                            id="mail-collected-matches-button"
+                            class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent"
+                            disabled
+                            style="margin-top: 15px"
+                        >
+                            <i class="material-icons">email</i> Mail Collected
+                            Matches
+                        </button>
                     </div>
-                    <button
-                        id="mail-collected-matches-button"
-                        class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent"
-                        disabled
-                        style="margin-top: 15px"
-                    >
-                        <i class="material-icons">email</i> Mail Collected
-                        Matches
-                    </button>
                 </div>
-                <div
-                    style="
-                        margin: 25px 75px;
-                        padding: 20px;
-                        background-color: #e8f5e9;
-                        border-radius: 4px;
-                        box-shadow:
-                            0 2px 2px 0 rgba(0, 0, 0, 0.14),
-                            0 3px 1px -2px rgba(0, 0, 0, 0.2),
-                            0 1px 5px 0 rgba(0, 0, 0, 0.12);
-                    "
-                >
+                <div id="contribution-section">
                     <h3>How to Contribute</h3>
                     <p>
                         You can help improve this collection of holy writings by
@@ -390,7 +432,7 @@
             let currentPageBySearchTerm = {}; // { searchTerm: page }
             let currentPageByPhelpsCode = {}; // { phelpsCode: page }
 
-            let pinnedPrayerDetails = null; // Stores { version, phelps, name, language }
+            let pinnedPrayerDetails = null; // Stores { version, phelps, name, language, text }
             let collectedMatchesForEmail = []; // Array of strings, each being a formatted match description for email.
 
             // --- Prayer Matching Helper Functions ---
@@ -412,29 +454,35 @@
                     let pinnedName =
                         pinnedPrayerDetails.name ||
                         `Prayer ${pinnedPrayerDetails.version}`;
-                    let pinnedText = `<strong>Pinned Prayer:</strong> ${pinnedName} (Ver: <a href="#prayer/${pinnedPrayerDetails.version}">${pinnedPrayerDetails.version}</a>, Lang: ${pinnedPrayerDetails.language}`;
+                    let metaText = `<strong>Pinned Prayer:</strong> ${pinnedName} (Ver: <a href="#prayer/${pinnedPrayerDetails.version}">${pinnedPrayerDetails.version}</a>, Lang: ${pinnedPrayerDetails.language}`;
                     if (pinnedPrayerDetails.phelps) {
-                        pinnedText += `, Phelps: <a href="#prayercode/${pinnedPrayerDetails.phelps}">${pinnedPrayerDetails.phelps}</a>`;
+                        metaText += `, Phelps: <a href="#prayercode/${pinnedPrayerDetails.phelps}">${pinnedPrayerDetails.phelps}</a>`;
                     }
-                    pinnedText += `)`;
+                    metaText += `)`;
 
-                    const p = document.createElement("p");
-                    p.innerHTML = pinnedText;
+                    const pMeta = document.createElement("p");
+                    pMeta.innerHTML = metaText;
 
                     const unpinButton = document.createElement("button");
                     unpinButton.className =
                         "mdl-button mdl-js-button mdl-button--icon mdl-button--colored";
                     unpinButton.innerHTML =
                         '<i class="material-icons">cancel</i>';
-                    unpinButton.title = "Unpin Prayer";
+                    unpinButton.title = "Unpin Prayer & Clear All Matches";
                     unpinButton.onclick = unpinPrayer;
 
-                    pinnedSection.innerHTML = ""; // Clear previous
-                    pinnedSection.appendChild(p);
-                    p.appendChild(unpinButton); // Append button inside paragraph for flex alignment
+                    pinnedSection.innerHTML = ""; // Clear previous content
+                    pinnedSection.appendChild(pMeta);
+                    pMeta.appendChild(unpinButton); // Append button inside the metadata paragraph
+
+                    if (pinnedPrayerDetails.text) {
+                        const prayerTextDiv = document.createElement("div");
+                        prayerTextDiv.id = "pinned-prayer-text-display";
+                        prayerTextDiv.textContent = pinnedPrayerDetails.text;
+                        pinnedSection.appendChild(prayerTextDiv);
+                    }
 
                     if (typeof componentHandler !== "undefined") {
-                        // componentHandler.upgradeElement(p); // Not needed for p
                         componentHandler.upgradeElement(unpinButton);
                     }
                 } else {
@@ -461,7 +509,6 @@
                     typeof componentHandler !== "undefined" &&
                     mailButton.classList.contains("mdl-js-button")
                 ) {
-                    // MDL buttons might need their disabled state programmatically updated for visual cues
                     if (mailButton.disabled) {
                         mailButton.setAttribute("disabled", "disabled");
                     } else {
@@ -477,10 +524,10 @@
                     phelps: prayerData.phelps || null,
                     name: prayerData.name || `Prayer ${prayerData.version}`,
                     language: prayerData.language,
+                    text: prayerData.text || "Text not available.", // Store prayer text
                 };
                 updatePrayerMatchingToolDisplay();
-                // Re-render current view to update buttons in prayer actions div
-                handleRouteChange(); // This will re-run renderPrayer for the current prayer
+                handleRouteChange();
                 const snackbarContainer =
                     document.querySelector(".mdl-js-snackbar");
                 if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
@@ -492,13 +539,14 @@
 
             function unpinPrayer() {
                 pinnedPrayerDetails = null;
+                collectedMatchesForEmail = []; // Clear collected matches as well
                 updatePrayerMatchingToolDisplay();
-                handleRouteChange(); // Re-render current view
+                handleRouteChange();
                 const snackbarContainer =
                     document.querySelector(".mdl-js-snackbar");
                 if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
                     snackbarContainer.MaterialSnackbar.showSnackbar({
-                        message: "Prayer unpinned.",
+                        message: "Prayer unpinned and matches cleared.",
                     });
                 }
             }
@@ -513,9 +561,8 @@
                     return;
                 }
 
-                const p1 = pinnedPrayerDetails; // Pinned prayer
+                const p1 = pinnedPrayerDetails;
                 const p2 = {
-                    // Current prayer
                     version: currentPrayerData.version,
                     phelps: currentPrayerData.phelps || null,
                     name:
@@ -532,7 +579,6 @@
                 } else if (!p1.phelps && !p2.phelps) {
                     emailMatchDetail = `Pinned prayer (Version ${p1.version}) matches current prayer (Version ${p2.version}).`;
                 } else {
-                    // Both have Phelps codes
                     emailMatchDetail = `Pinned prayer (Phelps ${p1.phelps}, Version ${p1.version}) matches current prayer (Phelps ${p2.phelps}, Version ${p2.version}).`;
                 }
 
@@ -577,18 +623,13 @@
                 const mailBody = encodeURIComponent(bodyLines.join("\n"));
                 const mailtoLink = `mailto:ikojba@gmail.com?subject=${encodeURIComponent(subject)}&body=${mailBody}`;
 
-                // Create a temporary anchor to trigger mailto link
                 const tempLink = document.createElement("a");
                 tempLink.href = mailtoLink;
-                // tempLink.target = '_blank'; // Not always respected for mailto, but good practice
                 document.body.appendChild(tempLink);
                 tempLink.click();
                 document.body.removeChild(tempLink);
 
-                // Clear collected matches after attempting to send
                 collectedMatchesForEmail = [];
-                // Let's also unpin the prayer as the "session" of matching for this pin is likely complete.
-                // pinnedPrayerDetails = null; // User might want to keep it pinned. Let's not unpin.
                 updatePrayerMatchingToolDisplay();
             }
 
@@ -599,7 +640,6 @@
                     !prayerData.version ||
                     typeof prayerData.text === "undefined"
                 ) {
-                    //text can be null
                     console.warn(
                         "Attempted to cache invalid prayer data",
                         prayerData,
@@ -613,7 +653,7 @@
                         text: prayerData.text,
                         name: prayerData.name || null,
                         language: prayerData.language || null,
-                        phelps: prayerData.phelps || null, // Also cache phelps
+                        phelps: prayerData.phelps || null,
                         timestamp: Date.now(),
                     };
                     localStorage.setItem(key, JSON.stringify(dataToStore));
@@ -789,7 +829,6 @@
                 const prayer = rows[0];
 
                 cachePrayerText({
-                    // Ensure phelps is included for caching
                     version: prayer.version,
                     text: prayer.text,
                     name: prayer.name,
@@ -824,7 +863,6 @@
                 `;
                 contentDiv.innerHTML = html;
 
-                // Add Prayer Matching Action Buttons
                 const actionsDiv = document.createElement("div");
                 actionsDiv.className = "prayer-actions";
 
@@ -844,11 +882,9 @@
                         if (typeof componentHandler !== "undefined")
                             componentHandler.upgradeElement(addMatchButton);
                     } else {
-                        // Current prayer is the pinned prayer, no "add match" button.
-                        // Message about it being pinned is in the prayer-matching-tool.
                         const p = document.createElement("p");
                         p.innerHTML =
-                            "<em>This prayer is currently pinned. Find another prayer to match it with, or unpin it using the helper tool below.</em>";
+                            "<em>This prayer is currently pinned. Find another prayer to match it with, or unpin it using the helper tool.</em>";
                         actionsDiv.appendChild(p);
                     }
                 } else {
@@ -857,7 +893,7 @@
                         "mdl-button mdl-js-button mdl-button--raised mdl-button--colored";
                     pinButton.innerHTML =
                         '<i class="material-icons">push_pin</i> Pin this Prayer to Find Match';
-                    pinButton.onclick = () => pinPrayer(prayer);
+                    pinButton.onclick = () => pinPrayer(prayer); // prayer object here contains .text
                     actionsDiv.appendChild(pinButton);
                     if (typeof componentHandler !== "undefined")
                         componentHandler.upgradeElement(pinButton);
@@ -964,7 +1000,6 @@
                         if (textRows.length > 0) {
                             full_text = textRows[0].text;
                             cachePrayerText({
-                                // Cache with phelps
                                 version: pMeta.version,
                                 text: full_text,
                                 name: pMeta.name,
@@ -1058,7 +1093,6 @@
                 const prayersForDisplay = prayersMetadata.map((p) => {
                     if (p.text && !getCachedPrayerText(p.version)) {
                         cachePrayerText({
-                            // Cache with phelps
                             version: p.version,
                             text: p.text,
                             name: p.name,
@@ -1209,7 +1243,7 @@
                             version: cachedPrayer.version,
                             name: cachedPrayer.name,
                             language: cachedPrayer.language,
-                            phelps: cachedPrayer.phelps, // Include phelps
+                            phelps: cachedPrayer.phelps,
                             opening_text: cachedPrayer.text
                                 ? cachedPrayer.text.substring(0, 100) +
                                   (cachedPrayer.text.length > 100 ? "..." : "")
@@ -1287,7 +1321,6 @@
                                       (fetchedText.length > 100 ? "..." : "")
                                     : "No text preview.";
                                 cachePrayerText({
-                                    // Cache with phelps
                                     version: item.version,
                                     text: fetchedText,
                                     name: displayItem.name,
@@ -1441,8 +1474,7 @@
                             " - Consider updating link to #prayercode/",
                             phelpsCode,
                         );
-                        window.location.hash = `#prayercode/${phelpsCode}${pageParam > 1 ? "?page=" + pageParam : ""}`; // Redirect to new format, preserve page
-                        // renderPrayerCodeView(phelpsCode, pageParam); // Or render directly (will be caught by hashchange again if redirecting)
+                        window.location.hash = `#prayercode/${phelpsCode}${pageParam > 1 ? "?page=" + pageParam : ""}`;
                     } else {
                         console.log(
                             "Unhandled hash:",
@@ -1488,16 +1520,14 @@
                 if (typeof componentHandler !== "undefined") {
                     componentHandler.upgradeDom();
                 }
-                updatePrayerMatchingToolDisplay(); // Initialize the matching tool display
+                updatePrayerMatchingToolDisplay();
                 handleRouteChange();
             });
 
             window.addEventListener("hashchange", handleRouteChange);
         </script>
 
-        <!-- Add ServiceWorker and manup.js -->
         <script>
-            //This is the "Offline copy of pages" service worker
             if (navigator.serviceWorker.controller) {
                 console.log(
                     "[PWA Builder] active service worker found, no need to register",
