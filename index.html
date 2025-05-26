@@ -1609,7 +1609,7 @@
 
                 let displayTitle =
                     name ||
-                    (phelps ? `Phelps: ${phelps}` : `Prayer ${version}`);
+                    (phelps ? `${phelps} - ${language}` : `${version} - ${language}`);
                 const cardLinkHref = phelps
                     ? `#prayercode/${phelps}/${language}`
                     : `#prayer/${version}`;
@@ -1814,7 +1814,7 @@
                 const authorName = getAuthorFromPhelps(prayer.phelps);
                 let prayerTitle =
                     prayer.name ||
-                    (prayer.phelps ? `Phelps: ${prayer.phelps}` : null) ||
+                    (prayer.phelps ? `${prayer.phelps} - ${prayer.language}` : null) ||
                     (prayer.text
                         ? prayer.text.substring(0, 50) + "..."
                         : `Prayer ${prayer.version}`);
