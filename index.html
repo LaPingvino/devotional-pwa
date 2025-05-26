@@ -62,7 +62,7 @@
 
             #prayer-matching-tool {
                 flex: 1; /* Tool takes less space, e.g., ~25% */
-                min-width: 640px; /* Minimum width for the tool */
+                min-width: 320px; /* Minimum width for the tool */
                 margin: 15px; /* Card-like margin */
                 padding: 20px;
                 background-color: #fffde7; /* Light Yellow */
@@ -76,6 +76,10 @@
                     100vh - 100px
                 ); /* Adjust based on header/margins */
                 overflow-y: auto; /* Make tool scrollable if content exceeds max-height */
+            }
+
+            #prayer-matching-tool:hover {
+                min-width: 640px;
             }
 
             #contribution-section {
