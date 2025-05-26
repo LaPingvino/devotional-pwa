@@ -332,9 +332,112 @@
                 margin-top: 0; /* Align with card content */
                 margin-bottom: 10px;
             }
-            #favorite-prayers-section .prayer-list-item {
-                margin-left: 1em; /* Indent favorite items slightly */
+            /* Removed simple .prayer-list-item from #favorite-prayers-section */
+
+            /* Favorite Prayer Card Styles */
+            #favorite-prayers-section .favorite-prayer-grid {
+                display: grid;
+                grid-template-columns: repeat(
+                    auto-fill,
+                    minmax(300px, 1fr)
+                ); /* Responsive grid */
+                gap: 15px; /* Space between cards */
             }
+
+            .favorite-prayer-card {
+                background-color: #fff;
+                border: 1px solid #e0e0e0;
+                border-radius: 4px;
+                padding: 15px;
+                box-shadow:
+                    0 1px 3px rgba(0, 0, 0, 0.12),
+                    0 1px 2px rgba(0, 0, 0, 0.24);
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between; /* Pushes translations to the bottom */
+                min-height: 150px; /* Ensure a minimum height */
+            }
+
+            .favorite-prayer-card-header {
+                font-size: 1.1em;
+                font-weight: bold;
+                margin-bottom: 8px;
+                color: #3f51b5;
+            }
+            .favorite-prayer-card-header a {
+                text-decoration: none;
+                color: inherit;
+            }
+
+            .favorite-prayer-card-preview {
+                font-size: 0.9em;
+                color: #555;
+                margin-bottom: 10px;
+                line-height: 1.4;
+                /* max-height: 60px; Approx 3-4 lines */
+                overflow: hidden;
+                /* text-overflow: ellipsis; Not reliable for multiline */
+                display: -webkit-box;
+                -webkit-line-clamp: 3; /* Limit to 3 lines */
+                -webkit-box-orient: vertical;
+                max-height: calc(
+                    1.4em * 3
+                ); /* Fallback for max-height based on line-height and clamp */
+            }
+
+            .favorite-prayer-card-meta {
+                font-size: 0.8em;
+                color: #777;
+                margin-bottom: 10px;
+            }
+            .favorite-prayer-card-meta span {
+                margin-right: 10px;
+                display: inline-block; /* Ensure proper spacing */
+            }
+            .favorite-prayer-card-meta .phelps-code a {
+                /* Class added in JS for phelps link */
+                color: #007bff;
+                text-decoration: none;
+            }
+            .favorite-prayer-card-meta .phelps-code a:hover {
+                text-decoration: underline;
+            }
+
+            .favorite-prayer-card-translations {
+                margin-top: auto; /* Pushes to bottom if card is taller */
+                padding-top: 10px;
+                border-top: 1px solid #eee;
+            }
+
+            .favorite-prayer-card-translations h5 {
+                font-size: 0.85em;
+                color: #546e7a;
+                margin-top: 0;
+                margin-bottom: 5px;
+            }
+
+            .favorite-prayer-card-translations-list {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 5px;
+            }
+
+            .favorite-prayer-card-translations-item a {
+                font-size: 0.8em;
+                text-decoration: none;
+                color: #1976d2;
+                background-color: #e3f2fd;
+                padding: 2px 6px;
+                border-radius: 3px;
+                transition: background-color 0.2s;
+            }
+            .favorite-prayer-card-translations-item a:hover {
+                background-color: #bbdefb;
+            }
+
             .filter-switch-container {
                 margin-bottom: 15px;
                 padding: 10px;
@@ -591,7 +694,7 @@
 
             let pinnedPrayerDetails = null; // Stores { version, phelps, name, language, text }
             let collectedMatchesForEmail = []; // Array of objects: { pinned: {}, current: {}, description: "" }
-            let favoritePrayers = []; // Stores array of {version, name, language}
+            let favoritePrayers = []; // Stores array of {version, name, language, phelps}
 
             // --- Favorite Prayer Functions ---
             function loadFavoritePrayers() {
@@ -627,10 +730,10 @@
                     message = "Prayer removed from favorites.";
                 } else {
                     favoritePrayers.push({
-                        // Store essential data for quick display
                         version: prayerData.version,
-                        name: prayerData.name || `Prayer ${prayerData.version}`,
+                        name: prayerData.name, // Assumes prayerData.name is already well-formed for display
                         language: prayerData.language,
+                        phelps: prayerData.phelps || null, // Store Phelps code
                     });
                     message = "Prayer added to favorites.";
                 }
@@ -1186,7 +1289,7 @@
                     prayer.name ||
                     (prayer.text
                         ? prayer.text.substring(0, 50) + "..."
-                        : `Prayer ${prayer.version}`);
+                        : `Prayer ${prayer.version}`); // Fallback if name and text are null
 
                 const phelpsLinkHtml = prayer.phelps
                     ? `<a href="#prayercode/${prayer.phelps}">${prayer.phelps}</a>`
@@ -1224,12 +1327,17 @@
                     favoriteButton.title = "Add to Favorites";
                 }
                 favoriteButton.appendChild(favoriteIcon);
+
+                const prayerForFavorite = {
+                    // Prepare data for toggling favorite
+                    version: prayer.version,
+                    name: prayerTitle, // Use the determined prayerTitle for consistency
+                    language: prayer.language,
+                    phelps: prayer.phelps,
+                };
                 favoriteButton.onclick = () =>
-                    toggleFavoritePrayer({
-                        version: prayer.version,
-                        name: prayer.name,
-                        language: prayer.language,
-                    });
+                    toggleFavoritePrayer(prayerForFavorite);
+
                 contentDiv.appendChild(favoriteButton);
                 if (typeof componentHandler !== "undefined") {
                     componentHandler.upgradeElement(favoriteButton);
@@ -1577,23 +1685,128 @@
                 let favoritesDisplayHtml = "";
                 if (favoritePrayers.length > 0) {
                     favoritesDisplayHtml += `<div id="favorite-prayers-section"><h3>⭐ Your Favorite Prayers</h3>`;
-                    const favoriteItemsHtml = favoritePrayers
+
+                    // Collect all Phelps codes from favorites or cache
+                    const phelpsCodesToFetch = favoritePrayers
                         .map((fp) => {
                             const cached = getCachedPrayerText(fp.version);
-                            const name =
-                                cached?.name ||
-                                fp.name ||
-                                `Prayer ${fp.version}`;
-                            const lang =
-                                cached?.language || fp.language || "N/A";
-
-                            return `<div class="prayer-list-item">
-                                    <a href="#prayer/${fp.version}">${name}</a>
-                                    (${lang.toUpperCase()})
-                                </div>`;
+                            return fp.phelps || (cached ? cached.phelps : null);
                         })
-                        .join("");
-                    favoritesDisplayHtml += favoriteItemsHtml + `</div>`;
+                        .filter((phelps) => phelps && phelps !== "");
+
+                    let translationsByPhelps = {};
+                    if (phelpsCodesToFetch.length > 0) {
+                        const uniquePhelpsCodes = [
+                            ...new Set(phelpsCodesToFetch),
+                        ];
+                        const phelpsInClause = uniquePhelpsCodes
+                            .map((p) => `'${p.replace(/'/g, "''")}'`)
+                            .join(",");
+                        const translationsSql = `SELECT version, language, phelps FROM writings WHERE phelps IN (${phelpsInClause})`;
+                        try {
+                            const translationRows =
+                                await executeQuery(translationsSql);
+                            translationRows.forEach((row) => {
+                                if (!translationsByPhelps[row.phelps]) {
+                                    translationsByPhelps[row.phelps] = [];
+                                }
+                                translationsByPhelps[row.phelps].push({
+                                    version: row.version,
+                                    language: row.language,
+                                });
+                            });
+                        } catch (e) {
+                            console.error(
+                                "Failed to fetch translations for favorites:",
+                                e,
+                            );
+                        }
+                    }
+
+                    const favoriteCardsHtmlPromises = favoritePrayers.map(
+                        async (fp) => {
+                            const cached = getCachedPrayerText(fp.version);
+
+                            const nameOnCard =
+                                fp.name ||
+                                (cached ? cached.name : null) ||
+                                "Untitled Prayer";
+                            const phelpsOnCard =
+                                fp.phelps || (cached ? cached.phelps : null);
+                            const langOnCard =
+                                fp.language ||
+                                (cached ? cached.language : "N/A");
+                            const textForPreview = cached
+                                ? cached.text
+                                : "Full text not cached. Click to view prayer.";
+
+                            const previewSnippet = textForPreview
+                                ? textForPreview.substring(0, 120) +
+                                  (textForPreview.length > 120 ? "..." : "")
+                                : "No text preview.";
+
+                            let translationsHtml = "";
+                            if (
+                                phelpsOnCard &&
+                                translationsByPhelps[phelpsOnCard]
+                            ) {
+                                const availableTranslations =
+                                    translationsByPhelps[phelpsOnCard].filter(
+                                        (t) => t.version !== fp.version,
+                                    );
+
+                                if (availableTranslations.length > 0) {
+                                    translationsHtml = `
+                                    <div class="favorite-prayer-card-translations">
+                                        <h5>Translations:</h5>
+                                        <ul class="favorite-prayer-card-translations-list">
+                                            ${availableTranslations
+                                                .map(
+                                                    (t) => `
+                                                <li class="favorite-prayer-card-translations-item">
+                                                    <a href="#prayer/${t.version}">${t.language.toUpperCase()}</a>
+                                                </li>
+                                            `,
+                                                )
+                                                .join("")}
+                                        </ul>
+                                    </div>
+                                `;
+                                }
+                            }
+
+                            return `
+                            <div class="favorite-prayer-card">
+                                <div> <!-- Content wrapper -->
+                                    <div class="favorite-prayer-card-header">
+                                        <a href="#prayer/${fp.version}">${nameOnCard}</a>
+                                    </div>
+                                    <p class="favorite-prayer-card-preview">${previewSnippet}</p>
+                                    <div class="favorite-prayer-card-meta">
+                                        <span>Lang: ${langOnCard.toUpperCase()}</span>
+                                        ${phelpsOnCard ? `<span class="phelps-code">Phelps: <a href="#prayercode/${phelpsOnCard}">${phelpsOnCard}</a></span>` : ""}
+                                    </div>
+                                </div>
+                                ${translationsHtml}
+                            </div>
+                        `;
+                        },
+                    );
+
+                    try {
+                        const favoriteCardsHtmlArray = await Promise.all(
+                            favoriteCardsHtmlPromises,
+                        );
+                        favoritesDisplayHtml += `<div class="favorite-prayer-grid">${favoriteCardsHtmlArray.join("")}</div>`;
+                    } catch (e) {
+                        console.error(
+                            "Error rendering favorite prayer cards:",
+                            e,
+                        );
+                        favoritesDisplayHtml +=
+                            "<p>Error displaying favorite prayers.</p>";
+                    }
+                    favoritesDisplayHtml += `</div>`;
                 } else {
                     favoritesDisplayHtml += `<div id="favorite-prayers-section" style="text-align: center; padding: 10px 0; margin-bottom:10px;">
                                              <p>You haven't favorited any prayers yet. <br/>Click the <i class="material-icons" style="vertical-align: bottom; font-size: 1.2em;">star_border</i> icon on a prayer's page to add it here!</p>
@@ -1615,7 +1828,6 @@
                     languagesWithCounts.length === 0 &&
                     favoritePrayers.length === 0
                 ) {
-                    // Only show this if there are no favorites AND no languages
                     const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(sql)}`;
                     contentDiv.innerHTML =
                         favoritesDisplayHtml +
