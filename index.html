@@ -287,6 +287,9 @@
                 margin-top: 20px;
                 padding-top: 15px;
                 border-top: 1px solid #eee;
+                display: flex; /* For button alignment */
+                flex-wrap: wrap; /* Allow buttons to wrap */
+                gap: 10px; /* Space between buttons */
             }
             .prayer-actions .mdl-button .material-icons {
                 margin-right: 8px;
@@ -632,11 +635,47 @@
                             id="mail-collected-matches-button"
                             class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent"
                             disabled
-                            style="margin-top: 15px"
+                            style="margin-top: 15px; width: 100%"
                         >
                             <i class="material-icons">email</i> Mail Collected
                             Matches
                         </button>
+                        <div
+                            style="
+                                margin-top: 10px;
+                                display: flex;
+                                flex-wrap: wrap;
+                                gap: 10px;
+                                justify-content: space-between;
+                            "
+                        >
+                            <button
+                                id="show-sql-button"
+                                class="mdl-button mdl-js-button mdl-button--raised"
+                                disabled
+                                style="flex-grow: 1"
+                            >
+                                <i
+                                    class="material-icons"
+                                    style="margin-right: 4px"
+                                    >code</i
+                                >
+                                Show SQL
+                            </button>
+                            <button
+                                id="open-sql-doltub-button"
+                                class="mdl-button mdl-js-button mdl-button--raised"
+                                disabled
+                                style="flex-grow: 1"
+                            >
+                                <i
+                                    class="material-icons"
+                                    style="margin-right: 4px"
+                                    >launch</i
+                                >
+                                SQL on DoltHub
+                            </button>
+                        </div>
                     </div>
                 </div>
                 <div id="contribution-section">
@@ -702,6 +741,54 @@
             <div class="mdl-snackbar__text"></div>
             <button class="mdl-snackbar__action" type="button"></button>
         </div>
+
+        <dialog
+            id="sql-display-dialog"
+            style="
+                width: 80%;
+                max-width: 600px;
+                border-radius: 8px;
+                padding: 20px;
+                border: 1px solid #ccc;
+            "
+        >
+            <h4 style="margin-top: 0; color: #3f51b5">
+                Generated SQL UPDATE Statements
+            </h4>
+            <textarea
+                id="sql-display-textarea"
+                readonly
+                rows="10"
+                style="
+                    width: 100%;
+                    font-family: monospace;
+                    margin-bottom: 15px;
+                    padding: 8px;
+                    border: 1px solid #ddd;
+                    border-radius: 4px;
+                    resize: vertical;
+                    box-sizing: border-box;
+                "
+            ></textarea>
+            <div style="text-align: right">
+                <button
+                    id="copy-sql-button"
+                    class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored"
+                >
+                    <i class="material-icons" style="margin-right: 4px"
+                        >content_copy</i
+                    >
+                    Copy
+                </button>
+                <button
+                    id="close-sql-dialog-button"
+                    class="mdl-button mdl-js-button"
+                    style="margin-left: 8px"
+                >
+                    Close
+                </button>
+            </div>
+        </dialog>
 
         <script>
             // DATABASE STRUCTURE ASSUMPTIONS (holywritings/bahaiwritings):
@@ -817,8 +904,11 @@
                 const mailButton = document.getElementById(
                     "mail-collected-matches-button",
                 );
-                const snackbarContainer =
-                    document.querySelector(".mdl-js-snackbar");
+                const showSqlButton =
+                    document.getElementById("show-sql-button");
+                const openSqlDoltHubButton = document.getElementById(
+                    "open-sql-doltub-button",
+                );
 
                 // Pinned Prayer Display
                 if (pinnedPrayerDetails) {
@@ -869,23 +959,39 @@
                         li.textContent = matchData.description;
                         matchesListUl.appendChild(li);
                     });
-                    mailButton.disabled = false;
+                    if (mailButton) mailButton.disabled = false;
+                    if (showSqlButton) showSqlButton.disabled = false;
+                    if (openSqlDoltHubButton)
+                        openSqlDoltHubButton.disabled = false;
                 } else {
                     const li = document.createElement("li");
                     li.textContent = "No matches collected yet.";
                     matchesListUl.appendChild(li);
-                    mailButton.disabled = true;
+                    if (mailButton) mailButton.disabled = true;
+                    if (showSqlButton) showSqlButton.disabled = true;
+                    if (openSqlDoltHubButton)
+                        openSqlDoltHubButton.disabled = true;
                 }
-                if (
-                    typeof componentHandler !== "undefined" &&
-                    mailButton.classList.contains("mdl-js-button")
-                ) {
-                    if (mailButton.disabled) {
-                        mailButton.setAttribute("disabled", "disabled");
-                    } else {
-                        mailButton.removeAttribute("disabled");
+
+                if (typeof componentHandler !== "undefined") {
+                    if (
+                        mailButton &&
+                        mailButton.classList.contains("mdl-js-button")
+                    ) {
+                        componentHandler.upgradeElement(mailButton);
                     }
-                    componentHandler.upgradeElement(mailButton);
+                    if (
+                        showSqlButton &&
+                        showSqlButton.classList.contains("mdl-js-button")
+                    ) {
+                        componentHandler.upgradeElement(showSqlButton);
+                    }
+                    if (
+                        openSqlDoltHubButton &&
+                        openSqlDoltHubButton.classList.contains("mdl-js-button")
+                    ) {
+                        componentHandler.upgradeElement(openSqlDoltHubButton);
+                    }
                 }
             }
 
@@ -932,9 +1038,8 @@
                     return;
                 }
 
-                const p1 = pinnedPrayerDetails; // Already has { version, phelps, name, language, text }
+                const p1 = pinnedPrayerDetails;
                 const p2_for_match = {
-                    // Extract only needed fields for consistency
                     version: currentPrayerData.version,
                     phelps: currentPrayerData.phelps || null,
                     name:
@@ -951,7 +1056,6 @@
                 } else if (!p1.phelps && !p2_for_match.phelps) {
                     emailMatchDetail = `Pinned prayer (Version ${p1.version}) matches current prayer (Version ${p2_for_match.version}).`;
                 } else {
-                    // Both have phelps (could be same or different)
                     emailMatchDetail = `Pinned prayer (Phelps ${p1.phelps}, Version ${p1.version}) matches current prayer (Phelps ${p2_for_match.phelps}, Version ${p2_for_match.version}).`;
                 }
 
@@ -965,12 +1069,99 @@
                 const snackbarContainer =
                     document.querySelector(".mdl-js-snackbar");
                 if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
+                    let message = "Match added to list for emailing.";
+                    if (pinnedPrayerDetails && pinnedPrayerDetails.language) {
+                        let pageState =
+                            currentPageByLanguage[pinnedPrayerDetails.language];
+                        let returnUrlParams = "";
+                        if (pageState) {
+                            returnUrlParams = `?page=${pageState.page || 1}${pageState.showOnlyUnmatched ? "&filter=unmatched" : ""}`;
+                        } else {
+                            returnUrlParams = `?page=1`;
+                        }
+                        const returnLink = `#prayers/${pinnedPrayerDetails.language}${returnUrlParams}`;
+                        const pinnedNameSnippet = (
+                            pinnedPrayerDetails.name ||
+                            `Version ${pinnedPrayerDetails.version}`
+                        ).substring(0, 30);
+
+                        message += ` To find more for pinned '${pinnedNameSnippet}...', return to <a href="${returnLink}" style="color: #80cbc4; text-decoration: underline;">${pinnedPrayerDetails.language.toUpperCase()} list</a>.`;
+                    }
                     snackbarContainer.MaterialSnackbar.showSnackbar({
-                        message: "Match added to list for emailing.",
+                        message: message,
+                        timeout: 10000, // Longer timeout for link
                     });
                 } else {
                     console.log("Match added to list for emailing.");
                 }
+            }
+
+            function generateSqlUpdates(forEmailWithComments = true) {
+                const sqlUpdateQueries = [];
+
+                function uuidToBase36(uuid_string) {
+                    if (!uuid_string || typeof uuid_string !== "string")
+                        return "INVALID_UUID_INPUT";
+                    const hexString = uuid_string.replace(/-/g, "");
+                    try {
+                        if (!/^[0-9a-fA-F]+$/.test(hexString)) {
+                            console.error(
+                                "Invalid characters in UUID hex string:",
+                                hexString,
+                            );
+                            return "INVALID_HEX_IN_UUID";
+                        }
+                        return BigInt("0x" + hexString).toString(36);
+                    } catch (e) {
+                        console.error(
+                            "Error converting UUID to Base36:",
+                            uuid_string,
+                            e,
+                        );
+                        return "CONV_ERR_" + hexString.substring(0, 8);
+                    }
+                }
+
+                collectedMatchesForEmail.forEach((matchData) => {
+                    const p1 = matchData.pinned;
+                    const p2 = matchData.current;
+
+                    let comment = "";
+
+                    if (p1.phelps && !p2.phelps) {
+                        if (forEmailWithComments)
+                            comment = ` -- Auto-assign from pinned ${p1.version} (Phelps: ${p1.phelps}) to ${p2.version} (${p2.language})`;
+                        sqlUpdateQueries.push(
+                            `UPDATE writings SET phelps = '${p1.phelps}' WHERE version = '${p2.version}';` +
+                                comment,
+                        );
+                    } else if (!p1.phelps && p2.phelps) {
+                        if (forEmailWithComments)
+                            comment = ` -- Auto-assign from current ${p2.version} (Phelps: ${p2.phelps}) to ${p1.version} (${p1.language})`;
+                        sqlUpdateQueries.push(
+                            `UPDATE writings SET phelps = '${p2.phelps}' WHERE version = '${p1.version}';` +
+                                comment,
+                        );
+                    } else if (!p1.phelps && !p2.phelps) {
+                        const base36Version = uuidToBase36(p1.version);
+                        const fakePhelps = `TODO${base36Version}`;
+                        let comment1 = "",
+                            comment2 = "";
+                        if (forEmailWithComments) {
+                            comment1 = ` -- Assign new temp Phelps: ${p1.version} (${p1.language}) linked with ${p2.version} (${p2.language}) using ${fakePhelps}`;
+                            comment2 = ` -- Assign new temp Phelps: ${p2.version} (${p2.language}) linked with ${p1.version} (${p1.language}) using ${fakePhelps}`;
+                        }
+                        sqlUpdateQueries.push(
+                            `UPDATE writings SET phelps = '${fakePhelps}' WHERE version = '${p1.version}';` +
+                                comment1,
+                        );
+                        sqlUpdateQueries.push(
+                            `UPDATE writings SET phelps = '${fakePhelps}' WHERE version = '${p2.version}';` +
+                                comment2,
+                        );
+                    }
+                });
+                return sqlUpdateQueries;
             }
 
             function sendMatchesByEmail() {
@@ -998,66 +1189,7 @@
                 );
                 bodyLines.push("");
 
-                const sqlUpdateQueries = [];
-
-                function uuidToBase36(uuid_string) {
-                    if (!uuid_string || typeof uuid_string !== "string")
-                        return "INVALID_UUID_INPUT";
-                    const hexString = uuid_string.replace(/-/g, "");
-                    try {
-                        // Ensure it's a valid hex string for BigInt conversion
-                        if (!/^[0-9a-fA-F]+$/.test(hexString)) {
-                            console.error(
-                                "Invalid characters in UUID hex string:",
-                                hexString,
-                            );
-                            return "INVALID_HEX_IN_UUID";
-                        }
-                        return BigInt("0x" + hexString).toString(36);
-                    } catch (e) {
-                        console.error(
-                            "Error converting UUID to Base36:",
-                            uuid_string,
-                            e,
-                        );
-                        // Provide a fallback that's still somewhat unique, or a fixed error string
-                        // For simplicity, let's use a portion of the original UUID if conversion fails
-                        return "CONV_ERR_" + hexString.substring(0, 8);
-                    }
-                }
-
-                collectedMatchesForEmail.forEach((matchData) => {
-                    const p1 = matchData.pinned; // Pinned prayer
-                    const p2 = matchData.current; // Current prayer matched against pinned
-
-                    if (p1.phelps && !p2.phelps) {
-                        // Pinned has Phelps, current does not: Assign pinned's Phelps to current
-                        sqlUpdateQueries.push(
-                            `UPDATE writings SET phelps = '${p1.phelps}' WHERE version = '${p2.version}'; -- Auto-assign from pinned ${p1.version} (Phelps: ${p1.phelps}) to ${p2.version} (${p2.language})`,
-                        );
-                    } else if (!p1.phelps && p2.phelps) {
-                        // Current has Phelps, pinned does not: Assign current's Phelps to pinned
-                        sqlUpdateQueries.push(
-                            `UPDATE writings SET phelps = '${p2.phelps}' WHERE version = '${p1.version}'; -- Auto-assign from current ${p2.version} (Phelps: ${p2.phelps}) to ${p1.version} (${p1.language})`,
-                        );
-                    } else if (!p1.phelps && !p2.phelps) {
-                        // Neither has Phelps: Create a new temporary Phelps code and assign to both
-                        const base36Version = uuidToBase36(p1.version);
-                        const fakePhelps = `TODO${base36Version}`;
-
-                        sqlUpdateQueries.push(
-                            `UPDATE writings SET phelps = '${fakePhelps}' WHERE version = '${p1.version}'; -- Assign new temp Phelps: ${p1.version} (${p1.language}) linked with ${p2.version} (${p2.language}) using ${fakePhelps}`,
-                        );
-                        sqlUpdateQueries.push(
-                            `UPDATE writings SET phelps = '${fakePhelps}' WHERE version = '${p2.version}'; -- Assign new temp Phelps: ${p2.version} (${p2.language}) linked with ${p1.version} (${p1.language}) using ${fakePhelps}`,
-                        );
-                    }
-                    // If p1.phelps && p2.phelps && p1.phelps !== p2.phelps:
-                    // This is a conflict. The matchData.description should already highlight this.
-                    // No automatic SQL UPDATE is generated as per the prompt's focus.
-                    // If p1.phelps && p2.phelps && p1.phelps === p2.phelps:
-                    // Both have the same Phelps, no action needed.
-                });
+                const sqlUpdateQueries = generateSqlUpdates(true); // true for comments
 
                 if (sqlUpdateQueries.length > 0) {
                     bodyLines.push("--- Suggested SQL UPDATE Statements ---");
@@ -1069,9 +1201,6 @@
                 }
                 bodyLines.push("");
 
-                // Remove the section for SELECT queries as per prompt
-                // if (sqlSelectForReviewQueries.length > 0) { ... } else { ... }
-
                 const mailBody = encodeURIComponent(bodyLines.join("\n"));
                 const mailtoLink = `mailto:ikojba@gmail.com?subject=${encodeURIComponent(subject)}&body=${mailBody}`;
 
@@ -1081,7 +1210,10 @@
                 tempLink.click();
                 document.body.removeChild(tempLink);
 
-                // Clear matches after attempting to send email
+                // Clear matches after attempting to send email for THIS BATCH.
+                // Pinned prayer remains for further matching unless user explicitly unpins or replaces.
+                // If the desire is to clear matches AND unpin, then unpinPrayer() should be called.
+                // For now, just clearing collectedMatchesForEmail for the current pin.
                 collectedMatchesForEmail = [];
                 updatePrayerMatchingToolDisplay();
             }
@@ -1323,8 +1455,8 @@
                 if (links.length === 0) {
                     const loadingLink = document.createElement("span");
                     loadingLink.className = "mdl-navigation__link";
-                    loadingLink.textContent = "N/A";
-                    loadingLink.style.color = "rgba(255,255,255,0.7)";
+                    loadingLink.innerHTML =
+                        '<span class="star" style="font-size: 1em; color: rgba(255,255,255,0.7); vertical-align: middle;">&#x1f7d9;</span>'; // Using star for consistency
                     prayerLanguageNav.appendChild(loadingLink);
                     return;
                 }
@@ -1400,9 +1532,9 @@
                 if (links.length === 0) {
                     const noLinksMsg = document.createElement("span");
                     noLinksMsg.className = "mdl-navigation__link";
-                    noLinksMsg.textContent = "Languages N/A";
-                    noLinksMsg.style.fontStyle = "italic";
-                    noLinksMsg.style.color = "#757575";
+                    noLinksMsg.innerHTML =
+                        '<span class="star" style="font-size: 1.2em; color: #757575; display: block; text-align: center; line-height: normal;">&#x1f7d9;</span>';
+                    noLinksMsg.style.padding = "16px 0";
                     drawerPrayerLanguageNav.appendChild(noLinksMsg);
                     return;
                 }
@@ -1438,7 +1570,7 @@
                     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
                 if (typeof componentHandler !== "undefined")
                     componentHandler.upgradeDom();
-                // Clear navs initially, they will be repopulated
+
                 updateHeaderNavigation([]);
                 updateDrawerLanguageNavigation([]);
 
@@ -1459,7 +1591,6 @@
                 const prayer = rows[0];
 
                 cachePrayerText({
-                    // Ensure all relevant fields are passed for caching
                     version: prayer.version,
                     text: prayer.text,
                     name: prayer.name,
@@ -1521,7 +1652,7 @@
 
                 const actionsDiv = document.createElement("div");
                 actionsDiv.className = "prayer-actions";
-                // Pin/Match buttons logic
+
                 if (pinnedPrayerDetails) {
                     if (pinnedPrayerDetails.version !== prayer.version) {
                         const addMatchButton = document.createElement("button");
@@ -1530,17 +1661,34 @@
                         const pinnedNameSnippet = (
                             pinnedPrayerDetails.name ||
                             `Version ${pinnedPrayerDetails.version}`
-                        ).substring(0, 25);
-                        addMatchButton.innerHTML = `<i class="material-icons">playlist_add_check</i> Add Match for Pinned: ${pinnedNameSnippet}${pinnedNameSnippet.length === 25 ? "..." : ""}`;
+                        ).substring(0, 20);
+                        addMatchButton.innerHTML = `<i class="material-icons">playlist_add_check</i>Match with Pinned: ${pinnedNameSnippet}${pinnedNameSnippet.length === 20 ? "..." : ""}`;
                         addMatchButton.onclick = () =>
                             addCurrentPrayerAsMatch(prayer);
                         actionsDiv.appendChild(addMatchButton);
-                        if (typeof componentHandler !== "undefined")
+
+                        const replacePinButton =
+                            document.createElement("button");
+                        replacePinButton.className =
+                            "mdl-button mdl-js-button mdl-button--raised";
+                        replacePinButton.innerHTML =
+                            '<i class="material-icons">swap_horiz</i> Pin This (New Batch)';
+                        replacePinButton.title =
+                            "Unpins current, clears its matches, and pins this prayer for a new batch.";
+                        replacePinButton.onclick = () => {
+                            unpinPrayer();
+                            pinPrayer(prayer);
+                        };
+                        actionsDiv.appendChild(replacePinButton);
+
+                        if (typeof componentHandler !== "undefined") {
                             componentHandler.upgradeElement(addMatchButton);
+                            componentHandler.upgradeElement(replacePinButton);
+                        }
                     } else {
                         const p = document.createElement("p");
                         p.innerHTML =
-                            "<em>This prayer is currently pinned.</em>";
+                            "<em>This prayer is currently pinned. Use the tool on the right to manage matches or unpin.</em>";
                         actionsDiv.appendChild(p);
                     }
                 } else {
@@ -1556,7 +1704,6 @@
                 }
                 contentDiv.appendChild(actionsDiv);
 
-                // Navigation links for other languages/versions of the same Phelps code
                 const finalPhelpsCode = phelpsCodeForNav || prayer.phelps;
                 const finalActiveLang = activeLangForNav || prayer.language;
 
@@ -1573,7 +1720,6 @@
                     updateHeaderNavigation(navLinks);
                     updateDrawerLanguageNavigation(navLinks);
                 } else {
-                    // No Phelps code, so just show current language (not really a "translation list")
                     const singleLink = [
                         {
                             text: prayer.language.toUpperCase(),
@@ -1597,8 +1743,8 @@
                     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
                 if (typeof componentHandler !== "undefined")
                     componentHandler.upgradeDom();
-                updateHeaderNavigation([]); // Clear nav
-                updateDrawerLanguageNavigation([]); // Clear nav
+                updateHeaderNavigation([]);
+                updateDrawerLanguageNavigation([]);
 
                 const languageDisplayName = langCode.toUpperCase();
                 let filterCondition = "";
@@ -1616,7 +1762,6 @@
                 const totalPages = Math.ceil(totalPrayers / ITEMS_PER_PAGE);
 
                 if (prayersMetadata.length === 0 && page === 1) {
-                    // ... (no change to this block for now)
                     const filterSwitchId = `filter-unmatched-${langCode}`;
                     const filterSwitchHtml = `
                         <div class="filter-switch-container">
@@ -1656,7 +1801,7 @@
                     const cached = getCachedPrayerText(pMeta.version);
                     if (cached) {
                         full_text_for_preview = cached.text;
-                        pMeta.name = cached.name || pMeta.name; // Use cached if available
+                        pMeta.name = cached.name || pMeta.name;
                         pMeta.phelps = cached.phelps || pMeta.phelps;
                         pMeta.link = cached.link || pMeta.link;
                     } else {
@@ -1665,7 +1810,6 @@
                         if (textRows.length > 0 && textRows[0].text) {
                             full_text_for_preview = textRows[0].text;
                             cachePrayerText({
-                                // Cache all relevant fields
                                 version: pMeta.version,
                                 text: full_text_for_preview,
                                 name: pMeta.name,
@@ -1733,7 +1877,6 @@
                 const listHtml = `<div class="favorite-prayer-grid">${listCardsHtmlArray.join("")}</div>`;
 
                 let paginationHtml = "";
-                // ... (pagination logic unchanged)
                 if (totalPages > 1) {
                     paginationHtml = '<div class="pagination">';
                     if (page > 1)
@@ -1745,7 +1888,6 @@
                 }
 
                 const filterSwitchId = `filter-unmatched-${langCode}`;
-                // ... (filter switch HTML unchanged)
                 const filterSwitchHtml = `
                     <div class="filter-switch-container">
                         <label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="${filterSwitchId}">
@@ -1779,14 +1921,13 @@
                     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
                 if (typeof componentHandler !== "undefined")
                     componentHandler.upgradeDom();
-                // Nav will be set by resolveAndRenderPrayerByPhelpsAndLang if used, or by renderPrayer, or here for the list.
-                // For a list of different languages for one phelps, the nav makes sense to show those languages.
+
                 const phelpsLangsSql = `SELECT DISTINCT language FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' ORDER BY language`;
                 const distinctLangs = await executeQuery(phelpsLangsSql);
                 const navLinks = distinctLangs.map((langRow) => ({
                     text: langRow.language.toUpperCase(),
                     href: `#prayercode/${phelpsCode}/${langRow.language}`,
-                    isActive: false, // No specific active lang for the general phelps list
+                    isActive: false,
                 }));
                 updateHeaderNavigation(navLinks);
                 updateDrawerLanguageNavigation(navLinks);
@@ -1801,7 +1942,6 @@
                 const totalPages = Math.ceil(totalPrayers / ITEMS_PER_PAGE);
 
                 if (prayersMetadata.length === 0 && page === 1) {
-                    // ... (no change)
                     const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(metadataSql)}`;
                     contentDiv.innerHTML = `
                         <p>No prayer versions found for Phelps Code: ${phelpsCode}.</p>
@@ -1816,9 +1956,8 @@
                 }
 
                 const prayersForDisplay = prayersMetadata.map((p) => {
-                    let full_text_for_preview = p.text; // Text is fetched directly
+                    let full_text_for_preview = p.text;
                     if (!getCachedPrayerText(p.version) && p.text) {
-                        // Cache if not already and text exists
                         cachePrayerText({
                             version: p.version,
                             text: p.text,
@@ -1828,7 +1967,6 @@
                             link: p.link,
                         });
                     } else if (!p.text) {
-                        // If text wasn't in direct query (e.g. if we remove it later for perf)
                         const cached = getCachedPrayerText(p.version);
                         if (cached && cached.text)
                             full_text_for_preview = cached.text;
@@ -1847,11 +1985,6 @@
                 });
 
                 let allPhelpsDetailsForCards = {};
-                // For prayer code view, all cards share the same Phelps code.
-                // We need all versions for this specific Phelps code.
-                // prayersMetadata already contains these for the current page. To get all, we'd need another query or use prayersMetadata if it's all of them.
-                // For simplicity on card display, we can reuse prayersMetadata if it's comprehensive enough or make a specific call.
-                // Since prayersMetadata is paginated, it's not all versions. So we need to fetch all for this phelps.
                 if (phelpsCode) {
                     const allVersionsSql = `SELECT version, language, phelps, name, link FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}'`;
                     const allVersionRows = await executeQuery(allVersionsSql);
@@ -1870,7 +2003,6 @@
                 const listHtml = `<div class="favorite-prayer-grid">${listCardsHtmlArray.join("")}</div>`;
 
                 let paginationHtml = "";
-                // ... (pagination logic unchanged)
                 if (totalPages > 1) {
                     paginationHtml = '<div class="pagination">';
                     if (page > 1)
@@ -1909,27 +2041,25 @@
 
                 if (prayerVersions.length === 0) {
                     contentDiv.innerHTML = `<p>No prayers found for Phelps Code ${phelpsCode} in language ${targetLanguageCode.toUpperCase()}.</p>`;
-                    // Attempt to populate nav with other languages for this Phelps code
                     const transSql = `SELECT DISTINCT language FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' ORDER BY language`;
                     const distinctLangs = await executeQuery(transSql);
                     const navLinks = distinctLangs.map((langRow) => ({
                         text: langRow.language.toUpperCase(),
                         href: `#prayercode/${phelpsCode}/${langRow.language}`,
-                        isActive: false, // None active as current target failed
+                        isActive: false,
                     }));
                     updateHeaderNavigation(navLinks);
                     updateDrawerLanguageNavigation(navLinks);
                     return;
                 }
 
-                const primaryPrayer = prayerVersions[0]; // Longest text first due to ORDER BY
+                const primaryPrayer = prayerVersions[0];
                 await renderPrayer(
                     primaryPrayer.version,
                     phelpsCode,
                     targetLanguageCode,
-                ); // Pass phelps and lang for nav highlighting
+                );
 
-                // If there are other versions for the same phelps/lang, list them below the main prayer
                 if (prayerVersions.length > 1) {
                     const otherVersionsDiv = document.createElement("div");
                     otherVersionsDiv.style.marginTop = "20px";
@@ -1949,7 +2079,7 @@
                     otherVersionsDiv.innerHTML = listHtml;
                     contentDiv.appendChild(otherVersionsDiv);
                     if (typeof componentHandler !== "undefined")
-                        componentHandler.upgradeDom(); // For any new MDL elements
+                        componentHandler.upgradeDom();
                 }
             }
 
@@ -2013,7 +2143,7 @@
                             fp.language || (cached ? cached.language : "N/A");
                         let phelpsForCard =
                             fp.phelps || (cached ? cached.phelps : null);
-                        let linkForCard = cached ? cached.link : null; // Link specific to this version
+                        let linkForCard = cached ? cached.link : null;
 
                         if (cached && cached.text) {
                             textForCardPreview =
@@ -2021,10 +2151,6 @@
                                 (cached.text.length > MAX_PREVIEW_LENGTH
                                     ? "..."
                                     : "");
-                        } else if (fp.version) {
-                            // If no cached text, try to fetch it just for preview
-                            // This could be slow if many favorites are not cached. Consider skipping or limiting.
-                            // For now, let's assume cache hit or "Preview not available" is acceptable.
                         }
 
                         const prayerDataForCard = {
@@ -2075,7 +2201,6 @@
                     languagesWithStats.length === 0 &&
                     favoritePrayers.length === 0
                 ) {
-                    // ... (no change)
                     const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(sql)}`;
                     contentDiv.innerHTML =
                         favoritesDisplayHtml +
@@ -2286,7 +2411,7 @@
                                           ? "..."
                                           : "")
                                     : "No text preview.";
-                                cachePrayerText({ ...dbItem }); // Cache full fetched item
+                                cachePrayerText({ ...dbItem });
                             } else {
                                 displayItem.opening_text =
                                     "Text not found for preview.";
@@ -2297,7 +2422,6 @@
                 }
 
                 if (totalResults === 0) {
-                    // ... (no change to this block)
                     const searchExplanationForNoResults = `
                         <div style="margin-top: 15px; padding: 10px; background-color: #f0f0f0; border-radius: 4px; font-size: 0.9em;">
                             <p style="margin-bottom: 5px;"><strong>Search Information:</strong></p>
@@ -2354,7 +2478,6 @@
                 const listHtml = `<div class="favorite-prayer-grid">${listCardsHtmlArray.join("")}</div>`;
 
                 let paginationHtml = "";
-                // ... (pagination logic unchanged)
                 if (totalPages > 1) {
                     const escapedSearchTerm = searchTerm
                         .replace(/'/g, "\\'")
@@ -2368,7 +2491,6 @@
                     paginationHtml += "</div>";
                 }
 
-                // ... (search info and tiddly suggestion unchanged)
                 const searchInfoHtml = `
                     <div style="margin-top: 15px; padding: 10px; background-color: #f0f0f0; border-radius: 4px; font-size: 0.9em;">
                         <p style="margin-bottom: 5px;"><strong>How this search works:</strong></p>
@@ -2422,7 +2544,7 @@
                 const mainHash =
                     mainHashPath || (hash.includes("?") ? "" : hash);
 
-                const prayerCodeLangRegex = /^#prayercode\/([^/]+)\/([^/?]+)/; // phelps/lang
+                const prayerCodeLangRegex = /^#prayercode\/([^/]+)\/([^/?]+)/;
                 const prayerCodeLangMatch = mainHash.match(prayerCodeLangRegex);
 
                 if (mainHash.startsWith("#search/prayers/")) {
@@ -2443,14 +2565,11 @@
                     const languageCode = decodeURIComponent(
                         prayerCodeLangMatch[2],
                     );
-                    // pageParam is not directly used by resolveAndRenderPrayerByPhelpsAndLang currently
-                    // It resolves to one main prayer and lists others, not a paginated list itself.
                     resolveAndRenderPrayerByPhelpsAndLang(
                         phelpsCode,
                         languageCode,
                     );
                 } else if (mainHash.startsWith("#prayercode/")) {
-                    // General phelps code, all languages list
                     const phelpsCode = decodeURIComponent(
                         mainHash.substring("#prayercode/".length),
                     );
@@ -2483,11 +2602,10 @@
                 ) {
                     renderLanguageList();
                 } else {
-                    const phelpsRegex = /^#([A-Z]{2}\d{3,5}[A-Z]{0,3})$/i; // Old style direct phelps link
+                    const phelpsRegex = /^#([A-Z]{2}\d{3,5}[A-Z]{0,3})$/i;
                     const phelpsMatch = mainHash.match(phelpsRegex);
                     if (phelpsMatch && phelpsMatch[1]) {
                         const phelpsCode = phelpsMatch[1].toUpperCase();
-                        // Redirect old #PHELPS to new #prayercode/PHELPS (which lists all langs)
                         let newHash = `#prayercode/${phelpsCode}`;
                         if (pageParam > 1) newHash += `?page=${pageParam}`;
                         window.location.hash = newHash;
@@ -2517,6 +2635,8 @@
 
             document.addEventListener("DOMContentLoaded", () => {
                 loadFavoritePrayers();
+                const snackbarContainer =
+                    document.querySelector(".mdl-js-snackbar");
 
                 const headerSearchInput = document.getElementById(
                     "header-search-field",
@@ -2593,6 +2713,161 @@
                         "click",
                         sendMatchesByEmail,
                     );
+                }
+
+                const showSqlButton =
+                    document.getElementById("show-sql-button");
+                const openSqlDoltHubButton = document.getElementById(
+                    "open-sql-doltub-button",
+                );
+                const sqlDialog = document.getElementById("sql-display-dialog");
+                const sqlTextarea = document.getElementById(
+                    "sql-display-textarea",
+                );
+                const copySqlButton =
+                    document.getElementById("copy-sql-button");
+                const closeSqlDialogButton = document.getElementById(
+                    "close-sql-dialog-button",
+                );
+
+                if (showSqlButton && sqlDialog && sqlTextarea) {
+                    showSqlButton.addEventListener("click", () => {
+                        if (collectedMatchesForEmail.length === 0) {
+                            if (
+                                snackbarContainer &&
+                                snackbarContainer.MaterialSnackbar
+                            ) {
+                                snackbarContainer.MaterialSnackbar.showSnackbar(
+                                    {
+                                        message:
+                                            "No matches to generate SQL for.",
+                                    },
+                                );
+                            }
+                            return;
+                        }
+                        const queries = generateSqlUpdates(false); // false for no comments
+                        if (queries.length === 0) {
+                            sqlTextarea.value =
+                                "No SQL UPDATE statements generated for these matches.";
+                        } else {
+                            sqlTextarea.value = queries.join("\n\n"); // Add extra newline for readability
+                        }
+                        if (typeof sqlDialog.showModal === "function") {
+                            sqlDialog.showModal();
+                        } else {
+                            console.error("SQL Dialog not supported or found.");
+                            alert("SQL Dialog could not be opened.");
+                        }
+                    });
+                }
+
+                if (openSqlDoltHubButton) {
+                    openSqlDoltHubButton.addEventListener("click", () => {
+                        if (collectedMatchesForEmail.length === 0) {
+                            if (
+                                snackbarContainer &&
+                                snackbarContainer.MaterialSnackbar
+                            ) {
+                                snackbarContainer.MaterialSnackbar.showSnackbar(
+                                    {
+                                        message:
+                                            "No matches to generate SQL for.",
+                                    },
+                                );
+                            }
+                            return;
+                        }
+                        const queries = generateSqlUpdates(false);
+                        if (queries.length === 0) {
+                            if (
+                                snackbarContainer &&
+                                snackbarContainer.MaterialSnackbar
+                            ) {
+                                snackbarContainer.MaterialSnackbar.showSnackbar(
+                                    {
+                                        message:
+                                            "No SQL queries to run on DoltHub.",
+                                    },
+                                );
+                            }
+                            return;
+                        }
+                        const fullQueryString =
+                            queries.join(";\n") +
+                            (queries.length > 0 ? ";" : ""); // Ensure semicolon termination
+                        const doltHubUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(fullQueryString)}`;
+                        window.open(doltHubUrl, "_blank");
+                    });
+                }
+
+                if (copySqlButton && sqlTextarea) {
+                    copySqlButton.addEventListener("click", () => {
+                        sqlTextarea.select();
+                        sqlTextarea.setSelectionRange(0, 99999); // For mobile devices
+                        try {
+                            navigator.clipboard
+                                .writeText(sqlTextarea.value)
+                                .then(() => {
+                                    if (
+                                        snackbarContainer &&
+                                        snackbarContainer.MaterialSnackbar
+                                    ) {
+                                        snackbarContainer.MaterialSnackbar.showSnackbar(
+                                            {
+                                                message:
+                                                    "SQL copied to clipboard!",
+                                            },
+                                        );
+                                    }
+                                })
+                                .catch((err) => {
+                                    console.error(
+                                        "Failed to copy with navigator.clipboard: ",
+                                        err,
+                                    );
+                                    // Fallback to execCommand for older browsers if Clipboard API fails
+                                    document.execCommand("copy");
+                                    if (
+                                        snackbarContainer &&
+                                        snackbarContainer.MaterialSnackbar
+                                    ) {
+                                        snackbarContainer.MaterialSnackbar.showSnackbar(
+                                            {
+                                                message:
+                                                    "SQL copied (fallback method)!",
+                                            },
+                                        );
+                                    }
+                                });
+                        } catch (err) {
+                            console.error("Error in copy logic: ", err);
+                            if (
+                                snackbarContainer &&
+                                snackbarContainer.MaterialSnackbar
+                            ) {
+                                snackbarContainer.MaterialSnackbar.showSnackbar(
+                                    { message: "Failed to copy SQL." },
+                                );
+                            }
+                        }
+                    });
+                }
+
+                if (
+                    closeSqlDialogButton &&
+                    sqlDialog &&
+                    typeof sqlDialog.close === "function"
+                ) {
+                    closeSqlDialogButton.addEventListener("click", () => {
+                        sqlDialog.close();
+                    });
+                    // Close dialog on escape key
+                    sqlDialog.addEventListener("keydown", (event) => {
+                        if (event.key === "Escape") {
+                            sqlDialog.close();
+                        }
+                    });
                 }
 
                 if (typeof componentHandler !== "undefined") {
