@@ -49,6 +49,7 @@
             }
 
             #content {
+                position: relative; /* For favorite button positioning */
                 margin: 15px; /* Card-like margin */
                 background-color: #ffffff;
                 padding: 20px;
@@ -304,6 +305,36 @@
                 font-size: 0.9em;
                 line-height: 1.4;
             }
+
+            /* Favorite Prayer Styles */
+            .favorite-toggle-button {
+                position: absolute;
+                top: 10px; /* Adjusted to be slightly inside padding */
+                right: 10px; /* Adjusted */
+                color: #bdbdbd; /* Default (not favorite) */
+                z-index: 10; /* Ensure it's above other content */
+            }
+            .favorite-toggle-button.is-favorite {
+                color: gold; /* Favorited */
+            }
+            .favorite-toggle-button .material-icons {
+                font-size: 28px; /* Adjust size */
+            }
+
+            #favorite-prayers-section {
+                margin-bottom: 20px;
+                padding-bottom: 15px;
+                border-bottom: 1px solid #ddd;
+            }
+            #favorite-prayers-section h3 {
+                font-size: 1.1em;
+                color: #3f51b5; /* Consistent with other tool titles */
+                margin-top: 0; /* Align with card content */
+                margin-bottom: 10px;
+            }
+            #favorite-prayers-section .prayer-list-item {
+                margin-left: 1em; /* Indent favorite items slightly */
+            }
         </style>
 
         <div class="mdl-layout mdl-js-layout">
@@ -536,6 +567,7 @@
             const MAX_DIRECT_LINKS_IN_HEADER = 4;
             const ITEMS_PER_PAGE = 20;
             const LOCALSTORAGE_PRAYER_CACHE_PREFIX = "hw_prayer_cache_";
+            const FAVORITES_STORAGE_KEY = "hw_favorite_prayers";
 
             const contentDiv = document.getElementById("content");
             const prayerLanguageNav = document.getElementById(
@@ -551,6 +583,60 @@
 
             let pinnedPrayerDetails = null; // Stores { version, phelps, name, language, text }
             let collectedMatchesForEmail = []; // Array of objects: { pinned: {}, current: {}, description: "" }
+            let favoritePrayers = []; // Stores array of {version, name, language}
+
+            // --- Favorite Prayer Functions ---
+            function loadFavoritePrayers() {
+                const storedFavorites = localStorage.getItem(
+                    FAVORITES_STORAGE_KEY,
+                );
+                favoritePrayers = storedFavorites
+                    ? JSON.parse(storedFavorites)
+                    : [];
+            }
+
+            function saveFavoritePrayers() {
+                localStorage.setItem(
+                    FAVORITES_STORAGE_KEY,
+                    JSON.stringify(favoritePrayers),
+                );
+            }
+
+            function isPrayerFavorite(versionId) {
+                return favoritePrayers.some((fav) => fav.version === versionId);
+            }
+
+            function toggleFavoritePrayer(prayerData) {
+                const snackbarContainer =
+                    document.querySelector(".mdl-js-snackbar");
+                const index = favoritePrayers.findIndex(
+                    (fav) => fav.version === prayerData.version,
+                );
+                let message = "";
+
+                if (index > -1) {
+                    favoritePrayers.splice(index, 1); // Remove
+                    message = "Prayer removed from favorites.";
+                } else {
+                    favoritePrayers.push({
+                        // Store essential data for quick display
+                        version: prayerData.version,
+                        name: prayerData.name || `Prayer ${prayerData.version}`,
+                        language: prayerData.language,
+                    });
+                    message = "Prayer added to favorites.";
+                }
+                saveFavoritePrayers();
+
+                if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
+                    snackbarContainer.MaterialSnackbar.showSnackbar({
+                        message: message,
+                    });
+                }
+
+                // Re-render current view to update star icon (if on prayer page) or list (if on home page)
+                handleRouteChange();
+            }
 
             // --- Prayer Matching Helper Functions ---
             function updatePrayerMatchingToolDisplay() {
@@ -1114,6 +1200,33 @@
                 `;
                 contentDiv.innerHTML = html;
 
+                // Add favorite toggle button
+                const favoriteButton = document.createElement("button");
+                favoriteButton.className =
+                    "mdl-button mdl-js-button mdl-button--icon favorite-toggle-button";
+                const favoriteIcon = document.createElement("i");
+                favoriteIcon.className = "material-icons";
+
+                if (isPrayerFavorite(prayer.version)) {
+                    favoriteButton.classList.add("is-favorite");
+                    favoriteIcon.textContent = "star"; // Filled star
+                    favoriteButton.title = "Remove from Favorites";
+                } else {
+                    favoriteIcon.textContent = "star_border"; // Outline star
+                    favoriteButton.title = "Add to Favorites";
+                }
+                favoriteButton.appendChild(favoriteIcon);
+                favoriteButton.onclick = () =>
+                    toggleFavoritePrayer({
+                        version: prayer.version,
+                        name: prayer.name,
+                        language: prayer.language,
+                    });
+                contentDiv.appendChild(favoriteButton);
+                if (typeof componentHandler !== "undefined") {
+                    componentHandler.upgradeElement(favoriteButton);
+                }
+
                 const actionsDiv = document.createElement("div");
                 actionsDiv.className = "prayer-actions";
 
@@ -1415,12 +1528,44 @@
                 currentPageBySearchTerm = {};
                 currentPageByPhelpsCode = {};
 
+                let favoritesDisplayHtml = "";
+                if (favoritePrayers.length > 0) {
+                    favoritesDisplayHtml += `<div id="favorite-prayers-section"><h3>⭐ Your Favorite Prayers</h3>`;
+                    const favoriteItemsHtml = favoritePrayers
+                        .map((fp) => {
+                            const cached = getCachedPrayerText(fp.version);
+                            const name =
+                                cached?.name ||
+                                fp.name ||
+                                `Prayer ${fp.version}`;
+                            const lang =
+                                cached?.language || fp.language || "N/A";
+
+                            return `<div class="prayer-list-item">
+                                    <a href="#prayer/${fp.version}">${name}</a>
+                                    (${lang.toUpperCase()})
+                                </div>`;
+                        })
+                        .join("");
+                    favoritesDisplayHtml += favoriteItemsHtml + `</div>`;
+                } else {
+                    favoritesDisplayHtml += `<div id="favorite-prayers-section" style="text-align: center; padding: 10px 0; margin-bottom:10px;">
+                                             <p>You haven't favorited any prayers yet. <br/>Click the <i class="material-icons" style="vertical-align: bottom; font-size: 1.2em;">star_border</i> icon on a prayer's page to add it here!</p>
+                                           </div>`;
+                }
+
                 const sql = `SELECT language, COUNT(*) as prayer_count FROM writings WHERE language IS NOT NULL AND language != '' GROUP BY language ORDER BY language`;
                 const languagesWithCounts = await executeQuery(sql);
 
-                if (languagesWithCounts.length === 0) {
+                if (
+                    languagesWithCounts.length === 0 &&
+                    favoritePrayers.length === 0
+                ) {
+                    // Only show this if there are no favorites AND no languages
                     const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(sql)}`;
-                    contentDiv.innerHTML = `
+                    contentDiv.innerHTML =
+                        favoritesDisplayHtml +
+                        `
                         <p>No languages found in the database.</p>
                         <p>Query used:</p>
                         <pre style="white-space: pre-wrap; word-break: break-all; background: #eee; padding: 10px; border-radius: 4px;">${sql}</pre>
@@ -1429,24 +1574,29 @@
                     return;
                 }
 
-                let listHtml = languagesWithCounts
-                    .map((langData) => {
-                        const langCode = langData.language;
-                        const prayerCount = langData.prayer_count;
-                        return `<button class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" onclick="window.location.hash='#prayers/${langCode}'">
-                                        ${langCode.toUpperCase()} (${prayerCount})
-                                    </button>`;
-                    })
-                    .join("\n");
+                let languageListHtml = "";
+                if (languagesWithCounts.length > 0) {
+                    languageListHtml = languagesWithCounts
+                        .map((langData) => {
+                            const langCode = langData.language;
+                            const prayerCount = langData.prayer_count;
+                            return `<button class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect" onclick="window.location.hash='#prayers/${langCode}'">
+                                            ${langCode.toUpperCase()} (${prayerCount})
+                                        </button>`;
+                        })
+                        .join("\n");
+                }
 
-                contentDiv.innerHTML = `
+                contentDiv.innerHTML =
+                    favoritesDisplayHtml +
+                    `
                     <header>
                         <h2>
                             <span id="category">Prayers</span>
                             <span id="blocktitle">Available Languages</span>
                         </h2>
                     </header>
-                    <div class="language-buttons-container">${listHtml}</div>
+                    <div class="language-buttons-container">${languageListHtml}</div>
                 `;
 
                 if (typeof componentHandler !== "undefined") {
@@ -1760,6 +1910,8 @@
             window.renderPrayerCodeView = renderPrayerCodeView;
 
             document.addEventListener("DOMContentLoaded", () => {
+                loadFavoritePrayers(); // Load favorites on startup
+
                 const headerSearchInput = document.getElementById(
                     "header-search-field",
                 );
@@ -1840,8 +1992,8 @@
                 if (typeof componentHandler !== "undefined") {
                     componentHandler.upgradeDom();
                 }
-                updatePrayerMatchingToolDisplay();
-                handleRouteChange();
+                updatePrayerMatchingToolDisplay(); // Initial call
+                handleRouteChange(); // Initial route
             });
 
             window.addEventListener("hashchange", handleRouteChange);
