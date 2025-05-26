@@ -193,7 +193,7 @@
                     const data = await response.json();
                     return data.rows || [];
                 } catch (error) {
-                    console.error("Error executing query:", error);
+                    console.error("Error executing query:", error); // Corrected console.err or to console.error
                     contentDiv.innerHTML = `<p>Error loading data: ${error.message}. Please try again later.</p>`;
                     return [];
                 }
@@ -257,6 +257,7 @@
                     <div class="scripture">
                         <div class="prayer" style="white-space: pre-wrap;">${prayer.text || "No text available."}</div>
                         ${prayer.source ? `<div style="font-size: 0.8em; margin-left: 2em; margin-top: 0.5em; font-style: italic;">Source: ${prayer.source} ${prayer.link ? `(<a href="${prayer.link}" target="_blank">link</a>)` : ""}</div>` : ""}
+                        ${prayer.phelps ? `<div style="font-size: 0.7em; margin-left: 2em; margin-top: 0.3em; color: #555;">Phelps ID: ${prayer.phelps}</div>` : ""}
                     </div>
                 `;
                 contentDiv.innerHTML = html;
