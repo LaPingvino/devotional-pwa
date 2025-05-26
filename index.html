@@ -52,6 +52,10 @@
                     margin: 15px 15px; /* Adjusted margin for smaller screens */
                     padding: 15px;
                 }
+                .mdl-layout__header-row .mdl-navigation {
+                    /* Ensure nav items don't overflow on small screens with search */
+                    padding-left: 0;
+                }
             }
             #content a {
                 font-weight: bold;
@@ -109,18 +113,48 @@
             .pagination button {
                 margin: 0 5px;
             }
+            /* Style for header search field */
+            .mdl-layout__header-row .mdl-textfield__input {
+                color: white; /* Or contrast color depending on header */
+            }
+            .mdl-layout__header-row .mdl-textfield__label:after {
+                background-color: white; /* Or a suitable color for the underline */
+            }
         </style>
 
         <div class="mdl-layout mdl-js-layout">
             <header class="mdl-layout__header">
                 <div class="mdl-layout__header-row">
                     <!-- Title -->
-                    <span class="mdl-layout-title"
-                        ><span class="star">&#x1f7d9;</span> Holy Writings
-                        Reader</span
-                    >
+                    <span class="mdl-layout-title">
+                        <span class="star">&#x1f7d9;</span> Holy Writings Reader
+                    </span>
                     <!-- Add spacer, to align navigation to the right -->
                     <div class="mdl-layout-spacer"></div>
+                    <!-- Header Search -->
+                    <div
+                        class="mdl-textfield mdl-js-textfield mdl-textfield--expandable mdl-textfield--floating-label mdl-textfield--align-right"
+                        style="margin-right: 10px"
+                    >
+                        <label
+                            class="mdl-button mdl-js-button mdl-button--icon"
+                            for="header-search-field"
+                        >
+                            <i class="material-icons">search</i>
+                        </label>
+                        <div class="mdl-textfield__expandable-holder">
+                            <input
+                                class="mdl-textfield__input"
+                                type="text"
+                                id="header-search-field"
+                                placeholder="Search Prayers"
+                            />
+                            <label
+                                class="mdl-textfield__label"
+                                for="header-search-field"
+                            ></label>
+                        </div>
+                    </div>
                     <!-- Navigation -->
                     <nav class="mdl-navigation" id="prayer-language-nav">
                         <!-- Language links for current prayer will be inserted here by JS -->
@@ -168,28 +202,21 @@
 
         <script>
             // DATABASE STRUCTURE ASSUMPTIONS (holywritings/bahaiwritings):
-            // Table:             // Columns:
-            //   - version (TEXT/VARCHAR, Primary Key): Unique identifier for a specific version/translation of a prayer.
-            //   - text (TEXT): The full text of the prayer. Ensure this is fetched.
-            //   - language (TEXT/VARCHAR): ISO 639-1 or similar language code (e.g., "en", "fr", "es").
-            //   - phelps (TEXT/VARCHAR, nullable): An identifier to link different language versions of the same prayer.
-            //                                        This is crucial for finding translations.
-            //   - name (TEXT/VARCHAR, nullable): A short title or the first few words of the prayer, used for display in lists.
-            //                                   If not available, SUBSTRING(text_content, 1, N) can be used as a fallback.
-            //   - source (TEXT/VARCHAR, nullable): Reference to the original source (e.g., "Prayers and Meditations, CIX").
-            //   - link (TEXT/VARCHAR, nullable): A link to the original source (e.g., a "https://bahaiprayers.net" link).
+            // Table: writings
+            // Columns: version, text, language, phelps, name, source, link
 
             const DOLTHUB_API_BASE_URL =
                 "https://www.dolthub.com/api/v1alpha1/holywritings/bahaiwritings/main?q=";
-            const MAX_DIRECT_LINKS_IN_HEADER = 4; // Max links before switching to a menu
-            const ITEMS_PER_PAGE = 20; // Number of items per page for pagination
+            const MAX_DIRECT_LINKS_IN_HEADER = 4;
+            const ITEMS_PER_PAGE = 20;
 
             const contentDiv = document.getElementById("content");
             const prayerLanguageNav = document.getElementById(
                 "prayer-language-nav",
             );
 
-            let currentPageByLanguage = {}; // To store current page for each language list
+            let currentPageByLanguage = {}; // { langCode: page }
+            let currentPageBySearchTerm = {}; // { searchTerm: page }
 
             async function executeQuery(sql) {
                 try {
@@ -232,23 +259,28 @@
             }
 
             function updateHeaderNavigation(links = []) {
-                prayerLanguageNav.innerHTML = ""; // Clear existing links
+                prayerLanguageNav.innerHTML = "";
 
                 if (links.length === 0) {
+                    // Keep some default or empty state if needed, or ensure it's visually okay
+                    const loadingLink = document.createElement("a");
+                    loadingLink.className = "mdl-navigation__link";
+                    loadingLink.href = ""; // No action
+                    // loadingLink.textContent = ""; // Or some placeholder if absolutely necessary
+                    // prayerLanguageNav.appendChild(loadingLink);
+                    // Better to just leave it empty if no links are relevant
                     return;
                 }
 
                 if (links.length > MAX_DIRECT_LINKS_IN_HEADER) {
-                    // Show "Languages" menu button
                     const buttonId = "languages-menu-button";
                     const menuButton = document.createElement("button");
                     menuButton.id = buttonId;
                     menuButton.className =
-                        "mdl-button mdl-js-button mdl-button--icon"; // Icon button
-
+                        "mdl-button mdl-js-button mdl-button--icon";
                     const icon = document.createElement("i");
                     icon.className = "material-icons";
-                    icon.textContent = "language"; // Material icon for languages/translation
+                    icon.textContent = "language";
                     menuButton.appendChild(icon);
 
                     const menuUl = document.createElement("ul");
@@ -259,14 +291,12 @@
                     links.forEach((linkInfo) => {
                         const menuItemLi = document.createElement("li");
                         menuItemLi.className = "mdl-menu__item";
-
                         const linkA = document.createElement("a");
                         linkA.href = linkInfo.href;
-                        linkA.textContent = linkInfo.text; // Text is already processed (e.g., "EN (2)")
+                        linkA.textContent = linkInfo.text;
                         linkA.style.textDecoration = "none";
                         linkA.style.color = "inherit";
                         linkA.style.display = "block";
-
                         menuItemLi.appendChild(linkA);
                         menuUl.appendChild(menuItemLi);
                     });
@@ -279,12 +309,11 @@
                         componentHandler.upgradeElement(menuUl);
                     }
                 } else {
-                    // Show direct links
                     links.forEach((linkInfo) => {
                         const link = document.createElement("a");
                         link.className = "mdl-navigation__link";
                         link.href = linkInfo.href;
-                        link.textContent = linkInfo.text; // Text is already processed
+                        link.textContent = linkInfo.text;
                         prayerLanguageNav.appendChild(link);
                     });
                 }
@@ -293,10 +322,9 @@
             async function renderPrayer(versionId) {
                 contentDiv.innerHTML =
                     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
-                if (typeof componentHandler !== "undefined") {
-                    componentHandler.upgradeDom(); // For the spinner
-                }
-                updateHeaderNavigation([]); // Clear previous language links
+                if (typeof componentHandler !== "undefined")
+                    componentHandler.upgradeDom();
+                updateHeaderNavigation([]);
 
                 const sql = `SELECT version, text, language, phelps, name, source, link FROM writings WHERE version = '${versionId}' LIMIT 1`;
                 const rows = await executeQuery(sql);
@@ -308,15 +336,11 @@
 
                 const prayer = rows[0];
                 const authorName = getAuthorFromPhelps(prayer.phelps);
-
-                let prayerTitle;
-                if (prayer.name) {
-                    prayerTitle = prayer.name;
-                } else if (prayer.text) {
-                    prayerTitle = prayer.text.substring(0, 50) + "...";
-                } else {
-                    prayerTitle = "Prayer";
-                }
+                let prayerTitle =
+                    prayer.name ||
+                    (prayer.text
+                        ? prayer.text.substring(0, 50) + "..."
+                        : "Prayer");
 
                 let html = `
                     <header>
@@ -337,48 +361,40 @@
                 if (prayer.phelps) {
                     const transSql = `SELECT version, language FROM writings WHERE phelps = '${prayer.phelps}' AND phelps IS NOT NULL AND phelps != ''`;
                     const translations = await executeQuery(transSql);
-
                     const currentLangLink = {
-                        text: prayer.language, // Raw language code
+                        text: prayer.language,
                         href: `#prayer/${prayer.version}`,
                     };
-
                     const otherLangLinks = translations.map((t) => ({
-                        text: t.language, // Raw language code
+                        text: t.language,
                         href: `#prayer/${t.version}`,
                     }));
-
                     const uniqueLinks = new Map();
                     otherLangLinks.forEach((link) =>
                         uniqueLinks.set(link.href, link),
                     );
                     uniqueLinks.set(currentLangLink.href, currentLangLink);
-
                     const allLangLinksRaw = Array.from(
                         uniqueLinks.values(),
                     ).sort((a, b) => {
                         const langCompare = a.text.localeCompare(b.text);
-                        if (langCompare !== 0) {
-                            return langCompare;
-                        }
-                        return a.href.localeCompare(b.href);
+                        return langCompare !== 0
+                            ? langCompare
+                            : a.href.localeCompare(b.href);
                     });
-
                     const processedLangLinks = [];
                     const langCounts = {};
                     allLangLinksRaw.forEach((link) => {
                         const langCode = link.text;
                         langCounts[langCode] = (langCounts[langCode] || 0) + 1;
                         let displayText = langCode.toUpperCase();
-                        if (langCounts[langCode] > 1) {
+                        if (langCounts[langCode] > 1)
                             displayText += ` (${langCounts[langCode]})`;
-                        }
                         processedLangLinks.push({
                             text: displayText,
                             href: link.href,
                         });
                     });
-
                     updateHeaderNavigation(processedLangLinks);
                 } else {
                     updateHeaderNavigation([
@@ -393,21 +409,15 @@
             async function renderPrayersForLanguage(langCode, page = 1) {
                 currentPageByLanguage[langCode] = page;
                 const offset = (page - 1) * ITEMS_PER_PAGE;
-
                 contentDiv.innerHTML =
                     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
-                if (typeof componentHandler !== "undefined") {
+                if (typeof componentHandler !== "undefined")
                     componentHandler.upgradeDom();
-                }
                 updateHeaderNavigation([]);
-
                 const languageDisplayName = langCode.toUpperCase();
 
-                // Query for current page items
                 const sql = `SELECT version, name, language, SUBSTRING(text, 1, 70) AS opening_text FROM writings WHERE language = '${langCode}' ORDER BY name, opening_text, version LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
                 const prayers = await executeQuery(sql);
-
-                // Query for total count for pagination (can be slow, consider alternatives if performance is an issue)
                 const countSql = `SELECT COUNT(*) as total FROM writings WHERE language = '${langCode}'`;
                 const countResult = await executeQuery(countSql);
                 const totalPrayers =
@@ -419,8 +429,6 @@
                     return;
                 }
                 if (prayers.length === 0 && page > 1) {
-                    // This case means user tried to go to a page that doesn't exist (e.g. after items were deleted)
-                    // Go to the last valid page or first page.
                     renderPrayersForLanguage(langCode, Math.max(1, totalPages));
                     return;
                 }
@@ -439,13 +447,11 @@
                 let paginationHtml = "";
                 if (totalPages > 1) {
                     paginationHtml = '<div class="pagination">';
-                    if (page > 1) {
+                    if (page > 1)
                         paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="renderPrayersForLanguage('${langCode}', ${page - 1})">Previous</button>`;
-                    }
                     paginationHtml += ` <span>Page ${page} of ${totalPages}</span> `;
-                    if (page < totalPages) {
+                    if (page < totalPages)
                         paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="renderPrayersForLanguage('${langCode}', ${page + 1})">Next</button>`;
-                    }
                     paginationHtml += "</div>";
                 }
 
@@ -459,19 +465,18 @@
                     <div>${listHtml}</div>
                     ${paginationHtml}
                 `;
-                if (typeof componentHandler !== "undefined") {
-                    componentHandler.upgradeDom(); // For MDL buttons in pagination
-                }
+                if (typeof componentHandler !== "undefined")
+                    componentHandler.upgradeDom();
             }
 
             async function renderLanguageList() {
                 contentDiv.innerHTML =
                     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
-                if (typeof componentHandler !== "undefined") {
+                if (typeof componentHandler !== "undefined")
                     componentHandler.upgradeDom();
-                }
                 updateHeaderNavigation([]);
-                currentPageByLanguage = {}; // Reset page states when going to language list
+                currentPageByLanguage = {};
+                currentPageBySearchTerm = {}; // Clear search pagination state when viewing language list
 
                 const sql = `SELECT DISTINCT language FROM writings WHERE language IS NOT NULL AND language != '' ORDER BY language`;
                 const languages = await executeQuery(sql);
@@ -480,14 +485,12 @@
                     contentDiv.innerHTML = `<p>No languages found in the database.</p>`;
                     return;
                 }
-
                 let listHtml = languages
                     .map(
                         (lang) =>
                             `<a href="#prayers/${lang.language}">${lang.language.toUpperCase()}</a>`,
                     )
                     .join("");
-
                 contentDiv.innerHTML = `
                     <header>
                         <h2>
@@ -499,25 +502,119 @@
                 `;
             }
 
+            async function renderSearchResults(searchTerm, page = 1) {
+                currentPageBySearchTerm[searchTerm] = page;
+                const offset = (page - 1) * ITEMS_PER_PAGE;
+
+                contentDiv.innerHTML =
+                    '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
+                if (typeof componentHandler !== "undefined")
+                    componentHandler.upgradeDom();
+                updateHeaderNavigation([]); // Clear language links during search results
+
+                // Basic sanitization for SQL LIKE (escape single quotes)
+                const saneSearchTerm = searchTerm.replace(/'/g, "''");
+
+                const sql = `SELECT version, name, language, SUBSTRING(text, 1, 100) AS opening_text FROM writings WHERE text LIKE '%${saneSearchTerm}%' ORDER BY name, opening_text, version LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
+                const results = await executeQuery(sql);
+                const countSql = `SELECT COUNT(*) as total FROM writings WHERE text LIKE '%${saneSearchTerm}%'`;
+                const countResult = await executeQuery(countSql);
+                const totalResults =
+                    countResult.length > 0 ? countResult[0].total : 0;
+                const totalPages = Math.ceil(totalResults / ITEMS_PER_PAGE);
+
+                const headerSearchInput = document.getElementById(
+                    "header-search-field",
+                );
+                if (
+                    headerSearchInput &&
+                    headerSearchInput.value !== searchTerm
+                ) {
+                    headerSearchInput.value = searchTerm; // Keep search box synced if navigated via hash
+                }
+
+                if (results.length === 0 && page === 1) {
+                    contentDiv.innerHTML = `<p>No prayers found matching "${searchTerm}".</p>`;
+                    return;
+                }
+                if (results.length === 0 && page > 1) {
+                    renderSearchResults(searchTerm, Math.max(1, totalPages));
+                    return;
+                }
+
+                let listHtml = results
+                    .map((p) => {
+                        const displayTitle =
+                            p.name ||
+                            (p.opening_text
+                                ? p.opening_text + "..."
+                                : "Untitled Prayer");
+                        return `<div class="prayer-list-item"><a href="#prayer/${p.version}">${displayTitle}</a> (${p.language.toUpperCase()})</div>`;
+                    })
+                    .join("");
+
+                let paginationHtml = "";
+                if (totalPages > 1) {
+                    // Escape searchTerm for use in onclick attribute string
+                    const escapedSearchTerm = searchTerm
+                        .replace(/'/g, "\\'")
+                        .replace(/"/g, '\\"');
+                    paginationHtml = '<div class="pagination">';
+                    if (page > 1)
+                        paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="renderSearchResults('${escapedSearchTerm}', ${page - 1})">Previous</button>`;
+                    paginationHtml += ` <span>Page ${page} of ${totalPages}</span> `;
+                    if (page < totalPages)
+                        paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="renderSearchResults('${escapedSearchTerm}', ${page + 1})">Next</button>`;
+                    paginationHtml += "</div>";
+                }
+
+                contentDiv.innerHTML = `
+                    <header>
+                        <h2>
+                            <span id="category">Search Results</span>
+                            <span id="blocktitle">For "${searchTerm}" (Page ${page})</span>
+                        </h2>
+                    </header>
+                    <div>${listHtml}</div>
+                    ${paginationHtml}
+                `;
+                if (typeof componentHandler !== "undefined")
+                    componentHandler.upgradeDom();
+            }
+
             function handleRouteChange() {
                 const hash = window.location.hash;
+                // Split by ?page= first to separate main route from page parameter
                 const hashParts = hash.split("?page=");
                 const mainHash = hashParts[0];
-                const pageParam = hashParts[1] ? parseInt(hashParts[1], 10) : 1;
-
-                if (mainHash.startsWith("#prayer/")) {
-                    const versionId = mainHash.substring("#prayer/".length);
-                    if (versionId) {
-                        renderPrayer(versionId);
-                    } else {
-                        renderLanguageList();
+                let pageParam = 1; // Default page is 1
+                if (hashParts.length > 1 && hashParts[1]) {
+                    const parsedPage = parseInt(hashParts[1], 10);
+                    if (!isNaN(parsedPage) && parsedPage > 0) {
+                        pageParam = parsedPage;
                     }
+                }
+
+                if (mainHash.startsWith("#search/prayers/")) {
+                    const searchTerm = decodeURIComponent(
+                        mainHash.substring("#search/prayers/".length),
+                    );
+                    if (searchTerm) {
+                        const page =
+                            currentPageBySearchTerm[searchTerm] || pageParam;
+                        renderSearchResults(searchTerm, page);
+                    } else {
+                        renderLanguageList(); // Fallback if search term is empty
+                    }
+                } else if (mainHash.startsWith("#prayer/")) {
+                    const versionId = mainHash.substring("#prayer/".length);
+                    if (versionId) renderPrayer(versionId);
+                    else renderLanguageList();
                 } else if (mainHash.startsWith("#prayers/")) {
                     const langCode = mainHash.substring("#prayers/".length);
                     if (langCode) {
-                        // Use stored page for this language if available, else default to page from URL or 1
                         const page =
-                            currentPageByLanguage[langCode] || pageParam || 1;
+                            currentPageByLanguage[langCode] || pageParam;
                         renderPrayersForLanguage(langCode, page);
                     } else {
                         renderLanguageList();
@@ -529,23 +626,17 @@
                 ) {
                     renderLanguageList();
                 } else {
-                    // Check for Phelps code hash (e.g. #BH001)
                     const phelpsRegex = /^#([A-Z]{2}\d{3,5}[A-Z]{0,3})$/i;
                     const phelpsMatch = mainHash.match(phelpsRegex);
                     if (phelpsMatch && phelpsMatch[1]) {
                         const phelpsCode = phelpsMatch[1].toUpperCase();
-                        // Attempt to find a prayer with this Phelps code (e.g., the English version or first found)
-                        // This might require an adjusted query or strategy, for now, we'll just log it
-                        // and potentially default to a prayer view if we can find one.
-                        // For now, we assume versionId is used for direct prayer linking.
-                        // To make this work, we'd need to query for `WHERE phelps = '${phelpsCode}' LIMIT 1`
-                        // and then call renderPrayer with the found `version`.
                         console.log(
                             "Phelps code detected:",
                             phelpsCode,
-                            " - feature to directly link by Phelps not fully implemented for routing yet.",
+                            " - direct linking by Phelps not fully implemented for routing.",
                         );
-                        // As a fallback or if direct Phelps routing isn't implemented, go to language list
+                        // To implement: find versionId for phelpsCode then renderPrayer(versionId)
+                        // For now, fallback:
                         renderLanguageList();
                     } else {
                         console.log(
@@ -558,16 +649,46 @@
                 }
             }
 
-            // Make renderPrayersForLanguage globally accessible for pagination buttons
             window.renderPrayersForLanguage = renderPrayersForLanguage;
+            window.renderSearchResults = renderSearchResults; // Make globally accessible for pagination
 
-            window.addEventListener("hashchange", handleRouteChange);
             document.addEventListener("DOMContentLoaded", () => {
+                const searchInput = document.getElementById(
+                    "header-search-field",
+                );
+                if (searchInput) {
+                    searchInput.addEventListener("keypress", function (e) {
+                        if (e.key === "Enter") {
+                            e.preventDefault();
+                            const searchTerm = searchInput.value.trim();
+                            if (searchTerm) {
+                                // Reset pagination for this specific search term to page 1 for a new search action
+                                currentPageBySearchTerm[searchTerm] = 1;
+                                window.location.hash = `#search/prayers/${encodeURIComponent(searchTerm)}`;
+                                // searchInput.blur(); // Optional: collapse search field if it's an expandable one
+                                // For MDL expandable, blur often collapses it.
+                                const layout =
+                                    document.querySelector(".mdl-layout");
+                                if (
+                                    layout &&
+                                    layout.MaterialLayout &&
+                                    layout.classList.contains("is-focused")
+                                ) {
+                                    // This is tricky for MDL's own expandable behavior.
+                                    // Blurring might be enough or MDL might handle it.
+                                }
+                            }
+                        }
+                    });
+                }
+
                 if (typeof componentHandler !== "undefined") {
                     componentHandler.upgradeDom();
                 }
                 handleRouteChange();
             });
+
+            window.addEventListener("hashchange", handleRouteChange);
         </script>
 
         <!-- Add ServiceWorker and manup.js -->
