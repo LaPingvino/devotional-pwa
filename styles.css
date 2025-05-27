@@ -5,6 +5,7 @@
             }
 
             .language-buttons-container .mdl-button.lang-button-is-code {
+                font-variant: normal; /* Turn off small-caps from general rule */
                 text-transform: uppercase;
                 font-weight: bold;
             }
@@ -239,7 +240,8 @@
             }
             .language-buttons-container .mdl-button {
                 margin: 5px;
-                text-transform: none; /* Override MDL's default uppercase for these buttons */
+                text-transform: none; /* Override MDL's default uppercase */
+                font-variant: small-caps; /* Apply small-caps to full language names */
             }
             .language-buttons-container .mdl-button.lang-button-green {
                 background-color: #4caf50; /* Green */
