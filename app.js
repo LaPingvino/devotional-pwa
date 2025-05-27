@@ -176,7 +176,7 @@ async function getLanguageDisplayName(langCode) {
   // This can happen if the langCode is not in languageNamesMap or if the map entries don't have user_lang_name or en_name.
   // It might also happen if fetchLanguageNames() failed and languageNamesMap is empty or stale.
   if (!langData || (!langData.user_lang_name && !langData.en_name)) {
-    console.warn(`getLanguageDisplayName: Display name not found for language code '${langCode}'. Returning original code.`);
+    console.warn(`getLanguageDisplayName: Display name not found for language code \'${langCode}\'. Returning original code.`);
   }
   return langCode;
 }
@@ -1693,13 +1693,15 @@ async function renderLanguageList() {
                                         // fetchLanguageNames/Internal already logged errors if the fetch itself failed.
           if (languageNamesMap && Object.keys(languageNamesMap).length > 0 && !languageNamesMap[langCode]) {
             // Map seems to be loaded (at least partially), but this specific code is missing.
-            console.log(`Display name for language code '${langCode}' not found in loaded languageNamesMap. Using code as fallback.`);
+            // console.log(`Display name for language code \'${langCode}\' not found in loaded languageNamesMap. Using code as fallback.`);
+            // getLanguageDisplayName now handles logging if it returns the code.
           } else if (!languageNamesMap || Object.keys(languageNamesMap).length === 0) {
             // Map is empty or undefined, likely due to a general fetch failure.
             // This was likely logged by fetchLanguageNames/Internal or its wrapper.
-            // console.log(`Display name for language code '${langCode}' not available because languageNamesMap is empty. Using code as fallback.`);
+            // console.log(`Display name for language code \'${langCode}\' not available because languageNamesMap is empty. Using code as fallback.`);
           }
-          displayName = langCode.toUpperCase(); // Fallback to uppercase code
+          // If displayName === langCode, it means getLanguageDisplayName returned the code itself as a fallback.
+          // No further action (like uppercasing) is needed here as getLanguageDisplayName is the source of truth.
         }
 
         const phelpsCount = parseInt(langData.phelps_covered_count, 10) || 0;
@@ -1708,6 +1710,11 @@ async function renderLanguageList() {
         const totalConceptualPrayers = phelpsCount + nonPhelpsCount;
         let buttonClass =
           "mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect";
+
+        if (displayName === langCode) { // Check if it's a fallback code
+          buttonClass += " lang-button-is-code";
+        }
+
         if (totalConceptualPrayers > 0) {
           const coverageRatio = phelpsCount / totalConceptualPrayers;
           if (coverageRatio === 1) buttonClass += " lang-button-green";

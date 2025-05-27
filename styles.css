@@ -3,6 +3,11 @@
                 font-size: 1.5em;
                 color: gold;
             }
+
+            .language-buttons-container .mdl-button.lang-button-is-code {
+                text-transform: uppercase;
+                font-weight: bold;
+            }
             body {
                 font-size: 1.3em;
                 background-color: #f4f6f6;
@@ -234,7 +239,7 @@
             }
             .language-buttons-container .mdl-button {
                 margin: 5px;
-                text-transform: uppercase;
+                text-transform: none; /* Override MDL's default uppercase for these buttons */
             }
             .language-buttons-container .mdl-button.lang-button-green {
                 background-color: #4caf50; /* Green */
