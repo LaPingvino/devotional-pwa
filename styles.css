@@ -1,0 +1,479 @@
+            .star {
+                font-family: "Noto Sans Symbols 2";
+                font-size: 1.5em;
+                color: gold;
+            }
+            body {
+                font-size: 1.3em;
+                background-color: #f4f6f6;
+            }
+
+            /* New styles for two-column layout */
+            #main-view-container {
+                display: flex;
+                flex-wrap: wrap; /* Allow columns to wrap on smaller screens */
+                padding: 10px; /* Outer padding for the entire two-column area */
+            }
+
+            #content-column {
+                flex: 3; /* Main content takes more space, e.g., ~75% */
+                min-width: 0; /* Important for flex item shrinking */
+                display: flex; /* To allow #content to be a card within */
+                flex-direction: column;
+            }
+
+            #content {
+                position: relative; /* For favorite button positioning */
+                margin: 15px; /* Card-like margin */
+                background-color: #ffffff;
+                padding: 20px;
+                border-radius: 4px;
+                box-shadow:
+                    0 2px 2px 0 rgba(0, 0, 0, 0.14),
+                    0 3px 1px -2px rgba(0, 0, 0, 0.2),
+                    0 1px 5px 0 rgba(0, 0, 0, 0.12);
+            }
+
+            #prayer-matching-tool {
+                flex: 1; /* Tool takes less space, e.g., ~25% */
+                min-width: 320px; /* Minimum width for the tool */
+                margin: 15px; /* Card-like margin */
+                padding: 20px;
+                background-color: #fffde7; /* Light Yellow */
+                border-radius: 4px;
+                box-shadow:
+                    0 2px 2px 0 rgba(0, 0, 0, 0.14),
+                    0 3px 1px -2px rgba(0, 0, 0, 0.2),
+                    0 1px 5px 0 rgba(0, 0, 0, 0.12);
+                align-self: flex-start; /* Keep it at the top of the flex row */
+                max-height: calc(
+                    100vh - 100px
+                ); /* Adjust based on header/margins */
+                overflow-y: auto; /* Make tool scrollable if content exceeds max-height */
+            }
+
+            #contribution-section {
+                margin: 0 25px 25px 25px; /* Align with cards above (10px padding + 15px margin) */
+                padding: 20px;
+                background-color: #e8f5e9;
+                border-radius: 4px;
+                box-shadow:
+                    0 2px 2px 0 rgba(0, 0, 0, 0.14),
+                    0 3px 1px -2px rgba(0, 0, 0, 0.2),
+                    0 1px 5px 0 rgba(0, 0, 0, 0.12);
+            }
+
+            @media screen and (max-width: 1024px) {
+                /* Breakpoint for stacking columns */
+                #main-view-container {
+                    flex-direction: column;
+                    padding: 5px; /* Reduce padding when stacked */
+                }
+                #content-column {
+                    order: 1; /* Content first */
+                }
+                #prayer-matching-tool {
+                    order: 2; /* Tool second */
+                    min-width: 0; /* Allow it to be full width, override base 320px */
+                    max-height: none; /* Allow full height for content */
+                    overflow-y: visible;
+                }
+                #contribution-section {
+                    /* #main-view-container padding 5px + #content margin 15px = 20px effective indent */
+                    /* So, #contribution-section needs L/R margin 20px to align */
+                    margin: 15px 20px; /* Consistent margin for stacked layout, L/R adjusted */
+                }
+            }
+
+            @media screen and (max-width: 480px) {
+                #main-view-container {
+                    padding: 0; /* No padding for the container on very small screens */
+                }
+                #content,
+                #prayer-matching-tool,
+                #contribution-section {
+                    margin: 10px; /* Reduce margins for cards, all will align as parent padding is 0 */
+                    padding: 15px; /* Reduce padding inside cards */
+                }
+            }
+
+            /* Header fixes for mobile visibility */
+            @media screen and (max-width: 767px) {
+                /* Mobile and small tablets */
+                .mdl-layout__header-row {
+                    padding-right: 8px; /* Reduce right padding for more space for icons/nav */
+                }
+                .mdl-layout__header-row .mdl-layout-title {
+                    font-size: 1rem; /* Smaller title */
+                    flex: 0 1 auto; /* Allow title to shrink but not grow, auto basis */
+                    white-space: nowrap;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+                .mdl-layout__header-row .mdl-textfield--expandable {
+                    flex-shrink: 0;
+                }
+                .mdl-layout__header-row
+                    .mdl-textfield--expandable
+                    > .mdl-button--icon {
+                    margin-right: 2px;
+                }
+
+                .mdl-layout__header-row #prayer-language-nav {
+                    flex-shrink: 0;
+                }
+                .mdl-layout__header-row
+                    #prayer-language-nav.mdl-navigation
+                    .mdl-navigation__link {
+                    padding: 0 4px;
+                    font-size: 0.75em;
+                    white-space: nowrap;
+                }
+                .mdl-layout__header-row #prayer-language-nav .mdl-button--icon {
+                    margin-left: 2px;
+                }
+            }
+            /* Drawer specific styles */
+            .mdl-layout__drawer #drawer-prayer-language-nav {
+                padding-top: 0;
+                padding-bottom: 8px;
+                border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+                margin-bottom: 8px;
+                max-height: 150px; /* Limit height and make scrollable if many languages */
+                overflow-y: auto;
+            }
+            .mdl-layout__drawer
+                #drawer-prayer-language-nav
+                .mdl-navigation__link {
+                color: rgba(
+                    0,
+                    0,
+                    0,
+                    0.87
+                ); /* Standard text color for drawer links */
+            }
+            .mdl-layout__drawer .main-drawer-nav {
+                /* Class for original nav items */
+                padding-top: 8px;
+            }
+
+            #content a {
+                font-weight: bold;
+                padding: 3px;
+            }
+            #content a + a::before {
+                content: " - ";
+            }
+            #content .prayer-list-item a + a::before,
+            #content .prayer-code-list-item a + a::before {
+                content: "";
+            }
+            #content .other-versions-in-lang-list a + a::before {
+                /* Remove dash for this specific list */
+                content: "";
+            }
+
+            .author::before {
+                content: "--";
+            }
+            header, /* This refers to the <header> inside #content, not the main layout header */
+            .scripture {
+                padding-left: 1em;
+            }
+            .scripture {
+                font-family: "Gentium", "Times New Roman", serif;
+                border-left: black solid 2px;
+                max-width: 800px; /* Keep scripture text from being too wide */
+            }
+            .author {
+                margin-top: 1em;
+                margin-left: 2em;
+                font-weight: bold;
+            }
+            h2 {
+                /* Applies to h2 within #content and #prayer-matching-tool */
+                font-size: 1.2em;
+            }
+            #category {
+                font-size: 1.2em;
+                font-weight: bold;
+            }
+            #blocktitle {
+                color: #777777;
+            }
+            small {
+                /* Applies to small in drawer */
+                font-family: "Gentium", "Times New Roman", serif;
+                font-size: 0.9em;
+                display: block;
+                margin: 5px;
+                margin-top: 20px;
+            }
+            .prayer-list-item {
+                /* May become unused but kept for now */
+                margin-bottom: 0.5em;
+            }
+            .pagination {
+                margin-top: 20px;
+                text-align: center;
+            }
+            .pagination button {
+                margin: 0 5px;
+            }
+            .mdl-layout__header-row .mdl-textfield__input {
+                color: white;
+            }
+            .mdl-layout__header-row .mdl-textfield__label:after {
+                background-color: white;
+            }
+            .language-buttons-container {
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                padding: 10px 0;
+            }
+            .language-buttons-container .mdl-button {
+                margin: 5px;
+                text-transform: uppercase;
+            }
+            .language-buttons-container .mdl-button.lang-button-green {
+                background-color: #4caf50; /* Green */
+                color: white;
+            }
+            .language-buttons-container .mdl-button.lang-button-yellow {
+                background-color: #ffeb3b; /* Yellow */
+                color: #333; /* Darker text for yellow bg */
+            }
+            .language-buttons-container .mdl-button.lang-button-green:hover,
+            .language-buttons-container .mdl-button.lang-button-yellow:hover {
+                opacity: 0.8;
+            }
+
+            #prayer-language-nav .mdl-menu__container {
+                /* Header language menu */
+                z-index: 10001 !important;
+            }
+            #drawer-prayer-language-nav .mdl-menu__container {
+                /* Drawer language menu, if it were to become one */
+                z-index: 10001 !important; /* Ensure drawer menus are also on top */
+            }
+            .prayer-actions {
+                margin-top: 20px;
+                padding-top: 15px;
+                border-top: 1px solid #eee;
+                display: flex; /* For button alignment */
+                flex-wrap: wrap; /* Allow buttons to wrap */
+                gap: 10px; /* Space between buttons */
+            }
+            .prayer-actions .mdl-button .material-icons {
+                margin-right: 8px;
+            }
+
+            /* Prayer Matching Tool Specific Styles */
+            #prayer-matching-tool h4 {
+                margin-top: 0;
+                color: #3f51b5;
+            }
+            #prayer-matching-tool h5 {
+                color: #546e7a;
+            }
+            #pinned-prayer-section > p {
+                /* Styles the metadata paragraph */
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                margin-bottom: 10px; /* Space before text display or if no text */
+            }
+            #pinned-prayer-section .mdl-button--icon {
+                margin-left: 10px;
+            }
+            #pinned-prayer-text-display {
+                /* For the actual pinned prayer text */
+                margin-top: 10px;
+                padding: 10px;
+                background-color: #fdfdfd;
+                border: 1px solid #e0e0e0;
+                border-radius: 4px;
+                max-height: 250px;
+                overflow-y: auto;
+                white-space: pre-wrap;
+                font-size: 0.9em;
+                line-height: 1.4;
+            }
+            #collected-items-list li { /* Renamed from collected-matches-list */
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 5px;
+            }
+            #collected-items-list li .match-text { /* Class name .match-text is okay functionally */
+                flex-grow: 1;
+                margin-right: 8px;
+                word-break: break-word;
+            }
+            #collected-items-list li .mdl-button--icon {
+                min-width: 24px; /* Ensure button is clickable */
+                height: 24px;
+                padding: 0;
+                line-height: 24px;
+            }
+
+            /* Favorite Prayer Styles (now general prayer card styles) */
+            .favorite-toggle-button {
+                position: absolute;
+                top: 10px; /* Adjusted to be slightly inside padding */
+                right: 10px; /* Adjusted */
+                color: #bdbdbd; /* Default (not favorite) */
+                z-index: 10; /* Ensure it\'s above other content */
+            }
+            .favorite-toggle-button.is-favorite {
+                color: gold; /* Favorited */
+            }
+            .favorite-toggle-button .material-icons {
+                font-size: 28px; /* Adjust size */
+            }
+
+            #favorite-prayers-section {
+                /* Specific container for favorites on home page */
+                margin-bottom: 20px;
+                padding-bottom: 15px;
+                border-bottom: 1px solid #ddd;
+            }
+            #favorite-prayers-section h3 {
+                font-size: 1.1em;
+                color: #3f51b5; /* Consistent with other tool titles */
+                margin-top: 0; /* Align with card content */
+                margin-bottom: 10px;
+            }
+
+            /* General Prayer Card Grid Styles (reusing .favorite-prayer-grid) */
+            .favorite-prayer-grid {
+                /* Applied to all card lists now */
+                display: grid;
+                grid-template-columns: repeat(
+                    auto-fill,
+                    minmax(300px, 1fr)
+                ); /* Responsive grid */
+                gap: 15px; /* Space between cards */
+            }
+
+            /* General Prayer Card Styles (reusing .favorite-prayer-card) */
+            .favorite-prayer-card {
+                /* Applied to all prayer cards now */
+                background-color: #fff;
+                border: 1px solid #e0e0e0;
+                border-radius: 4px;
+                padding: 15px;
+                box-shadow:
+                    0 1px 3px rgba(0, 0, 0, 0.12),
+                    0 1px 2px rgba(0, 0, 0, 0.24);
+                display: flex;
+                flex-direction: column;
+                justify-content: space-between; /* Pushes translations to the bottom */
+                min-height: 150px; /* Ensure a minimum height */
+            }
+
+            .favorite-prayer-card-header {
+                font-size: 1.1em;
+                font-weight: bold;
+                margin-bottom: 8px;
+                color: #3f51b5;
+            }
+            .favorite-prayer-card-header a {
+                text-decoration: none;
+                color: inherit;
+            }
+
+            .favorite-prayer-card-preview {
+                font-size: 0.9em;
+                color: #555;
+                margin-bottom: 10px;
+                line-height: 1.4;
+                overflow: hidden;
+                display: -webkit-box;
+                -webkit-line-clamp: 3; /* Limit to 3 lines */
+                -webkit-box-orient: vertical;
+                max-height: calc(
+                    1.4em * 3
+                ); /* Fallback for max-height based on line-height and clamp */
+            }
+
+            .favorite-prayer-card-meta {
+                font-size: 0.8em;
+                color: #777;
+                margin-bottom: 10px;
+            }
+            .favorite-prayer-card-meta span {
+                margin-right: 10px;
+                display: inline-block; /* Ensure proper spacing */
+            }
+            .favorite-prayer-card-meta .phelps-code a {
+                color: #007bff;
+                text-decoration: none;
+            }
+            .favorite-prayer-card-meta .phelps-code a:hover {
+                text-decoration: underline;
+            }
+
+            .favorite-prayer-card-translations {
+                margin-top: auto; /* Pushes to bottom if card is taller */
+                padding-top: 10px;
+                border-top: 1px solid #eee;
+            }
+
+            .favorite-prayer-card-translations h5 {
+                font-size: 0.85em;
+                color: #546e7a;
+                margin-top: 0;
+                margin-bottom: 5px;
+            }
+
+            .favorite-prayer-card-translations-list {
+                /* For other language links */
+                list-style: none;
+                padding: 0;
+                margin: 0;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 5px;
+            }
+
+            .favorite-prayer-card-translations-item a {
+                font-size: 0.8em;
+                text-decoration: none;
+                color: #1976d2;
+                background-color: #e3f2fd;
+                padding: 2px 6px;
+                border-radius: 3px;
+                transition: background-color 0.2s;
+            }
+            .favorite-prayer-card-translations-item a:hover {
+                background-color: #bbdefb;
+            }
+
+            .other-versions-in-lang-list {
+                /* For same language, different version links */
+                list-style: disc;
+                padding-left: 20px;
+                font-size: 0.8em; /* Slightly smaller */
+                margin: 0;
+            }
+            .other-versions-in-lang-list li {
+                margin-bottom: 3px;
+            }
+            .other-versions-in-lang-list a {
+                text-decoration: none;
+                color: #007bff;
+            }
+            .other-versions-in-lang-list a:hover {
+                text-decoration: underline;
+            }
+
+            .filter-switch-container {
+                margin-bottom: 15px;
+                padding: 10px;
+                background-color: #f9f9f9;
+                border-radius: 4px;
+                display: flex;
+                align-items: center;
+            }
