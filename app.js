@@ -1078,6 +1078,16 @@ async function renderPrayer(
   updateHeaderNavigation([]);
   updateDrawerLanguageNavigation([]);
 
+  // Determine the active language for the picker before fetching prayer details
+  // This is a bit of a chicken-and-egg if activeLangForNav is not provided,
+  // as we need the prayer's language. We'll pass activeLangForNav if available,
+  // otherwise, the picker will show with no specific language active initially,
+  // or we could make a preliminary query for just the prayer's language.
+  // For now, if activeLangForNav is null, the picker might not have an "active" tab from recent.
+  // The prayer's own language will be used for header nav later.
+  const languagePickerHtml = await generateLanguageSelectionHtml(activeLangForNav);
+
+
   const sql = `SELECT version, text, language, phelps, name, source, link FROM writings WHERE version = '${versionId}' LIMIT 1`;
   const rows = await executeQuery(sql);
 
@@ -1181,7 +1191,7 @@ async function renderPrayer(
                         <div style="font-size: 0.7em; margin-left: 2em; margin-top: 0.3em; color: #555;">Phelps ID: ${phelpsDisplayHtml}</div>
                         <div style="font-size: 0.7em; margin-left: 2em; margin-top: 0.3em; color: #555;">Version ID: ${prayer.version}</div>
                     </div>`;
-  contentDiv.innerHTML = html;
+  contentDiv.innerHTML = languagePickerHtml + html; // Prepend language picker
 
   const favoriteButton = document.createElement("button");
   favoriteButton.className =
@@ -1349,7 +1359,8 @@ async function renderPrayer(
   }
 
   const finalPhelpsCode = phelpsCodeForNav || phelpsToDisplay;
-  const finalActiveLang = activeLangForNav || languageToDisplay;
+  // Use languageToDisplay (which is prayer.language or a suggested one) for header nav context
+  const finalActiveLangForHeaderNav = activeLangForNav || languageToDisplay; 
 
   if (finalPhelpsCode && !finalPhelpsCode.startsWith("TODO")) {
     const transSql = `SELECT DISTINCT language FROM writings WHERE phelps = \'${finalPhelpsCode.replace(/\'/g, "\'\'")}\' AND phelps IS NOT NULL AND phelps != \'\' ORDER BY language`;
@@ -1357,7 +1368,7 @@ async function renderPrayer(
     const navLinkPromises = distinctLangs.map(async (langRow) => ({
       text: await getLanguageDisplayName(langRow.language),
       href: `#prayercode/${finalPhelpsCode}/${langRow.language}`,
-      isActive: langRow.language === finalActiveLang,
+      isActive: langRow.language === finalActiveLangForHeaderNav,
     }));
     const navLinks = await Promise.all(navLinkPromises);
     updateHeaderNavigation(navLinks);
@@ -1390,6 +1401,7 @@ async function renderPrayersForLanguage(
   updateHeaderNavigation([]);
   updateDrawerLanguageNavigation([]);
 
+  const languagePickerHtml = await generateLanguageSelectionHtml(langCode);
   const languageDisplayName = await getLanguageDisplayName(langCode);
   let filterCondition = showOnlyUnmatched
     ? " AND (phelps IS NULL OR phelps = '')"
@@ -1405,8 +1417,8 @@ async function renderPrayersForLanguage(
 
   if (prayersMetadata.length === 0 && page === 1) {
     const filterSwitchId = `filter-unmatched-${langCode}`;
-    const filterSwitchHtml = `<div class="filter-switch-container"><label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="${filterSwitchId}"><input type="checkbox" id="${filterSwitchId}" class="mdl-switch__input" onchange="setLanguageView('${langCode}', 1, this.checked)" ${showOnlyUnmatched ? "checked" : ""}><span class="mdl-switch__label">Show only prayers without Phelps code</span></label></div>`;
-    contentDiv.innerHTML = `${filterSwitchHtml}<p>No prayers found for language: ${languageDisplayName}${showOnlyUnmatched ? " (matching filter)" : ""}.</p><p>Query for metadata:</p><pre>${metadataSql}</pre><p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(metadataSql)}" target="_blank">Debug metadata query</a></p><p>Count query:</p><pre>${countSql}</pre><p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(countSql)}" target="_blank">Debug count query</a></p>`;
+    const filterSwitchHtml = `<div class=\"filter-switch-container\"><label class=\"mdl-switch mdl-js-switch mdl-js-ripple-effect\" for=\"${filterSwitchId}\"><input type=\"checkbox\" id=\"${filterSwitchId}\" class=\"mdl-switch__input\" onchange=\"setLanguageView(\'${langCode}\', 1, this.checked)\" ${showOnlyUnmatched ? "checked" : ""}><span class=\"mdl-switch__label\">Show only prayers without Phelps code</span></label></div>`;
+    contentDiv.innerHTML = `${languagePickerHtml}${filterSwitchHtml}<p>No prayers found for language: ${languageDisplayName}${showOnlyUnmatched ? " (matching filter)" : ""}.</p><p>Query for metadata:</p><pre>${metadataSql}</pre><p><a href=\"${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(metadataSql)}\" target=\"_blank\">Debug metadata query</a></p><p>Count query:</p><pre>${countSql}</pre><p><a href=\"${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(countSql)}\" target=\"_blank\">Debug count query</a></p>`;
     if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
     return;
   }
@@ -1481,6 +1493,36 @@ async function renderPrayersForLanguage(
   const listCardsHtmlArray = await Promise.all(listCardPromises);
   const listHtml = `<div class="favorite-prayer-grid">${listCardsHtmlArray.join("")}</div>`;
 
+  // Add languagePickerHtml before the main content
+  contentDiv.innerHTML = `${languagePickerHtml}<header><h2><span id="category">Prayer Code</span><span id="blocktitle">${phelpsCode} (Page ${page}) - All Languages</span></h2></header>${listHtml}${paginationHtml}`;
+  if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
+}
+
+// This function was originally from renderPrayerCodeView and is being removed as its contentDiv.innerHTML is now set above.
+// async function renderPrayerCodeView_original_content_population() {
+// This is a placeholder comment to ensure the diff tool sees a change if the original function was just setting contentDiv.innerHTML
+// }
+
+// The following was the original content setting logic for renderPrayerCodeView
+/*
+  let paginationHtml = "";
+  if (totalPages > 1) {
+    paginationHtml = '<div class="pagination">';
+    if (page > 1)
+      paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="navigateToPhelpsCodeView('${phelpsCode}', ${page - 1})">Previous</button>`;
+    paginationHtml += ` <span>Page ${page} of ${totalPages}</span> `;
+    if (page < totalPages)
+      paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="navigateToPhelpsCodeView('${phelpsCode}', ${page + 1})">Next</button>`;
+    paginationHtml += "</div>";
+  }
+
+  contentDiv.innerHTML = `<header><h2><span id="category">Prayer Code</span><span id="blocktitle">${phelpsCode} (Page ${page}) - All Languages</span></h2></header>${listHtml}${paginationHtml}`;
+  if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
+*/
+  // The actual paginationHtml building needs to be preserved if it's still used.
+  // For now, assuming the structure above replaces the direct contentDiv.innerHTML assignment.
+  // If paginationHtml variable is needed, it must be constructed before the new contentDiv.innerHTML line.
+
   let paginationHtml = "";
   if (totalPages > 1) {
     paginationHtml = '<div class="pagination">';
@@ -1493,9 +1535,9 @@ async function renderPrayersForLanguage(
   }
 
   const filterSwitchId = `filter-unmatched-${langCode}`;
-  const filterSwitchHtml = `<div class="filter-switch-container"><label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="${filterSwitchId}"><input type="checkbox" id="${filterSwitchId}" class="mdl-switch__input" onchange="setLanguageView('${langCode}', 1, this.checked)" ${showOnlyUnmatched ? "checked" : ""}><span class="mdl-switch__label">Show only prayers without Phelps code</span></label></div>`;
+  const filterSwitchHtml = `<div class=\"filter-switch-container\"><label class=\"mdl-switch mdl-js-switch mdl-js-ripple-effect\" for=\"${filterSwitchId}\"><input type=\"checkbox\" id=\"${filterSwitchId}\" class=\"mdl-switch__input\" onchange=\"setLanguageView(\'${langCode}\', 1, this.checked)\" ${showOnlyUnmatched ? "checked" : ""}><span class=\"mdl-switch__label\">Show only prayers without Phelps code</span></label></div>`;
 
-  contentDiv.innerHTML = `<header><h2><span id="category">Prayers</span><span id="blocktitle">Language: ${languageDisplayName} (Page ${page})${showOnlyUnmatched ? " - Unmatched" : ""}</span></h2></header>${filterSwitchHtml}${listHtml}${paginationHtml}`;
+  contentDiv.innerHTML = `${languagePickerHtml}<header><h2><span id=\"category\">Prayers</span><span id=\"blocktitle\">Language: ${languageDisplayName} (Page ${page})${showOnlyUnmatched ? " - Unmatched" : ""}</span></h2></header>${filterSwitchHtml}${listHtml}${paginationHtml}`;
   if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
 }
 
@@ -1506,6 +1548,8 @@ async function renderPrayerCodeView(phelpsCode, page = 1) {
   contentDiv.innerHTML =
     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
   if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
+
+  const languagePickerHtml = await generateLanguageSelectionHtml(null); // No specific active lang for this view
 
   const phelpsLangsSql = `SELECT DISTINCT language FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' ORDER BY language`;
   const distinctLangs = await executeQuery(phelpsLangsSql);
@@ -1583,7 +1627,7 @@ async function renderPrayerCodeView(phelpsCode, page = 1) {
     paginationHtml += "</div>";
   }
 
-  contentDiv.innerHTML = `<header><h2><span id="category">Prayer Code</span><span id="blocktitle">${phelpsCode} (Page ${page}) - All Languages</span></h2></header>${listHtml}${paginationHtml}`;
+  contentDiv.innerHTML = `${languagePickerHtml}<header><h2><span id="category">Prayer Code</span><span id="blocktitle">${phelpsCode} (Page ${page}) - All Languages</span></h2></header>${listHtml}${paginationHtml}`;
   if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
 }
 
@@ -1637,14 +1681,168 @@ async function resolveAndRenderPrayerByPhelpsAndLang(
   }
 }
 
-async function renderLanguageList() {
+async function generateLanguageSelectionHtml(currentActiveLangCode = null) {
   try {
-    // Ensure language names are loaded or an attempt is made before rendering the list.
-    await fetchLanguageNames();
+    await fetchLanguageNames(); // Ensure names are loaded for display
   } catch (error) {
-    // Logged by fetchLanguageNames. Fallbacks will be used in the list.
-    console.warn("renderLanguageList: Failed to pre-load language names. List may show codes instead of names.", error.message);
+    console.warn("generateLanguageSelectionHtml: Failed to pre-load language names. Fallbacks may be used.", error.message);
   }
+
+  const sql = `SELECT w.language, (SELECT COUNT(DISTINCT sub.phelps) FROM writings sub WHERE sub.language = w.language AND sub.phelps IS NOT NULL AND sub.phelps != '') AS phelps_covered_count, (SELECT COUNT(DISTINCT CASE WHEN sub.phelps IS NOT NULL AND sub.phelps != '' THEN NULL ELSE sub.version END) FROM writings sub WHERE sub.language = w.language) AS versions_without_phelps_count FROM writings w WHERE w.language IS NOT NULL AND w.language != '' GROUP BY w.language ORDER BY w.language;`;
+  const allLangsWithStats = await executeQuery(sql);
+
+  if (allLangsWithStats.length === 0) {
+    // const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(sql)}`;
+    // return `<p>No languages found.</p><p>Query:</p><pre>${sql}</pre><p><a href="${debugQueryUrl}" target="_blank">Debug query</a></p>`;
+    return '<p style="text-align:center;">No languages found to select.</p>';
+  }
+
+  const recentLanguageCodes = getRecentLanguages();
+  let recentAndFavoritesTabsBarHtml = "";
+  const recentLangDetails = [];
+
+  // Determine if Favorites tab should be active
+  const favoritesTabIsActive = !currentActiveLangCode;
+
+  // Start with the Favorites tab
+  // It doesn't navigate via setLanguageView, it reveals a panel handled by renderLanguageList
+  // For the main #languages view, this tab will be active.
+  // For other views (prayer, prayers/lang, prayercode), a language tab will be active.
+  recentAndFavoritesTabsBarHtml += 
+    `<a href="#language-tab-panel-favorites" 
+        class="mdl-tabs__tab ${favoritesTabIsActive ? 'is-active' : ''}" 
+        onclick="event.preventDefault(); if (window.location.hash !== '#languages') window.location.hash = '#languages';"> 
+        ⭐ Favorites
+     </a>`;
+  // When on a non-#languages page, clicking "Favorites" tab navigates to #languages (where its panel is shown)
+
+  if (recentLanguageCodes.length > 0 && allLangsWithStats.length > 0) {
+    for (const langCode of recentLanguageCodes) {
+      const langData = allLangsWithStats.find(l => l.language.toLowerCase() === langCode);
+      if (langData) {
+        const displayName = await getLanguageDisplayName(langData.language);
+        const phelpsCount = parseInt(langData.phelps_covered_count, 10) || 0;
+        const nonPhelpsCount = parseInt(langData.versions_without_phelps_count, 10) || 0;
+        const totalConceptualPrayers = phelpsCount + nonPhelpsCount;
+        recentLangDetails.push({
+          code: langData.language,
+          display: displayName,
+          phelps: phelpsCount,
+          total: totalConceptualPrayers,
+        });
+      }
+    }
+
+    if (recentLangDetails.length > 0) {
+      const recentTabsHtml = recentLangDetails.map(lang => {
+        // A recent language tab is active only if currentActiveLangCode is present and matches
+        const isActive = currentActiveLangCode && (lang.code.toLowerCase() === currentActiveLangCode.toLowerCase());
+        return `<a href="#lang-tab-${lang.code}" 
+                   class="mdl-tabs__tab ${isActive ? 'is-active' : ''}" 
+                   onclick="event.preventDefault(); setLanguageView('${lang.code}', 1, false);">
+                   ${lang.display} <span style="font-size:0.8em; opacity:0.7;">(${lang.phelps}/${lang.total})</span>
+                 </a>`;
+        }).join('');
+      recentAndFavoritesTabsBarHtml += recentTabsHtml;
+    }
+  }
+
+  // Filter out recent languages from the main list for the "All Languages" menu
+  // This logic remains the same: languages in recent tabs are not repeated in "More"
+  const otherLanguagesWithStats = allLangsWithStats.filter(lang =>
+    !recentLanguageCodes.find(rlc => rlc === lang.language.toLowerCase())
+  );
+
+  let allLanguagesMenuHtml = "";
+  const searchInputId = "language-search-input"; // Made constant for filterLanguageMenu closure
+  const allLanguagesMenuUlId = "all-languages-menu-ul"; // Made constant
+
+  if (otherLanguagesWithStats.length > 0) {
+    const menuId = "all-languages-menu";
+
+    const menuItemPromises = otherLanguagesWithStats.map(async (langData) => {
+      const langCode = langData.language;
+      const displayName = await getLanguageDisplayName(langCode);
+      const phelpsCount = parseInt(langData.phelps_covered_count, 10) || 0;
+      const nonPhelpsCount = parseInt(langData.versions_without_phelps_count, 10) || 0;
+      const totalConceptualPrayers = phelpsCount + nonPhelpsCount;
+      return `<li class="mdl-menu__item" onclick="setLanguageView('${langCode}', 1, false)" data-val="${langCode}">${displayName} (${phelpsCount}/${totalConceptualPrayers})</li>`;
+    });
+    const menuItemsHtml = (await Promise.all(menuItemPromises)).join('\n');
+
+    allLanguagesMenuHtml = `
+      <button id="${menuId}-btn" class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect">
+        More Languages <i class="material-icons" role="presentation">arrow_drop_down</i>
+      </button>
+      <ul class="mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect"
+          for="${menuId}-btn" id="${allLanguagesMenuUlId}" style="max-height: 300px; overflow-y: auto;">
+        <li style="padding: 0 8px; position: sticky; top: 0; background-color: white; z-index:1;">
+          <div class="mdl-textfield mdl-js-textfield" style="width:calc(100% - 16px); padding:0;">
+            <input class="mdl-textfield__input" type="text" id="${searchInputId}" onkeyup="filterLanguageMenu()">
+            <label class="mdl-textfield__label" for="${searchInputId}">Search languages...</label>
+          </div>
+        </li>
+        <li class="mdl-menu__divider" style="margin-top:0;"></li>
+        ${menuItemsHtml}
+      </ul>
+    `;
+
+    // Define filterLanguageMenu within the scope or ensure it's globally available
+    // Attaching to window is a way to make it available for inline onkeyup
+    // Ensure it's only defined once per app lifecycle or managed appropriately if this function is called multiple times.
+    if (typeof window.filterLanguageMenu !== 'function') { // Define only if not already defined
+        window.filterLanguageMenu = function() {
+            const input = document.getElementById(searchInputId);
+            if (!input) return;
+            const filter = input.value.toLowerCase();
+            const ul = document.getElementById(allLanguagesMenuUlId);
+            if (!ul) return;
+            const items = ul.getElementsByTagName('li');
+            for (let i = 0; i < items.length; i++) {
+                if (items[i].querySelector(`#${searchInputId}`) || items[i].classList.contains('mdl-menu__divider')) {
+                    continue;
+                }
+                const txtValue = items[i].textContent || items[i].innerText;
+                if (txtValue.toLowerCase().indexOf(filter) > -1) {
+                    items[i].style.display = "";
+                } else {
+                    items[i].style.display = "none";
+                }
+            }
+        }}; // Closing brace for function, then semicolon for assignment
+    }
+
+  } else if (allLangsWithStats.length > 0 && recentLangDetails.length === allLangsWithStats.length && recentLangDetails.length > 0) {
+    allLanguagesMenuHtml = `<p style="font-size:0.9em; color:#555;">All available languages are shown in "Recent".</p>`;
+  }
+
+  let languageSelectionParts = [];
+  // The tab bar now includes Favorites and Recent, or just Favorites if no recent.
+  // The "RECENT:" label might be redundant if "Favorites" is always there.
+  // We wrap in mdl-tabs only if there's something to show in the tab bar.
+  if (recentAndFavoritesTabsBarHtml) { // Will always be true because Favorites tab is always added
+    languageSelectionParts.push(`
+      <div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
+        <div class="mdl-tabs__tab-bar" style="justify-content: center; border-bottom: 1px solid #eee; padding-bottom: 5px; flex-wrap: wrap;">
+          ${recentAndFavoritesTabsBarHtml}
+        </div>
+      </div>
+    `);
+  }
+  if (allLanguagesMenuHtml) {
+    // Wrap "More Languages" button in a div for consistent centering/spacing if tabs are present or not
+    const marginTopStyle = recentLangDetails.length > 0 ? 'margin-top:15px;' : 'margin-top:5px;'; // Less margin if no tabs
+    languageSelectionParts.push(`<div style="text-align:center; ${marginTopStyle}">${allLanguagesMenuHtml}</div>`);
+  }
+  
+  if (languageSelectionParts.length === 0 && allLangsWithStats.length > 0) {
+    return '<p style="text-align:center;">Languages available but not displayed (check logic).</p>';
+  }
+  
+  return languageSelectionParts.join('');
+}
+
+async function renderLanguageList() {
   contentDiv.innerHTML =
     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
   if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
@@ -1658,7 +1856,7 @@ async function renderLanguageList() {
 
   let favoritesDisplayHtml = "";
   if (favoritePrayers.length > 0) {
-    favoritesDisplayHtml += `<div id="favorite-prayers-section"><h3>⭐ Your Favorite Prayers</h3>`;
+    favoritesDisplayHtml += `<div id="favorite-prayers-section" style="padding-top:10px;"><h3>⭐ Your Favorite Prayers</h3>`;
     const phelpsCodesToFetchForFavs = [
       ...new Set(
         favoritePrayers.filter((fp) => fp.phelps).map((fp) => fp.phelps),
@@ -1668,7 +1866,7 @@ async function renderLanguageList() {
 
     if (phelpsCodesToFetchForFavs.length > 0) {
       const phelpsInClause = phelpsCodesToFetchForFavs
-        .map((p) => `'${p.replace(/'/g, "''")}'`)
+        .map((p) => `\'${p.replace(/\'/g, "\'\'")}\'`)
         .join(",");
       const favTranslationsSql = `SELECT version, language, phelps, name, link FROM writings WHERE phelps IN (${phelpsInClause})`;
       try {
@@ -1714,143 +1912,27 @@ async function renderLanguageList() {
     const favoriteCardsHtmlArray = await Promise.all(favoriteCardPromises);
     favoritesDisplayHtml += `<div class="favorite-prayer-grid">${favoriteCardsHtmlArray.join("")}</div></div>`;
   } else {
-    favoritesDisplayHtml += `<div id="favorite-prayers-section" style="text-align: center; padding: 10px 0; margin-bottom:10px;"><p>You haven't favorited any prayers yet. <br/>Click the <i class="material-icons" style="vertical-align: bottom; font-size: 1.2em;">star_border</i> icon on a prayer's page to add it here!</p></div>`;
+    favoritesDisplayHtml += `<div id="favorite-prayers-section" style="text-align: center; padding: 20px 0; margin-bottom:10px;"><p>You haven't favorited any prayers yet. <br/>Click the <i class="material-icons" style="vertical-align: bottom; font-size: 1.2em;">star_border</i> icon on a prayer's page to add it here!</p></div>`;
   }
 
-  const sql = `SELECT w.language, (SELECT COUNT(DISTINCT sub.phelps) FROM writings sub WHERE sub.language = w.language AND sub.phelps IS NOT NULL AND sub.phelps != '') AS phelps_covered_count, (SELECT COUNT(DISTINCT CASE WHEN sub.phelps IS NOT NULL AND sub.phelps != '' THEN NULL ELSE sub.version END) FROM writings sub WHERE sub.language = w.language) AS versions_without_phelps_count FROM writings w WHERE w.language IS NOT NULL AND w.language != '' GROUP BY w.language ORDER BY w.language;`;
-  const languagesWithStats = await executeQuery(sql);
+  // When renderLanguageList is called, currentActiveLangCode for generateLanguageSelectionHtml is null,
+  // so the "Favorites" tab in the picker will be marked active.
+  const languageSelectionHtml = await generateLanguageSelectionHtml(null);
 
-  const allLangsWithStats = languagesWithStats; // Use the already fetched data
-
-  if (allLangsWithStats.length === 0 && favoritePrayers.length === 0) {
-    const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(sql)}`;
-    contentDiv.innerHTML =
-      favoritesDisplayHtml +
-      `<p>No languages found.</p><p>Query:</p><pre>${sql}</pre><p><a href="${debugQueryUrl}" target="_blank">Debug query</a></p>`;
+  if (!languageSelectionHtml) { // Handles case where generateLanguageSelectionHtml returns empty/error
+    contentDiv.innerHTML = `<p>Error loading language selection.</p>`;
     return;
   }
-
-  const recentLanguageCodes = getRecentLanguages();
-  let recentLanguagesTabsHtml = "";
-  const recentLangDetails = [];
-
-  if (recentLanguageCodes.length > 0 && allLangsWithStats.length > 0) {
-    for (const langCode of recentLanguageCodes) {
-      const langData = allLangsWithStats.find(l => l.language.toLowerCase() === langCode);
-      if (langData) {
-        const displayName = await getLanguageDisplayName(langData.language);
-        const phelpsCount = parseInt(langData.phelps_covered_count, 10) || 0;
-        const nonPhelpsCount = parseInt(langData.versions_without_phelps_count, 10) || 0;
-        const totalConceptualPrayers = phelpsCount + nonPhelpsCount;
-        recentLangDetails.push({
-          code: langData.language,
-          display: displayName,
-          phelps: phelpsCount,
-          total: totalConceptualPrayers,
-        });
-      }
-    }
-
-    if (recentLangDetails.length > 0) {
-      recentLanguagesTabsHtml = recentLangDetails.map(lang =>
-        `<a href="#" class="mdl-button mdl-js-button" style="margin: 0 4px; text-transform: none;" onclick="event.preventDefault(); setLanguageView('${lang.code}', 1, false)">
-           ${lang.display} <span style="font-size:0.8em; opacity:0.7;">(${lang.phelps}/${lang.total})</span>
-         </a>`
-      ).join('');
-    }
-  }
-
-  const otherLanguagesWithStats = allLangsWithStats.filter(lang =>
-    !recentLanguageCodes.includes(lang.language.toLowerCase())
-  );
-
-  let allLanguagesMenuHtml = "";
-  const searchInputId = "language-search-input";
-  const allLanguagesMenuUlId = "all-languages-menu-ul";
-
-  if (otherLanguagesWithStats.length > 0) {
-    const menuId = "all-languages-menu";
-
-    const menuItemPromises = otherLanguagesWithStats.map(async (langData) => {
-      const langCode = langData.language;
-      const displayName = await getLanguageDisplayName(langCode);
-      const phelpsCount = parseInt(langData.phelps_covered_count, 10) || 0;
-      const nonPhelpsCount = parseInt(langData.versions_without_phelps_count, 10) || 0;
-      const totalConceptualPrayers = phelpsCount + nonPhelpsCount;
-      // Menu items will use default MDL styling, no special background for now.
-      return `<li class="mdl-menu__item" onclick="setLanguageView('${langCode}', 1, false)" data-val="${langCode}">${displayName} (${phelpsCount}/${totalConceptualPrayers})</li>`;
-    });
-    const menuItemsHtml = (await Promise.all(menuItemPromises)).join('\n');
-
-    allLanguagesMenuHtml = `
-      <div style="position: relative; display: inline-block; margin-top: 10px;">
-        <button id="${menuId}-btn" class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect">
-          More Languages <i class="material-icons" role="presentation">arrow_drop_down</i>
-        </button>
-        <ul class="mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect"
-            for="${menuId}-btn" id="${allLanguagesMenuUlId}" style="max-height: 300px; overflow-y: auto;">
-          <li style="padding: 0 8px; position: sticky; top: 0; background-color: white; z-index:1;">
-            <div class="mdl-textfield mdl-js-textfield" style="width:calc(100% - 16px); padding:0;">
-              <input class="mdl-textfield__input" type="text" id="${searchInputId}" onkeyup="filterLanguageMenu()">
-              <label class="mdl-textfield__label" for="${searchInputId}">Search languages...</label>
-            </div>
-          </li>
-          <li class="mdl-menu__divider" style="margin-top:0;"></li>
-          ${menuItemsHtml}
-        </ul>
-      </div>
-    `;
-  } else if (allLangsWithStats.length > 0 && recentLangDetails.length === allLangsWithStats.length) {
-    // All available languages were displayed as recent.
-    allLanguagesMenuHtml = `<p style="text-align:center; margin-top: 10px; font-size:0.9em; color:#555;">All available languages are shown in "Recent".</p>`;
-  }
-
-
-  let languageSelectionParts = [];
-  if (recentLanguagesTabsHtml) {
-    languageSelectionParts.push(`
-      <div class="recent-languages-tabs" style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #eee; text-align:center;">
-        <strong style="margin-right: 10px; font-size: 0.9em; color: #555;">RECENT:</strong>
-        ${recentLanguagesTabsHtml}
-      </div>
-    `);
-  }
-  if (allLanguagesMenuHtml) {
-    languageSelectionParts.push(allLanguagesMenuHtml);
-  }
-
-  const languageSelectionUI = languageSelectionParts.length > 0 ?
-    `<div class="language-selection-area" style="padding: 10px 0; text-align:center;">${languageSelectionParts.join('')}</div>` :
-    (allLangsWithStats.length > 0 ? '<p style="text-align:center;">Languages available but not displayed.</p>' : '<p style="text-align:center;">No languages found to select.</p>');
-
+  // Update contentDiv
+  // The languageSelectionHtml contains the tab bar.
+  // The favoritesDisplayHtml is wrapped in a panel corresponding to the "Favorites" tab.
   contentDiv.innerHTML =
-    favoritesDisplayHtml +
     `<header><h2><span id="category">Prayers</span><span id="blocktitle">Available Languages</span></h2></header>
-     ${languageSelectionUI}
-     <p style="text-align:center; font-size:0.9em; color: #555; margin-top:10px;">Counts are (Unique Phelps Codes / Total Unique Prayers). Select a language to browse.</p>`;
-
-  if (otherLanguagesWithStats.length > 0 && typeof filterLanguageMenu === 'undefined') {
-    window.filterLanguageMenu = function() {
-      const input = document.getElementById(searchInputId); // searchInputId is in scope
-      if (!input) return;
-      const filter = input.value.toLowerCase();
-      const ul = document.getElementById(allLanguagesMenuUlId); // allLanguagesMenuUlId is in scope
-      if (!ul) return;
-      const items = ul.getElementsByTagName('li');
-      for (let i = 0; i < items.length; i++) {
-        // Skip search input li and divider li
-        if (items[i].querySelector(`#${searchInputId}`) || items[i].classList.contains('mdl-menu__divider')) {
-          continue;
-        }
-        const txtValue = items[i].textContent || items[i].innerText;
-        if (txtValue.toLowerCase().indexOf(filter) > -1) {
-          items[i].style.display = "";
-        } else {
-          items[i].style.display = "none";
-        }
-      }
-    };
-  }
+     ${languageSelectionHtml}
+     <div class="mdl-tabs__panel is-active" id="language-tab-panel-favorites" style="padding-top: 10px;">
+       ${favoritesDisplayHtml}
+     </div>
+     <p style="text-align:center; font-size:0.9em; color: #555; margin-top:20px;">Counts are (Unique Phelps Codes / Total Unique Prayers). Select a language to browse.</p>`;
 
   if (typeof componentHandler !== "undefined") {
     componentHandler.upgradeDom();
