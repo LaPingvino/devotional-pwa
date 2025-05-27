@@ -1779,6 +1779,7 @@ async function resolveAndRenderPrayerByPhelpsAndLang(
 }
 
 async function populateLanguageSelection(currentActiveLangCode = null) {
+  console.log("populateLanguageSelection CALLED. currentActiveLangCode:", currentActiveLangCode); // LOG ENTRY
   const tabBarElement = document.getElementById('language-picker-tab-bar');
   const moreLanguagesWrapperElement = document.getElementById('more-languages-wrapper');
   const menuUlElement = document.getElementById('all-languages-menu-ul');
@@ -1810,14 +1811,17 @@ async function populateLanguageSelection(currentActiveLangCode = null) {
   const sql = `SELECT w.language, (SELECT COUNT(DISTINCT sub.phelps) FROM writings sub WHERE sub.language = w.language AND sub.phelps IS NOT NULL AND sub.phelps != \'\') AS phelps_covered_count, (SELECT COUNT(DISTINCT CASE WHEN sub.phelps IS NOT NULL AND sub.phelps != \'\' THEN NULL ELSE sub.version END) FROM writings sub WHERE sub.language = w.language) AS versions_without_phelps_count FROM writings w WHERE w.language IS NOT NULL AND w.language != \'\' GROUP BY w.language ORDER BY w.language;`;
   
   let allLangsWithStats = getCachedLanguageStats();
+  console.log("populateLanguageSelection: Initial cached stats:", allLangsWithStats ? JSON.parse(JSON.stringify(allLangsWithStats)) : null); // LOG Initial Cache
   let fetchedFreshData = false;
   let attemptedFetch = false;
 
   if (!allLangsWithStats) {
-    // console.log("No fresh language stats in cache, attempting fetch...");
+    console.log("populateLanguageSelection: No fresh language stats in cache, attempting fetch..."); // LOG No Fresh Cache
     attemptedFetch = true;
     try {
+      console.log("populateLanguageSelection: Calling executeQuery for language stats."); // LOG Calling executeQuery
       allLangsWithStats = await executeQuery(sql);
+      console.log("populateLanguageSelection: Fetched stats from API:", allLangsWithStats ? JSON.parse(JSON.stringify(allLangsWithStats)) : null); // LOG API Fetch Result
       if (allLangsWithStats && allLangsWithStats.length > 0) {
         cacheLanguageStats(allLangsWithStats);
         fetchedFreshData = true;
@@ -1828,40 +1832,47 @@ async function populateLanguageSelection(currentActiveLangCode = null) {
         allLangsWithStats = []; 
       }
     } catch (e) { 
-      console.error("Error during executeQuery for language stats:", e);
+      console.error("Error during executeQuery for language stats:", e); // LOG executeQuery Error
       // executeQuery now throws, so we catch it here.
       // allLangsWithStats will remain as it was (either null from initial getCachedLanguageStats or stale data if loaded later)
       // The subsequent logic will handle trying stale cache.
       allLangsWithStats = allLangsWithStats || []; // Ensure it's at least an empty array if it was null/undefined
     }
   } else {
-    // console.log("Using fresh language stats from cache.");
-    fetchedFreshData = true; // Technically it's fresh from cache
+    console.log("populateLanguageSelection: Using fresh language stats from cache."); // LOG Using Fresh Cache
+    fetchedFreshData = true; // Technically it\'s fresh from cache
   }
 
   // If fetch failed or cache was empty initially, try to get stale cache
   if ((attemptedFetch && !fetchedFreshData) || !allLangsWithStats || allLangsWithStats.length === 0) {
-    // console.log("Fetch might have failed or returned no data, trying stale cache for language stats...");
+    console.log("populateLanguageSelection: Fetch might have failed or returned no data, trying stale cache for language stats..."); // LOG Trying Stale Cache
     const staleStats = getCachedLanguageStats(true); // Allow stale
+    console.log("populateLanguageSelection: Stale stats from cache:", staleStats ? JSON.parse(JSON.stringify(staleStats)) : null); // LOG Stale Cache Result
     if (staleStats && staleStats.length > 0) {
       allLangsWithStats = staleStats;
       // console.log("Using stale language stats from cache.");
       // Optionally, set a flag here to indicate to the UI that data is stale
       // For now, just using it transparently.
     } else if (!allLangsWithStats || allLangsWithStats.length === 0) {
-      // console.log("No language stats available in cache (fresh or stale) after fetch attempt.");
-      allLangsWithStats = []; // Ensure it's an array
+      console.log("populateLanguageSelection: No language stats available in cache (fresh or stale) after fetch attempt."); // LOG No Stale Cache
+      allLangsWithStats = []; // Ensure it\'s an array
     }
   }
 
-
+  console.log("populateLanguageSelection: Final allLangsWithStats count:", allLangsWithStats.length); // LOG Final Stats Count
   if (allLangsWithStats.length === 0) {
+    console.warn("populateLanguageSelection: No language stats available to populate picker after all checks."); // LOG No Stats Warning
     // const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(sql)}`;
-    // return `<p>No languages found.</p><p>Query:</p><pre>${sql}</pre><p><a href="${debugQueryUrl}" target="_blank">Debug query</a></p>`;
-    return '<p style="text-align:center;">No languages found to select.</p>';
+    // return `<p>No languages found.</p><p>Query:</p><pre>${sql}</pre><p><a href=\"${debugQueryUrl}\" target=\"_blank\">Debug query</a></p>`;
+    // Instead of returning HTML, manipulate DOM for error message
+    if (messagePlaceholderElement) messagePlaceholderElement.innerHTML = '<p style="text-align:center;">No languages found to select.</p>';
+    if (moreLanguagesWrapperElement) moreLanguagesWrapperElement.style.display = 'none'; // Hide more languages section
+    if (tabBarElement) tabBarElement.innerHTML = ''; // Clear tab bar as well
+    return; // Exit if no stats
   }
 
   const recentLanguageCodes = getRecentLanguages();
+  console.log("populateLanguageSelection: Recent codes:", JSON.parse(JSON.stringify(recentLanguageCodes))); // LOG Recent Codes
   let recentAndFavoritesTabsBarHtml = "";
   const recentLangDetails = [];
 
@@ -1916,8 +1927,9 @@ async function populateLanguageSelection(currentActiveLangCode = null) {
   const otherLanguagesWithStats = allLangsWithStats.filter(lang =>
     !recentLanguageCodes.find(rlc => rlc === lang.language.toLowerCase())
   );
+  console.log("populateLanguageSelection: Other languages count for menu:", otherLanguagesWithStats.length); // LOG Other Languages Count
 
-  let allLanguagesMenuHtml = "";
+  // let allLanguagesMenuHtml = ""; // This variable is not used to build the final string for the section anymore
   const searchInputId = "language-search-input"; // Used for filterLanguageMenu closure
   const allLanguagesMenuUlId = "all-languages-menu-ul"; // Used for filterLanguageMenu closure
 
@@ -1936,6 +1948,10 @@ async function populateLanguageSelection(currentActiveLangCode = null) {
 
     // menuItemsHtml will be appended to menuUlElement later in the code.
     // The button and ul shell are already in the DOM from getLanguagePickerShellHtml.
+    // menuItemsHtml (the <li> string) is used below to populate menuUlElement
+    if (menuUlElement) {
+        console.log("populateLanguageSelection: menuUlElement.innerHTML AFTER item injection:", menuUlElement.innerHTML);
+    }
 
     // Define filterLanguageMenu within the scope or ensure it's globally available
     // Attaching to window is a way to make it available for inline onkeyup
@@ -1971,13 +1987,18 @@ tempDiv.innerHTML = menuItemsHtml; // menuItemsHtml was generated earlier
 Array.from(tempDiv.children).forEach(child => {
     menuUlElement.appendChild(child);
 });
+    // Correctly placed log for menuUlElement
+    if (menuUlElement) {
+        console.log("populateLanguageSelection: menuUlElement.innerHTML AFTER item injection:", menuUlElement.innerHTML);
+    }
 } // Closes 'if (otherLanguagesWithStats.length > 0)'
 else if (allLangsWithStats.length > 0 && recentLangDetails.length === allLangsWithStats.length && recentLangDetails.length > 0) {
-messagePlaceholderElement.innerHTML = `<p style="font-size:0.9em; color:#555;">All available languages are shown in "Recent".</p>`;
+    if (messagePlaceholderElement) messagePlaceholderElement.innerHTML = `<p style="font-size:0.9em; color:#555;">All available languages are shown in "Recent".</p>`;
 moreLanguagesWrapperElement.style.display = 'inline-block'; // Show the wrapper to display this message
 // Hide the button itself if only the message is shown
 const moreButton = document.getElementById('all-languages-menu-btn');
 if(moreButton) moreButton.style.display = 'none';
+if(moreLanguagesWrapperElement) moreLanguagesWrapperElement.style.display = 'inline-block'; // Ensure wrapper is visible for the message
 
 } else {
 // No "other" languages and not all are recent (or no languages at all)
@@ -1987,21 +2008,36 @@ if(moreButton) moreButton.style.display = 'none';
   }
 }
 
+// Populate tab bar:
+if (tabBarElement) {
+    // Clear existing <a> tabs (direct children, not in a wrapper)
+    Array.from(tabBarElement.children).forEach(child => {
+        if (child.tagName === 'A' && child.classList.contains('mdl-tabs__tab')) {
+            child.remove();
+        }
+    });
 
-// Populate tab bar: Prepend recent/favorites tabs to the existing "More Languages" section in the tab bar.
-// The "More Languages" section is already in the shell. We add tabs before it.
-if (recentAndFavoritesTabsBarHtml) {
-  const tempTabsDiv = document.createElement('div');
-  tempTabsDiv.innerHTML = recentAndFavoritesTabsBarHtml; // This is a string of <a> tags
-  const moreLanguagesDiv = tabBarElement.querySelector('.more-languages-section-wrapper');
-  if (moreLanguagesDiv) {
-      Array.from(tempTabsDiv.children).reverse().forEach(tabLink => { // reverse to prepend correctly
-          tabBarElement.insertBefore(tabLink, moreLanguagesDiv);
-      });
-  } else { // Fallback if more-languages-wrapper isn't there (should be, from shell)
-      tabBarElement.innerHTML = recentAndFavoritesTabsBarHtml + tabBarElement.innerHTML;
-  }
+    if (recentAndFavoritesTabsBarHtml) {
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = recentAndFavoritesTabsBarHtml;
+        const newTabLinks = Array.from(tempDiv.children);
+        const currentMoreLanguagesWrapper = document.getElementById('more-languages-wrapper'); // Re-fetch, DOM might have changed
+
+        if (currentMoreLanguagesWrapper && currentMoreLanguagesWrapper.parentNode === tabBarElement) {
+            newTabLinks.forEach(link => {
+                tabBarElement.insertBefore(link, currentMoreLanguagesWrapper);
+            });
+        } else {
+            console.warn("More Languages wrapper not correctly found as a direct child of tab bar during tab injection. Appending tabs to end.");
+            newTabLinks.forEach(link => { // Fallback append
+                tabBarElement.appendChild(link);
+            });
+        }
+    }
+    // Log tabBarElement's state AFTER all its direct children are set
+    console.log("populateLanguageSelection: tabBarElement.innerHTML AFTER tab injection:", tabBarElement.innerHTML);
 }
+// No redundant if(tabBarElement) checks needed here.
 
 // Ensure MDL components in the picker are upgraded if they were dynamically added or modified.
 // This is crucial for tabs, menu, button ripples, textfield in search.
@@ -2118,12 +2154,12 @@ currentPageBySearchTerm = {};
   contentDiv.innerHTML = 
     `<header><h2><span id="category">Prayers</span><span id="blocktitle">Available Languages</span></h2></header>
      ${pickerShellHtml}
-     <div id="main-content-area" style="min-height: 100px;"> {/* Container for spinner or content */}
+     <div id="main-content-area" style="min-height: 100px;"> <!-- Container for spinner or content -->
         <div id="main-content-area-spinner" class="main-content-spinner">
             <div class="mdl-spinner mdl-js-spinner is-active"></div>
         </div>
         <div class="mdl-tabs__panel" id="language-tab-panel-favorites">
-          {/* Favorites content will be injected here */}
+          <!-- Favorites content will be injected here -->
         </div>
      </div>
      <p class="text-center" style="font-size:0.9em; color: #555; margin-top:20px;">Counts are (Unique Phelps Codes / Total Unique Prayers). Select a language to browse.</p>`;
