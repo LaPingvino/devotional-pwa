@@ -1622,6 +1622,15 @@ async function renderLanguageList() {
     languageListHtml = languagesWithStats
       .map((langData) => {
         const langCode = langData.language;
+        let displayName = getLanguageDisplayName(langCode);
+
+        if (displayName === langCode) {
+          // If getLanguageDisplayName returns the code itself, it means the name was not found.
+          // Log this event and use the uppercase code as a fallback.
+          console.log(`Display name for language code '${langCode}' not found. Using code as fallback.`);
+          displayName = langCode.toUpperCase();
+        }
+
         const phelpsCount = parseInt(langData.phelps_covered_count, 10) || 0;
         const nonPhelpsCount =
           parseInt(langData.versions_without_phelps_count, 10) || 0;
@@ -1633,7 +1642,7 @@ async function renderLanguageList() {
           if (coverageRatio === 1) buttonClass += " lang-button-green";
           else if (coverageRatio > 0.5) buttonClass += " lang-button-yellow";
         }
-        return `<button class="${buttonClass}" onclick="setLanguageView('${langCode}', 1, false)">${langCode.toUpperCase()} (${phelpsCount}/${totalConceptualPrayers})</button>`;
+        return `<button class="${buttonClass}" onclick="setLanguageView('${langCode}', 1, false)">${displayName} (${phelpsCount}/${totalConceptualPrayers})</button>`;
       })
       .join("\n");
   }
