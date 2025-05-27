@@ -1796,9 +1796,8 @@ async function populateLanguageSelection(currentActiveLangCode = null) {
   existingTabLinks.forEach(link => link.remove());
   
   // Clear previous menu items (children of ul, skipping search and divider)
-  while (menuUlElement.children.length > 2) { // Assumes search li and divider li are first two
-      menuUlElement.removeChild(menuUlElement.lastChild);
-  }
+  // The menu will be completely rebuilt if otherLanguagesWithStats.length > 0
+  // For now, just clear the message placeholder. Actual menu clearing/rebuilding happens below.
   messagePlaceholderElement.innerHTML = ''; // Clear previous message
 
 
@@ -1946,11 +1945,19 @@ async function populateLanguageSelection(currentActiveLangCode = null) {
     });
     const menuItemsHtml = (await Promise.all(menuItemPromises)).join('\n');
 
-    // menuItemsHtml will be appended to menuUlElement later in the code.
-    // The button and ul shell are already in the DOM from getLanguagePickerShellHtml.
-    // menuItemsHtml (the <li> string) is used below to populate menuUlElement
     if (menuUlElement) {
-        console.log("populateLanguageSelection: menuUlElement.innerHTML AFTER item injection:", menuUlElement.innerHTML);
+        const searchLiHtml = `
+            <li id="language-search-li" onclick="event.stopPropagation();">
+                <div class="mdl-textfield mdl-js-textfield">
+                    <input class="mdl-textfield__input" type="text" id="${searchInputId}" onkeyup="filterLanguageMenu()" onclick="event.stopPropagation();">
+                    <label class="mdl-textfield__label" for="${searchInputId}">Search languages...</label>
+                </div>
+            </li>`;
+        const dividerHtml = '<li class="mdl-menu__divider" style="margin-top:0;"></li>';
+        
+        menuUlElement.innerHTML = searchLiHtml + dividerHtml + menuItemsHtml; // Rebuild entire menu content
+
+        console.log("populateLanguageSelection: menuUlElement.innerHTML AFTER REBUILD:", menuUlElement.innerHTML);
     }
 
     // Define filterLanguageMenu within the scope or ensure it's globally available
@@ -1979,30 +1986,21 @@ async function populateLanguageSelection(currentActiveLangCode = null) {
     } // Closes 'if (typeof window.filterLanguageMenu !== 'function')'
 
     // Append new menu items
-// The menuItemsHtml is already a string of <li> elements
-// We need to insert these LI elements into the menuUlElement
-// A simple way for now, though could be more performant for large lists
-const tempDiv = document.createElement('div');
-tempDiv.innerHTML = menuItemsHtml; // menuItemsHtml was generated earlier
-Array.from(tempDiv.children).forEach(child => {
-    menuUlElement.appendChild(child);
-});
-    // Correctly placed log for menuUlElement
-    if (menuUlElement) {
-        console.log("populateLanguageSelection: menuUlElement.innerHTML AFTER item injection:", menuUlElement.innerHTML);
-    }
+// The menuItemsHtml (string of LIs) has already been used to rebuild menuUlElement.innerHTML
+// No need for tempDiv and appending children one by one here anymore.
+
 } // Closes 'if (otherLanguagesWithStats.length > 0)'
 else if (allLangsWithStats.length > 0 && recentLangDetails.length === allLangsWithStats.length && recentLangDetails.length > 0) {
     if (messagePlaceholderElement) messagePlaceholderElement.innerHTML = `<p style="font-size:0.9em; color:#555;">All available languages are shown in "Recent".</p>`;
-moreLanguagesWrapperElement.style.display = 'inline-block'; // Show the wrapper to display this message
-// Hide the button itself if only the message is shown
-const moreButton = document.getElementById('all-languages-menu-btn');
-if(moreButton) moreButton.style.display = 'none';
-if(moreLanguagesWrapperElement) moreLanguagesWrapperElement.style.display = 'inline-block'; // Ensure wrapper is visible for the message
+    if (menuUlElement) menuUlElement.innerHTML = ''; // Clear the menu UL if no "other" languages but this message is shown
+    const moreButton = document.getElementById('all-languages-menu-btn');
+    if(moreButton) moreButton.style.display = 'none'; // Hide the button
+    if(moreLanguagesWrapperElement) moreLanguagesWrapperElement.style.display = 'inline-block'; // Show wrapper for the message
 
 } else {
 // No "other" languages and not all are recent (or no languages at all)
 // Hide the "More Languages" section entirely if there are no other languages
+  if (menuUlElement) menuUlElement.innerHTML = ''; // Clear the menu UL
   if (moreLanguagesWrapperElement) {
     moreLanguagesWrapperElement.style.display = 'none';
   }
