@@ -4,11 +4,7 @@
                 color: gold;
             }
 
-            .language-buttons-container .mdl-button.lang-button-is-code {
-                font-variant: normal; /* Turn off small-caps from general rule */
-                text-transform: uppercase;
-                font-weight: bold;
-            }
+
             body {
                 font-size: 1.3em;
                 background-color: #f4f6f6;
@@ -240,8 +236,9 @@
             }
             .language-buttons-container .mdl-button {
                 margin: 5px;
-                text-transform: none; /* Override MDL's default uppercase */
-                font-variant: small-caps; /* Apply small-caps to full language names */
+                /* Styles for text-transform, font-variant, etc. removed. */
+                /* MDL default button styles will largely apply. */
+                /* We can specifically target the menu trigger later if needed. */
             }
             .language-buttons-container .mdl-button.lang-button-green {
                 background-color: #4caf50; /* Green */

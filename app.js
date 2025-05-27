@@ -20,6 +20,52 @@ const LANGUAGE_NAMES_CACHE_KEY = "hw_language_names_cache";
 const LANGUAGE_NAMES_CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 1 day
 const FETCH_LANG_NAMES_TIMEOUT_MS = 5000; // 5 seconds
 
+// --- Recent Language Storage ---
+const RECENT_LANGUAGES_KEY = "devotionalPWA_recentLanguages";
+const MAX_RECENT_LANGUAGES = 4; // Number of recent languages to store
+
+function getRecentLanguages() {
+  try {
+    const recentLanguagesJSON = localStorage.getItem(RECENT_LANGUAGES_KEY);
+    if (recentLanguagesJSON) {
+      const languages = JSON.parse(recentLanguagesJSON);
+      if (Array.isArray(languages)) {
+        return languages;
+      }
+    }
+  } catch (error) {
+    console.error("Error getting recent languages from localStorage:", error);
+    // Clear potentially corrupted data
+    localStorage.removeItem(RECENT_LANGUAGES_KEY);
+  }
+  return []; // Default to empty array if not found or error
+}
+
+function addRecentLanguage(langCode) {
+  if (!langCode || typeof langCode !== 'string') return;
+
+  const code = langCode.toLowerCase(); // Store consistently
+  let recentLanguages = getRecentLanguages();
+
+  // Remove the language if it already exists to move it to the front
+  recentLanguages = recentLanguages.filter(l => l !== code);
+
+  // Add the new language to the beginning
+  recentLanguages.unshift(code);
+
+  // Trim the list to the maximum allowed number
+  if (recentLanguages.length > MAX_RECENT_LANGUAGES) {
+    recentLanguages = recentLanguages.slice(0, MAX_RECENT_LANGUAGES);
+  }
+
+  try {
+    localStorage.setItem(RECENT_LANGUAGES_KEY, JSON.stringify(recentLanguages));
+  } catch (error) {
+    console.error("Error saving recent languages to localStorage:", error);
+  }
+}
+// --- End Recent Language Storage ---
+
 const contentDiv = document.getElementById("content");
 const prayerLanguageNav = document.getElementById("prayer-language-nav");
 const drawerPrayerLanguageNav = document.getElementById(
@@ -1335,6 +1381,7 @@ async function renderPrayersForLanguage(
   page = 1,
   showOnlyUnmatched = false,
 ) {
+  addRecentLanguage(langCode); // Track this language as recently viewed
   currentPageByLanguage[langCode] = { page, showOnlyUnmatched };
   const offset = (page - 1) * ITEMS_PER_PAGE;
   contentDiv.innerHTML =
@@ -1673,7 +1720,9 @@ async function renderLanguageList() {
   const sql = `SELECT w.language, (SELECT COUNT(DISTINCT sub.phelps) FROM writings sub WHERE sub.language = w.language AND sub.phelps IS NOT NULL AND sub.phelps != '') AS phelps_covered_count, (SELECT COUNT(DISTINCT CASE WHEN sub.phelps IS NOT NULL AND sub.phelps != '' THEN NULL ELSE sub.version END) FROM writings sub WHERE sub.language = w.language) AS versions_without_phelps_count FROM writings w WHERE w.language IS NOT NULL AND w.language != '' GROUP BY w.language ORDER BY w.language;`;
   const languagesWithStats = await executeQuery(sql);
 
-  if (languagesWithStats.length === 0 && favoritePrayers.length === 0) {
+  const allLangsWithStats = languagesWithStats; // Use the already fetched data
+
+  if (allLangsWithStats.length === 0 && favoritePrayers.length === 0) {
     const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(sql)}`;
     contentDiv.innerHTML =
       favoritesDisplayHtml +
@@ -1681,54 +1730,131 @@ async function renderLanguageList() {
     return;
   }
 
-  let languageListHtml = "";
-  if (languagesWithStats.length > 0) {
-    const languageButtonPromises = languagesWithStats
-      .map(async (langData) => { // .map callback is now async
-        const langCode = langData.language;
-        let displayName = await getLanguageDisplayName(langCode); // await the async call
+  const recentLanguageCodes = getRecentLanguages();
+  let recentLanguagesTabsHtml = "";
+  const recentLangDetails = [];
 
-        if (displayName === langCode) { // Name not found (either fetch failed or code not in map)
-                                        // getLanguageDisplayName already tried to fetch and awaited.
-                                        // fetchLanguageNames/Internal already logged errors if the fetch itself failed.
-          if (languageNamesMap && Object.keys(languageNamesMap).length > 0 && !languageNamesMap[langCode]) {
-            // Map seems to be loaded (at least partially), but this specific code is missing.
-            // console.log(`Display name for language code \'${langCode}\' not found in loaded languageNamesMap. Using code as fallback.`);
-            // getLanguageDisplayName now handles logging if it returns the code.
-          } else if (!languageNamesMap || Object.keys(languageNamesMap).length === 0) {
-            // Map is empty or undefined, likely due to a general fetch failure.
-            // This was likely logged by fetchLanguageNames/Internal or its wrapper.
-            // console.log(`Display name for language code \'${langCode}\' not available because languageNamesMap is empty. Using code as fallback.`);
-          }
-          // If displayName === langCode, it means getLanguageDisplayName returned the code itself as a fallback.
-          // No further action (like uppercasing) is needed here as getLanguageDisplayName is the source of truth.
-        }
-
+  if (recentLanguageCodes.length > 0 && allLangsWithStats.length > 0) {
+    for (const langCode of recentLanguageCodes) {
+      const langData = allLangsWithStats.find(l => l.language.toLowerCase() === langCode);
+      if (langData) {
+        const displayName = await getLanguageDisplayName(langData.language);
         const phelpsCount = parseInt(langData.phelps_covered_count, 10) || 0;
-        const nonPhelpsCount =
-          parseInt(langData.versions_without_phelps_count, 10) || 0;
+        const nonPhelpsCount = parseInt(langData.versions_without_phelps_count, 10) || 0;
         const totalConceptualPrayers = phelpsCount + nonPhelpsCount;
-        let buttonClass =
-          "mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect";
+        recentLangDetails.push({
+          code: langData.language,
+          display: displayName,
+          phelps: phelpsCount,
+          total: totalConceptualPrayers,
+        });
+      }
+    }
 
-        if (displayName === langCode) { // Check if it's a fallback code
-          buttonClass += " lang-button-is-code";
-        }
-
-        if (totalConceptualPrayers > 0) {
-          const coverageRatio = phelpsCount / totalConceptualPrayers;
-          if (coverageRatio === 1) buttonClass += " lang-button-green";
-          else if (coverageRatio > 0.5) buttonClass += " lang-button-yellow";
-        }
-        return `<button class="${buttonClass}" onclick="setLanguageView('${langCode}', 1, false)">${displayName} (${phelpsCount}/${totalConceptualPrayers})</button>`;
-      });
-    languageListHtml = (await Promise.all(languageButtonPromises)).join("\n");
+    if (recentLangDetails.length > 0) {
+      recentLanguagesTabsHtml = recentLangDetails.map(lang =>
+        `<a href="#" class="mdl-button mdl-js-button" style="margin: 0 4px; text-transform: none;" onclick="event.preventDefault(); setLanguageView('${lang.code}', 1, false)">
+           ${lang.display} <span style="font-size:0.8em; opacity:0.7;">(${lang.phelps}/${lang.total})</span>
+         </a>`
+      ).join('');
+    }
   }
+
+  const otherLanguagesWithStats = allLangsWithStats.filter(lang =>
+    !recentLanguageCodes.includes(lang.language.toLowerCase())
+  );
+
+  let allLanguagesMenuHtml = "";
+  const searchInputId = "language-search-input";
+  const allLanguagesMenuUlId = "all-languages-menu-ul";
+
+  if (otherLanguagesWithStats.length > 0) {
+    const menuId = "all-languages-menu";
+
+    const menuItemPromises = otherLanguagesWithStats.map(async (langData) => {
+      const langCode = langData.language;
+      const displayName = await getLanguageDisplayName(langCode);
+      const phelpsCount = parseInt(langData.phelps_covered_count, 10) || 0;
+      const nonPhelpsCount = parseInt(langData.versions_without_phelps_count, 10) || 0;
+      const totalConceptualPrayers = phelpsCount + nonPhelpsCount;
+      // Menu items will use default MDL styling, no special background for now.
+      return `<li class="mdl-menu__item" onclick="setLanguageView('${langCode}', 1, false)" data-val="${langCode}">${displayName} (${phelpsCount}/${totalConceptualPrayers})</li>`;
+    });
+    const menuItemsHtml = (await Promise.all(menuItemPromises)).join('\n');
+
+    allLanguagesMenuHtml = `
+      <div style="position: relative; display: inline-block; margin-top: 10px;">
+        <button id="${menuId}-btn" class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect">
+          More Languages <i class="material-icons" role="presentation">arrow_drop_down</i>
+        </button>
+        <ul class="mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect"
+            for="${menuId}-btn" id="${allLanguagesMenuUlId}" style="max-height: 300px; overflow-y: auto;">
+          <li style="padding: 0 8px; position: sticky; top: 0; background-color: white; z-index:1;">
+            <div class="mdl-textfield mdl-js-textfield" style="width:calc(100% - 16px); padding:0;">
+              <input class="mdl-textfield__input" type="text" id="${searchInputId}" onkeyup="filterLanguageMenu()">
+              <label class="mdl-textfield__label" for="${searchInputId}">Search languages...</label>
+            </div>
+          </li>
+          <li class="mdl-menu__divider" style="margin-top:0;"></li>
+          ${menuItemsHtml}
+        </ul>
+      </div>
+    `;
+  } else if (allLangsWithStats.length > 0 && recentLangDetails.length === allLangsWithStats.length) {
+    // All available languages were displayed as recent.
+    allLanguagesMenuHtml = `<p style="text-align:center; margin-top: 10px; font-size:0.9em; color:#555;">All available languages are shown in "Recent".</p>`;
+  }
+
+
+  let languageSelectionParts = [];
+  if (recentLanguagesTabsHtml) {
+    languageSelectionParts.push(`
+      <div class="recent-languages-tabs" style="margin-bottom: 15px; padding-bottom: 10px; border-bottom: 1px solid #eee; text-align:center;">
+        <strong style="margin-right: 10px; font-size: 0.9em; color: #555;">RECENT:</strong>
+        ${recentLanguagesTabsHtml}
+      </div>
+    `);
+  }
+  if (allLanguagesMenuHtml) {
+    languageSelectionParts.push(allLanguagesMenuHtml);
+  }
+
+  const languageSelectionUI = languageSelectionParts.length > 0 ?
+    `<div class="language-selection-area" style="padding: 10px 0; text-align:center;">${languageSelectionParts.join('')}</div>` :
+    (allLangsWithStats.length > 0 ? '<p style="text-align:center;">Languages available but not displayed.</p>' : '<p style="text-align:center;">No languages found to select.</p>');
 
   contentDiv.innerHTML =
     favoritesDisplayHtml +
-    `<header><h2><span id="category">Prayers</span><span id="blocktitle">Available Languages</span></h2></header><div class="language-buttons-container">${languageListHtml}</div><p style="text-align:center; font-size:0.9em; color: #555; margin-top:10px;">Counts are (Unique Phelps Codes / Total Unique Prayers). Click a language to browse.</p>`;
-  if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
+    `<header><h2><span id="category">Prayers</span><span id="blocktitle">Available Languages</span></h2></header>
+     ${languageSelectionUI}
+     <p style="text-align:center; font-size:0.9em; color: #555; margin-top:10px;">Counts are (Unique Phelps Codes / Total Unique Prayers). Select a language to browse.</p>`;
+
+  if (otherLanguagesWithStats.length > 0 && typeof filterLanguageMenu === 'undefined') {
+    window.filterLanguageMenu = function() {
+      const input = document.getElementById(searchInputId); // searchInputId is in scope
+      if (!input) return;
+      const filter = input.value.toLowerCase();
+      const ul = document.getElementById(allLanguagesMenuUlId); // allLanguagesMenuUlId is in scope
+      if (!ul) return;
+      const items = ul.getElementsByTagName('li');
+      for (let i = 0; i < items.length; i++) {
+        // Skip search input li and divider li
+        if (items[i].querySelector(`#${searchInputId}`) || items[i].classList.contains('mdl-menu__divider')) {
+          continue;
+        }
+        const txtValue = items[i].textContent || items[i].innerText;
+        if (txtValue.toLowerCase().indexOf(filter) > -1) {
+          items[i].style.display = "";
+        } else {
+          items[i].style.display = "none";
+        }
+      }
+    };
+  }
+
+  if (typeof componentHandler !== "undefined") {
+    componentHandler.upgradeDom();
+  }
 }
 
 async function renderSearchResults(searchTerm, page = 1) {
