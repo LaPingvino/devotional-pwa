@@ -7,7 +7,7 @@
         />
         <link
             rel="stylesheet"
-            href="https://fonts.googleapis.com/icon?family=Noto+Sans+Symbols+2"
+            href="https://fonts.googleapis.com/icon?family=Noto+Sans+Symbols+2."
         />
         <link
             rel="stylesheet"
@@ -791,12 +791,14 @@
                         </li>
                         <li>
                             <strong>Assign missing Phelps codes:</strong>
-                            This page uses codes based on the unique codes per Bahá'í work from the
+                            This page uses codes based on the unique codes per
+                            Bahá'í work from the
                             <a
                                 href="https://afnanlibrary.org/a-partial-inventory/"
                                 target="_blank"
                                 >Partial Inventory</a
-                            > by Steven Phelps.
+                            >
+                            by Steven Phelps.
                             <ul>
                                 <li>
                                     Your task is to identify the prayer in the
@@ -805,13 +807,14 @@
                                 <li>
                                     If the prayer is part of a larger work
                                     (e.g., a prayer from the Kitáb-i-Aqdas), a
-                                    three-letter suffix (often mnemonic) should typically be
-                                    appended to the main work's Phelps code
-                                    (e.g., BH00001 for aqdas plus the suffix LOV becomes BH00001LOV).
+                                    three-letter suffix (often mnemonic) should
+                                    typically be appended to the main work's
+                                    Phelps code (e.g., BH00001 for aqdas plus
+                                    the suffix LOV becomes BH00001LOV).
                                 </li>
                                 <li>
-                                    If a prayer is not in the inventory, please contact
-                                    Steven so it can be included.
+                                    If a prayer is not in the inventory, please
+                                    contact Steven so it can be included.
                                 </li>
                                 <li>
                                     You can use the "Add/Suggest Phelps Code"
@@ -911,7 +914,7 @@
             let currentPageByPhelpsLangCode = {}; // { phelps/lang : page } - not used yet for pagination but good for state
 
             let pinnedPrayerDetails = null; // Stores { version, phelps, name, language, text }
-            let collectedMatchesForEmail = []; // Array of objects: { type?, pinned?, current?, prayer?, newPhelps?, description }
+            let collectedMatchesForEmail = []; // Array of objects: { type?, pinned?, current?, prayer?, newPhelps?, newLanguage?, newName?, note?, description }
             let favoritePrayers = []; // Stores array of {version, name, language, phelps}
 
             function getDomain(url) {
@@ -1215,13 +1218,13 @@
                 }
 
                 collectedMatchesForEmail.push({
-                    type: "match_prayers", // Differentiate from direct phelps assignment
+                    type: "match_prayers",
                     pinned: p1,
                     current: p2_for_match,
                     description: emailMatchDetail,
                 });
                 updatePrayerMatchingToolDisplay();
-                handleRouteChange(); // To update potential Phelps code display on current prayer view
+                handleRouteChange();
 
                 const snackbarContainer =
                     document.querySelector(".mdl-js-snackbar");
@@ -1241,18 +1244,88 @@
                 const description = `Assign Phelps [${phelpsCode}] to ${prayerData.name || "V:" + prayerData.version} (Lang: ${prayerData.language}, V: ${prayerData.version})`;
                 collectedMatchesForEmail.push({
                     type: "assign_phelps",
-                    prayer: { ...prayerData }, // Store a copy of prayer data
+                    prayer: { ...prayerData },
                     newPhelps: phelpsCode.trim(),
                     description: description,
                 });
                 updatePrayerMatchingToolDisplay();
-                handleRouteChange(); // To update Phelps code display on current prayer view
+                handleRouteChange();
 
                 const snackbarContainer =
                     document.querySelector(".mdl-js-snackbar");
                 if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
                     snackbarContainer.MaterialSnackbar.showSnackbar({
                         message: `Phelps code ${phelpsCode} suggestion added.`,
+                    });
+                }
+            }
+
+            function addLanguageChangeToMatchList(prayerData, newLanguageCode) {
+                if (!newLanguageCode || newLanguageCode.trim() === "") {
+                    alert("Language code cannot be empty.");
+                    return;
+                }
+                const trimmedLangCode = newLanguageCode.trim();
+                const description = `Change language of ${prayerData.name || "V:" + prayerData.version} (V: ${prayerData.version}) from ${prayerData.language.toUpperCase()} to [${trimmedLangCode.toUpperCase()}]`;
+                collectedMatchesForEmail.push({
+                    type: "change_language",
+                    prayer: { ...prayerData },
+                    newLanguage: trimmedLangCode.toLowerCase(), // Store consistently
+                    description: description,
+                });
+                updatePrayerMatchingToolDisplay();
+                handleRouteChange(); // Language change might affect display or nav
+
+                const snackbarContainer =
+                    document.querySelector(".mdl-js-snackbar");
+                if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
+                    snackbarContainer.MaterialSnackbar.showSnackbar({
+                        message: `Language change to ${trimmedLangCode.toUpperCase()} suggestion added.`,
+                    });
+                }
+            }
+
+            function addNameChangeToMatchList(prayerData, newName) {
+                const trimmedName = newName.trim();
+                const description = `Change name of V:${prayerData.version} (Lang: ${prayerData.language.toUpperCase()}) to "${trimmedName}" (was: "${prayerData.name || "N/A"}")`;
+                collectedMatchesForEmail.push({
+                    type: "change_name",
+                    prayer: { ...prayerData },
+                    newName: trimmedName,
+                    description: description,
+                });
+                updatePrayerMatchingToolDisplay();
+                handleRouteChange(); // Name change will affect display
+
+                const snackbarContainer =
+                    document.querySelector(".mdl-js-snackbar");
+                if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
+                    snackbarContainer.MaterialSnackbar.showSnackbar({
+                        message: `Name change to "${trimmedName}" suggestion added.`,
+                    });
+                }
+            }
+
+            function addNoteToMatchList(prayerData, noteText) {
+                if (!noteText || noteText.trim() === "") {
+                    alert("Note cannot be empty.");
+                    return;
+                }
+                const trimmedNote = noteText.trim();
+                const description = `Note for ${prayerData.name || "V:" + prayerData.version} (V: ${prayerData.version}, Lang: ${prayerData.language.toUpperCase()}): "${trimmedNote}"`;
+                collectedMatchesForEmail.push({
+                    type: "add_note",
+                    prayer: { ...prayerData },
+                    note: trimmedNote,
+                    description: description,
+                });
+                updatePrayerMatchingToolDisplay();
+
+                const snackbarContainer =
+                    document.querySelector(".mdl-js-snackbar");
+                if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
+                    snackbarContainer.MaterialSnackbar.showSnackbar({
+                        message: `Note added to match list.`,
                     });
                 }
             }
@@ -1305,10 +1378,22 @@
                                     comment2,
                             );
                         }
-                        // If both p1.phelps and p2.phelps exist, no SQL is generated by default unless they differ,
-                        // in which case it's a data integrity issue to be noted rather than an auto-update.
-                        // The description already warns about this.
+                    } else if (matchData.type === "change_language") {
+                        if (forEmailWithComments)
+                            comment = ` -- Change language for ${matchData.prayer.version} from ${matchData.prayer.language} to ${matchData.newLanguage}`;
+                        sqlUpdateQueries.push(
+                            `UPDATE writings SET language = '${matchData.newLanguage.replace(/'/g, "''")}' WHERE version = '${matchData.prayer.version}';` +
+                                comment,
+                        );
+                    } else if (matchData.type === "change_name") {
+                        if (forEmailWithComments)
+                            comment = ` -- Change name for ${matchData.prayer.version} to "${matchData.newName}"`;
+                        sqlUpdateQueries.push(
+                            `UPDATE writings SET name = '${matchData.newName.replace(/'/g, "''")}' WHERE version = '${matchData.prayer.version}';` +
+                                comment,
+                        );
                     }
+                    // "add_note" type intentionally does not generate SQL
                 });
                 return sqlUpdateQueries;
             }
@@ -1319,11 +1404,10 @@
                     return;
                 }
 
-                const subject =
-                    "holywritings.net: Prayer Matches and SQL Suggestions";
+                const subject = "holywritings.net: Prayer Matches/Suggestions";
                 const bodyLines = [
                     "Hello,",
-                    "I've found/suggested the following prayer matches/assignments on holywritings.net:",
+                    "I've found/suggested the following prayer matches/assignments/changes on holywritings.net:",
                     "",
                 ];
                 collectedMatchesForEmail.forEach((matchData, index) => {
@@ -1345,7 +1429,7 @@
                     sqlUpdateQueries.forEach((q) => bodyLines.push(q));
                 } else {
                     bodyLines.push(
-                        "--- No SQL UPDATE Statements Suggested for these matches ---",
+                        "--- No SQL UPDATE Statements Suggested for these items ---",
                     );
                 }
                 bodyLines.push("");
@@ -1362,18 +1446,19 @@
 
             function submitMatchesAsDoltHubIssue() {
                 if (collectedMatchesForEmail.length === 0) {
-                    alert("No matches to submit as an issue.");
+                    alert("No items to submit as an issue.");
                     return;
                 }
 
-                const title =
-                    "Prayer Matches/Assignments Submission from Web Tool";
+                const title = "Prayer Data Suggestions from Web Tool";
                 const bodyLines = [
-                    "The following prayer matches/assignments have been collected using the holywritings.net web tool:",
+                    "The following prayer data suggestions have been collected using the holywritings.net web tool:",
                     "",
                 ];
                 collectedMatchesForEmail.forEach((matchData, index) => {
-                    bodyLines.push(`**Match/Assignment ${index + 1}:**`);
+                    bodyLines.push(
+                        `**Suggestion ${index + 1} (Type: ${matchData.type}):**`,
+                    );
                     bodyLines.push(`> ${matchData.description}`);
                     if (matchData.type === "match_prayers") {
                         bodyLines.push(
@@ -1389,11 +1474,30 @@
                         bodyLines.push(
                             `- Suggested Phelps: ${matchData.newPhelps}`,
                         );
+                    } else if (matchData.type === "change_language") {
+                        bodyLines.push(
+                            `- Prayer: Version ${matchData.prayer.version} (Current Lang: ${matchData.prayer.language.toUpperCase()})`,
+                        );
+                        bodyLines.push(
+                            `- Suggested New Language: ${matchData.newLanguage.toUpperCase()}`,
+                        );
+                    } else if (matchData.type === "change_name") {
+                        bodyLines.push(
+                            `- Prayer: Version ${matchData.prayer.version} (Lang: ${matchData.prayer.language.toUpperCase()})`,
+                        );
+                        bodyLines.push(
+                            `- Suggested New Name: "${matchData.newName}" (Current: "${matchData.prayer.name || "N/A"}")`,
+                        );
+                    } else if (matchData.type === "add_note") {
+                        bodyLines.push(
+                            `- Prayer: Version ${matchData.prayer.version} (Lang: ${matchData.prayer.language.toUpperCase()}, Name: "${matchData.prayer.name || "N/A"}")`,
+                        );
+                        bodyLines.push(`- Note: "${matchData.note}"`);
                     }
                     bodyLines.push("");
                 });
 
-                const sqlUpdateQueries = generateSqlUpdates(false); // false for no comments, cleaner for issue body
+                const sqlUpdateQueries = generateSqlUpdates(false);
                 if (sqlUpdateQueries.length > 0) {
                     bodyLines.push("--- Suggested SQL UPDATE Statements ---");
                     bodyLines.push("```sql");
@@ -1410,7 +1514,7 @@
                 );
 
                 const issueBodyString = bodyLines.join("\n");
-                const doltHubNewIssueUrl = DOLTHUB_REPO_ISSUES_NEW_URL_BASE; // URL without query parameters
+                const doltHubNewIssueUrl = DOLTHUB_REPO_ISSUES_NEW_URL_BASE;
 
                 const snackbarContainer =
                     document.querySelector(".mdl-js-snackbar");
@@ -1427,7 +1531,7 @@
                                 snackbarContainer.MaterialSnackbar.showSnackbar(
                                     {
                                         message: `Issue content copied! Paste into DoltHub's issue body. Suggested title: "${title}"`,
-                                        timeout: 7000, // Longer for more info
+                                        timeout: 7000,
                                     },
                                 );
                             } else {
@@ -1599,7 +1703,9 @@
 
                 let displayTitle =
                     name ||
-                    (phelps ? `${phelps} - ${language}` : `${version} - ${language}`);
+                    (phelps
+                        ? `${phelps} - ${language}`
+                        : `${version} - ${language}`);
                 const cardLinkHref = phelps
                     ? `#prayercode/${phelps}/${language}`
                     : `#prayer/${version}`;
@@ -1804,23 +1910,43 @@
                 const authorName = getAuthorFromPhelps(prayer.phelps);
                 let prayerTitle =
                     prayer.name ||
-                    (prayer.phelps ? `${prayer.phelps} - ${prayer.language}` : null) ||
+                    (prayer.phelps
+                        ? `${prayer.phelps} - ${prayer.language}`
+                        : null) ||
                     (prayer.text
                         ? prayer.text.substring(0, 50) + "..."
                         : `Prayer ${prayer.version}`);
 
                 let phelpsToDisplay = prayer.phelps;
                 let phelpsIsSuggested = false;
+                let languageToDisplay = prayer.language;
+                let languageIsSuggested = false;
+                let nameToDisplay = prayer.name;
+                let nameIsSuggested = false;
 
                 for (const match of collectedMatchesForEmail) {
                     if (
-                        match.type === "assign_phelps" &&
+                        match.prayer &&
                         match.prayer.version === prayer.version
                     ) {
-                        phelpsToDisplay = match.newPhelps;
-                        phelpsIsSuggested = true;
-                        break;
-                    } else if (match.type === "match_prayers") {
+                        if (match.type === "assign_phelps") {
+                            phelpsToDisplay = match.newPhelps;
+                            phelpsIsSuggested = true;
+                        } else if (match.type === "change_language") {
+                            languageToDisplay = match.newLanguage;
+                            languageIsSuggested = true;
+                        } else if (match.type === "change_name") {
+                            nameToDisplay = match.newName;
+                            nameIsSuggested = true;
+                            prayerTitle =
+                                nameToDisplay ||
+                                (phelpsToDisplay
+                                    ? `${phelpsToDisplay} - ${languageToDisplay}`
+                                    : `Prayer ${prayer.version}`);
+                        }
+                    }
+                    // Phelps suggestions from match_prayers
+                    if (match.type === "match_prayers") {
                         if (
                             match.current.version === prayer.version &&
                             !prayer.phelps &&
@@ -1828,7 +1954,6 @@
                         ) {
                             phelpsToDisplay = match.pinned.phelps;
                             phelpsIsSuggested = true;
-                            break;
                         }
                         if (
                             match.pinned.version === prayer.version &&
@@ -1837,7 +1962,6 @@
                         ) {
                             phelpsToDisplay = match.current.phelps;
                             phelpsIsSuggested = true;
-                            break;
                         }
                         if (
                             !prayer.phelps &&
@@ -1848,7 +1972,6 @@
                         ) {
                             phelpsToDisplay = `TODO${uuidToBase36(match.pinned.version)}`;
                             phelpsIsSuggested = true;
-                            break;
                         }
                     }
                 }
@@ -1858,11 +1981,16 @@
                     const textPart = phelpsIsSuggested
                         ? `<span style="font-weight: bold; color: red;">${phelpsToDisplay}</span>`
                         : `<a href="#prayercode/${phelpsToDisplay}">${phelpsToDisplay}</a>`;
-                    phelpsDisplayHtml = `${textPart} (Lang: ${prayer.language.toUpperCase()})`;
+                    phelpsDisplayHtml = `${textPart} (Lang: ${languageToDisplay.toUpperCase()})`;
+                } else {
+                    phelpsDisplayHtml = `Not Assigned (Lang: ${languageToDisplay.toUpperCase()})`;
+                }
+                if (languageIsSuggested) {
+                    phelpsDisplayHtml += ` <span style="font-weight: bold; color: red;">(New Lang: ${languageToDisplay.toUpperCase()})</span>`;
                 }
 
                 let html = `
-                    <header><h2><span id="category">Prayer</span><span id="blocktitle">${prayerTitle}</span></h2></header>
+                    <header><h2><span id="category">Prayer</span><span id="blocktitle">${prayerTitle}${nameIsSuggested ? ' <em style="color:red; font-size:0.8em">(Suggested Name)</em>' : ""}</span></h2></header>
                     <div class="scripture">
                         <div class="prayer" style="white-space: pre-wrap;">${prayer.text || "No text available."}</div>
                         ${authorName ? `<div class="author">${authorName}</div>` : ""}
@@ -1888,8 +2016,6 @@
                 favoriteButton.appendChild(favoriteIcon);
                 favoriteButton.onclick = () => toggleFavoritePrayer(prayer);
                 contentDiv.appendChild(favoriteButton);
-                if (typeof componentHandler !== "undefined")
-                    componentHandler.upgradeElement(favoriteButton);
 
                 const actionsDiv = document.createElement("div");
                 actionsDiv.className = "prayer-actions";
@@ -1969,7 +2095,6 @@
                 }
 
                 if (!prayer.phelps && !phelpsIsSuggested) {
-                    // Only show if no real phelps and no suggestion already displayed from a match
                     const suggestPhelpsButton =
                         document.createElement("button");
                     suggestPhelpsButton.className =
@@ -1992,14 +2117,89 @@
                         componentHandler.upgradeElement(suggestPhelpsButton);
                 }
 
-                contentDiv.appendChild(actionsDiv);
+                const changeLangButton = document.createElement("button");
+                changeLangButton.className =
+                    "mdl-button mdl-js-button mdl-button--raised";
+                changeLangButton.innerHTML =
+                    '<i class="material-icons">translate</i> Change Language';
+                changeLangButton.title = `Current language: ${prayer.language.toUpperCase()}`;
+                changeLangButton.onclick = () => {
+                    const newLang = prompt(
+                        `Enter new language code for:\n${nameToDisplay || "Version " + prayer.version}\n(V: ${prayer.version})\nCurrent language: ${languageToDisplay.toUpperCase()}`,
+                        languageToDisplay,
+                    );
+                    if (
+                        newLang &&
+                        newLang.trim() !== "" &&
+                        newLang.trim().toLowerCase() !==
+                            languageToDisplay.toLowerCase()
+                    ) {
+                        addLanguageChangeToMatchList(prayer, newLang.trim());
+                    } else if (
+                        newLang &&
+                        newLang.trim().toLowerCase() ===
+                            languageToDisplay.toLowerCase()
+                    ) {
+                        alert(
+                            "New language is the same as the current language.",
+                        );
+                    }
+                };
+                actionsDiv.appendChild(changeLangButton);
 
-                const finalPhelpsCode =
-                    phelpsCodeForNav || prayer.phelps || phelpsToDisplay; // Use suggested if original is null
-                const finalActiveLang = activeLangForNav || prayer.language;
+                const changeNameButton = document.createElement("button");
+                changeNameButton.className =
+                    "mdl-button mdl-js-button mdl-button--raised";
+                changeNameButton.innerHTML =
+                    '<i class="material-icons">edit_note</i> Add/Change Name';
+                changeNameButton.title = `Current name: ${prayer.name || "Not Set"}`;
+                changeNameButton.onclick = () => {
+                    const newName = prompt(
+                        `Enter name for:\nVersion ${prayer.version} (Lang: ${languageToDisplay.toUpperCase()})\nCurrent name: ${nameToDisplay || "Not Set"}`,
+                        nameToDisplay || "",
+                    );
+                    if (newName !== null) {
+                        // Allow empty string to clear name
+                        addNameChangeToMatchList(prayer, newName.trim());
+                    }
+                };
+                actionsDiv.appendChild(changeNameButton);
+
+                const addNoteButton = document.createElement("button");
+                addNoteButton.className =
+                    "mdl-button mdl-js-button mdl-button--raised";
+                addNoteButton.innerHTML =
+                    '<i class="material-icons">speaker_notes</i> Add General Note';
+                addNoteButton.onclick = () => {
+                    const note = prompt(
+                        `Enter a general note for:\n${nameToDisplay || "Version " + prayer.version} (V: ${prayer.version})`,
+                    );
+                    if (note && note.trim() !== "") {
+                        addNoteToMatchList(prayer, note.trim());
+                    }
+                };
+                actionsDiv.appendChild(addNoteButton);
+
+                contentDiv.appendChild(actionsDiv);
+                if (typeof componentHandler !== "undefined") {
+                    componentHandler.upgradeElement(favoriteButton); // ensure it's upgraded if not already
+                    componentHandler.upgradeElement(changeLangButton);
+                    componentHandler.upgradeElement(changeNameButton);
+                    componentHandler.upgradeElement(addNoteButton);
+                    // Other buttons in actionsDiv are upgraded when created or if componentHandler.upgradeDom() is called later
+                    // Explicitly upgrading all buttons in actionsDiv:
+                    Array.from(
+                        actionsDiv.querySelectorAll(".mdl-js-button"),
+                    ).forEach((btn) => {
+                        if (btn.MaterialButton)
+                            componentHandler.upgradeElement(btn);
+                    });
+                }
+
+                const finalPhelpsCode = phelpsCodeForNav || phelpsToDisplay;
+                const finalActiveLang = activeLangForNav || languageToDisplay;
 
                 if (finalPhelpsCode && !finalPhelpsCode.startsWith("TODO")) {
-                    // Don't create nav for TODO codes
                     const transSql = `SELECT DISTINCT language FROM writings WHERE phelps = '${finalPhelpsCode.replace(/'/g, "''")}' AND phelps IS NOT NULL AND phelps != '' ORDER BY language`;
                     const distinctLangs = await executeQuery(transSql);
                     const navLinks = distinctLangs.map((langRow) => ({
@@ -2012,8 +2212,8 @@
                 } else {
                     const singleLink = [
                         {
-                            text: prayer.language.toUpperCase(),
-                            href: `#prayer/${prayer.version}`,
+                            text: languageToDisplay.toUpperCase(),
+                            href: `#prayer/${prayer.version}`, // Link to the prayer itself
                             isActive: true,
                         },
                     ];
