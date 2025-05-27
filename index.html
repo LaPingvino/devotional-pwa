@@ -974,6 +974,9 @@
             const LOCALSTORAGE_PRAYER_CACHE_PREFIX = "hw_prayer_cache_";
             const FAVORITES_STORAGE_KEY = "hw_favorite_prayers";
             const MAX_PREVIEW_LENGTH = 120; // Max length for card preview text
+            const LANGUAGE_NAMES_CACHE_KEY = "hw_language_names_cache";
+            const LANGUAGE_NAMES_CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 1 day
+            const FETCH_LANG_NAMES_TIMEOUT_MS = 5000; // 5 seconds
 
             const contentDiv = document.getElementById("content");
             const prayerLanguageNav = document.getElementById(
@@ -991,6 +994,100 @@
             let pinnedPrayerDetails = null; // Stores { version, phelps, name, language, text }
             let collectedMatchesForEmail = []; // Array of objects: { type?, pinned?, current?, prayer?, newPhelps?, newLanguage?, newName?, note?, description }
             let favoritePrayers = []; // Stores array of {version, name, language, phelps}
+
+            let languageNamesMap = {}; // To store { langcode_lowercase: { user_lang_name: 'Localized Name', en_name: 'English Name' } }
+            let browserLang = (navigator.language || navigator.userLanguage || 'en').split('-')[0].toLowerCase();
+
+            async function fetchLanguageNames() {
+                // Try to load from cache first
+                try {
+                    const cachedData = localStorage.getItem(LANGUAGE_NAMES_CACHE_KEY);
+                    if (cachedData) {
+                        const { timestamp, data } = JSON.parse(cachedData);
+                        if (Date.now() - timestamp < LANGUAGE_NAMES_CACHE_EXPIRY_MS) {
+                            languageNamesMap = data;
+                            // console.log("Loaded language names from cache.");
+                            return true; // Indicate success from cache
+                        } else {
+                            // console.log("Language names cache expired.");
+                            localStorage.removeItem(LANGUAGE_NAMES_CACHE_KEY); // Remove expired cache
+                        }
+                    }
+                } catch (e) {
+                    console.error("Error reading language names from cache:", e);
+                    localStorage.removeItem(LANGUAGE_NAMES_CACHE_KEY); // Clear corrupted cache
+                }
+
+                // If cache is not available or expired, fetch from API
+                const userLangForQuery = browserLang.replace(/\'/g, "''");
+                const sql = `SELECT langcode, inlang, name FROM languages WHERE inlang = '${userLangForQuery}' OR inlang = 'en'`;
+
+                let fetchCompleted = false;
+                const fetchPromise = executeQuery(sql)
+                    .then(rows => {
+                        fetchCompleted = true;
+                        if (rows && Array.isArray(rows)) {
+                            rows.forEach(row => {
+                                const lc = row.langcode.toLowerCase();
+                                if (!languageNamesMap[lc]) {
+                                    languageNamesMap[lc] = {};
+                                }
+                                if (row.inlang.toLowerCase() === browserLang) {
+                                    languageNamesMap[lc].user_lang_name = row.name;
+                                }
+                                if (row.inlang.toLowerCase() === 'en') {
+                                    languageNamesMap[lc].en_name = row.name;
+                                }
+                            });
+                            // Cache the newly fetched data
+                            try {
+                                localStorage.setItem(LANGUAGE_NAMES_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: languageNamesMap }));
+                                // console.log("Fetched and cached language names.");
+                            } catch (e) {
+                                console.error("Error caching language names:", e);
+                            }
+                        } else {
+                             console.warn("No rows returned from language names query or invalid format.");
+                        }
+                        return true; // Indicate success from API (even if no rows, query itself succeeded)
+                    })
+                    .catch(error => {
+                        fetchCompleted = true;
+                        console.error("Error fetching language names from API:", error);
+                        return false; // Indicate failure
+                    });
+
+                const timeoutPromise = new Promise((resolve) => {
+                    setTimeout(() => {
+                        if (!fetchCompleted) {
+                            console.warn(`Fetching language names timed out after ${FETCH_LANG_NAMES_TIMEOUT_MS / 1000}s. Proceeding with fallbacks.`);
+                            resolve(false); // Indicate timeout
+                        } else {
+                             // If fetchPromise already resolved (success or error), this path means the race was already won by fetchPromise.
+                             // We resolve(true) here to ensure Promise.race doesn't hang if fetchPromise was faster.
+                             // However, the actual return value of Promise.race will be from fetchPromise in that case.
+                            resolve(true);
+                        }
+                    }, FETCH_LANG_NAMES_TIMEOUT_MS);
+                });
+
+                return Promise.race([fetchPromise, timeoutPromise]);
+            }
+
+            function getLanguageDisplayName(langCode) {
+                if (!langCode || typeof langCode !== 'string') return 'N/A';
+                const lc = langCode.toLowerCase();
+                const langData = languageNamesMap[lc];
+                if (langData) {
+                    if (langData.user_lang_name) {
+                        return langData.user_lang_name;
+                    }
+                    if (langData.en_name) {
+                        return langData.en_name;
+                    }
+                }
+                return langCode.toUpperCase(); // Fallback
+            }
 
             function getDomain(url) {
                 if (!url) return "";
@@ -1806,7 +1903,7 @@
                 </div>`;
             }
 
-            function updateHeaderNavigation(links = []) {
+            async function updateHeaderNavigation(links = []) {
                 if (!prayerLanguageNav) return;
                 prayerLanguageNav.innerHTML = "";
 
@@ -1880,7 +1977,7 @@
                 }
             }
 
-            function updateDrawerLanguageNavigation(links = []) {
+            async function updateDrawerLanguageNavigation(links = []) {
                 if (!drawerPrayerLanguageNav) return;
                 drawerPrayerLanguageNav.innerHTML = "";
 
@@ -2880,7 +2977,8 @@
                     componentHandler.upgradeDom();
             }
 
-            function handleRouteChange() {
+            async function handleRouteChange() {
+                await fetchLanguageNames(); // Ensure names are loaded/attempted
                 const hash = window.location.hash;
                 const [mainHashPath, queryParamsStr] = hash.split("?");
                 let pageParam = 1,

@@ -1,0 +1,2149 @@
+Modified regular file index.html:
+    ...
+   7    7:         />
+   8    8:         <link
+   9    9:             rel="stylesheet"
+  10   10:             href="https://fonts.googleapis.com/icon?family=Noto+Sans+Symbols+2."
+  11   11:         />
+  12   12:         <link
+  13   13:             rel="stylesheet"
+    ...
+ 645  645:                                     margin-top: 5px;
+ 646  646:                                 "
+ 647  647:                             >
+ 648  648:                                 <li>No items collected yet.</li> {/* Changed from "matches" */}
+ 649  649:                             </ul>
+ 650  650:                         </div>
+ 651  651:                         <div
+    ...
+ 961  961:             // DATABASE STRUCTURE ASSUMPTIONS (holywritings/bahaiwritings):
+ 962  962:             // Table: writings
+ 963  963:             // Columns: version, text, language, phelps, name, source, link
+      964:             // Table: languages
+      965:             // Columns: langcode, inlang, name (e.g., 'en', 'en', 'English'; 'en', 'es', 'Inglés')
+ 964  966: 
+ 965  967:             const DOLTHUB_API_BASE_URL =
+ 966  968:                 "https://www.dolthub.com/api/v1alpha1/holywritings/bahaiwritings/main?q=";
+    ...
+ 974  976:             const LOCALSTORAGE_PRAYER_CACHE_PREFIX = "hw_prayer_cache_";
+ 975  977:             const FAVORITES_STORAGE_KEY = "hw_favorite_prayers";
+ 976  978:             const MAX_PREVIEW_LENGTH = 120; // Max length for card preview text
+      979:             const LANGUAGE_NAMES_CACHE_KEY = "hw_language_names_cache";
+      980:             const LANGUAGE_NAMES_CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 1 day
+      981:             const FETCH_LANG_NAMES_TIMEOUT_MS = 5000; // 5 seconds
+      982: 
+ 977  983: 
+ 978  984:             const contentDiv = document.getElementById("content");
+ 979  985:             const prayerLanguageNav = document.getElementById(
+    ...
+ 992  998:             let collectedMatchesForEmail = []; // Array of objects: { type?, pinned?, current?, prayer?, newPhelps?, newLanguage?, newName?, note?, description }
+ 993  999:             let favoritePrayers = []; // Stores array of {version, name, language, phelps}
+ 994 1000: 
+     1001:             let languageNamesMap = {}; // To store { langcode_lowercase: { user_lang_name: 'Localized Name', en_name: 'English Name' } }
+     1002:             let browserLang = (navigator.language || navigator.userLanguage || 'en').split('-')[0].toLowerCase();
+     1003: 
+     1004: 
+     1005:             async function fetchLanguageNames() {
+     1006:                 // Try to load from cache first
+     1007:                 try {
+     1008:                     const cachedData = localStorage.getItem(LANGUAGE_NAMES_CACHE_KEY);
+     1009:                     if (cachedData) {
+     1010:                         const { timestamp, data } = JSON.parse(cachedData);
+     1011:                         if (Date.now() - timestamp < LANGUAGE_NAMES_CACHE_EXPIRY_MS) {
+     1012:                             languageNamesMap = data;
+     1013:                             // console.log("Loaded language names from cache.");
+     1014:                             return true; // Indicate success from cache
+     1015:                         } else {
+     1016:                             // console.log("Language names cache expired.");
+     1017:                             localStorage.removeItem(LANGUAGE_NAMES_CACHE_KEY); // Remove expired cache
+     1018:                         }
+     1019:                     }
+     1020:                 } catch (e) {
+     1021:                     console.error("Error reading language names from cache:", e);
+     1022:                     localStorage.removeItem(LANGUAGE_NAMES_CACHE_KEY); // Clear corrupted cache
+     1023:                 }
+     1024: 
+     1025:                 // If cache is not available or expired, fetch from API
+     1026:                 const userLangForQuery = browserLang.replace(/'/g, "''");
+     1027:                 const sql = `SELECT langcode, inlang, name FROM languages WHERE inlang = '${userLangForQuery}' OR inlang = 'en'`;
+     1028: 
+     1029:                 let fetchCompleted = false;
+     1030:                 const fetchPromise = executeQuery(sql)
+     1031:                     .then(rows => {
+     1032:                         fetchCompleted = true;
+     1033:                         if (rows && Array.isArray(rows)) {
+     1034:                             rows.forEach(row => {
+     1035:                                 const lc = row.langcode.toLowerCase();
+     1036:                                 if (!languageNamesMap[lc]) {
+     1037:                                     languageNamesMap[lc] = {};
+     1038:                                 }
+     1039:                                 if (row.inlang.toLowerCase() === browserLang) {
+     1040:                                     languageNamesMap[lc].user_lang_name = row.name;
+     1041:                                 }
+     1042:                                 if (row.inlang.toLowerCase() === 'en') {
+     1043:                                     languageNamesMap[lc].en_name = row.name;
+     1044:                                 }
+     1045:                             });
+     1046:                             // Cache the newly fetched data
+     1047:                             try {
+     1048:                                 localStorage.setItem(LANGUAGE_NAMES_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: languageNamesMap }));
+     1049:                                 // console.log("Fetched and cached language names.");
+     1050:                             } catch (e) {
+     1051:                                 console.error("Error caching language names:", e);
+     1052:                             }
+     1053:                         } else {
+     1054:                              console.warn("No rows returned from language names query or invalid format.");
+     1055:                         }
+     1056:                         return true; // Indicate success from API (even if no rows, query itself succeeded)
+     1057:                     })
+     1058:                     .catch(error => {
+     1059:                         fetchCompleted = true;
+     1060:                         console.error("Error fetching language names from API:", error);
+     1061:                         return false; // Indicate failure
+     1062:                     });
+     1063: 
+     1064:                 const timeoutPromise = new Promise((resolve) => {
+     1065:                     setTimeout(() => {
+     1066:                         if (!fetchCompleted) {
+     1067:                             console.warn(`Fetching language names timed out after ${FETCH_LANG_NAMES_TIMEOUT_MS / 1000}s. Proceeding with fallbacks.`);
+     1068:                             resolve(false); // Indicate timeout
+     1069:                         } else {
+     1070:                              // If fetchPromise already resolved (success or error), this path means the race was already won by fetchPromise.
+     1071:                              // We resolve(true) here to ensure Promise.race doesn't hang if fetchPromise was faster.
+     1072:                              // However, the actual return value of Promise.race will be from fetchPromise in that case.
+     1073:                             resolve(true);
+     1074:                         }
+     1075:                     }, FETCH_LANG_NAMES_TIMEOUT_MS);
+     1076:                 });
+     1077: 
+     1078:                 return Promise.race([fetchPromise, timeoutPromise]);
+     1079:             }
+     1080: 
+     1081: 
+     1082:             function getLanguageDisplayName(langCode) {
+     1083:                 if (!langCode || typeof langCode !== 'string') return 'N/A';
+     1084:                 const lc = langCode.toLowerCase();
+     1085:                 const langData = languageNamesMap[lc];
+     1086:                 if (langData) {
+     1087:                     if (langData.user_lang_name) {
+     1088:                         return langData.user_lang_name;
+     1089:                     }
+     1090:                     if (langData.en_name) {
+     1091:                         return langData.en_name;
+     1092:                     }
+     1093:                 }
+     1094:                 return langCode.toUpperCase(); // Fallback
+     1095:             }
+     1096: 
+     1097: 
+ 995 1098:             function getDomain(url) {
+ 996 1099:                 if (!url) return "";
+ 997 1100:                 try {
+    ...
+1104 1207:                     let pinnedName =
+1105 1208:                         pinnedPrayerDetails.name ||
+1106 1209:                         `Prayer ${pinnedPrayerDetails.version}`;
+1107 1210:                     let metaText = `<strong>Pinned Prayer:</strong> ${pinnedName} (Ver: <a href="#prayer/${pinnedPrayerDetails.version}">${pinnedPrayerDetails.version}</a>, Lang: ${getLanguageDisplayName(pinnedPrayerDetails.language)}`;
+1108 1211:                     if (pinnedPrayerDetails.phelps) {
+1109 1212:                         metaText += `, Phelps: <a href="#prayercode/${pinnedPrayerDetails.phelps}">${pinnedPrayerDetails.phelps}</a>`;
+1110 1213:                     }
+    ...
+1138 1241:                             ? `?page=${pageState.page || 1}${pageState.showOnlyUnmatched ? "&filter=unmatched" : ""}`
+1139 1242:                             : `?page=1`;
+1140 1243:                         const returnLinkHref = `#prayers/${pinnedPrayerDetails.language}${returnUrlParams}`;
+1141     :                         const pinnedNameSnippet = (
+1142     :                             pinnedPrayerDetails.name ||
+1143     :                             `Version ${pinnedPrayerDetails.version}`
+1144     :                         ).substring(0, 30);
+1145 1244: 
+1146 1245:                         const returnLinkP = document.createElement("p");
+1147 1246:                         returnLinkP.style.fontSize = "0.9em";
+1148 1247:                         returnLinkP.style.marginTop = "10px";
+1149 1248:                         returnLinkP.innerHTML = `To continue finding items for this language, return to <a href="${returnLinkHref}">${getLanguageDisplayName(pinnedPrayerDetails.language.toUpperCase()} Prayers</a>.`;
+1150 1249:                         pinnedSection.appendChild(returnLinkP);
+1151 1250:                     }
+1152 1251:                     if (typeof componentHandler !== "undefined") {
+    ...
+1300 1399:                     alert("Phelps code cannot be empty.");
+1301 1400:                     return;
+1302 1401:                 }
+1303 1402:                 const description = `Assign Phelps [${phelpsCode}] to ${prayerData.name || "V:" + prayerData.version} (Lang: ${getLanguageDisplayName(prayerData.language)}, V: ${prayerData.version})`;
+1304 1403:                 collectedMatchesForEmail.push({
+1305 1404:                     type: "assign_phelps",
+1306 1405:                     prayer: { ...prayerData },
+    ...
+1325 1424:                     return;
+1326 1425:                 }
+1327 1426:                 const trimmedLangCode = newLanguageCode.trim();
+1328     :                 const description = `Change language of ${prayerData.name || "V:" + prayerData.version} (V: ${prayerData.version}) from ${prayerData.language.toUpperCase()} to [${trimmedLangCode.toUpperCase()}]`;
+     1427:                 const description = `Change language of ${prayerData.name || "V:" + prayerData.version} (V: ${prayerData.version}) from ${getLanguageDisplayName(prayerData.language)} to [${getLanguageDisplayName(trimmedLangCode)}]`;
+1329 1428:                 collectedMatchesForEmail.push({
+1330 1429:                     type: "change_language",
+1331 1430:                     prayer: { ...prayerData },
+    ...
+1339 1438:                     document.querySelector(".mdl-js-snackbar");
+1340 1439:                 if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
+1341 1440:                     snackbarContainer.MaterialSnackbar.showSnackbar({
+1342 1441:                         message: `Language change to ${getLanguageDisplayName(trimmedLangCode.toUpperCase()} suggestion added.`,
+1343 1442:                     });
+1344 1443:                 }
+1345 1444:             }
+1346 1445: 
+1347 1446:             function addNameChangeToMatchList(prayerData, newName) {
+1348 1447:                 const trimmedName = newName.trim();
+1349 1448:                 const description = `Change name of V:${prayerData.version} (Lang: ${getLanguageDisplayName(prayerData.language.toUpperCase()}) to "${trimmedName}" (was: "${prayerData.name || "N/A"}")`;
+1350 1449:                 collectedMatchesForEmail.push({
+1351 1450:                     type: "change_name",
+1352 1451:                     prayer: { ...prayerData },
+    ...
+1371 1470:                     return;
+1372 1471:                 }
+1373 1472:                 const trimmedNote = noteText.trim();
+1374 1473:                 const description = `Note for ${prayerData.name || "V:" + prayerData.version} (V: ${prayerData.version}, Lang: ${getLanguageDisplayName(prayerData.language.toUpperCase()}): "${trimmedNote}"`;
+1375 1474:                 collectedMatchesForEmail.push({
+1376 1475:                     type: "add_note",
+1377 1476:                     prayer: { ...prayerData },
+    ...
+1425 1524:                             let comment1 = "",
+1426 1525:                                 comment2 = "";
+1427 1526:                             if (forEmailWithComments) {
+1428 1527:                                 comment1 = ` -- Assign new temp Phelps: ${p1.version} (${p1.language}) linked with ${p2.version} (${p2.language}) using ${fakePhelps}`;
+1429     :                                 comment2 = ` -- Assign new temp Phelps: ${p2.version} (${p2.language}) linked with ${p1.version} (${p1.language}) using ${fakePhelps}`;
+1430     :                             }
+1431     :                             sqlUpdateQueries.push(
+1432     :                                 `UPDATE writings SET phelps = '${fakePhelps}' WHERE version = '${p1.version}';` +
+1433     :                                     comment1,
+1434     :                             );
+1435     :                             sqlUpdateQueries.push(
+1436     :                                 `UPDATE writings SET phelps = '${fakePhelps}' WHERE version = '${p2.version}';` +
+1437     :                                     comment2,
+1438     :                             );
+1439     :                         }
+1440     :                     } else if (matchData.type === "change_language") {
+1441     :                         if (forEmailWithComments)
+1442     :                             comment = ` -- Change language for ${matchData.prayer.version} from ${matchData.prayer.language} to ${matchData.newLanguage}`;
+1443     :                         sqlUpdateQueries.push(
+1444     :                             `UPDATE writings SET language = '${matchData.newLanguage.replace(/'/g, "''")}' WHERE version = '${matchData.prayer.version}';` +
+1445     :                                 comment,
+1446     :                         );
+1447     :                     } else if (matchData.type === "change_name") {
+1448     :                         if (forEmailWithComments)
+1449     :                             comment = ` -- Change name for ${matchData.prayer.version} to "${matchData.newName}"`;
+1450     :                         sqlUpdateQueries.push(
+1451     :                             `UPDATE writings SET name = '${matchData.newName.replace(/'/g, "''")}' WHERE version = '${matchData.prayer.version}';` +
+1452     :                                 comment,
+1453     :                         );
+1454     :                     }
+1455     :                     // "add_note" type intentionally does not generate SQL
+1456     :                 });
+1457     :                 return sqlUpdateQueries;
+1458     :             }
+1459     : 
+1460     :             function sendMatchesByEmail() {
+1461     :                 if (collectedMatchesForEmail.length === 0) {
+1462     :                     alert("No items to send."); // Changed
+1463     :                     return;
+1464     :                 }
+1465     : 
+1466     :                 const subject = "holywritings.net: Prayer Matches/Suggestions";
+1467     :                 const bodyLines = [
+1468     :                     "Hello,",
+1469     :                     "I've found/suggested the following prayer matches/assignments/changes on holywritings.net:",
+1470     :                     "",
+1471     :                 ];
+1472     :                 collectedMatchesForEmail.forEach((matchData, index) => {
+1473     :                     bodyLines.push(`${index + 1}. ${matchData.description}`);
+1474     :                 });
+1475     :                 bodyLines.push("");
+1476     :                 bodyLines.push(
+1477     :                     "Thank you for maintaining this wonderful resource!",
+1478     :                 );
+1479     :                 bodyLines.push(
+1480     :                     `Base URL for reference: ${window.location.origin}${window.location.pathname}`,
+1481     :                 );
+1482     :                 bodyLines.push("");
+1483     : 
+1484     :                 const sqlUpdateQueries = generateSqlUpdates(true);
+1485     : 
+1486     :                 if (sqlUpdateQueries.length > 0) {
+1487     :                     bodyLines.push("--- Suggested SQL UPDATE Statements ---");
+1488     :                     sqlUpdateQueries.forEach((q) => bodyLines.push(q));
+1489     :                 } else {
+1490     :                     bodyLines.push(
+1491     :                         "--- No SQL UPDATE Statements Suggested for these items ---",
+1492     :                     );
+1493     :                 }
+1494     :                 bodyLines.push("");
+1495     : 
+1496     :                 const mailBody = encodeURIComponent(bodyLines.join("\n"));
+1497     :                 const mailtoLink = `mailto:ikojba@gmail.com?subject=${encodeURIComponent(subject)}&body=${mailBody}`;
+1498     : 
+1499     :                 const tempLink = document.createElement("a");
+1500     :                 tempLink.href = mailtoLink;
+1501     :                 document.body.appendChild(tempLink);
+1502     :                 tempLink.click();
+1503     :                 document.body.removeChild(tempLink);
+1504     :             }
+1505     : 
+1506     :             function generateDoltHubIssueBody() {
+1507     :                 const title = "Prayer Data Suggestions from Web Tool";
+1508     :                 const bodyLines = [
+1509     :                     "The following prayer data suggestions have been collected using the holywritings.net web tool:",
+1510     :                     "",
+1511     :                 ];
+1512     :                 collectedMatchesForEmail.forEach((matchData, index) => {
+1513     :                     bodyLines.push(
+1514     :                         `**Suggestion ${index + 1} (Type: ${matchData.type}):**`,
+1515     :                     );
+1516     :                     bodyLines.push(`> ${matchData.description}`);
+1517     :                     if (matchData.type === "match_prayers") {
+1518     :                         bodyLines.push(
+1519     :                             `- Pinned: Version ${matchData.pinned.version} (${matchData.pinned.language}), Phelps: ${matchData.pinned.phelps || "N/A"}`,
+1520     :                         );
+1521     :                         bodyLines.push(
+1522     :                             `- Current: Version ${matchData.current.version} (${matchData.current.language}), Phelps: ${matchData.current.phelps || "N/A"}`,
+1523     :                         );
+1524     :                     } else if (matchData.type === "assign_phelps") {
+1525     :                         bodyLines.push(
+1526     :                             `- Prayer: Version ${matchData.prayer.version} (${matchData.prayer.language})`,
+1527     :                         );
+1528     :                         bodyLines.push(
+1529     :                             `- Suggested Phelps: ${matchData.newPhelps}`,
+1530     :                         );
+1531     :                     } else if (matchData.type === "change_language") {
+1532     :                         bodyLines.push(
+1533     :                             `- Prayer: Version ${matchData.prayer.version} (Current Lang: ${matchData.prayer.language.toUpperCase()})`,
+1534     :                         );
+1535     :                         bodyLines.push(
+1536     :                             `- Suggested New Language: ${matchData.newLanguage.toUpperCase()}`,
+1537     :                         );
+1538     :                     } else if (matchData.type === "change_name") {
+1539     :                         bodyLines.push(
+1540     :                             `- Prayer: Version ${matchData.prayer.version} (Lang: ${matchData.prayer.language.toUpperCase()})`,
+1541     :                         );
+1542     :                         bodyLines.push(
+1543     :                             `- Suggested New Name: "${matchData.newName}" (Current: "${matchData.prayer.name || "N/A"}")`,
+1544     :                         );
+1545     :                     } else if (matchData.type === "add_note") {
+1546     :                         bodyLines.push(
+1547     :                             `- Prayer: Version ${matchData.prayer.version} (Lang: ${matchData.prayer.language.toUpperCase()}, Name: "${matchData.prayer.name || "N/A"}")`,
+1548     :                         );
+1549     :                         bodyLines.push(`- Note: "${matchData.note}"`);
+1550     :                     }
+1551     :                     bodyLines.push("");
+1552     :                 });
+1553     : 
+1554     :                 const sqlUpdateQueries = generateSqlUpdates(false);
+1555     :                 if (sqlUpdateQueries.length > 0) {
+1556     :                     bodyLines.push("--- Suggested SQL UPDATE Statements ---");
+1557     :                     bodyLines.push("```sql");
+1558     :                     sqlUpdateQueries.forEach((q) => bodyLines.push(q));
+1559     :                     bodyLines.push("```");
+1560     :                 } else {
+1561     :                     bodyLines.push(
+1562     :                         "--- No SQL UPDATE Statements Suggested ---",
+1563     :                     );
+1564     :                 }
+1565     :                 bodyLines.push("");
+1566     :                 bodyLines.push(
+1567     :                     `Submitted from: ${window.location.origin}${window.location.pathname} (current hash: ${window.location.hash})`,
+1568     :                 );
+1569     :                 return bodyLines.join("\n");
+1570     :             }
+1571     : 
+1572     :             function openDoltHubIssueDialog() {
+1573     :                 if (collectedMatchesForEmail.length === 0) {
+1574     :                     const snackbarContainer =
+1575     :                         document.querySelector(".mdl-js-snackbar");
+1576     :                     if (
+1577     :                         snackbarContainer &&
+1578     :                         snackbarContainer.MaterialSnackbar
+1579     :                     ) {
+1580     :                         snackbarContainer.MaterialSnackbar.showSnackbar({
+1581     :                             message: "No items to create an issue for.",
+1582     :                         });
+1583     :                     } else {
+1584     :                         alert("No items to create an issue for.");
+1585     :                     }
+1586     :                     return;
+1587     :                 }
+1588     : 
+1589     :                 const issueBodyString = generateDoltHubIssueBody();
+1590     :                 const dialog = document.getElementById("dolthub-issue-dialog");
+1591     :                 const textarea = document.getElementById(
+1592     :                     "dolthub-issue-textarea",
+1593     :                 );
+1594     : 
+1595     :                 if (dialog && textarea) {
+1596     :                     textarea.value = issueBodyString;
+1597     :                     if (typeof dialog.showModal === "function") {
+1598     :                         dialog.showModal();
+1599     :                     } else {
+1600     :                         alert("DoltHub Issue Dialog could not be opened.");
+1601     :                     }
+1602     :                 }
+1603     :             }
+1604     : 
+1605     :             // --- LocalStorage Cache Functions ---
+1606     :             function cachePrayerText(prayerData) {
+1607     :                 if (
+1608     :                     !prayerData ||
+1609     :                     !prayerData.version ||
+1610     :                     typeof prayerData.text === "undefined"
+1611     :                 ) {
+1612     :                     console.warn(
+1613     :                         "Attempted to cache invalid prayer data",
+1614     :                         prayerData,
+1615     :                     );
+1616     :                     return;
+1617     :                 }
+1618     :                 try {
+1619     :                     const key = `${LOCALSTORAGE_PRAYER_CACHE_PREFIX}${prayerData.version}`;
+1620     :                     const dataToStore = {
+1621     :                         version: prayerData.version,
+1622     :                         text: prayerData.text,
+1623     :                         name: prayerData.name || null,
+1624     :                         language: prayerData.language || null,
+1625     :                         phelps: prayerData.phelps || null,
+1626     :                         link: prayerData.link || null,
+1627     :                         source: prayerData.source || null,
+1628     :                         timestamp: Date.now(),
+1629     :                     };
+1630     :                     localStorage.setItem(key, JSON.stringify(dataToStore));
+1631     :                 } catch (e) {
+1632     :                     console.error(
+1633     :                         "Error caching prayer text to localStorage:",
+1634     :                         e,
+1635     :                     );
+1636     :                 }
+1637     :             }
+1638     : 
+1639     :             function getCachedPrayerText(versionId) {
+1640     :                 try {
+1641     :                     const key = `${LOCALSTORAGE_PRAYER_CACHE_PREFIX}${versionId}`;
+1642     :                     const storedData = localStorage.getItem(key);
+1643     :                     if (storedData) {
+1644     :                         return JSON.parse(storedData);
+1645     :                     }
+1646     :                 } catch (e) {
+1647     :                     console.error(
+1648     :                         "Error retrieving cached prayer text from localStorage:",
+1649     :                         e,
+1650     :                     );
+1651     :                 }
+1652     :                 return null;
+1653     :             }
+1654     : 
+1655     :             function getAllCachedPrayers() {
+1656     :                 const cachedPrayers = [];
+1657     :                 for (let i = 0; i < localStorage.length; i++) {
+1658     :                     const key = localStorage.key(i);
+1659     :                     if (
+1660     :                         key &&
+1661     :                         key.startsWith(LOCALSTORAGE_PRAYER_CACHE_PREFIX)
+1662     :                     ) {
+1663     :                         try {
+1664     :                             const item = JSON.parse(localStorage.getItem(key));
+1665     :                             if (
+1666     :                                 item &&
+1667     :                                 item.version &&
+1668     :                                 typeof item.text !== "undefined"
+1669     :                             ) {
+1670     :                                 cachedPrayers.push(item);
+1671     :                             }
+1672     :                         } catch (e) {
+1673     :                             console.warn(
+1674     :                                 "Error parsing a cached prayer from localStorage:",
+1675     :                                 key,
+1676     :                                 e,
+1677     :                             );
+1678     :                         }
+1679     :                     }
+1680     :                 }
+1681     :                 return cachedPrayers;
+1682     :             }
+1683     :             // --- End LocalStorage Cache Functions ---
+1684     : 
+1685     :             async function executeQuery(sql) {
+1686     :                 try {
+1687     :                     const response = await fetch(
+1688     :                         DOLTHUB_API_BASE_URL + encodeURIComponent(sql),
+1689     :                     );
+1690     :                     if (!response.ok) {
+1691     :                         throw new Error(
+1692     :                             `HTTP error! status: ${response.status}`,
+1693     :                         );
+1694     :                     }
+1695     :                     const data = await response.json();
+1696     :                     return data.rows || [];
+1697     :                 } catch (error) {
+1698     :                     console.error("Error executing query:", error);
+1699     :                     contentDiv.innerHTML = `<p>Error loading data: ${error.message}. Please try again later.</p>`;
+1700     :                     return [];
+1701     :                 }
+1702     :             }
+1703     : 
+1704     :             function getAuthorFromPhelps(phelpsCode) {
+1705     :                 if (
+1706     :                     !phelpsCode ||
+1707     :                     typeof phelpsCode !== "string" ||
+1708     :                     phelpsCode.length < 2
+1709     :                 ) {
+1710     :                     return null;
+1711     :                 }
+1712     :                 const prefix = phelpsCode.substring(0, 2).toUpperCase();
+1713     :                 switch (prefix) {
+1714     :                     case "AB":
+1715     :                         return "`Abdu'l-Bahá";
+1716     :                     case "BH":
+1717     :                         return "Bahá'u'lláh";
+1718     :                     case "BB":
+1719     :                         return "The Báb";
+1720     :                     default:
+1721     :                         return null;
+1722     :                 }
+1723     :             }
+1724     : 
+1725     :             // --- Prayer Card Generation ---
+1726     :             function createPrayerCardHtml(prayerData, allPhelpsDetails = {}) {
+1727     :                 const {
+1728     :                     version,
+1729     :                     name,
+1730     :                     language = "N/A",
+1731     :                     phelps,
+1732     :                     opening_text,
+1733     :                     link,
+1734     :                 } = prayerData;
+1735     : 
+1736     :                 let displayTitle =
+1737     :                     name ||
+1738     :                     (phelps
+1739     :                         ? `${phelps} - ${language}`
+1740     :                         : `${version} - ${language}`);
+1741     :                 const cardLinkHref = phelps
+1742     :                     ? `#prayercode/${phelps}/${language}`
+1743     :                     : `#prayer/${version}`;
+1744     :                 const previewSnippet =
+1745     :                     opening_text || "No text preview available.";
+1746     : 
+1747     :                 let otherVersionsHtml = "";
+1748     :                 if (phelps && allPhelpsDetails && allPhelpsDetails[phelps]) {
+1749     :                     const allVersionsForThisPhelps = allPhelpsDetails[phelps];
+1750     :                     const groupedByLanguage = {};
+1751     :                     allVersionsForThisPhelps.forEach((v) => {
+1752     :                         if (v.version === version) return;
+1753     :                         if (!groupedByLanguage[v.language])
+1754     :                             groupedByLanguage[v.language] = [];
+1755     :                         groupedByLanguage[v.language].push(v);
+1756     :                     });
+1757     : 
+1758     :                     let otherLanguageLinks = [];
+1759     :                     let sameLanguageAltVersions = [];
+1760     :                     const sortedLangCodes =
+1761     :                         Object.keys(groupedByLanguage).sort();
+1762     : 
+1763     :                     for (const langCode of sortedLangCodes) {
+1764     :                         if (langCode !== language) {
+1765     :                             otherLanguageLinks.push(
+1766     :                                 `<li class="favorite-prayer-card-translations-item"><a href="#prayercode/${phelps}/${langCode}">${langCode.toUpperCase()}</a></li>`,
+1767     :                             );
+1768     :                         } else {
+1769     :                             groupedByLanguage[langCode].forEach(
+1770     :                                 (altVersion) => {
+1771     :                                     sameLanguageAltVersions.push(
+1772     :                                         `<li><a href="#prayer/${altVersion.version}">${altVersion.name || "Version " + altVersion.version}${altVersion.link ? ` (${getDomain(altVersion.link)})` : ""}</a></li>`,
+1773     :                                     );
+1774     :                                 },
+1775     :                             );
+1776     :                         }
+1777     :                     }
+1778     : 
+1779     :                     if (
+1780     :                         otherLanguageLinks.length > 0 ||
+1781     :                         sameLanguageAltVersions.length > 0
+1782     :                     ) {
+1783     :                         otherVersionsHtml += `<div class="favorite-prayer-card-translations">`;
+1784     :                         if (otherLanguageLinks.length > 0) {
+1785     :                             otherVersionsHtml += `<h5>Translations:</h5><ul class="favorite-prayer-card-translations-list">${otherLanguageLinks.join("")}</ul>`;
+1786     :                         }
+1787     :                         if (sameLanguageAltVersions.length > 0) {
+1788     :                             otherVersionsHtml += `<h5 style="margin-top: ${otherLanguageLinks.length > 0 ? "10px" : "0"};">Other versions in ${language.toUpperCase()}:</h5><ul class="other-versions-in-lang-list">${sameLanguageAltVersions.join("")}</ul>`;
+1789     :                         }
+1790     :                         otherVersionsHtml += `</div>`;
+1791     :                     }
+1792     :                 }
+1793     : 
+1794     :                 return `
+1795     :                 <div class="favorite-prayer-card">
+1796     :                     <div>
+1797     :                         <div class="favorite-prayer-card-header"><a href="${cardLinkHref}">${displayTitle}</a></div>
+1798     :                         <p class="favorite-prayer-card-preview">${previewSnippet}</p>
+1799     :                         <div class="favorite-prayer-card-meta">
+1800     :                             <span>Lang: ${language.toUpperCase()}</span>
+1801     :                             ${phelps ? `<span class="phelps-code">Phelps: <a href="#prayercode/${phelps}">${phelps}</a></span>` : ""}
+1802     :                             ${link ? `<span>Source: <a href="${link}" target="_blank">${getDomain(link) || "Link"}</a></span>` : ""}
+1803     :                         </div>
+1804     :                     </div>
+1805     :                     ${otherVersionsHtml}
+1806     :                 </div>`;
+1807     :             }
+1808     : 
+1809     :             function updateHeaderNavigation(links = []) {
+1810     :                 if (!prayerLanguageNav) return;
+1811     :                 prayerLanguageNav.innerHTML = "";
+1812     : 
+1813     :                 if (links.length === 0) {
+1814     :                     const loadingLink = document.createElement("span");
+1815     :                     loadingLink.className = "mdl-navigation__link";
+1816     :                     loadingLink.innerHTML =
+1817     :                         '<span class="star" style="font-size: 1em; color: rgba(255,255,255,0.7); vertical-align: middle;">&#x1f7d9;</span>';
+1818     :                     prayerLanguageNav.appendChild(loadingLink);
+1819     :                     return;
+1820     :                 }
+1821     : 
+1822     :                 if (links.length > MAX_DIRECT_LINKS_IN_HEADER) {
+1823     :                     const buttonId = "languages-menu-button";
+1824     :                     let menuButton = document.getElementById(buttonId);
+1825     :                     if (!menuButton) {
+1826     :                         menuButton = document.createElement("button");
+1827     :                         menuButton.id = buttonId;
+1828     :                         menuButton.className =
+1829     :                             "mdl-button mdl-js-button mdl-button--icon";
+1830     :                         const icon = document.createElement("i");
+1831     :                         icon.className = "material-icons";
+1832     :                         icon.textContent = "language";
+1833     :                         menuButton.appendChild(icon);
+1834     :                         prayerLanguageNav.appendChild(menuButton);
+1835     :                     }
+1836     : 
+1837     :                     const existingMenuUl =
+1838     :                         prayerLanguageNav.querySelector(".mdl-menu");
+1839     :                     if (existingMenuUl) existingMenuUl.remove();
+1840     : 
+1841     :                     const menuUl = document.createElement("ul");
+1842     :                     menuUl.className =
+1843     :                         "mdl-menu mdl-menu--bottom-right mdl-js-menu mdl-js-ripple-effect";
+1844     :                     menuUl.setAttribute("for", buttonId);
+1845     : 
+1846     :                     links.forEach((linkInfo) => {
+1847     :                         const menuItemLi = document.createElement("li");
+1848     :                         menuItemLi.className = "mdl-menu__item";
+1849     :                         const linkA = document.createElement("a");
+1850     :                         linkA.href = linkInfo.href;
+1851     :                         linkA.textContent = linkInfo.text;
+1852     :                         linkA.style.textDecoration = "none";
+1853     :                         linkA.style.color = "inherit";
+1854     :                         linkA.style.display = "block";
+1855     :                         if (linkInfo.isActive) linkA.style.fontWeight = "bold";
+1856     :                         menuItemLi.appendChild(linkA);
+1857     :                         menuUl.appendChild(menuItemLi);
+1858     :                     });
+1859     :                     prayerLanguageNav.appendChild(menuUl);
+1860     : 
+1861     :                     if (typeof componentHandler !== "undefined") {
+1862     :                         if (menuButton.MaterialButton)
+1863     :                             componentHandler.upgradeElement(menuButton);
+1864     :                         if (menuUl.MaterialMenu)
+1865     :                             componentHandler.upgradeElement(menuUl);
+1866     :                         else componentHandler.upgradeDom();
+1867     :                     }
+1868     :                 } else {
+1869     :                     links.forEach((linkInfo) => {
+1870     :                         const link = document.createElement("a");
+1871     :                         link.className = "mdl-navigation__link";
+1872     :                         link.href = linkInfo.href;
+1873     :                         link.textContent = linkInfo.text;
+1874     :                         if (linkInfo.isActive) {
+1875     :                             link.style.fontWeight = "bold";
+1876     :                             link.style.textDecoration = "underline";
+1877     :                         }
+1878     :                         prayerLanguageNav.appendChild(link);
+1879     :                     });
+1880     :                 }
+1881     :             }
+1882     : 
+1883     :             function updateDrawerLanguageNavigation(links = []) {
+1884     :                 if (!drawerPrayerLanguageNav) return;
+1885     :                 drawerPrayerLanguageNav.innerHTML = "";
+1886     : 
+1887     :                 if (links.length === 0) {
+1888     :                     const noLinksMsg = document.createElement("span");
+1889     :                     noLinksMsg.className = "mdl-navigation__link";
+1890     :                     noLinksMsg.innerHTML =
+1891     :                         '<span class="star" style="font-size: 1.2em; color: #757575; display: block; text-align: center; line-height: normal;">&#x1f7d9;</span>';
+1892     :                     noLinksMsg.style.padding = "16px 0";
+1893     :                     drawerPrayerLanguageNav.appendChild(noLinksMsg);
+1894     :                     return;
+1895     :                 }
+1896     : 
+1897     :                 links.forEach((linkInfo) => {
+1898     :                     const link = document.createElement("a");
+1899     :                     link.className = "mdl-navigation__link";
+1900     :                     link.href = linkInfo.href;
+1901     :                     link.textContent = linkInfo.text;
+1902     :                     if (linkInfo.isActive) link.style.fontWeight = "bold";
+1903     :                     link.addEventListener("click", () => {
+1904     :                         const layout = document.querySelector(".mdl-layout");
+1905     :                         if (
+1906     :                             layout &&
+1907     :                             layout.MaterialLayout &&
+1908     :                             layout.MaterialLayout.drawer_
+1909     :                         ) {
+1910     :                             layout.MaterialLayout.toggleDrawer();
+1911     :                         }
+1912     :                     });
+1913     :                     drawerPrayerLanguageNav.appendChild(link);
+1914     :                 });
+1915     :             }
+1916     : 
+1917     :             async function renderPrayer(
+1918     :                 versionId,
+1919     :                 phelpsCodeForNav = null,
+1920     :                 activeLangForNav = null,
+1921     :             ) {
+1922     :                 contentDiv.innerHTML =
+1923     :                     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
+1924     :                 if (typeof componentHandler !== "undefined")
+1925     :                     componentHandler.upgradeDom();
+1926     : 
+1927     :                 updateHeaderNavigation([]);
+1928     :                 updateDrawerLanguageNavigation([]);
+1929     : 
+1930     :                 const sql = `SELECT version, text, language, phelps, name, source, link FROM writings WHERE version = '${versionId}' LIMIT 1`;
+1931     :                 const rows = await executeQuery(sql);
+1932     : 
+1933     :                 if (rows.length === 0) {
+1934     :                     const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(sql)}`;
+1935     :                     contentDiv.innerHTML = `<p>Prayer with ID ${versionId} not found.</p><p>Query used:</p><pre style="white-space: pre-wrap; word-break: break-all; background: #eee; padding: 10px; border-radius: 4px;">${sql}</pre><p><a href="${debugQueryUrl}" target="_blank">Debug this query on DoltHub</a></p>`;
+1936     :                     return;
+1937     :                 }
+1938     : 
+1939     :                 const prayer = rows[0];
+1940     :                 cachePrayerText({ ...prayer });
+1941     : 
+1942     :                 const authorName = getAuthorFromPhelps(prayer.phelps);
+1943     :                 let prayerTitle =
+1944     :                     prayer.name ||
+1945     :                     (prayer.phelps
+1946     :                         ? `${prayer.phelps} - ${prayer.language}`
+1947     :                         : null) ||
+1948     :                     (prayer.text
+1949     :                         ? prayer.text.substring(0, 50) + "..."
+1950     :                         : `Prayer ${prayer.version}`);
+1951     : 
+1952     :                 let phelpsToDisplay = prayer.phelps;
+1953     :                 let phelpsIsSuggested = false;
+1954     :                 let languageToDisplay = prayer.language;
+1955     :                 let languageIsSuggested = false;
+1956     :                 let nameToDisplay = prayer.name;
+1957     :                 let nameIsSuggested = false;
+1958     : 
+1959     :                 for (const match of collectedMatchesForEmail) {
+1960     :                     if (
+1961     :                         match.prayer &&
+1962     :                         match.prayer.version === prayer.version
+1963     :                     ) {
+1964     :                         if (match.type === "assign_phelps") {
+1965     :                             phelpsToDisplay = match.newPhelps;
+1966     :                             phelpsIsSuggested = true;
+1967     :                         } else if (match.type === "change_language") {
+1968     :                             languageToDisplay = match.newLanguage;
+1969     :                             languageIsSuggested = true;
+1970     :                         } else if (match.type === "change_name") {
+1971     :                             nameToDisplay = match.newName;
+1972     :                             nameIsSuggested = true;
+1973     :                             prayerTitle =
+1974     :                                 nameToDisplay ||
+1975     :                                 (phelpsToDisplay
+1976     :                                     ? `${phelpsToDisplay} - ${languageToDisplay}`
+1977     :                                     : `Prayer ${prayer.version}`);
+1978     :                         }
+1979     :                     }
+1980     :                     // Phelps suggestions from match_prayers
+1981     :                     if (match.type === "match_prayers") {
+1982     :                         if (
+1983     :                             match.current.version === prayer.version &&
+1984     :                             !prayer.phelps &&
+1985     :                             match.pinned.phelps
+1986     :                         ) {
+1987     :                             phelpsToDisplay = match.pinned.phelps;
+1988     :                             phelpsIsSuggested = true;
+1989     :                         }
+1990     :                         if (
+1991     :                             match.pinned.version === prayer.version &&
+1992     :                             !prayer.phelps &&
+1993     :                             match.current.phelps
+1994     :                         ) {
+1995     :                             phelpsToDisplay = match.current.phelps;
+1996     :                             phelpsIsSuggested = true;
+1997     :                         }
+1998     :                         if (
+1999     :                             !prayer.phelps &&
+2000     :                             (match.pinned.version === prayer.version ||
+2001     :                                 match.current.version === prayer.version) &&
+2002     :                             !match.pinned.phelps &&
+2003     :                             !match.current.phelps
+2004     :                         ) {
+2005     :                             phelpsToDisplay = `TODO${uuidToBase36(match.pinned.version)}`;
+2006     :                             phelpsIsSuggested = true;
+2007     :                         }
+2008     :                     }
+2009     :                 }
+2010     : 
+2011     :                 let phelpsDisplayHtml = "Not Assigned";
+2012     :                 if (phelpsToDisplay) {
+2013     :                     const textPart = phelpsIsSuggested
+2014     :                         ? `<span style="font-weight: bold; color: red;">${phelpsToDisplay}</span>`
+2015     :                         : `<a href="#prayercode/${phelpsToDisplay}">${phelpsToDisplay}</a>`;
+2016     :                     phelpsDisplayHtml = `${textPart} (Lang: ${languageToDisplay.toUpperCase()})`;
+2017     :                 } else {
+2018     :                     phelpsDisplayHtml = `Not Assigned (Lang: ${languageToDisplay.toUpperCase()})`;
+2019     :                 }
+2020     :                 if (languageIsSuggested) {
+2021     :                     phelpsDisplayHtml += ` <span style="font-weight: bold; color: red;">(New Lang: ${languageToDisplay.toUpperCase()})</span>`;
+2022     :                 }
+2023     : 
+2024     :                 let html = `
+2025     :                     <header><h2><span id="category">Prayer</span><span id="blocktitle">${prayerTitle}${nameIsSuggested ? ' <em style="color:red; font-size:0.8em">(Suggested Name)</em>' : ""}</span></h2></header>
+2026     :                     <div class="scripture">
+2027     :                         <div class="prayer" style="white-space: pre-wrap;">${prayer.text || "No text available."}</div>
+2028     :                         ${authorName ? `<div class="author">${authorName}</div>` : ""}
+2029     :                         ${prayer.source ? `<div style="font-size: 0.8em; margin-left: 2em; margin-top: 0.5em; font-style: italic;">Source: ${prayer.source} ${prayer.link ? `(<a href="${prayer.link}" target="_blank">${getDomain(prayer.link) || "link"}</a>)` : ""}</div>` : ""}
+2030     :                         <div style="font-size: 0.7em; margin-left: 2em; margin-top: 0.3em; color: #555;">Phelps ID: ${phelpsDisplayHtml}</div>
+2031     :                         <div style="font-size: 0.7em; margin-left: 2em; margin-top: 0.3em; color: #555;">Version ID: ${prayer.version}</div>
+2032     :                     </div>`;
+2033     :                 contentDiv.innerHTML = html;
+2034     : 
+2035     :                 const favoriteButton = document.createElement("button");
+2036     :                 favoriteButton.className =
+2037     :                     "mdl-button mdl-js-button mdl-button--icon favorite-toggle-button";
+2038     :                 const favoriteIcon = document.createElement("i");
+2039     :                 favoriteIcon.className = "material-icons";
+2040     :                 if (isPrayerFavorite(prayer.version)) {
+2041     :                     favoriteButton.classList.add("is-favorite");
+2042     :                     favoriteIcon.textContent = "star";
+2043     :                     favoriteButton.title = "Remove from Favorites";
+2044     :                 } else {
+2045     :                     favoriteIcon.textContent = "star_border";
+2046     :                     favoriteButton.title = "Add to Favorites";
+2047     :                 }
+2048     :                 favoriteButton.appendChild(favoriteIcon);
+2049     :                 favoriteButton.onclick = () => toggleFavoritePrayer(prayer);
+2050     :                 contentDiv.appendChild(favoriteButton);
+2051     : 
+2052     :                 const actionsDiv = document.createElement("div");
+2053     :                 actionsDiv.className = "prayer-actions";
+2054     : 
+2055     :                 if (pinnedPrayerDetails) {
+2056     :                     if (pinnedPrayerDetails.version !== prayer.version) {
+2057     :                         const addMatchButton = document.createElement("button");
+2058     :                         addMatchButton.className =
+2059     :                             "mdl-button mdl-js-button mdl-button--raised mdl-button--accent";
+2060     :                         const pinnedNameSnippet = (
+2061     :                             pinnedPrayerDetails.name ||
+2062     :                             `Version ${pinnedPrayerDetails.version}`
+2063     :                         ).substring(0, 20);
+2064     :                         addMatchButton.innerHTML = `<i class="material-icons">playlist_add_check</i>Match with Pinned: ${pinnedNameSnippet}${pinnedNameSnippet.length === 20 ? "..." : ""}`;
+2065     :                         addMatchButton.onclick = () =>
+2066     :                             addCurrentPrayerAsMatch(prayer);
+2067     :                         actionsDiv.appendChild(addMatchButton);
+2068     : 
+2069     :                         const replacePinButton =
+2070     :                             document.createElement("button");
+2071     :                         replacePinButton.className =
+2072     :                             "mdl-button mdl-js-button mdl-button--raised";
+2073     :                         replacePinButton.innerHTML =
+2074     :                             '<i class="material-icons">swap_horiz</i> Replace Pin';
+2075     :                         replacePinButton.title =
+2076     :                             "Replaces the currently pinned prayer with this one. Item list preserved.";
+2077     :                         replacePinButton.onclick = () => {
+2078     :                             pinPrayer(prayer);
+2079     :                             const snackbarContainer =
+2080     :                                 document.querySelector(".mdl-js-snackbar");
+2081     :                             if (
+2082     :                                 snackbarContainer &&
+2083     :                                 snackbarContainer.MaterialSnackbar
+2084     :                             ) {
+2085     :                                 snackbarContainer.MaterialSnackbar.showSnackbar(
+2086     :                                     {
+2087     :                                         message:
+2088     :                                             "Pinned prayer replaced. Item list preserved.",
+2089     :                                     },
+2090     :                                 );
+2091     :                             }
+2092     :                         };
+2093     :                         actionsDiv.appendChild(replacePinButton);
+2094     :                         if (typeof componentHandler !== "undefined") {
+2095     :                             componentHandler.upgradeElement(addMatchButton);
+2096     :                             componentHandler.upgradeElement(replacePinButton);
+2097     :                         }
+2098     :                     } else {
+2099     :                         const p = document.createElement("p");
+2100     :                         p.innerHTML =
+2101     :                             "<em>This prayer is currently pinned. Use the tool on the right to manage items or unpin.</em>";
+2102     :                         actionsDiv.appendChild(p);
+2103     :                     }
+2104     :                 } else {
+2105     :                     const pinButton = document.createElement("button");
+2106     :                     pinButton.className =
+2107     :                         "mdl-button mdl-js-button mdl-button--raised mdl-button--colored";
+2108     :                     pinButton.innerHTML =
+2109     :                         '<i class="material-icons">push_pin</i> Pin this Prayer';
+2110     :                     pinButton.onclick = () => {
+2111     :                         pinPrayer(prayer);
+2112     :                         const snackbarContainer =
+2113     :                             document.querySelector(".mdl-js-snackbar");
+2114     :                         if (
+2115     :                             snackbarContainer &&
+2116     :                             snackbarContainer.MaterialSnackbar
+2117     :                         ) {
+2118     :                             snackbarContainer.MaterialSnackbar.showSnackbar({
+2119     :                                 message:
+2120     :                                     "Prayer pinned! Navigate to find items or suggestions.",
+2121     :                             });
+2122     :                         }
+2123     :                     };
+2124     :                     actionsDiv.appendChild(pinButton);
+2125     :                     if (typeof componentHandler !== "undefined")
+2126     :                         componentHandler.upgradeElement(pinButton);
+2127     :                 }
+2128     : 
+2129     :                 if (!prayer.phelps && !phelpsIsSuggested) {
+2130     :                     const suggestPhelpsButton =
+2131     :                         document.createElement("button");
+2132     :                     suggestPhelpsButton.className =
+2133     :                         "mdl-button mdl-js-button mdl-button--raised";
+2134     :                     suggestPhelpsButton.innerHTML =
+2135     :                         '<i class="material-icons">library_add</i> Add/Suggest Phelps Code';
+2136     :                     suggestPhelpsButton.onclick = () => {
+2137     :                         const enteredCode = prompt(
+2138     :                             `Enter Phelps code for:\n${prayer.name || "Version " + prayer.version}\n(${prayer.language.toUpperCase()})`,
+2139     :                         );
+2140     :                         if (enteredCode && enteredCode.trim() !== "") {
+2141     :                             addPhelpsCodeToMatchList(
+2142     :                                 prayer,
+2143     :                                 enteredCode.trim(),
+2144     :                             );
+2145     :                         }
+2146     :                     };
+2147     :                     actionsDiv.appendChild(suggestPhelpsButton);
+2148     :                     if (typeof componentHandler !== "undefined")
+2149     :                         componentHandler.upgradeElement(suggestPhelpsButton);
+2150     :                 }
+2151     : 
+2152     :                 const changeLangButton = document.createElement("button");
+2153     :                 changeLangButton.className =
+2154     :                     "mdl-button mdl-js-button mdl-button--raised";
+2155     :                 changeLangButton.innerHTML =
+2156     :                     '<i class="material-icons">translate</i> Change Language';
+2157     :                 changeLangButton.title = `Current language: ${prayer.language.toUpperCase()}`;
+2158     :                 changeLangButton.onclick = () => {
+2159     :                     const newLang = prompt(
+2160     :                         `Enter new language code for:\n${nameToDisplay || "Version " + prayer.version}\n(V: ${prayer.version})\nCurrent language: ${languageToDisplay.toUpperCase()}`,
+2161     :                         languageToDisplay,
+2162     :                     );
+2163     :                     if (
+2164     :                         newLang &&
+2165     :                         newLang.trim() !== "" &&
+2166     :                         newLang.trim().toLowerCase() !==
+2167     :                             languageToDisplay.toLowerCase()
+2168     :                     ) {
+2169     :                         addLanguageChangeToMatchList(prayer, newLang.trim());
+2170     :                     } else if (
+2171     :                         newLang &&
+2172     :                         newLang.trim().toLowerCase() ===
+2173     :                             languageToDisplay.toLowerCase()
+2174     :                     ) {
+2175     :                         alert(
+2176     :                             "New language is the same as the current language.",
+2177     :                         );
+2178     :                     }
+2179     :                 };
+2180     :                 actionsDiv.appendChild(changeLangButton);
+2181     : 
+2182     :                 const changeNameButton = document.createElement("button");
+2183     :                 changeNameButton.className =
+2184     :                     "mdl-button mdl-js-button mdl-button--raised";
+2185     :                 changeNameButton.innerHTML =
+2186     :                     '<i class="material-icons">edit_note</i> Add/Change Name';
+2187     :                 changeNameButton.title = `Current name: ${prayer.name || "Not Set"}`;
+2188     :                 changeNameButton.onclick = () => {
+2189     :                     const newName = prompt(
+2190     :                         `Enter name for:\nVersion ${prayer.version} (Lang: ${languageToDisplay.toUpperCase()})\nCurrent name: ${nameToDisplay || "Not Set"}`,
+2191     :                         nameToDisplay || "",
+2192     :                     );
+2193     :                     if (newName !== null) {
+2194     :                         // Allow empty string to clear name
+2195     :                         addNameChangeToMatchList(prayer, newName.trim());
+2196     :                     }
+2197     :                 };
+2198     :                 actionsDiv.appendChild(changeNameButton);
+2199     : 
+2200     :                 const addNoteButton = document.createElement("button");
+2201     :                 addNoteButton.className =
+2202     :                     "mdl-button mdl-js-button mdl-button--raised";
+2203     :                 addNoteButton.innerHTML =
+2204     :                     '<i class="material-icons">speaker_notes</i> Add General Note';
+2205     :                 addNoteButton.onclick = () => {
+2206     :                     const note = prompt(
+2207     :                         `Enter a general note for:\n${nameToDisplay || "Version " + prayer.version} (V: ${prayer.version})`,
+2208     :                     );
+2209     :                     if (note && note.trim() !== "") {
+2210     :                         addNoteToMatchList(prayer, note.trim());
+2211     :                     }
+2212     :                 };
+2213     :                 actionsDiv.appendChild(addNoteButton);
+2214     : 
+2215     :                 contentDiv.appendChild(actionsDiv);
+2216     :                 if (typeof componentHandler !== "undefined") {
+2217     :                     componentHandler.upgradeElement(favoriteButton);
+2218     :                     componentHandler.upgradeElement(changeLangButton);
+2219     :                     componentHandler.upgradeElement(changeNameButton);
+2220     :                     componentHandler.upgradeElement(addNoteButton);
+2221     :                     Array.from(
+2222     :                         actionsDiv.querySelectorAll(".mdl-js-button"),
+2223     :                     ).forEach((btn) => {
+2224     :                         if (btn.MaterialButton)
+2225     :                             componentHandler.upgradeElement(btn);
+2226     :                     });
+2227     :                 }
+2228     : 
+2229     :                 const finalPhelpsCode = phelpsCodeForNav || phelpsToDisplay;
+2230     :                 const finalActiveLang = activeLangForNav || languageToDisplay;
+2231     : 
+2232     :                 if (finalPhelpsCode && !finalPhelpsCode.startsWith("TODO")) {
+2233     :                     const transSql = `SELECT DISTINCT language FROM writings WHERE phelps = '${finalPhelpsCode.replace(/'/g, "''")}' AND phelps IS NOT NULL AND phelps != '' ORDER BY language`;
+2234     :                     const distinctLangs = await executeQuery(transSql);
+2235     :                     const navLinks = distinctLangs.map((langRow) => ({
+2236     :                         text: langRow.language.toUpperCase(),
+2237     :                         href: `#prayercode/${finalPhelpsCode}/${langRow.language}`,
+2238     :                         isActive: langRow.language === finalActiveLang,
+2239     :                     }));
+2240     :                     updateHeaderNavigation(navLinks);
+2241     :                     updateDrawerLanguageNavigation(navLinks);
+2242     :                 } else {
+2243     :                     const singleLink = [
+2244     :                         {
+2245     :                             text: languageToDisplay.toUpperCase(),
+2246     :                             href: `#prayer/${prayer.version}`,
+2247     :                             isActive: true,
+2248     :                         },
+2249     :                     ];
+2250     :                     updateHeaderNavigation(singleLink);
+2251     :                     updateDrawerLanguageNavigation(singleLink);
+2252     :                 }
+2253     :             }
+2254     : 
+2255     :             async function renderPrayersForLanguage(
+2256     :                 langCode,
+2257     :                 page = 1,
+2258     :                 showOnlyUnmatched = false,
+2259     :             ) {
+2260     :                 currentPageByLanguage[langCode] = { page, showOnlyUnmatched };
+2261     :                 const offset = (page - 1) * ITEMS_PER_PAGE;
+2262     :                 contentDiv.innerHTML =
+2263     :                     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
+2264     :                 if (typeof componentHandler !== "undefined")
+2265     :                     componentHandler.upgradeDom();
+2266     :                 updateHeaderNavigation([]);
+2267     :                 updateDrawerLanguageNavigation([]);
+2268     : 
+2269     :                 const languageDisplayName = langCode.toUpperCase();
+2270     :                 let filterCondition = showOnlyUnmatched
+2271     :                     ? " AND (phelps IS NULL OR phelps = '')"
+2272     :                     : "";
+2273     : 
+2274     :                 const metadataSql = `SELECT version, name, language, phelps, link FROM writings WHERE language = '${langCode}'${filterCondition} ORDER BY name, version LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
+2275     :                 const prayersMetadata = await executeQuery(metadataSql);
+2276     : 
+2277     :                 const countSql = `SELECT COUNT(*) as total FROM writings WHERE language = '${langCode}'${filterCondition}`;
+2278     :                 const countResult = await executeQuery(countSql);
+2279     :                 const totalPrayers =
+2280     :                     countResult.length > 0 ? countResult[0].total : 0;
+2281     :                 const totalPages = Math.ceil(totalPrayers / ITEMS_PER_PAGE);
+2282     : 
+2283     :                 if (prayersMetadata.length === 0 && page === 1) {
+2284     :                     const filterSwitchId = `filter-unmatched-${langCode}`;
+2285     :                     const filterSwitchHtml = `<div class="filter-switch-container"><label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="${filterSwitchId}"><input type="checkbox" id="${filterSwitchId}" class="mdl-switch__input" onchange="setLanguageView('${langCode}', 1, this.checked)" ${showOnlyUnmatched ? "checked" : ""}><span class="mdl-switch__label">Show only prayers without Phelps code</span></label></div>`;
+2286     :                     contentDiv.innerHTML = `${filterSwitchHtml}<p>No prayers found for language: ${languageDisplayName}${showOnlyUnmatched ? " (matching filter)" : ""}.</p><p>Query for metadata:</p><pre>${metadataSql}</pre><p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(metadataSql)}" target="_blank">Debug metadata query</a></p><p>Count query:</p><pre>${countSql}</pre><p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(countSql)}" target="_blank">Debug count query</a></p>`;
+2287     :                     if (typeof componentHandler !== "undefined")
+2288     :                         componentHandler.upgradeDom();
+2289     :                     return;
+2290     :                 }
+2291     :                 if (prayersMetadata.length === 0 && page > 1) {
+2292     :                     setLanguageView(
+2293     :                         langCode,
+2294     :                         Math.max(1, totalPages),
+2295     :                         showOnlyUnmatched,
+2296     :                     );
+2297     :                     return;
+2298     :                 }
+2299     : 
+2300     :                 const prayersForDisplay = [];
+2301     :                 for (const pMeta of prayersMetadata) {
+2302     :                     let full_text_for_preview = null;
+2303     :                     const cached = getCachedPrayerText(pMeta.version);
+2304     :                     if (cached) {
+2305     :                         full_text_for_preview = cached.text;
+2306     :                         pMeta.name = cached.name || pMeta.name;
+2307     :                         pMeta.phelps = cached.phelps || pMeta.phelps;
+2308     :                         pMeta.link = cached.link || pMeta.link;
+2309     :                     } else {
+2310     :                         const textSql = `SELECT text FROM writings WHERE version = '${pMeta.version}' LIMIT 1`;
+2311     :                         const textRows = await executeQuery(textSql);
+2312     :                         if (textRows.length > 0 && textRows[0].text) {
+2313     :                             full_text_for_preview = textRows[0].text;
+2314     :                             cachePrayerText({
+2315     :                                 version: pMeta.version,
+2316     :                                 text: full_text_for_preview,
+2317     :                                 name: pMeta.name,
+2318     :                                 language: pMeta.language,
+2319     :                                 phelps: pMeta.phelps,
+2320     :                                 link: pMeta.link,
+2321     :                             });
+2322     :                         }
+2323     :                     }
+2324     :                     const opening_text_for_card = full_text_for_preview
+2325     :                         ? full_text_for_preview.substring(
+2326     :                               0,
+2327     :                               MAX_PREVIEW_LENGTH,
+2328     :                           ) +
+2329     :                           (full_text_for_preview.length > MAX_PREVIEW_LENGTH
+2330     :                               ? "..."
+2331     :                               : "")
+2332     :                         : "No text preview available.";
+2333     :                     prayersForDisplay.push({
+2334     :                         ...pMeta,
+2335     :                         opening_text: opening_text_for_card,
+2336     :                     });
+2337     :                 }
+2338     : 
+2339     :                 let allPhelpsDetailsForCards = {};
+2340     :                 const phelpsCodesInList = [
+2341     :                     ...new Set(
+2342     :                         prayersForDisplay
+2343     :                             .filter((p) => p.phelps)
+2344     :                             .map((p) => p.phelps),
+2345     :                     ),
+2346     :                 ];
+2347     :                 if (phelpsCodesInList.length > 0) {
+2348     :                     const phelpsInClause = phelpsCodesInList
+2349     :                         .map((p) => `'${p.replace(/'/g, "''")}'`)
+2350     :                         .join(",");
+2351     :                     const translationsSql = `SELECT version, language, phelps, name, link FROM writings WHERE phelps IN (${phelpsInClause})`;
+2352     :                     try {
+2353     :                         const translationRows =
+2354     :                             await executeQuery(translationsSql);
+2355     :                         translationRows.forEach((row) => {
+2356     :                             if (!allPhelpsDetailsForCards[row.phelps])
+2357     :                                 allPhelpsDetailsForCards[row.phelps] = [];
+2358     :                             allPhelpsDetailsForCards[row.phelps].push({
+2359     :                                 version: row.version,
+2360     :                                 language: row.language,
+2361     :                                 name: row.name,
+2362     :                                 link: row.link,
+2363     :                             });
+2364     :                         });
+2365     :                     } catch (e) {
+2366     :                         console.error(
+2367     :                             "Failed to fetch details for phelps codes:",
+2368     :                             e,
+2369     :                         );
+2370     :                     }
+2371     :                 }
+2372     : 
+2373     :                 const listCardsHtmlArray = prayersForDisplay.map((pData) =>
+2374     :                     createPrayerCardHtml(pData, allPhelpsDetailsForCards),
+2375     :                 );
+2376     :                 const listHtml = `<div class="favorite-prayer-grid">${listCardsHtmlArray.join("")}</div>`;
+2377     : 
+2378     :                 let paginationHtml = "";
+2379     :                 if (totalPages > 1) {
+2380     :                     paginationHtml = '<div class="pagination">';
+2381     :                     if (page > 1)
+2382     :                         paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="setLanguageView('${langCode}', ${page - 1}, ${showOnlyUnmatched})">Previous</button>`;
+2383     :                     paginationHtml += ` <span>Page ${page} of ${totalPages}</span> `;
+2384     :                     if (page < totalPages)
+2385     :                         paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="setLanguageView('${langCode}', ${page + 1}, ${showOnlyUnmatched})">Next</button>`;
+2386     :                     paginationHtml += "</div>";
+2387     :                 }
+2388     : 
+2389     :                 const filterSwitchId = `filter-unmatched-${langCode}`;
+2390     :                 const filterSwitchHtml = `<div class="filter-switch-container"><label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="${filterSwitchId}"><input type="checkbox" id="${filterSwitchId}" class="mdl-switch__input" onchange="setLanguageView('${langCode}', 1, this.checked)" ${showOnlyUnmatched ? "checked" : ""}><span class="mdl-switch__label">Show only prayers without Phelps code</span></label></div>`;
+2391     : 
+2392     :                 contentDiv.innerHTML = `<header><h2><span id="category">Prayers</span><span id="blocktitle">Language: ${languageDisplayName} (Page ${page})${showOnlyUnmatched ? " - Unmatched" : ""}</span></h2></header>${filterSwitchHtml}${listHtml}${paginationHtml}`;
+2393     :                 if (typeof componentHandler !== "undefined")
+2394     :                     componentHandler.upgradeDom();
+2395     :             }
+2396     : 
+2397     :             async function renderPrayerCodeView(phelpsCode, page = 1) {
+2398     :                 currentPageByPhelpsCode[phelpsCode] = page;
+2399     :                 const offset = (page - 1) * ITEMS_PER_PAGE;
+2400     : 
+2401     :                 contentDiv.innerHTML =
+2402     :                     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
+2403     :                 if (typeof componentHandler !== "undefined")
+2404     :                     componentHandler.upgradeDom();
+2405     : 
+2406     :                 const phelpsLangsSql = `SELECT DISTINCT language FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' ORDER BY language`;
+2407     :                 const distinctLangs = await executeQuery(phelpsLangsSql);
+2408     :                 const navLinks = distinctLangs.map((langRow) => ({
+2409     :                     text: langRow.language.toUpperCase(),
+2410     :                     href: `#prayercode/${phelpsCode}/${langRow.language}`,
+2411     :                     isActive: false,
+2412     :                 }));
+2413     :                 updateHeaderNavigation(navLinks);
+2414     :                 updateDrawerLanguageNavigation(navLinks);
+2415     : 
+2416     :                 const metadataSql = `SELECT version, name, language, text, phelps, link FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' AND phelps IS NOT NULL AND phelps != '' ORDER BY language, name LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
+2417     :                 const prayersMetadata = await executeQuery(metadataSql);
+2418     : 
+2419     :                 const countSql = `SELECT COUNT(*) as total FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' AND phelps IS NOT NULL AND phelps != ''`;
+2420     :                 const countResult = await executeQuery(countSql);
+2421     :                 const totalPrayers =
+2422     :                     countResult.length > 0 ? countResult[0].total : 0;
+2423     :                 const totalPages = Math.ceil(totalPrayers / ITEMS_PER_PAGE);
+2424     : 
+2425     :                 if (prayersMetadata.length === 0 && page === 1) {
+2426     :                     const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(metadataSql)}`;
+2427     :                     contentDiv.innerHTML = `<p>No prayer versions found for Phelps Code: ${phelpsCode}.</p><p>Query used:</p><pre>${metadataSql}</pre><p><a href="${debugQueryUrl}" target="_blank">Debug this query</a></p>`;
+2428     :                     return;
+2429     :                 }
+2430     :                 if (prayersMetadata.length === 0 && page > 1) {
+2431     :                     renderPrayerCodeView(phelpsCode, Math.max(1, totalPages));
+2432     :                     return;
+2433     :                 }
+2434     : 
+2435     :                 const prayersForDisplay = prayersMetadata.map((p) => {
+2436     :                     let full_text_for_preview = p.text;
+2437     :                     if (!getCachedPrayerText(p.version) && p.text) {
+2438     :                         cachePrayerText({
+2439     :                             version: p.version,
+2440     :                             text: p.text,
+2441     :                             name: p.name,
+2442     :                             language: p.language,
+2443     :                             phelps: p.phelps,
+2444     :                             link: p.link,
+2445     :                         });
+2446     :                     } else if (!p.text) {
+2447     :                         const cached = getCachedPrayerText(p.version);
+2448     :                         if (cached && cached.text)
+2449     :                             full_text_for_preview = cached.text;
+2450     :                     }
+2451     :                     const opening_text_for_card = full_text_for_preview
+2452     :                         ? full_text_for_preview.substring(
+2453     :                               0,
+2454     :                               MAX_PREVIEW_LENGTH,
+2455     :                           ) +
+2456     :                           (full_text_for_preview.length > MAX_PREVIEW_LENGTH
+2457     :                               ? "..."
+2458     :                               : "")
+2459     :                         : "No text preview available.";
+2460     :                     return { ...p, opening_text: opening_text_for_card };
+2461     :                 });
+2462     : 
+2463     :                 let allPhelpsDetailsForCards = {};
+2464     :                 if (phelpsCode) {
+2465     :                     const allVersionsSql = `SELECT version, language, phelps, name, link FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}'`;
+2466     :                     const allVersionRows = await executeQuery(allVersionsSql);
+2467     :                     if (allVersionRows.length > 0)
+2468     :                         allPhelpsDetailsForCards[phelpsCode] =
+2469     :                             allVersionRows.map((r) => ({ ...r }));
+2470     :                 }
+2471     : 
+2472     :                 const listCardsHtmlArray = prayersForDisplay.map((pData) =>
+2473     :                     createPrayerCardHtml(pData, allPhelpsDetailsForCards),
+2474     :                 );
+2475     :                 const listHtml = `<div class="favorite-prayer-grid">${listCardsHtmlArray.join("")}</div>`;
+2476     : 
+2477     :                 let paginationHtml = "";
+2478     :                 if (totalPages > 1) {
+2479     :                     paginationHtml = '<div class="pagination">';
+2480     :                     if (page > 1)
+2481     :                         paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="renderPrayerCodeView('${phelpsCode}', ${page - 1})">Previous</button>`;
+2482     :                     paginationHtml += ` <span>Page ${page} of ${totalPages}</span> `;
+2483     :                     if (page < totalPages)
+2484     :                         paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="renderPrayerCodeView('${phelpsCode}', ${page + 1})">Next</button>`;
+2485     :                     paginationHtml += "</div>";
+2486     :                 }
+2487     : 
+2488     :                 contentDiv.innerHTML = `<header><h2><span id="category">Prayer Code</span><span id="blocktitle">${phelpsCode} (Page ${page}) - All Languages</span></h2></header>${listHtml}${paginationHtml}`;
+2489     :                 if (typeof componentHandler !== "undefined")
+2490     :                     componentHandler.upgradeDom();
+2491     :             }
+2492     : 
+2493     :             async function resolveAndRenderPrayerByPhelpsAndLang(
+2494     :                 phelpsCode,
+2495     :                 targetLanguageCode,
+2496     :             ) {
+2497     :                 contentDiv.innerHTML =
+2498     :                     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
+2499     :                 if (typeof componentHandler !== "undefined")
+2500     :                     componentHandler.upgradeDom();
+2501     : 
+2502     :                 const sql = `SELECT version, text, language, phelps, name, source, link FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' AND language = '${targetLanguageCode.replace(/'/g, "''")}' ORDER BY LENGTH(text) DESC, name`;
+2503     :                 const prayerVersions = await executeQuery(sql);
+2504     : 
+2505     :                 if (prayerVersions.length === 0) {
+2506     :                     contentDiv.innerHTML = `<p>No prayers found for Phelps Code ${phelpsCode} in language ${targetLanguageCode.toUpperCase()}.</p>`;
+2507     :                     const transSql = `SELECT DISTINCT language FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' ORDER BY language`;
+2508     :                     const distinctLangs = await executeQuery(transSql);
+2509     :                     const navLinks = distinctLangs.map((langRow) => ({
+2510     :                         text: langRow.language.toUpperCase(),
+2511     :                         href: `#prayercode/${phelpsCode}/${langRow.language}`,
+2512     :                         isActive: false,
+2513     :                     }));
+2514     :                     updateHeaderNavigation(navLinks);
+2515     :                     updateDrawerLanguageNavigation(navLinks);
+2516     :                     return;
+2517     :                 }
+2518     : 
+2519     :                 const primaryPrayer = prayerVersions[0];
+2520     :                 await renderPrayer(
+2521     :                     primaryPrayer.version,
+2522     :                     phelpsCode,
+2523     :                     targetLanguageCode,
+2524     :                 );
+2525     : 
+2526     :                 if (prayerVersions.length > 1) {
+2527     :                     const otherVersionsDiv = document.createElement("div");
+2528     :                     otherVersionsDiv.style.marginTop = "20px";
+2529     :                     otherVersionsDiv.style.paddingTop = "15px";
+2530     :                     otherVersionsDiv.style.borderTop = "1px solid #eee";
+2531     :                     let listHtml = `<h5>Other versions in ${targetLanguageCode.toUpperCase()} for ${phelpsCode}:</h5><ul class="other-versions-in-lang-list">`;
+2532     :                     prayerVersions.slice(1).forEach((altVersion) => {
+2533     :                         const displayName =
+2534     :                             altVersion.name || `Version ${altVersion.version}`;
+2535     :                         const domain = altVersion.link
+2536     :                             ? `(${getDomain(altVersion.link)})`
+2537     :                             : "";
+2538     :                         listHtml += `<li><a href="#prayer/${altVersion.version}">${displayName} ${domain}</a></li>`;
+2539     :                     });
+2540     :                     listHtml += `</ul>`;
+2541     :                     otherVersionsDiv.innerHTML = listHtml;
+2542     :                     contentDiv.appendChild(otherVersionsDiv);
+2543     :                     if (typeof componentHandler !== "undefined")
+2544     :                         componentHandler.upgradeDom();
+2545     :                 }
+2546     :             }
+2547     : 
+2548     :             async function renderLanguageList() {
+2549     :                 contentDiv.innerHTML =
+2550     :                     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
+2551     :                 if (typeof componentHandler !== "undefined")
+2552     :                     componentHandler.upgradeDom();
+2553     :                 updateHeaderNavigation([]);
+2554     :                 updateDrawerLanguageNavigation([]);
+2555     : 
+2556     :                 currentPageByLanguage = {};
+2557     :                 currentPageBySearchTerm = {};
+2558     :                 currentPageByPhelpsCode = {};
+2559     :                 currentPageByPhelpsLangCode = {};
+2560     : 
+2561     :                 let favoritesDisplayHtml = "";
+2562     :                 if (favoritePrayers.length > 0) {
+2563     :                     favoritesDisplayHtml += `<div id="favorite-prayers-section"><h3>⭐ Your Favorite Prayers</h3>`;
+2564     :                     const phelpsCodesToFetchForFavs = [
+2565     :                         ...new Set(
+2566     :                             favoritePrayers
+2567     :                                 .filter((fp) => fp.phelps)
+2568     :                                 .map((fp) => fp.phelps),
+2569     :                         ),
+2570     :                     ];
+2571     :                     let allPhelpsDetailsForFavCards = {};
+2572     : 
+2573     :                     if (phelpsCodesToFetchForFavs.length > 0) {
+2574     :                         const phelpsInClause = phelpsCodesToFetchForFavs
+2575     :                             .map((p) => `'${p.replace(/'/g, "''")}'`)
+2576     :                             .join(",");
+2577     :                         const favTranslationsSql = `SELECT version, language, phelps, name, link FROM writings WHERE phelps IN (${phelpsInClause})`;
+2578     :                         try {
+2579     :                             const translationRows =
+2580     :                                 await executeQuery(favTranslationsSql);
+2581     :                             translationRows.forEach((row) => {
+2582     :                                 if (!allPhelpsDetailsForFavCards[row.phelps])
+2583     :                                     allPhelpsDetailsForFavCards[row.phelps] =
+2584     :                                         [];
+2585     :                                 allPhelpsDetailsForFavCards[row.phelps].push({
+2586     :                                     ...row,
+2587     :                                 });
+2588     :                             });
+2589     :                         } catch (e) {
+2590     :                             console.error(
+2591     :                                 "Failed to fetch details for favorite phelps codes:",
+2592     :                                 e,
+2593     :                             );
+2594     :                         }
+2595     :                     }
+2596     : 
+2597     :                     const favoriteCardsHtmlArray = [];
+2598     :                     for (const fp of favoritePrayers) {
+2599     :                         const cached = getCachedPrayerText(fp.version);
+2600     :                         let textForCardPreview = "Preview not available.";
+2601     :                         let nameForCard =
+2602     :                             fp.name || (cached ? cached.name : null);
+2603     :                         let langForCard =
+2604     :                             fp.language || (cached ? cached.language : "N/A");
+2605     :                         let phelpsForCard =
+2606     :                             fp.phelps || (cached ? cached.phelps : null);
+2607     :                         let linkForCard = cached ? cached.link : null;
+2608     :                         if (cached && cached.text)
+2609     :                             textForCardPreview =
+2610     :                                 cached.text.substring(0, MAX_PREVIEW_LENGTH) +
+2611     :                                 (cached.text.length > MAX_PREVIEW_LENGTH
+2612     :                                     ? "..."
+2613     :                                     : "");
+2614     :                         favoriteCardsHtmlArray.push(
+2615     :                             createPrayerCardHtml(
+2616     :                                 {
+2617     :                                     version: fp.version,
+2618     :                                     name: nameForCard,
+2619     :                                     language: langForCard,
+2620     :                                     phelps: phelpsForCard,
+2621     :                                     opening_text: textForCardPreview,
+2622     :                                     link: linkForCard,
+2623     :                                 },
+2624     :                                 allPhelpsDetailsForFavCards,
+2625     :                             ),
+2626     :                         );
+2627     :                     }
+2628     :                     favoritesDisplayHtml += `<div class="favorite-prayer-grid">${favoriteCardsHtmlArray.join("")}</div></div>`;
+2629     :                 } else {
+2630     :                     favoritesDisplayHtml += `<div id="favorite-prayers-section" style="text-align: center; padding: 10px 0; margin-bottom:10px;"><p>You haven't favorited any prayers yet. <br/>Click the <i class="material-icons" style="vertical-align: bottom; font-size: 1.2em;">star_border</i> icon on a prayer's page to add it here!</p></div>`;
+2631     :                 }
+2632     : 
+2633     :                 const sql = `SELECT w.language, (SELECT COUNT(DISTINCT sub.phelps) FROM writings sub WHERE sub.language = w.language AND sub.phelps IS NOT NULL AND sub.phelps != '') AS phelps_covered_count, (SELECT COUNT(DISTINCT CASE WHEN sub.phelps IS NOT NULL AND sub.phelps != '' THEN NULL ELSE sub.version END) FROM writings sub WHERE sub.language = w.language) AS versions_without_phelps_count FROM writings w WHERE w.language IS NOT NULL AND w.language != '' GROUP BY w.language ORDER BY w.language;`;
+2634     :                 const languagesWithStats = await executeQuery(sql);
+2635     : 
+2636     :                 if (
+2637     :                     languagesWithStats.length === 0 &&
+2638     :                     favoritePrayers.length === 0
+2639     :                 ) {
+2640     :                     const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(sql)}`;
+2641     :                     contentDiv.innerHTML =
+2642     :                         favoritesDisplayHtml +
+2643     :                         `<p>No languages found.</p><p>Query:</p><pre>${sql}</pre><p><a href="${debugQueryUrl}" target="_blank">Debug query</a></p>`;
+2644     :                     return;
+2645     :                 }
+2646     : 
+2647     :                 let languageListHtml = "";
+2648     :                 if (languagesWithStats.length > 0) {
+2649     :                     languageListHtml = languagesWithStats
+2650     :                         .map((langData) => {
+2651     :                             const langCode = langData.language;
+2652     :                             const phelpsCount =
+2653     :                                 parseInt(langData.phelps_covered_count, 10) ||
+2654     :                                 0;
+2655     :                             const nonPhelpsCount =
+2656     :                                 parseInt(
+2657     :                                     langData.versions_without_phelps_count,
+2658     :                                     10,
+2659     :                                 ) || 0;
+2660     :                             const totalConceptualPrayers =
+2661     :                                 phelpsCount + nonPhelpsCount;
+2662     :                             let buttonClass =
+2663     :                                 "mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect";
+2664     :                             if (totalConceptualPrayers > 0) {
+2665     :                                 const coverageRatio =
+2666     :                                     phelpsCount / totalConceptualPrayers;
+2667     :                                 if (coverageRatio === 1)
+2668     :                                     buttonClass += " lang-button-green";
+2669     :                                 else if (coverageRatio > 0.5)
+2670     :                                     buttonClass += " lang-button-yellow";
+2671     :                             }
+2672     :                             return `<button class="${buttonClass}" onclick="setLanguageView('${langCode}', 1, false)">${langCode.toUpperCase()} (${phelpsCount}/${totalConceptualPrayers})</button>`;
+2673     :                         })
+2674     :                         .join("\n");
+2675     :                 }
+2676     : 
+2677     :                 contentDiv.innerHTML =
+2678     :                     favoritesDisplayHtml +
+2679     :                     `<header><h2><span id="category">Prayers</span><span id="blocktitle">Available Languages</span></h2></header><div class="language-buttons-container">${languageListHtml}</div><p style="text-align:center; font-size:0.9em; color: #555; margin-top:10px;">Counts are (Unique Phelps Codes / Total Unique Prayers). Click a language to browse.</p>`;
+2680     :                 if (typeof componentHandler !== "undefined")
+2681     :                     componentHandler.upgradeDom();
+2682     :             }
+2683     : 
+2684     :             async function renderSearchResults(searchTerm, page = 1) {
+2685     :                 currentPageBySearchTerm[searchTerm] = page;
+2686     :                 contentDiv.innerHTML =
+2687     :                     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
+2688     :                 if (typeof componentHandler !== "undefined")
+2689     :                     componentHandler.upgradeDom();
+2690     :                 updateHeaderNavigation([]);
+2691     :                 updateDrawerLanguageNavigation([]);
+2692     : 
+2693     :                 const headerSearchInput = document.getElementById(
+2694     :                     "header-search-field",
+2695     :                 );
+2696     :                 if (headerSearchInput && headerSearchInput.value !== searchTerm)
+2697     :                     headerSearchInput.value = searchTerm;
+2698     :                 const drawerSearchInput = document.getElementById(
+2699     :                     "drawer-search-field",
+2700     :                 );
+2701     :                 if (drawerSearchInput && drawerSearchInput.value !== searchTerm)
+2702     :                     drawerSearchInput.value = searchTerm;
+2703     : 
+2704     :                 const saneSearchTermForSql = searchTerm.replace(/'/g, "''");
+2705     :                 const lowerSearchTerm = searchTerm.toLowerCase();
+2706     :                 const localFoundItems = [];
+2707     :                 const allCached = getAllCachedPrayers();
+2708     :                 allCached.forEach((cachedPrayer) => {
+2709     :                     let match = false;
+2710     :                     if (
+2711     :                         cachedPrayer.text &&
+2712     :                         cachedPrayer.text
+2713     :                             .toLowerCase()
+2714     :                             .includes(lowerSearchTerm)
+2715     :                     )
+2716     :                         match = true;
+2717     :                     if (
+2718     :                         !match &&
+2719     :                         cachedPrayer.name &&
+2720     :                         cachedPrayer.name
+2721     :                             .toLowerCase()
+2722     :                             .includes(lowerSearchTerm)
+2723     :                     )
+2724     :                         match = true;
+2725     :                     if (match)
+2726     :                         localFoundItems.push({
+2727     :                             ...cachedPrayer,
+2728     :                             opening_text: cachedPrayer.text
+2729     :                                 ? cachedPrayer.text.substring(
+2730     :                                       0,
+2731     :                                       MAX_PREVIEW_LENGTH,
+2732     :                                   ) +
+2733     :                                   (cachedPrayer.text.length > MAX_PREVIEW_LENGTH
+2734     :                                       ? "..."
+2735     :                                       : "")
+2736     :                                 : "No text preview.",
+2737     :                             source: "cache",
+2738     :                         });
+2739     :                 });
+2740     : 
+2741     :                 const dbNameSql = `SELECT version, name, language, phelps, link FROM writings WHERE name LIKE '%${saneSearchTermForSql}%' ORDER BY name, version`;
+2742     :                 const dbNameItemsRaw = await executeQuery(dbNameSql);
+2743     :                 const dbNameItems = dbNameItemsRaw.map((item) => ({
+2744     :                     ...item,
+2745     :                     source: "db_name",
+2746     :                 }));
+2747     : 
+2748     :                 let combinedResults = [];
+2749     :                 const processedVersions = new Set();
+2750     :                 localFoundItems.forEach((item) => {
+2751     :                     if (!processedVersions.has(item.version)) {
+2752     :                         combinedResults.push(item);
+2753     :                         processedVersions.add(item.version);
+2754     :                     }
+2755     :                 });
+2756     :                 dbNameItems.forEach((item) => {
+2757     :                     if (!processedVersions.has(item.version)) {
+2758     :                         combinedResults.push(item);
+2759     :                         processedVersions.add(item.version);
+2760     :                     }
+2761     :                 });
+2762     : 
+2763     :                 const totalResults = combinedResults.length;
+2764     :                 const totalPages = Math.ceil(totalResults / ITEMS_PER_PAGE);
+2765     :                 if (page > totalPages && totalPages > 0) page = totalPages;
+2766     :                 else if (totalPages === 0 && page > 1) page = 1;
+2767     :                 currentPageBySearchTerm[searchTerm] = page;
+2768     : 
+2769     :                 const startIndex = (page - 1) * ITEMS_PER_PAGE;
+2770     :                 const paginatedCombinedResults = combinedResults.slice(
+2771     :                     startIndex,
+2772     :                     startIndex + ITEMS_PER_PAGE,
+2773     :                 );
+2774     :                 const displayItems = [];
+2775     :                 for (const item of paginatedCombinedResults) {
+2776     :                     let displayItem = { ...item };
+2777     :                     if (item.source === "db_name" && !item.opening_text) {
+2778     :                         const cached = getCachedPrayerText(item.version);
+2779     :                         if (cached) {
+2780     :                             displayItem = {
+2781     :                                 ...displayItem,
+2782     :                                 ...cached,
+2783     :                                 opening_text: cached.text
+2784     :                                     ? cached.text.substring(
+2785     :                                           0,
+2786     :                                           MAX_PREVIEW_LENGTH,
+2787     :                                       ) +
+2788     :                                       (cached.text.length > MAX_PREVIEW_LENGTH
+2789     :                                           ? "..."
+2790     :                                           : "")
+2791     :                                     : "No text preview.",
+2792     :                             };
+2793     :                         } else {
+2794     :                             const textQuerySql = `SELECT text, name, phelps, language, link FROM writings WHERE version = '${item.version}' LIMIT 1`;
+2795     :                             const textRows = await executeQuery(textQuerySql);
+2796     :                             if (textRows.length > 0) {
+2797     :                                 const dbItem = textRows[0];
+2798     :                                 displayItem = {
+2799     :                                     ...displayItem,
+2800     :                                     ...dbItem,
+2801     :                                     opening_text: dbItem.text
+2802     :                                         ? dbItem.text.substring(
+2803     :                                               0,
+2804     :                                               MAX_PREVIEW_LENGTH,
+2805     :                                           ) +
+2806     :                                           (dbItem.text.length >
+2807     :                                           MAX_PREVIEW_LENGTH
+2808     :                                               ? "..."
+2809     :                                               : "")
+2810     :                                         : "No text preview.",
+2811     :                                 };
+2812     :                                 cachePrayerText({ ...dbItem });
+2813     :                             } else
+2814     :                                 displayItem.opening_text =
+2815     :                                     "Text not found for preview.";
+2816     :                         }
+2817     :                     }
+2818     :                     displayItems.push(displayItem);
+2819     :                 }
+2820     : 
+2821     :                 if (totalResults === 0) {
+2822     :                     const searchExplanationForNoResults = `<div style="margin-top: 15px; padding: 10px; background-color: #f0f0f0; border-radius: 4px; font-size: 0.9em;"><p style="margin-bottom: 5px;"><strong>Search Information:</strong></p><ul style="margin-top: 0; padding-left: 20px;"><li>This search looked for "${searchTerm}" in prayer <strong>titles</strong> from the main database.</li><li>It also checked the <strong>full text</strong> of ${allCached.length} prayer(s) stored in your browser's local cache.</li><li>Try browsing <a href="#prayers">language lists</a> to add prayers to cache for full-text search.</li></ul></div>`;
+2823     :                     contentDiv.innerHTML = `<p>No prayers found matching "${searchTerm}".</p>${searchExplanationForNoResults}<p style="margin-top: 15px;">For comprehensive text search, try <a href="https://tiddly.holywritings.net/workspace" target="_blank">tiddly.holywritings.net/workspace</a>.</p><p>Debug: <a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(dbNameSql)}" target="_blank">View DB Name Query</a></p>`;
+2824     :                     return;
+2825     :                 }
+2826     : 
+2827     :                 let allPhelpsDetailsForCards = {};
+2828     :                 const phelpsCodesInList = [
+2829     :                     ...new Set(
+2830     :                         displayItems
+2831     :                             .filter((p) => p.phelps)
+2832     :                             .map((p) => p.phelps),
+2833     :                     ),
+2834     :                 ];
+2835     :                 if (phelpsCodesInList.length > 0) {
+2836     :                     const phelpsInClause = phelpsCodesInList
+2837     :                         .map((p) => `'${p.replace(/'/g, "''")}'`)
+2838     :                         .join(",");
+2839     :                     const translationsSql = `SELECT version, language, phelps, name, link FROM writings WHERE phelps IN (${phelpsInClause})`;
+2840     :                     try {
+2841     :                         const translationRows =
+2842     :                             await executeQuery(translationsSql);
+2843     :                         translationRows.forEach((row) => {
+2844     :                             if (!allPhelpsDetailsForCards[row.phelps])
+2845     :                                 allPhelpsDetailsForCards[row.phelps] = [];
+2846     :                             allPhelpsDetailsForCards[row.phelps].push({
+2847     :                                 ...row,
+2848     :                             });
+2849     :                         });
+2850     :                     } catch (e) {
+2851     :                         console.error(
+2852     :                             "Failed to fetch details for phelps codes in search:",
+2853     :                             e,
+2854     :                         );
+2855     :                     }
+2856     :                 }
+2857     : 
+2858     :                 const listCardsHtmlArray = displayItems.map((pData) =>
+2859     :                     createPrayerCardHtml(pData, allPhelpsDetailsForCards),
+2860     :                 );
+2861     :                 const listHtml = `<div class="favorite-prayer-grid">${listCardsHtmlArray.join("")}</div>`;
+2862     :                 let paginationHtml = "";
+2863     :                 if (totalPages > 1) {
+2864     :                     const escapedSearchTerm = searchTerm
+2865     :                         .replace(/'/g, "\\'")
+2866     :                         .replace(/"/g, '\\"');
+2867     :                     paginationHtml = '<div class="pagination">';
+2868     :                     if (page > 1)
+2869     :                         paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="renderSearchResults('${escapedSearchTerm}', ${page - 1})">Previous</button>`;
+2870     :                     paginationHtml += ` <span>Page ${page} of ${totalPages}</span> `;
+2871     :                     if (page < totalPages)
+2872     :                         paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="renderSearchResults('${escapedSearchTerm}', ${page + 1})">Next</button>`;
+2873     :                     paginationHtml += "</div>";
+2874     :                 }
+2875     :                 const searchInfoHtml = `<div style="margin-top: 15px; padding: 10px; background-color: #f0f0f0; border-radius: 4px; font-size: 0.9em;"><p style="margin-bottom: 5px;"><strong>How this search works:</strong></p><ul style="margin-top: 0; padding-left: 20px;"><li>Searches prayer <strong>titles</strong> in database.</li><li>Searches <strong>full text</strong> of cached prayers.</li><li>View prayers via <a href="#prayers">language lists</a> to improve cache for full-text search.</li></ul></div>`;
+2876     :                 const tiddlySuggestionHtml = `<p style="margin-top: 20px; text-align: center; font-size: 0.9em;">For more comprehensive text search, try <a href="https://tiddly.holywritings.net/workspace" target="_blank">tiddly.holywritings.net/workspace</a>.</p>`;
+2877     : 
+2878     :                 contentDiv.innerHTML = `<header><h2><span id="category">Search Results</span><span id="blocktitle">For "${searchTerm}" (Page ${page})</span></h2></header>${listHtml}${paginationHtml}${searchInfoHtml}${tiddlySuggestionHtml}`;
+2879     :                 if (typeof componentHandler !== "undefined")
+2880     :                     componentHandler.upgradeDom();
+2881     :             }
+2882     : 
+2883     :             function handleRouteChange() {
+2884     :                 const hash = window.location.hash;
+2885     :                 const [mainHashPath, queryParamsStr] = hash.split("?");
+2886     :                 let pageParam = 1,
+2887     :                     showOnlyUnmatchedParam = false;
+2888     : 
+2889     :                 if (queryParamsStr) {
+2890     :                     const params = new URLSearchParams(queryParamsStr);
+2891     :                     if (params.has("page")) {
+2892     :                         const parsedPage = parseInt(params.get("page"), 10);
+2893     :                         if (!isNaN(parsedPage) && parsedPage > 0)
+2894     :                             pageParam = parsedPage;
+2895     :                     }
+2896     :                     if (
+2897     :                         params.has("filter") &&
+2898     :                         params.get("filter") === "unmatched"
+2899     :                     )
+2900     :                         showOnlyUnmatchedParam = true;
+2901     :                 }
+2902     :                 const mainHash =
+2903     :                     mainHashPath || (hash.includes("?") ? "" : hash);
+2904     :                 const prayerCodeLangRegex = /^#prayercode\/([^/]+)\/([^/?]+)/;
+2905     :                 const prayerCodeLangMatch = mainHash.match(prayerCodeLangRegex);
+2906     : 
+2907     :                 if (mainHash.startsWith("#search/prayers/")) {
+2908     :                     const searchTerm = decodeURIComponent(
+2909     :                         mainHash.substring("#search/prayers/".length),
+2910     :                     );
+2911     :                     renderSearchResults(
+2912     :                         searchTerm || "",
+2913     :                         currentPageBySearchTerm[searchTerm] || pageParam,
+2914     :                     );
+2915     :                 } else if (prayerCodeLangMatch) {
+2916     :                     resolveAndRenderPrayerByPhelpsAndLang(
+2917     :                         decodeURIComponent(prayerCodeLangMatch[1]),
+2918     :                         decodeURIComponent(prayerCodeLangMatch[2]),
+2919     :                     );
+2920     :                 } else if (mainHash.startsWith("#prayercode/")) {
+2921     :                     const phelpsCode = decodeURIComponent(
+2922     :                         mainHash.substring("#prayercode/".length),
+2923     :                     );
+2924     :                     if (phelpsCode)
+2925     :                         renderPrayerCodeView(
+2926     :                             phelpsCode,
+2927     :                             currentPageByPhelpsCode[phelpsCode] || pageParam,
+2928     :                         );
+2929     :                     else renderLanguageList();
+2930     :                 } else if (mainHash.startsWith("#prayer/")) {
+2931     :                     const versionId = mainHash.substring("#prayer/".length);
+2932     :                     if (versionId) renderPrayer(versionId);
+2933     :                     else renderLanguageList();
+2934     :                 } else if (mainHash.startsWith("#prayers/")) {
+2935     :                     const langCode = mainHash.substring("#prayers/".length);
+2936     :                     if (langCode)
+2937     :                         renderPrayersForLanguage(
+2938     :                             langCode,
+2939     :                             pageParam,
+2940     :                             showOnlyUnmatchedParam,
+2941     :                         );
+2942     :                     else renderLanguageList();
+2943     :                 } else if (
+2944     :                     mainHash === "#prayers" ||
+2945     :                     mainHash === "" ||
+2946     :                     mainHash === "#"
+2947     :                 ) {
+2948     :                     renderLanguageList();
+2949     :                 } else {
+2950     :                     const phelpsRegex = /^#([A-Z]{2}\d{3,5}[A-Z]{0,3})$/i;
+2951     :                     const phelpsMatch = mainHash.match(phelpsRegex);
+2952     :                     if (phelpsMatch && phelpsMatch[1]) {
+2953     :                         window.location.hash = `#prayercode/${phelpsMatch[1].toUpperCase()}${pageParam > 1 ? `?page=${pageParam}` : ""}`;
+2954     :                     } else {
+2955     :                         console.log(
+2956     :                             "Unhandled hash:",
+2957     :                             mainHash,
+2958     :                             "defaulting to language list.",
+2959     :                         );
+2960     :                         renderLanguageList();
+2961     :                     }
+2962     :                 }
+2963     :             }
+2964     : 
+2965     :             function setLanguageView(langCode, page, showOnlyUnmatched) {
+2966     :                 window.location.hash = `#prayers/${langCode}?page=${page}${showOnlyUnmatched ? "&filter=unmatched" : ""}`;
+2967     :             }
+2968     :             window.setLanguageView = setLanguageView;
+2969     :             window.renderPrayersForLanguage = renderPrayersForLanguage;
+2970     :             window.renderSearchResults = renderSearchResults;
+2971     :             window.renderPrayerCodeView = renderPrayerCodeView;
+2972     : 
+2973     :             document.addEventListener("DOMContentLoaded", () => {
+2974     :                 loadFavoritePrayers();
+2975     :                 const snackbarContainer =
+2976     :                     document.querySelector(".mdl-js-snackbar");
+2977     : 
+2978     :                 const headerSearchInput = document.getElementById(
+2979     :                     "header-search-field",
+2980     :                 );
+2981     :                 if (headerSearchInput) {
+2982     :                     headerSearchInput.addEventListener("keypress", (e) => {
+2983     :                         if (e.key === "Enter") {
+2984     :                             e.preventDefault();
+2985     :                             const searchTerm = headerSearchInput.value.trim();
+2986     :                             if (searchTerm) {
+2987     :                                 currentPageBySearchTerm[searchTerm] = 1;
+2988     :                                 window.location.hash = `#search/prayers/${encodeURIComponent(searchTerm)}`;
+2989     :                             }
+2990     :                         }
+2991     :                     });
+2992     :                 }
+2993     : 
+2994     :                 const drawerSearchInput = document.getElementById(
+2995     :                     "drawer-search-field",
+2996     :                 );
+2997     :                 if (drawerSearchInput) {
+2998     :                     drawerSearchInput.addEventListener("keypress", (e) => {
+2999     :                         if (e.key === "Enter") {
+3000     :                             e.preventDefault();
+3001     :                             const searchTerm = drawerSearchInput.value.trim();
+3002     :                             if (searchTerm) {
+3003     :                                 currentPageBySearchTerm[searchTerm] = 1;
+3004     :                                 window.location.hash = `#search/prayers/${encodeURIComponent(searchTerm)}`;
+3005     :                                 const layout =
+3006     :                                     document.querySelector(".mdl-layout");
+3007     :                                 if (
+3008     :                                     layout &&
+3009     :                                     layout.MaterialLayout &&
+3010     :                                     layout.MaterialLayout.drawer_
+3011     :                                 ) {
+3012     :                                     layout.MaterialLayout.toggleDrawer();
+3013     :                                 }
+3014     :                             }
+3015     :                         }
+3016     :                     });
+3017     :                 }
+3018     : 
+3019     :                 document
+3020     :                     .querySelectorAll(
+3021     :                         ".mdl-layout__drawer .main-drawer-nav .mdl-navigation__link",
+3022     :                     )
+3023     :                     .forEach((link) => {
+3024     :                         link.addEventListener("click", () => {
+3025     :                             const layout =
+3026     :                                 document.querySelector(".mdl-layout");
+3027     :                             if (
+3028     :                                 layout &&
+3029     :                                 layout.MaterialLayout &&
+3030     :                                 layout.MaterialLayout.drawer_
+3031     :                             ) {
+3032     :                                 layout.MaterialLayout.toggleDrawer();
+3033     :                             }
+3034     :                         });
+3035     :                     });
+3036     : 
+3037     :                 const reviewAndSendButton = document.getElementById( // Was dolthub-issue-button
+3038     :                     "review-and-send-button",
+3039     :                 );
+3040     :                 if (reviewAndSendButton)
+3041     :                     reviewAndSendButton.addEventListener(
+3042     :                         "click",
+3043     :                         openDoltHubIssueDialog, // This function now opens the dialog
+3044     :                     );
+3045     : 
+3046     :                 const clearAllItemsLink = document.getElementById( // Was clear-collected-matches-button
+3047     :                     "clear-all-items-link",
+3048     :                 );
+3049     :                 if (clearAllItemsLink) {
+3050     :                     clearAllItemsLink.addEventListener("click", (e) => {
+3051     :                         e.preventDefault();
+3052     :                         const hasItems = collectedMatchesForEmail.length > 0;
+3053     :                         const isPinned = !!pinnedPrayerDetails;
+3054     : 
+3055     :                         if (!hasItems && !isPinned) {
+3056     :                             if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
+3057     :                                 snackbarContainer.MaterialSnackbar.showSnackbar({
+3058     :                                     message: "Nothing to clear.",
+3059     :                                 });
+3060     :                             }
+3061     :                             return;
+3062     :                         }
+3063     : 
+3064     :                         if (confirm("Are you sure you want to clear all collected items and unpin the current prayer (if any)? This cannot be undone.")) {
+3065     :                             collectedMatchesForEmail = [];
+3066     :                             let message = "All collected items cleared.";
+3067     :                             if (isPinned) {
+3068     :                                 unpinPrayer(); // unpinPrayer already calls updatePrayerMatchingToolDisplay and may show its own snackbar
+3069     :                                 message = "All items cleared and prayer unpinned.";
+3070     :                             } else {
+3071     :                                 updatePrayerMatchingToolDisplay(); // If not unpinning, still need to update display for cleared items
+3072     :                             }
+3073     : 
+3074     :                             if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
+3075     :                                 snackbarContainer.MaterialSnackbar.showSnackbar({
+3076     :                                     message: message,
+3077     :                                 });
+3078     :                             }
+3079     :                         }
+3080     :                     });
+3081     :                 }
+3082     : 
+3083     :                 // SQL Display Dialog (no longer a primary feature, Show SQL button removed)
+3084     :                 // Kept for reference or if needed by other parts, but the button to open it is gone.
+3085     :                 const sqlDialog = document.getElementById("sql-display-dialog");
+3086     :                 const sqlTextarea = document.getElementById(
+3087     :                     "sql-display-textarea",
+3088     :                 );
+3089     :                 const copySqlButton =
+3090     :                     document.getElementById("copy-sql-button");
+3091     :                 const closeSqlDialogButton = document.getElementById(
+3092     :                     "close-sql-dialog-button",
+3093     :                 );
+3094     : 
+3095     :                 // The old "Show SQL" button's functionality is now implicitly part of the dolthub-issue-dialog textarea.
+3096     : 
+3097     :                 if (copySqlButton && sqlTextarea) {
+3098     :                     copySqlButton.addEventListener("click", () => {
+3099     :                         sqlTextarea.select();
+3100     :                         sqlTextarea.setSelectionRange(0, 99999);
+3101     :                         try {
+3102     :                             navigator.clipboard
+3103     :                                 .writeText(sqlTextarea.value)
+3104     :                                 .then(() => {
+3105     :                                     if (
+3106     :                                         snackbarContainer &&
+3107     :                                         snackbarContainer.MaterialSnackbar
+3108     :                                     )
+3109     :                                         snackbarContainer.MaterialSnackbar.showSnackbar(
+3110     :                                             {
+3111     :                                                 message:
+3112     :                                                     "SQL copied to clipboard!",
+3113     :                                             },
+3114     :                                         );
+3115     :                                 })
+3116     :                                 .catch((err) => {
+3117     :                                     console.error(
+3118     :                                         "Failed to copy with navigator.clipboard: ",
+3119     :                                         err,
+3120     :                                     );
+3121     :                                     document.execCommand("copy"); // Fallback
+3122     :                                     if (
+3123     :                                         snackbarContainer &&
+3124     :                                         snackbarContainer.MaterialSnackbar
+3125     :                                     )
+3126     :                                         snackbarContainer.MaterialSnackbar.showSnackbar(
+3127     :                                             {
+3128     :                                                 message:
+3129     :                                                     "SQL copied (fallback method)!",
+3130     :                                             },
+3131     :                                         );
+3132     :                                 });
+3133     :                         } catch (err) {
+3134     :                             console.error("Error in copy logic: ", err);
+3135     :                             if (
+3136     :                                 snackbarContainer &&
+3137     :                                 snackbarContainer.MaterialSnackbar
+3138     :                             )
+3139     :                                 snackbarContainer.MaterialSnackbar.showSnackbar(
+3140     :                                     { message: "Failed to copy SQL." },
+3141     :                                 );
+3142     :                         }
+3143     :                     });
+3144     :                 }
+3145     : 
+3146     :                 if (
+3147     :                     closeSqlDialogButton &&
+3148     :                     sqlDialog &&
+3149     :                     typeof sqlDialog.close === "function"
+3150     :                 ) {
+3151     :                     closeSqlDialogButton.addEventListener("click", () =>
+3152     :                         sqlDialog.close(),
+3153     :                     );
+3154     :                     sqlDialog.addEventListener("keydown", (event) => {
+3155     :                         if (event.key === "Escape") sqlDialog.close();
+3156     :                     });
+3157     :                 }
+3158     : 
+3159     :                 // DoltHub Issue Dialog Elements and Listeners
+3160     :                 const dolthubIssueDialog = document.getElementById(
+3161     :                     "dolthub-issue-dialog",
+3162     :                 );
+3163     :                 const dolthubIssueTextarea = document.getElementById(
+3164     :                     "dolthub-issue-textarea",
+3165     :                 );
+3166     :                 const copyDoltHubIssueTextButton = document.getElementById(
+3167     :                     "copy-dolthub-issue-text-button",
+3168     :                 );
+3169     :                 const openNewDoltHubIssuePageButton = document.getElementById(
+3170     :                     "open-new-dolthub-issue-page-button",
+3171     :                 );
+3172     :                 const sendWhatsappButton = document.getElementById(
+3173     :                     "send-whatsapp-dolthub-issue-button",
+3174     :                 );
+3175     :                 const sendTelegramButton = document.getElementById(
+3176     :                     "send-telegram-dolthub-issue-button",
+3177     :                 );
+3178     :                 const closeDoltHubIssueDialogButton = document.getElementById(
+3179     :                     "close-dolthub-issue-dialog-button",
+3180     :                 );
+3181     :                 const dialogMailButton = document.getElementById("dialog-mail-button");
+3182     :                 const dialogOpenSqlDoltHubButton = document.getElementById("dialog-open-sql-doltub-button");
+3183     : 
+3184     : 
+3185     :                 if (dialogMailButton) {
+3186     :                     dialogMailButton.addEventListener("click", sendMatchesByEmail);
+3187     :                 }
+3188     : 
+3189     :                 if (dialogOpenSqlDoltHubButton) {
+3190     :                     dialogOpenSqlDoltHubButton.addEventListener("click", () => {
+3191     :                         if (collectedMatchesForEmail.length === 0) {
+3192     :                             if (snackbarContainer && snackbarContainer.MaterialSnackbar)
+3193     :                                 snackbarContainer.MaterialSnackbar.showSnackbar({
+3194     :                                     message: "No items to generate SQL for.",
+3195     :                                 });
+3196     :                             return;
+3197     :                         }
+3198     :                         const queries = generateSqlUpdates(false); // No comments for DoltHub query
+3199     :                         if (queries.length === 0) {
+3200     :                             if (snackbarContainer && snackbarContainer.MaterialSnackbar)
+3201     :                                 snackbarContainer.MaterialSnackbar.showSnackbar({
+3202     :                                     message: "No SQL queries to run on DoltHub for these items.",
+3203     :                                 });
+3204     :                             return;
+3205     :                         }
+3206     :                         window.open(
+3207     :                             `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(queries.join("\n"))}`,
+3208     :                             "_blank",
+3209     :                         );
+3210     :                     });
+3211     :                 }
+3212     : 
+3213     : 
+3214     :                 if (copyDoltHubIssueTextButton && dolthubIssueTextarea) {
+3215     :                     copyDoltHubIssueTextButton.addEventListener("click", () => {
+3216     :                         dolthubIssueTextarea.select();
+3217     :                         dolthubIssueTextarea.setSelectionRange(0, 99999); // For mobile devices
+3218     :                         try {
+3219     :                             navigator.clipboard
+3220     :                                 .writeText(dolthubIssueTextarea.value)
+3221     :                                 .then(() => {
+3222     :                                     if (
+3223     :                                         snackbarContainer &&
+3224     :                                         snackbarContainer.MaterialSnackbar
+3225     :                                     )
+3226     :                                         snackbarContainer.MaterialSnackbar.showSnackbar(
+3227     :                                             {
+3228     :                                                 message:
+3229     :                                                     "Content copied!",
+3230     :                                             },
+3231     :                                         );
+3232     :                                 })
+3233     :                                 .catch((err) => {
+3234     :                                     console.error(
+3235     :                                         "Failed to copy with navigator.clipboard: ",
+3236     :                                         err,
+3237     :                                     );
+3238     :                                     document.execCommand("copy"); // Fallback
+3239     :                                     if (
+3240     :                                         snackbarContainer &&
+3241     :                                         snackbarContainer.MaterialSnackbar
+3242     :                                     )
+3243     :                                         snackbarContainer.MaterialSnackbar.showSnackbar(
+3244     :                                             {
+3245     :                                                 message:
+3246     :                                                     "Content copied (fallback)!",
+3247     :                                             },
+3248     :                                         );
+3249     :                                 });
+3250     :                         } catch (err) {
+3251     :                             console.error("Error in copy logic: ", err);
+3252     :                             if (
+3253     :                                 snackbarContainer &&
+3254     :                                 snackbarContainer.MaterialSnackbar
+3255     :                             )
+3256     :                                 snackbarContainer.MaterialSnackbar.showSnackbar(
+3257     :                                     {
+3258     :                                         message:
+3259     :                                             "Failed to copy content.",
+3260     :                                     },
+3261     :                                 );
+3262     :                         }
+3263     :                     });
+3264     :                 }
+3265     : 
+3266     :                 if (openNewDoltHubIssuePageButton) {
+3267     :                     openNewDoltHubIssuePageButton.addEventListener(
+3268     :                         "click",
+3269     :                         () => {
+3270     :                             window.open(
+3271     :                                 DOLTHUB_REPO_ISSUES_NEW_URL_BASE,
+3272     :                                 "_blank",
+3273     :                             );
+3274     :                             if (
+3275     :                                 snackbarContainer &&
+3276     :                                 snackbarContainer.MaterialSnackbar
+3277     :                             )
+3278     :                                 snackbarContainer.MaterialSnackbar.showSnackbar(
+3279     :                                     {
+3280     :                                         message:
+3281     :                                             "DoltHub new issue page opened. Paste the copied content.",
+3282     :                                         timeout: 5000,
+3283     :                                     },
+3284     :                                 );
+3285     :                         },
+3286     :                     );
+3287     :                 }
+3288     : 
+3289     :                 if (sendWhatsappButton && dolthubIssueTextarea) {
+3290     :                     sendWhatsappButton.addEventListener("click", () => {
+3291     :                         const text = dolthubIssueTextarea.value;
+3292     :                         if (text) {
+3293     :                             const whatsappUrl = `https://wa.me/351913044570?text=${encodeURIComponent(text)}`;
+3294     :                             window.open(whatsappUrl, "_blank");
+3295     :                         } else {
+3296     :                             if (
+3297     :                                 snackbarContainer &&
+3298     :                                 snackbarContainer.MaterialSnackbar
+3299     :                             )
+3300     :                                 snackbarContainer.MaterialSnackbar.showSnackbar(
+3301     :                                     { message: "No content to send." },
+3302     :                                 );
+3303     :                         }
+3304     :                     });
+3305     :                 }
+3306     : 
+3307     :                 if (sendTelegramButton && dolthubIssueTextarea) {
+3308     :                     sendTelegramButton.addEventListener("click", () => {
+3309     :                         const text = dolthubIssueTextarea.value;
+3310     :                         if (text) {
+3311     :                             const telegramUrl = `https://t.me/lapingvino?text=${encodeURIComponent(text)}`;
+3312     :                             window.open(telegramUrl, "_blank");
+3313     :                         } else {
+3314     :                             if (
+3315     :                                 snackbarContainer &&
+3316     :                                 snackbarContainer.MaterialSnackbar
+3317     :                             )
+3318     :                                 snackbarContainer.MaterialSnackbar.showSnackbar(
+3319     :                                     { message: "No content to send." },
+3320     :                                 );
+3321     :                         }
+3322     :                     });
+3323     :                 }
+3324     : 
+3325     :                 if (
+3326     :                     closeDoltHubIssueDialogButton &&
+3327     :                     dolthubIssueDialog &&
+3328     :                     typeof dolthubIssueDialog.close === "function"
+3329     :                 ) {
+3330     :                     closeDoltHubIssueDialogButton.addEventListener(
+3331     :                         "click",
+3332     :                         () => dolthubIssueDialog.close(),
+3333     :                     );
+3334     :                     dolthubIssueDialog.addEventListener("keydown", (event) => {
+3335     :                         if (event.key === "Escape") dolthubIssueDialog.close();
+3336     :                     });
+3337     :                 }
+3338     : 
+3339     :                 if (typeof componentHandler !== "undefined")
+3340     :                     componentHandler.upgradeDom();
+3341     :                 updatePrayerMatchingToolDisplay();
+3342     :                 handleRouteChange();
+3343     :             });
+3344     : 
+3345     :             window.addEventListener("hashchange", handleRouteChange);
+3346     :         </script>
+3347     : 
+3348     :         <script>
+3349     :             if (navigator.serviceWorker.controller) {
+3350     :                 console.log(
+3351     :                     "[PWA Builder] active service worker found, no need to register",
+3352     :                 );
+3353     :             } else {
+3354     :                 navigator.serviceWorker
+3355     :                     .register("pwabuilder-sw.js", {
+3356     :                         scope: "./",
+3357     :                     })
+3358     :                     .then(function (reg) {
+3359     :                         console.log(
+3360     :                             "Service worker has been registered for scope:" +
+3361     :                                 reg.scope,
+3362     :                         );
+3363     :                     });
+3364     :             }
+3365     :         </script>
+3366     :     </body>
+3367 1527: </html>
