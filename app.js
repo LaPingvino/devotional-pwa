@@ -20,6 +20,11 @@ const LANGUAGE_NAMES_CACHE_KEY = "hw_language_names_cache";
 const LANGUAGE_NAMES_CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 1 day
 const FETCH_LANG_NAMES_TIMEOUT_MS = 5000; // 5 seconds
 
+// --- Language Statistics Cache ---
+const LANGUAGE_STATS_CACHE_KEY = "devotionalPWA_languageStats";
+const LANGUAGE_STATS_CACHE_EXPIRY_MS = 1 * 60 * 60 * 1000; // 1 hour
+// --- End Language Statistics Cache ---
+
 // --- Recent Language Storage ---
 const RECENT_LANGUAGES_KEY = "devotionalPWA_recentLanguages";
 const MAX_RECENT_LANGUAGES = 4; // Number of recent languages to store
@@ -857,20 +862,63 @@ function getAllCachedPrayers() {
 }
 // --- End LocalStorage Cache Functions ---
 
+function getCachedLanguageStats(allowStale = false) {
+  try {
+    const cachedData = localStorage.getItem(LANGUAGE_STATS_CACHE_KEY);
+    if (cachedData) {
+      const { timestamp, data } = JSON.parse(cachedData);
+      if (allowStale || (Date.now() - timestamp < LANGUAGE_STATS_CACHE_EXPIRY_MS)) {
+        // console.log(`Language stats loaded from cache ${allowStale && (Date.now() - timestamp >= LANGUAGE_STATS_CACHE_EXPIRY_MS) ? '(stale)' : '(fresh)'}.`);
+        return data;
+      } else {
+        // console.log("Language stats cache expired.");
+        localStorage.removeItem(LANGUAGE_STATS_CACHE_KEY);
+      }
+    }
+  } catch (e) {
+    console.error("Error reading language stats from cache:", e);
+    localStorage.removeItem(LANGUAGE_STATS_CACHE_KEY); // Clear corrupted cache
+  }
+  return null;
+}
+
+function cacheLanguageStats(data) {
+  if (!data || !Array.isArray(data)) {
+    console.error("Attempted to cache invalid language stats data:", data);
+    return;
+  }
+  try {
+    localStorage.setItem(
+      LANGUAGE_STATS_CACHE_KEY,
+      JSON.stringify({ timestamp: Date.now(), data: data }),
+    );
+    // console.log("Language stats cached.");
+  } catch (e) {
+    console.error("Error caching language stats:", e);
+  }
+}
+
 async function executeQuery(sql) {
   try {
     const response = await fetch(
       DOLTHUB_API_BASE_URL + encodeURIComponent(sql),
     );
     if (!response.ok) {
+      console.error("Failing SQL query:", sql); 
+      console.error("Encoded Failing SQL query string part:", encodeURIComponent(sql)); 
       throw new Error(`HTTP error! status: ${response.status}`);
     }
     const data = await response.json();
     return data.rows || [];
   } catch (error) {
     console.error("Error executing query:", error);
-    contentDiv.innerHTML = `<p>Error loading data: ${error.message}. Please try again later.</p>`;
-    return [];
+    // Also log SQL from catch block if it was not logged above (e.g. network error before response.ok check)
+    if (!error.message.startsWith("HTTP error!")) { 
+        console.error("SQL that failed (network or other error before HTTP status check):", sql);
+    }
+    // contentDiv.innerHTML = `<p>Error loading data: ${error.message}. Please try again later.</p>`;
+    // return []; // Let the caller handle UI and return values on error
+    throw error; // Re-throw the error so the caller can handle it
   }
 }
 
@@ -1759,8 +1807,53 @@ async function populateLanguageSelection(currentActiveLangCode = null) {
     console.warn("generateLanguageSelectionHtml: Failed to pre-load language names. Fallbacks may be used.", error.message);
   }
 
-  const sql = `SELECT w.language, (SELECT COUNT(DISTINCT sub.phelps) FROM writings sub WHERE sub.language = w.language AND sub.phelps IS NOT NULL AND sub.phelps != '') AS phelps_covered_count, (SELECT COUNT(DISTINCT CASE WHEN sub.phelps IS NOT NULL AND sub.phelps != '' THEN NULL ELSE sub.version END) FROM writings sub WHERE sub.language = w.language) AS versions_without_phelps_count FROM writings w WHERE w.language IS NOT NULL AND w.language != '' GROUP BY w.language ORDER BY w.language;`;
-  const allLangsWithStats = await executeQuery(sql);
+  const sql = `SELECT w.language, (SELECT COUNT(DISTINCT sub.phelps) FROM writings sub WHERE sub.language = w.language AND sub.phelps IS NOT NULL AND sub.phelps != \'\') AS phelps_covered_count, (SELECT COUNT(DISTINCT CASE WHEN sub.phelps IS NOT NULL AND sub.phelps != \'\' THEN NULL ELSE sub.version END) FROM writings sub WHERE sub.language = w.language) AS versions_without_phelps_count FROM writings w WHERE w.language IS NOT NULL AND w.language != \'\' GROUP BY w.language ORDER BY w.language;`;
+  
+  let allLangsWithStats = getCachedLanguageStats();
+  let fetchedFreshData = false;
+  let attemptedFetch = false;
+
+  if (!allLangsWithStats) {
+    // console.log("No fresh language stats in cache, attempting fetch...");
+    attemptedFetch = true;
+    try {
+      allLangsWithStats = await executeQuery(sql);
+      if (allLangsWithStats && allLangsWithStats.length > 0) {
+        cacheLanguageStats(allLangsWithStats);
+        fetchedFreshData = true;
+        // console.log("Fetched and cached fresh language stats.");
+      } else { 
+        // If executeQuery resulted in no data (e.g. empty rows, or it threw and was caught below)
+        // ensure allLangsWithStats is an empty array for subsequent logic.
+        allLangsWithStats = []; 
+      }
+    } catch (e) { 
+      console.error("Error during executeQuery for language stats:", e);
+      // executeQuery now throws, so we catch it here.
+      // allLangsWithStats will remain as it was (either null from initial getCachedLanguageStats or stale data if loaded later)
+      // The subsequent logic will handle trying stale cache.
+      allLangsWithStats = allLangsWithStats || []; // Ensure it's at least an empty array if it was null/undefined
+    }
+  } else {
+    // console.log("Using fresh language stats from cache.");
+    fetchedFreshData = true; // Technically it's fresh from cache
+  }
+
+  // If fetch failed or cache was empty initially, try to get stale cache
+  if ((attemptedFetch && !fetchedFreshData) || !allLangsWithStats || allLangsWithStats.length === 0) {
+    // console.log("Fetch might have failed or returned no data, trying stale cache for language stats...");
+    const staleStats = getCachedLanguageStats(true); // Allow stale
+    if (staleStats && staleStats.length > 0) {
+      allLangsWithStats = staleStats;
+      // console.log("Using stale language stats from cache.");
+      // Optionally, set a flag here to indicate to the UI that data is stale
+      // For now, just using it transparently.
+    } else if (!allLangsWithStats || allLangsWithStats.length === 0) {
+      // console.log("No language stats available in cache (fresh or stale) after fetch attempt.");
+      allLangsWithStats = []; // Ensure it's an array
+    }
+  }
+
 
   if (allLangsWithStats.length === 0) {
     // const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(sql)}`;
@@ -2025,11 +2118,13 @@ currentPageBySearchTerm = {};
   contentDiv.innerHTML = 
     `<header><h2><span id="category">Prayers</span><span id="blocktitle">Available Languages</span></h2></header>
      ${pickerShellHtml}
-     <div id="main-content-area-spinner" class="main-content-spinner">
-        <div class="mdl-spinner mdl-js-spinner is-active"></div>
-     </div>
-     <div class="mdl-tabs__panel" id="language-tab-panel-favorites">
-       <!-- Favorites content will be injected here -->
+     <div id="main-content-area" style="min-height: 100px;"> {/* Container for spinner or content */}
+        <div id="main-content-area-spinner" class="main-content-spinner">
+            <div class="mdl-spinner mdl-js-spinner is-active"></div>
+        </div>
+        <div class="mdl-tabs__panel" id="language-tab-panel-favorites">
+          {/* Favorites content will be injected here */}
+        </div>
      </div>
      <p class="text-center" style="font-size:0.9em; color: #555; margin-top:20px;">Counts are (Unique Phelps Codes / Total Unique Prayers). Select a language to browse.</p>`;
   
@@ -2038,11 +2133,11 @@ currentPageBySearchTerm = {};
   }
 
   // Stage 2: Asynchronously populate the language picker and then the favorites
-  populateLanguageSelection(null).then(async () => {
-    // Once picker is populated (or at least population has started), load and display favorites.
-    // The spinner from the initial shell render will cover this.
-    let localFavoritesDisplayHtml = ""; // Use a local variable for this async block
-    if (favoritePrayers.length > 0) {
+  populateLanguageSelection(null)
+    .then(async () => { // Proceed only if populateLanguageSelection was successful (didn't throw)
+      let localFavoritesDisplayHtml = "";
+      // Once picker is populated (or at least population has started), load and display favorites.
+      if (favoritePrayers.length > 0) {
       localFavoritesDisplayHtml += `<div id="favorite-prayers-section"><h3>⭐ Your Favorite Prayers</h3>`; // Removed inline style
       const phelpsCodesToFetchForFavs = [
         ...new Set(
@@ -2115,16 +2210,22 @@ currentPageBySearchTerm = {};
     
     // Re-upgrade components in the favorites panel if necessary
     if (typeof componentHandler !== "undefined" && favoritesPanel) {
-      // componentHandler.upgradeDom(favoritesPanel); // More targeted
-      componentHandler.upgradeDom(); // Broader might be safer if cards have MDL elements
+      componentHandler.upgradeDom(favoritesPanel); // More targeted
     }
   }).catch(error => {
-      console.error("Error populating language selection or favorites:", error);
+      console.error("Error in renderLanguageList (populating picker or favorites):", error);
       const mainSpinner = document.getElementById('main-content-area-spinner');
       if(mainSpinner) mainSpinner.remove();
-      // contentDiv may have shell, or may need a simpler error message
-      const errorDisplay = contentDiv.querySelector('#language-tab-panel-favorites') || contentDiv;
-      errorDisplay.innerHTML = `<p>Error loading page content.</p>`;
+      
+      const favoritesPanel = document.getElementById('language-tab-panel-favorites');
+      if (favoritesPanel) {
+        favoritesPanel.innerHTML = `<p>Error loading page content: ${error.message}. Please try refreshing.</p>`;
+        favoritesPanel.classList.add('is-active'); // Ensure panel is visible to show error
+      } else {
+        // Fallback if the panel itself isn't there, put error in main content placeholder
+        const mainContentArea = document.getElementById('main-content-area') || contentDiv;
+        mainContentArea.innerHTML = `<p>Error loading page content: ${error.message}. Please try refreshing.</p>`;
+      }
   });
 }
 
