@@ -36,28 +36,29 @@ let collectedMatchesForEmail = []; // Array of objects: { type?, pinned?, curren
 let favoritePrayers = []; // Stores array of {version, name, language, phelps}
 
 let languageNamesMap = {}; // To store { langcode_lowercase: { user_lang_name: 'Localized Name', en_name: 'English Name' } }
+let languageNamesPromise = null;
 let browserLang = (navigator.language || navigator.userLanguage || "en")
   .split("-")[0]
   .toLowerCase();
 
-async function fetchLanguageNames() {
+async function _fetchLanguageNamesInternal() {
   // Try to load from cache first
   try {
     const cachedData = localStorage.getItem(LANGUAGE_NAMES_CACHE_KEY);
     if (cachedData) {
       const { timestamp, data } = JSON.parse(cachedData);
       if (Date.now() - timestamp < LANGUAGE_NAMES_CACHE_EXPIRY_MS) {
-        languageNamesMap = data;
+        languageNamesMap = data; // Update global map
         // console.log("Loaded language names from cache.");
-        return true; // Indicate success from cache
+        return languageNamesMap;
       } else {
         // console.log("Language names cache expired.");
-        localStorage.removeItem(LANGUAGE_NAMES_CACHE_KEY); // Remove expired cache
+        localStorage.removeItem(LANGUAGE_NAMES_CACHE_KEY);
       }
     }
   } catch (e) {
     console.error("Error reading language names from cache:", e);
-    localStorage.removeItem(LANGUAGE_NAMES_CACHE_KEY); // Clear corrupted cache
+    localStorage.removeItem(LANGUAGE_NAMES_CACHE_KEY);
   }
 
   // If cache is not available or expired, fetch from API
@@ -65,68 +66,104 @@ async function fetchLanguageNames() {
   const sql = `SELECT langcode, inlang, name FROM languages WHERE inlang = '${userLangForQuery}' OR inlang = 'en'`;
 
   let fetchCompleted = false;
-  const fetchPromise = executeQuery(sql)
-    .then((rows) => {
-      fetchCompleted = true;
-      if (rows && Array.isArray(rows)) {
-        rows.forEach((row) => {
-          const lc = row.langcode.toLowerCase();
-          if (!languageNamesMap[lc]) {
-            languageNamesMap[lc] = {};
-          }
-          if (row.inlang.toLowerCase() === browserLang) {
-            languageNamesMap[lc].user_lang_name = row.name;
-          }
-          if (row.inlang.toLowerCase() === "en") {
-            languageNamesMap[lc].en_name = row.name;
-          }
-        });
-        // Cache the newly fetched data
-        try {
-          localStorage.setItem(
-            LANGUAGE_NAMES_CACHE_KEY,
-            JSON.stringify({ timestamp: Date.now(), data: languageNamesMap }),
-          );
-          // console.log("Fetched and cached language names.");
-        } catch (e) {
-          console.error("Error caching language names:", e);
-        }
-      } else {
-        console.warn(
-          "No rows returned from language names query or invalid format.",
-        );
-      }
-      return true; // Indicate success from API (even if no rows, query itself succeeded)
-    })
-    .catch((error) => {
-      fetchCompleted = true;
-      console.error("Error fetching language names from API:", error);
-      return false; // Indicate failure
-    });
+  const currentFetchAttemptMap = {}; // Use a temporary map for this specific fetch
 
-  const timeoutPromise = new Promise((resolve) => {
+  const fetchOperationPromise = (async () => {
+    const rows = await executeQuery(sql);
+    fetchCompleted = true;
+    if (rows && Array.isArray(rows)) {
+      rows.forEach((row) => {
+        const lc = row.langcode.toLowerCase();
+        if (!currentFetchAttemptMap[lc]) {
+          currentFetchAttemptMap[lc] = {};
+        }
+        if (row.inlang.toLowerCase() === browserLang) {
+          currentFetchAttemptMap[lc].user_lang_name = row.name;
+        }
+        if (row.inlang.toLowerCase() === "en") {
+          currentFetchAttemptMap[lc].en_name = row.name;
+        }
+      });
+      languageNamesMap = currentFetchAttemptMap; // Update global map on success
+      try {
+        localStorage.setItem(
+          LANGUAGE_NAMES_CACHE_KEY,
+          JSON.stringify({ timestamp: Date.now(), data: languageNamesMap }),
+        );
+        // console.log("Fetched and cached language names.");
+      } catch (e) {
+        console.error("Error caching language names:", e);
+      }
+      return languageNamesMap;
+    } else {
+      console.warn("No rows returned from language names query or invalid format. Language map may be empty.");
+      languageNamesMap = {}; // Set global map to empty if no data
+      return languageNamesMap;
+    }
+  })();
+
+  const timeoutPromise = new Promise((resolve, reject) => {
     setTimeout(() => {
       if (!fetchCompleted) {
-        console.warn(
-          `Fetching language names timed out after ${FETCH_LANG_NAMES_TIMEOUT_MS / 1000}s. Proceeding with fallbacks.`,
-        );
-        resolve(false); // Indicate timeout
-      } else {
-        // If fetchPromise already resolved (success or error), this path means the race was already won by fetchPromise.
-        // We resolve(true) here to ensure Promise.race doesn't hang if fetchPromise was faster.
-        // However, the actual return value of Promise.race will be from fetchPromise in that case.
-        resolve(true);
+        console.warn(`Fetching language names timed out after ${FETCH_LANG_NAMES_TIMEOUT_MS / 1000}s.`);
+        reject(new Error("Language names fetch timed out"));
       }
+      // If fetchOperationPromise already completed, this timeout is a no-op for Promise.race
+      // It will resolve/reject based on fetchOperationPromise.
+      // To prevent an unhandled rejection if timeoutPromise is slower than a successful fetch,
+      // we can resolve it harmlessly if fetch is already completed.
+      // However, Promise.race handles this: it settles as soon as one promise settles.
     }, FETCH_LANG_NAMES_TIMEOUT_MS);
   });
 
-  return Promise.race([fetchPromise, timeoutPromise]);
+  try {
+    return await Promise.race([fetchOperationPromise, timeoutPromise]);
+  } catch (error) {
+    // Do not modify global languageNamesMap here if _fetchLanguageNamesInternal fails.
+    // The caller (fetchLanguageNames wrapper) will handle resetting languageNamesPromise.
+    // console.error("_fetchLanguageNamesInternal: Error during fetch operation (API or timeout):", error);
+    throw error; // Propagate error
+  }
 }
 
-function getLanguageDisplayName(langCode) {
+async function fetchLanguageNames() {
+  if (!languageNamesPromise) {
+    // console.log("Initiating new language names fetch operation.");
+    languageNamesPromise = _fetchLanguageNamesInternal()
+      .then(names => {
+        // _fetchLanguageNamesInternal already updated the global languageNamesMap on its success.
+        // console.log("Language names fetched successfully via promise.");
+        return names; // Return the map
+      })
+      .catch(error => {
+        console.error("fetchLanguageNames: Failed to fetch language names.", error.message);
+        languageNamesPromise = null; // Reset promise on failure to allow retries
+        // languageNamesMap will retain its previous state (either old data or empty if never succeeded)
+        throw error; // Re-throw so callers can handle it if necessary
+      });
+  } else {
+    // console.log("Returning existing language names promise.");
+  }
+  return languageNamesPromise;
+}
+
+async function getLanguageDisplayName(langCode) {
   if (!langCode || typeof langCode !== "string") return "N/A";
+
+  try {
+    // Ensure language names are loaded or an attempt has been made.
+    // languageNamesMap will be populated by fetchLanguageNames if successful.
+    await fetchLanguageNames();
+  } catch (error) {
+    // Error is already logged by fetchLanguageNames or _fetchLanguageNamesInternal.
+    // We can proceed to lookup in languageNamesMap, which might be stale or empty.
+    // console.warn(`getLanguageDisplayName: Could not ensure language names were loaded for '${langCode}'. Fallback may be used. Error: ${error.message}`);
+  }
+
   const lc = langCode.toLowerCase();
+  // Access the global languageNamesMap which fetchLanguageNames populates.
   const langData = languageNamesMap[lc];
+
   if (langData) {
     if (langData.user_lang_name) {
       return langData.user_lang_name;
@@ -135,7 +172,8 @@ function getLanguageDisplayName(langCode) {
       return langData.en_name;
     }
   }
-  return langCode.toUpperCase(); // Fallback
+  // Fallback to uppercase langCode if no specific name found (this is not an error state for this function)
+  return langCode.toUpperCase();
 }
 
 function getDomain(url) {
@@ -1535,6 +1573,13 @@ async function resolveAndRenderPrayerByPhelpsAndLang(
 }
 
 async function renderLanguageList() {
+  try {
+    // Ensure language names are loaded or an attempt is made before rendering the list.
+    await fetchLanguageNames();
+  } catch (error) {
+    // Logged by fetchLanguageNames. Fallbacks will be used in the list.
+    console.warn("renderLanguageList: Failed to pre-load language names. List may show codes instead of names.", error.message);
+  }
   contentDiv.innerHTML =
     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
   if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
@@ -1619,16 +1664,23 @@ async function renderLanguageList() {
 
   let languageListHtml = "";
   if (languagesWithStats.length > 0) {
-    languageListHtml = languagesWithStats
-      .map((langData) => {
+    const languageButtonPromises = languagesWithStats
+      .map(async (langData) => { // .map callback is now async
         const langCode = langData.language;
-        let displayName = getLanguageDisplayName(langCode);
+        let displayName = await getLanguageDisplayName(langCode); // await the async call
 
-        if (displayName === langCode) {
-          // If getLanguageDisplayName returns the code itself, it means the name was not found.
-          // Log this event and use the uppercase code as a fallback.
-          console.log(`Display name for language code '${langCode}' not found. Using code as fallback.`);
-          displayName = langCode.toUpperCase();
+        if (displayName === langCode) { // Name not found (either fetch failed or code not in map)
+                                        // getLanguageDisplayName already tried to fetch and awaited.
+                                        // fetchLanguageNames/Internal already logged errors if the fetch itself failed.
+          if (languageNamesMap && Object.keys(languageNamesMap).length > 0 && !languageNamesMap[langCode]) {
+            // Map seems to be loaded (at least partially), but this specific code is missing.
+            console.log(`Display name for language code '${langCode}' not found in loaded languageNamesMap. Using code as fallback.`);
+          } else if (!languageNamesMap || Object.keys(languageNamesMap).length === 0) {
+            // Map is empty or undefined, likely due to a general fetch failure.
+            // This was likely logged by fetchLanguageNames/Internal or its wrapper.
+            // console.log(`Display name for language code '${langCode}' not available because languageNamesMap is empty. Using code as fallback.`);
+          }
+          displayName = langCode.toUpperCase(); // Fallback to uppercase code
         }
 
         const phelpsCount = parseInt(langData.phelps_covered_count, 10) || 0;
@@ -1643,8 +1695,8 @@ async function renderLanguageList() {
           else if (coverageRatio > 0.5) buttonClass += " lang-button-yellow";
         }
         return `<button class="${buttonClass}" onclick="setLanguageView('${langCode}', 1, false)">${displayName} (${phelpsCount}/${totalConceptualPrayers})</button>`;
-      })
-      .join("\n");
+      });
+    languageListHtml = (await Promise.all(languageButtonPromises)).join("\n");
   }
 
   contentDiv.innerHTML =
