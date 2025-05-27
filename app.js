@@ -172,8 +172,13 @@ async function getLanguageDisplayName(langCode) {
       return langData.en_name;
     }
   }
-  // Fallback to uppercase langCode if no specific name found (this is not an error state for this function)
-  return langCode.toUpperCase();
+  // Fallback to original langCode if no specific name found
+  // This can happen if the langCode is not in languageNamesMap or if the map entries don't have user_lang_name or en_name.
+  // It might also happen if fetchLanguageNames() failed and languageNamesMap is empty or stale.
+  if (!langData || (!langData.user_lang_name && !langData.en_name)) {
+    console.warn(`getLanguageDisplayName: Display name not found for language code '${langCode}'. Returning original code.`);
+  }
+  return langCode;
 }
 
 function getDomain(url) {
@@ -841,7 +846,7 @@ function getAuthorFromPhelps(phelpsCode) {
 }
 
 // --- Prayer Card Generation ---
-function createPrayerCardHtml(prayerData, allPhelpsDetails = {}) {
+async function createPrayerCardHtml(prayerData, allPhelpsDetails = {}) {
   const {
     version,
     name,
@@ -851,10 +856,11 @@ function createPrayerCardHtml(prayerData, allPhelpsDetails = {}) {
     link,
   } = prayerData;
 
+  const displayLanguageForTitle = await getLanguageDisplayName(language);
   let displayTitle =
-    name || (phelps ? `${phelps} - ${language}` : `${version} - ${language}`);
+    name || (phelps ? `${phelps} - ${displayLanguageForTitle}` : `${version} - ${displayLanguageForTitle}`);
   const cardLinkHref = phelps
-    ? `#prayercode/${phelps}/${language}`
+    ? `#prayercode/${phelps}/${language}` // Keep original 'language' (code) for URL
     : `#prayer/${version}`;
   const previewSnippet = opening_text || "No text preview available.";
 
@@ -1039,9 +1045,10 @@ async function renderPrayer(
   cachePrayerText({ ...prayer });
 
   const authorName = getAuthorFromPhelps(prayer.phelps);
+  const initialDisplayPrayerLanguage = await getLanguageDisplayName(prayer.language);
   let prayerTitle =
     prayer.name ||
-    (prayer.phelps ? `${prayer.phelps} - ${prayer.language}` : null) ||
+    (prayer.phelps ? `${prayer.phelps} - ${initialDisplayPrayerLanguage}` : null) ||
     (prayer.text
       ? prayer.text.substring(0, 50) + "..."
       : `Prayer ${prayer.version}`);
@@ -1064,10 +1071,12 @@ async function renderPrayer(
       } else if (match.type === "change_name") {
         nameToDisplay = match.newName;
         nameIsSuggested = true;
+        // If languageToDisplay or phelpsToDisplay were also suggested, they are already updated.
+        const currentDisplayLanguageForTitle = await getLanguageDisplayName(languageToDisplay);
         prayerTitle =
           nameToDisplay ||
           (phelpsToDisplay
-            ? `${phelpsToDisplay} - ${languageToDisplay}`
+            ? `${phelpsToDisplay} - ${currentDisplayLanguageForTitle}`
             : `Prayer ${prayer.version}`);
       }
     }
@@ -1102,17 +1111,19 @@ async function renderPrayer(
     }
   }
 
+  const finalDisplayLanguageToDisplay = await getLanguageDisplayName(languageToDisplay);
   let phelpsDisplayHtml = "Not Assigned";
   if (phelpsToDisplay) {
     const textPart = phelpsIsSuggested
       ? `<span style="font-weight: bold; color: red;">${phelpsToDisplay}</span>`
       : `<a href="#prayercode/${phelpsToDisplay}">${phelpsToDisplay}</a>`;
-    phelpsDisplayHtml = `${textPart} (Lang: ${languageToDisplay.toUpperCase()})`;
+    phelpsDisplayHtml = `${textPart} (Lang: ${finalDisplayLanguageToDisplay})`;
   } else {
-    phelpsDisplayHtml = `Not Assigned (Lang: ${languageToDisplay.toUpperCase()})`;
+    phelpsDisplayHtml = `Not Assigned (Lang: ${finalDisplayLanguageToDisplay})`;
   }
   if (languageIsSuggested) {
-    phelpsDisplayHtml += ` <span style="font-weight: bold; color: red;">(New Lang: ${languageToDisplay.toUpperCase()})</span>`;
+    // languageToDisplay here is the *new* language. So finalDisplayLanguageToDisplay is appropriate.
+    phelpsDisplayHtml += ` <span style="font-weight: bold; color: red;">(New Lang: ${finalDisplayLanguageToDisplay})</span>`;
   }
 
   let html = `
@@ -1213,7 +1224,7 @@ async function renderPrayer(
       '<i class="material-icons">library_add</i> Add/Suggest Phelps Code';
     suggestPhelpsButton.onclick = () => {
       const enteredCode = prompt(
-        `Enter Phelps code for:\n${prayer.name || "Version " + prayer.version}\n(${prayer.language.toUpperCase()})`,
+        `Enter Phelps code for:\\n${prayer.name || "Version " + prayer.version}\\n(${initialDisplayPrayerLanguage})`,
       );
       if (enteredCode && enteredCode.trim() !== "") {
         addPhelpsCodeToMatchList(prayer, enteredCode.trim());
@@ -1228,11 +1239,11 @@ async function renderPrayer(
   changeLangButton.className = "mdl-button mdl-js-button mdl-button--raised";
   changeLangButton.innerHTML =
     '<i class="material-icons">translate</i> Change Language';
-  changeLangButton.title = `Current language: ${prayer.language.toUpperCase()}`;
+  changeLangButton.title = `Current language: ${finalDisplayLanguageToDisplay}`;
   changeLangButton.onclick = () => {
     const newLang = prompt(
-      `Enter new language code for:\n${nameToDisplay || "Version " + prayer.version}\n(V: ${prayer.version})\nCurrent language: ${languageToDisplay.toUpperCase()}`,
-      languageToDisplay,
+      `Enter new language code for:\\n${nameToDisplay || "Version " + prayer.version}\\n(V: ${prayer.version})\\nCurrent language: ${finalDisplayLanguageToDisplay}`,
+      languageToDisplay, // Keep original code as default for prompt input
     );
     if (
       newLang &&
@@ -1256,7 +1267,7 @@ async function renderPrayer(
   changeNameButton.title = `Current name: ${prayer.name || "Not Set"}`;
   changeNameButton.onclick = () => {
     const newName = prompt(
-      `Enter name for:\nVersion ${prayer.version} (Lang: ${languageToDisplay.toUpperCase()})\nCurrent name: ${nameToDisplay || "Not Set"}`,
+      `Enter name for:\\nVersion ${prayer.version} (Lang: ${finalDisplayLanguageToDisplay})\\nCurrent name: ${nameToDisplay || "Not Set"}`,
       nameToDisplay || "",
     );
     if (newName !== null) {
@@ -1295,19 +1306,21 @@ async function renderPrayer(
   const finalActiveLang = activeLangForNav || languageToDisplay;
 
   if (finalPhelpsCode && !finalPhelpsCode.startsWith("TODO")) {
-    const transSql = `SELECT DISTINCT language FROM writings WHERE phelps = '${finalPhelpsCode.replace(/'/g, "''")}' AND phelps IS NOT NULL AND phelps != '' ORDER BY language`;
+    const transSql = `SELECT DISTINCT language FROM writings WHERE phelps = \'${finalPhelpsCode.replace(/\'/g, "\'\'")}\' AND phelps IS NOT NULL AND phelps != \'\' ORDER BY language`;
     const distinctLangs = await executeQuery(transSql);
-    const navLinks = distinctLangs.map((langRow) => ({
-      text: langRow.language.toUpperCase(),
+    const navLinkPromises = distinctLangs.map(async (langRow) => ({
+      text: await getLanguageDisplayName(langRow.language),
       href: `#prayercode/${finalPhelpsCode}/${langRow.language}`,
       isActive: langRow.language === finalActiveLang,
     }));
+    const navLinks = await Promise.all(navLinkPromises);
     updateHeaderNavigation(navLinks);
     updateDrawerLanguageNavigation(navLinks);
   } else {
+    // finalDisplayLanguageToDisplay should be in scope from earlier in renderPrayer
     const singleLink = [
       {
-        text: languageToDisplay.toUpperCase(),
+        text: finalDisplayLanguageToDisplay, // Uses variable already holding display name
         href: `#prayer/${prayer.version}`,
         isActive: true,
       },
@@ -1330,7 +1343,7 @@ async function renderPrayersForLanguage(
   updateHeaderNavigation([]);
   updateDrawerLanguageNavigation([]);
 
-  const languageDisplayName = langCode.toUpperCase();
+  const languageDisplayName = await getLanguageDisplayName(langCode);
   let filterCondition = showOnlyUnmatched
     ? " AND (phelps IS NULL OR phelps = '')"
     : "";
@@ -1415,9 +1428,10 @@ async function renderPrayersForLanguage(
     }
   }
 
-  const listCardsHtmlArray = prayersForDisplay.map((pData) =>
+  const listCardPromises = prayersForDisplay.map((pData) =>
     createPrayerCardHtml(pData, allPhelpsDetailsForCards),
   );
+  const listCardsHtmlArray = await Promise.all(listCardPromises);
   const listHtml = `<div class="favorite-prayer-grid">${listCardsHtmlArray.join("")}</div>`;
 
   let paginationHtml = "";
@@ -1534,18 +1548,21 @@ async function resolveAndRenderPrayerByPhelpsAndLang(
     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
   if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
 
-  const sql = `SELECT version, text, language, phelps, name, source, link FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' AND language = '${targetLanguageCode.replace(/'/g, "''")}' ORDER BY LENGTH(text) DESC, name`;
+  const displayTargetLanguage = await getLanguageDisplayName(targetLanguageCode);
+
+  const sql = `SELECT version, text, language, phelps, name, source, link FROM writings WHERE phelps = \'${phelpsCode.replace(/\'/g, "\'\'")}\' AND language = \'${targetLanguageCode.replace(/\'/g, "\'\'")}\' ORDER BY LENGTH(text) DESC, name`;
   const prayerVersions = await executeQuery(sql);
 
   if (prayerVersions.length === 0) {
-    contentDiv.innerHTML = `<p>No prayers found for Phelps Code ${phelpsCode} in language ${targetLanguageCode.toUpperCase()}.</p>`;
-    const transSql = `SELECT DISTINCT language FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' ORDER BY language`;
+    contentDiv.innerHTML = `<p>No prayers found for Phelps Code ${phelpsCode} in language ${displayTargetLanguage}.</p>`;
+    const transSql = `SELECT DISTINCT language FROM writings WHERE phelps = \'${phelpsCode.replace(/\'/g, "\'\'")}\' ORDER BY language`;
     const distinctLangs = await executeQuery(transSql);
-    const navLinks = distinctLangs.map((langRow) => ({
-      text: langRow.language.toUpperCase(),
+    const navLinkPromises = distinctLangs.map(async (langRow) => ({
+      text: await getLanguageDisplayName(langRow.language),
       href: `#prayercode/${phelpsCode}/${langRow.language}`,
       isActive: false,
     }));
+    const navLinks = await Promise.all(navLinkPromises);
     updateHeaderNavigation(navLinks);
     updateDrawerLanguageNavigation(navLinks);
     return;
@@ -1559,7 +1576,8 @@ async function resolveAndRenderPrayerByPhelpsAndLang(
     otherVersionsDiv.style.marginTop = "20px";
     otherVersionsDiv.style.paddingTop = "15px";
     otherVersionsDiv.style.borderTop = "1px solid #eee";
-    let listHtml = `<h5>Other versions in ${targetLanguageCode.toUpperCase()} for ${phelpsCode}:</h5><ul class="other-versions-in-lang-list">`;
+    // displayTargetLanguage is available from earlier in this function
+    let listHtml = `<h5>Other versions in ${displayTargetLanguage} for ${phelpsCode}:</h5><ul class="other-versions-in-lang-list">`;
     prayerVersions.slice(1).forEach((altVersion) => {
       const displayName = altVersion.name || `Version ${altVersion.version}`;
       const domain = altVersion.link ? `(${getDomain(altVersion.link)})` : "";
@@ -1620,7 +1638,7 @@ async function renderLanguageList() {
       }
     }
 
-    const favoriteCardsHtmlArray = [];
+    const favoriteCardPromises = [];
     for (const fp of favoritePrayers) {
       const cached = getCachedPrayerText(fp.version);
       let textForCardPreview = "Preview not available.";
@@ -1632,7 +1650,7 @@ async function renderLanguageList() {
         textForCardPreview =
           cached.text.substring(0, MAX_PREVIEW_LENGTH) +
           (cached.text.length > MAX_PREVIEW_LENGTH ? "..." : "");
-      favoriteCardsHtmlArray.push(
+      favoriteCardPromises.push(
         createPrayerCardHtml(
           {
             version: fp.version,
@@ -1646,6 +1664,7 @@ async function renderLanguageList() {
         ),
       );
     }
+    const favoriteCardsHtmlArray = await Promise.all(favoriteCardPromises);
     favoritesDisplayHtml += `<div class="favorite-prayer-grid">${favoriteCardsHtmlArray.join("")}</div></div>`;
   } else {
     favoritesDisplayHtml += `<div id="favorite-prayers-section" style="text-align: center; padding: 10px 0; margin-bottom:10px;"><p>You haven't favorited any prayers yet. <br/>Click the <i class="material-icons" style="vertical-align: bottom; font-size: 1.2em;">star_border</i> icon on a prayer's page to add it here!</p></div>`;
