@@ -1417,8 +1417,8 @@ async function renderPrayersForLanguage(
 
   if (prayersMetadata.length === 0 && page === 1) {
     const filterSwitchId = `filter-unmatched-${langCode}`;
-    const filterSwitchHtml = `<div class=\"filter-switch-container\"><label class=\"mdl-switch mdl-js-switch mdl-js-ripple-effect\" for=\"${filterSwitchId}\"><input type=\"checkbox\" id=\"${filterSwitchId}\" class=\"mdl-switch__input\" onchange=\"setLanguageView(\'${langCode}\', 1, this.checked)\" ${showOnlyUnmatched ? "checked" : ""}><span class=\"mdl-switch__label\">Show only prayers without Phelps code</span></label></div>`;
-    contentDiv.innerHTML = `${languagePickerHtml}${filterSwitchHtml}<p>No prayers found for language: ${languageDisplayName}${showOnlyUnmatched ? " (matching filter)" : ""}.</p><p>Query for metadata:</p><pre>${metadataSql}</pre><p><a href=\"${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(metadataSql)}\" target=\"_blank\">Debug metadata query</a></p><p>Count query:</p><pre>${countSql}</pre><p><a href=\"${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(countSql)}\" target=\"_blank\">Debug count query</a></p>`;
+    const filterSwitchHtml = `<div class="filter-switch-container"><label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="${filterSwitchId}"><input type="checkbox" id="${filterSwitchId}" class="mdl-switch__input" onchange="setLanguageView('${langCode}', 1, this.checked)" ${showOnlyUnmatched ? "checked" : ""}><span class="mdl-switch__label">Show only prayers without Phelps code</span></label></div>`;
+    contentDiv.innerHTML = `${languagePickerHtml}${filterSwitchHtml}<p>No prayers found for language: ${languageDisplayName}${showOnlyUnmatched ? " (matching filter)" : ""}.</p><p>Query for metadata:</p><pre>${metadataSql}</pre><p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(metadataSql)}" target="_blank">Debug metadata query</a></p><p>Count query:</p><pre>${countSql}</pre><p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(countSql)}" target="_blank">Debug count query</a></p>`;
     if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
     return;
   }
@@ -1493,11 +1493,6 @@ async function renderPrayersForLanguage(
   const listCardsHtmlArray = await Promise.all(listCardPromises);
   const listHtml = `<div class="favorite-prayer-grid">${listCardsHtmlArray.join("")}</div>`;
 
-  // Add languagePickerHtml before the main content
-  contentDiv.innerHTML = `${languagePickerHtml}<header><h2><span id="category">Prayer Code</span><span id="blocktitle">${phelpsCode} (Page ${page}) - All Languages</span></h2></header>${listHtml}${paginationHtml}`;
-  if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
-}
-
 // This function was originally from renderPrayerCodeView and is being removed as its contentDiv.innerHTML is now set above.
 // async function renderPrayerCodeView_original_content_population() {
 // This is a placeholder comment to ensure the diff tool sees a change if the original function was just setting contentDiv.innerHTML
@@ -1535,9 +1530,9 @@ async function renderPrayersForLanguage(
   }
 
   const filterSwitchId = `filter-unmatched-${langCode}`;
-  const filterSwitchHtml = `<div class=\"filter-switch-container\"><label class=\"mdl-switch mdl-js-switch mdl-js-ripple-effect\" for=\"${filterSwitchId}\"><input type=\"checkbox\" id=\"${filterSwitchId}\" class=\"mdl-switch__input\" onchange=\"setLanguageView(\'${langCode}\', 1, this.checked)\" ${showOnlyUnmatched ? "checked" : ""}><span class=\"mdl-switch__label\">Show only prayers without Phelps code</span></label></div>`;
+  const filterSwitchHtml = `<div class="filter-switch-container"><label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="${filterSwitchId}"><input type="checkbox" id="${filterSwitchId}" class="mdl-switch__input" onchange="setLanguageView('${langCode}', 1, this.checked)" ${showOnlyUnmatched ? "checked" : ""}><span class="mdl-switch__label">Show only prayers without Phelps code</span></label></div>`;
 
-  contentDiv.innerHTML = `${languagePickerHtml}<header><h2><span id=\"category\">Prayers</span><span id=\"blocktitle\">Language: ${languageDisplayName} (Page ${page})${showOnlyUnmatched ? " - Unmatched" : ""}</span></h2></header>${filterSwitchHtml}${listHtml}${paginationHtml}`;
+  contentDiv.innerHTML = `${languagePickerHtml}<header><h2><span id="category">Prayers</span><span id="blocktitle">Language: ${languageDisplayName} (Page ${page})${showOnlyUnmatched ? " - Unmatched" : ""}</span></h2></header>${filterSwitchHtml}${listHtml}${paginationHtml}`;
   if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
 }
 
