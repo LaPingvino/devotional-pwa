@@ -326,18 +326,18 @@
                 font-size: 0.9em;
                 line-height: 1.4;
             }
-            #collected-matches-list li {
+            #collected-items-list li { /* Renamed from collected-matches-list */
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
                 margin-bottom: 5px;
             }
-            #collected-matches-list li .match-text {
+            #collected-items-list li .match-text { /* Class name .match-text is okay functionally */
                 flex-grow: 1;
                 margin-right: 8px;
                 word-break: break-word;
             }
-            #collected-matches-list li .mdl-button--icon {
+            #collected-items-list li .mdl-button--icon {
                 min-width: 24px; /* Ensure button is clickable */
                 height: 24px;
                 padding: 0;
@@ -633,107 +633,51 @@
                             <!-- Pinned prayer text will be appended here by JS -->
                         </div>
                         <div
-                            id="collected-matches-section"
+                            id="collected-items-section" /* Renamed from collected-matches-section */
                             style="margin-top: 15px"
                         >
-                            <h5>Collected Matches:</h5>
+                            <h5>Collected Items:</h5>
                             <ul
-                                id="collected-matches-list"
+                                id="collected-items-list" /* Renamed from collected-matches-list */
                                 style="
-                                    list-style-type: none; /* Changed from disc */
-                                    padding-left: 0; /* Adjusted padding */
+                                    list-style-type: none;
+                                    padding-left: 0;
                                     margin-top: 5px;
                                 "
                             >
-                                <li>No matches collected yet.</li>
+                                <li>No items collected yet.</li> {/* Changed from "matches" */}
                             </ul>
                         </div>
                         <div
                             style="
                                 display: flex;
-                                gap: 10px;
+                                flex-direction: column;
+                                gap: 10px; /* Adjusted gap for vertical layout */
                                 margin-top: 15px;
-                                flex-wrap: wrap;
                             "
                         >
                             <button
-                                id="mail-collected-matches-button"
-                                class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent"
+                                id="review-and-send-button" /* Was dolthub-issue-button */
+                                class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent" /* Changed style */
                                 disabled
-                                style="flex-grow: 1"
+                                style="width: 100%;" /* Make button full width */
                             >
-                                <i class="material-icons">email</i> Mail Matches
+                                <i class="material-icons" style="margin-right: 4px;">send</i> Review & Send Items
                             </button>
-                            <button
-                                id="dolthub-issue-button"
-                                class="mdl-button mdl-js-button mdl-button--raised"
-                                disabled
-                                style="
-                                    flex-grow: 1;
-                                    background-color: #24292e;
-                                    color: white;
-                                "
-                            >
-                                <i
-                                    class="material-icons"
-                                    style="margin-right: 4px"
-                                    >bug_report</i
-                                >
-                                Create Issue / Share
-                            </button>
-                        </div>
-                        <div
-                            style="
-                                margin-top: 10px;
-                                display: flex;
-                                flex-wrap: wrap;
-                                gap: 10px;
-                                justify-content: space-between;
-                            "
-                        >
-                            <button
-                                id="show-sql-button"
-                                class="mdl-button mdl-js-button mdl-button--raised"
-                                disabled
-                                style="flex-grow: 1"
-                            >
-                                <i
-                                    class="material-icons"
-                                    style="margin-right: 4px"
-                                    >code</i
-                                >
-                                Show SQL
-                            </button>
-                            <button
-                                id="open-sql-doltub-button"
-                                class="mdl-button mdl-js-button mdl-button--raised"
-                                disabled
-                                style="flex-grow: 1"
-                            >
-                                <i
-                                    class="material-icons"
-                                    style="margin-right: 4px"
-                                    >launch</i
-                                >
-                                SQL on DoltHub
-                            </button>
-                            <button
-                                id="clear-collected-matches-button"
-                                class="mdl-button mdl-js-button mdl-button--raised"
-                                disabled
-                                style="
-                                    flex-grow: 1;
-                                    background-color: #f44336;
-                                    color: white;
-                                "
-                            >
-                                <i
-                                    class="material-icons"
-                                    style="margin-right: 4px"
-                                    >delete_sweep</i
-                                >
-                                Clear Batch
-                            </button>
+                            <div style="text-align: center;">
+                                <a href="#" id="clear-all-items-link"
+                                   style="
+                                       font-size: 0.9em;
+                                       color: #757575;
+                                       text-decoration: none;
+                                       display: none; /* Initially hidden, shown by JS */
+                                       padding: 8px 0;
+                                       line-height: 1.5;
+                                   ">
+                                    <i class="material-icons" style="font-size: 1.1em; vertical-align: text-bottom; margin-right: 2px;">delete_sweep</i>
+                                    Clear All Items & Unpin
+                                </a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -754,7 +698,7 @@
                             <a href="mailto:ikojba@gmail.com"
                                 >ikojba@gmail.com</a
                             >. You can also use the "Prayer Matching Helper"
-                            tool above to collect matches and submit them.
+                            tool above to collect items and submit them.
                         </li>
                         <li>
                             <strong>Contribute directly on DoltHub:</strong> You
@@ -819,7 +763,7 @@
                                 <li>
                                     You can use the "Add/Suggest Phelps Code"
                                     button on a prayer's page (if it lacks a
-                                    code) to add this information to your match
+                                    code) to add this information to your item
                                     list for submission.
                                 </li>
                             </ul>
@@ -893,11 +837,10 @@
             "
         >
             <h4 style="margin-top: 0; color: #3f51b5">
-                DoltHub Issue / Share Content
+                Review & Send Collected Items
             </h4>
             <p style="font-size: 0.9em; color: #555">
-                Review and edit the content below. You can then copy it, open a
-                DoltHub issue, or share it via WhatsApp/Telegram.
+                The text below includes all collected items and suggested SQL. Review and edit as needed. You can then copy it, create a DoltHub issue, or share via email/messaging.
             </p>
             <textarea
                 id="dolthub-issue-textarea"
@@ -913,6 +856,20 @@
                     box-sizing: border-box;
                 "
             ></textarea>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; margin-bottom:10px; padding-bottom:10px; border-bottom: 1px solid #eee;">
+                 <button
+                    id="dialog-mail-button"
+                    class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored">
+                    <i class="material-icons" style="margin-right: 4px">email</i>
+                    Mail These Items
+                </button>
+                 <button
+                    id="dialog-open-sql-doltub-button"
+                    class="mdl-button mdl-js-button mdl-button--raised">
+                    <i class="material-icons" style="margin-right: 4px">launch</i>
+                    Run SQL on DoltHub
+                </button>
+            </div>
             <div
                 style="
                     display: flex;
@@ -1130,23 +1087,18 @@
                 const pinnedSection = document.getElementById(
                     "pinned-prayer-section",
                 );
-                const matchesListUl = document.getElementById(
-                    "collected-matches-list",
+                const itemsListUl = document.getElementById( // Renamed from matchesListUl
+                    "collected-items-list",
                 );
-                const mailButton = document.getElementById(
-                    "mail-collected-matches-button",
+                const reviewAndSendButton = document.getElementById( // Was doltHubIssueButton
+                    "review-and-send-button",
                 );
-                const doltHubIssueButton = document.getElementById(
-                    "dolthub-issue-button",
+                const clearAllLink = document.getElementById( // Was clearMatchesButton
+                    "clear-all-items-link",
                 );
-                const showSqlButton =
-                    document.getElementById("show-sql-button");
-                const openSqlDoltHubButton = document.getElementById(
-                    "open-sql-doltub-button",
-                );
-                const clearMatchesButton = document.getElementById(
-                    "clear-collected-matches-button",
-                );
+
+                const snackbarContainer = document.querySelector(".mdl-js-snackbar");
+
 
                 if (pinnedPrayerDetails) {
                     let pinnedName =
@@ -1166,7 +1118,7 @@
                         "mdl-button mdl-js-button mdl-button--icon mdl-button--colored";
                     unpinButton.innerHTML =
                         '<i class="material-icons">cancel</i>';
-                    unpinButton.title = "Unpin Prayer (Match list preserved)";
+                    unpinButton.title = "Unpin Prayer (Item list preserved)";
                     unpinButton.onclick = unpinPrayer;
 
                     pinnedSection.innerHTML = "";
@@ -1194,7 +1146,7 @@
                         const returnLinkP = document.createElement("p");
                         returnLinkP.style.fontSize = "0.9em";
                         returnLinkP.style.marginTop = "10px";
-                        returnLinkP.innerHTML = `To continue finding matches for this language, return to <a href="${returnLinkHref}">${pinnedPrayerDetails.language.toUpperCase()} Prayers</a>.`;
+                        returnLinkP.innerHTML = `To continue finding items for this language, return to <a href="${returnLinkHref}">${pinnedPrayerDetails.language.toUpperCase()} Prayers</a>.`;
                         pinnedSection.appendChild(returnLinkP);
                     }
                     if (typeof componentHandler !== "undefined") {
@@ -1205,14 +1157,14 @@
                         '<p>No prayer is currently pinned. Navigate to a prayer and click "Pin this Prayer" to start.</p>';
                 }
 
-                matchesListUl.innerHTML = "";
-                const hasMatches = collectedMatchesForEmail.length > 0;
-                if (hasMatches) {
-                    collectedMatchesForEmail.forEach((matchData, index) => {
+                itemsListUl.innerHTML = ""; // Renamed from matchesListUl
+                const hasItems = collectedMatchesForEmail.length > 0;
+                if (hasItems) {
+                    collectedMatchesForEmail.forEach((itemData, index) => { // Renamed from matchData
                         const li = document.createElement("li");
                         const textSpan = document.createElement("span");
                         textSpan.className = "match-text";
-                        textSpan.textContent = matchData.description;
+                        textSpan.textContent = itemData.description; // Renamed from matchData
                         li.appendChild(textSpan);
 
                         const removeButton = document.createElement("button");
@@ -1220,45 +1172,33 @@
                             "mdl-button mdl-js-button mdl-button--icon";
                         removeButton.innerHTML =
                             '<i class="material-icons">close</i>';
-                        removeButton.title = "Remove this match";
+                        removeButton.title = "Remove this item"; // Changed from "match"
                         removeButton.onclick = () =>
-                            removeCollectedMatch(index);
+                            removeCollectedMatch(index); // "Match" in function name is fine
                         li.appendChild(removeButton);
-                        matchesListUl.appendChild(li);
+                        itemsListUl.appendChild(li); // Renamed from matchesListUl
                         if (typeof componentHandler !== "undefined") {
                             componentHandler.upgradeElement(removeButton);
                         }
                     });
                 } else {
                     const li = document.createElement("li");
-                    li.textContent = "No matches collected yet.";
-                    matchesListUl.appendChild(li);
+                    li.textContent = "No items collected yet."; // Changed from "matches"
+                    itemsListUl.appendChild(li); // Renamed from matchesListUl
                 }
 
-                if (mailButton) mailButton.disabled = !hasMatches;
-                if (doltHubIssueButton)
-                    doltHubIssueButton.disabled = !hasMatches;
-                if (showSqlButton) showSqlButton.disabled = !hasMatches;
-                if (openSqlDoltHubButton)
-                    openSqlDoltHubButton.disabled = !hasMatches;
-                if (clearMatchesButton)
-                    clearMatchesButton.disabled = !hasMatches;
+                if (reviewAndSendButton) reviewAndSendButton.disabled = !hasItems;
+                if (clearAllLink) {
+                    const hasSomethingToClear = collectedMatchesForEmail.length > 0 || pinnedPrayerDetails;
+                    clearAllLink.style.display = hasSomethingToClear ? 'inline-block' : 'none';
+                }
+
 
                 if (typeof componentHandler !== "undefined") {
-                    [
-                        mailButton,
-                        doltHubIssueButton,
-                        showSqlButton,
-                        openSqlDoltHubButton,
-                        clearMatchesButton,
-                    ].forEach((button) => {
-                        if (
-                            button &&
-                            button.classList.contains("mdl-js-button")
-                        ) {
-                            componentHandler.upgradeElement(button);
-                        }
-                    });
+                    if (reviewAndSendButton && reviewAndSendButton.classList.contains("mdl-js-button")) {
+                         componentHandler.upgradeElement(reviewAndSendButton);
+                    }
+                    // clearAllLink is an <a> and not an MDL button, so no upgrade needed unless styled as one
                 }
             }
 
@@ -1269,7 +1209,7 @@
                     document.querySelector(".mdl-js-snackbar");
                 if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
                     snackbarContainer.MaterialSnackbar.showSnackbar({
-                        message: "Match removed from list.",
+                        message: "Item removed from list.", // Changed from "Match"
                     });
                 }
             }
@@ -1287,14 +1227,15 @@
             }
 
             function unpinPrayer() {
+                const wasPinned = !!pinnedPrayerDetails;
                 pinnedPrayerDetails = null;
-                updatePrayerMatchingToolDisplay();
-                handleRouteChange();
+                updatePrayerMatchingToolDisplay(); // Will update the pinned section and clearAllLink visibility
+                // handleRouteChange(); // Not strictly necessary for unpin alone if view doesn't change
                 const snackbarContainer =
                     document.querySelector(".mdl-js-snackbar");
-                if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
+                if (wasPinned && snackbarContainer && snackbarContainer.MaterialSnackbar) {
                     snackbarContainer.MaterialSnackbar.showSnackbar({
-                        message: "Prayer unpinned. Match list preserved.",
+                        message: "Prayer unpinned. Item list preserved.",
                     });
                 }
             }
@@ -1348,7 +1289,7 @@
                     document.querySelector(".mdl-js-snackbar");
                 if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
                     snackbarContainer.MaterialSnackbar.showSnackbar({
-                        message: "Match added to list.",
+                        message: "Item added to list.", // Changed from "Match"
                         timeout: 5000,
                     });
                 }
@@ -1443,7 +1384,7 @@
                     document.querySelector(".mdl-js-snackbar");
                 if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
                     snackbarContainer.MaterialSnackbar.showSnackbar({
-                        message: `Note added to match list.`,
+                        message: `Note added to items list.`, // Changed
                     });
                 }
             }
@@ -1518,7 +1459,7 @@
 
             function sendMatchesByEmail() {
                 if (collectedMatchesForEmail.length === 0) {
-                    alert("No matches to send.");
+                    alert("No items to send."); // Changed
                     return;
                 }
 
@@ -1563,7 +1504,7 @@
             }
 
             function generateDoltHubIssueBody() {
-                const title = "Prayer Data Suggestions from Web Tool"; // This title isn't part of the body but good to have if user needs to copy it.
+                const title = "Prayer Data Suggestions from Web Tool";
                 const bodyLines = [
                     "The following prayer data suggestions have been collected using the holywritings.net web tool:",
                     "",
@@ -1610,7 +1551,7 @@
                     bodyLines.push("");
                 });
 
-                const sqlUpdateQueries = generateSqlUpdates(false); // false = no comments for cleaner SQL
+                const sqlUpdateQueries = generateSqlUpdates(false);
                 if (sqlUpdateQueries.length > 0) {
                     bodyLines.push("--- Suggested SQL UPDATE Statements ---");
                     bodyLines.push("```sql");
@@ -2132,7 +2073,7 @@
                         replacePinButton.innerHTML =
                             '<i class="material-icons">swap_horiz</i> Replace Pin';
                         replacePinButton.title =
-                            "Replaces the currently pinned prayer with this one. Match list preserved.";
+                            "Replaces the currently pinned prayer with this one. Item list preserved.";
                         replacePinButton.onclick = () => {
                             pinPrayer(prayer);
                             const snackbarContainer =
@@ -2144,7 +2085,7 @@
                                 snackbarContainer.MaterialSnackbar.showSnackbar(
                                     {
                                         message:
-                                            "Pinned prayer replaced. Match list preserved.",
+                                            "Pinned prayer replaced. Item list preserved.",
                                     },
                                 );
                             }
@@ -2157,7 +2098,7 @@
                     } else {
                         const p = document.createElement("p");
                         p.innerHTML =
-                            "<em>This prayer is currently pinned. Use the tool on the right to manage matches or unpin.</em>";
+                            "<em>This prayer is currently pinned. Use the tool on the right to manage items or unpin.</em>";
                         actionsDiv.appendChild(p);
                     }
                 } else {
@@ -2176,7 +2117,7 @@
                         ) {
                             snackbarContainer.MaterialSnackbar.showSnackbar({
                                 message:
-                                    "Prayer pinned! Navigate to its match.",
+                                    "Prayer pinned! Navigate to find items or suggestions.",
                             });
                         }
                     };
@@ -2273,12 +2214,10 @@
 
                 contentDiv.appendChild(actionsDiv);
                 if (typeof componentHandler !== "undefined") {
-                    componentHandler.upgradeElement(favoriteButton); // ensure it's upgraded if not already
+                    componentHandler.upgradeElement(favoriteButton);
                     componentHandler.upgradeElement(changeLangButton);
                     componentHandler.upgradeElement(changeNameButton);
                     componentHandler.upgradeElement(addNoteButton);
-                    // Other buttons in actionsDiv are upgraded when created or if componentHandler.upgradeDom() is called later
-                    // Explicitly upgrading all buttons in actionsDiv:
                     Array.from(
                         actionsDiv.querySelectorAll(".mdl-js-button"),
                     ).forEach((btn) => {
@@ -2304,7 +2243,7 @@
                     const singleLink = [
                         {
                             text: languageToDisplay.toUpperCase(),
-                            href: `#prayer/${prayer.version}`, // Link to the prayer itself
+                            href: `#prayer/${prayer.version}`,
                             isActive: true,
                         },
                     ];
@@ -3095,68 +3034,54 @@
                         });
                     });
 
-                const mailMatchesButton = document.getElementById(
-                    "mail-collected-matches-button",
+                const reviewAndSendButton = document.getElementById( // Was dolthub-issue-button
+                    "review-and-send-button",
                 );
-                if (mailMatchesButton)
-                    mailMatchesButton.addEventListener(
+                if (reviewAndSendButton)
+                    reviewAndSendButton.addEventListener(
                         "click",
-                        sendMatchesByEmail,
+                        openDoltHubIssueDialog, // This function now opens the dialog
                     );
 
-                const doltHubIssueButton = document.getElementById(
-                    "dolthub-issue-button",
+                const clearAllItemsLink = document.getElementById( // Was clear-collected-matches-button
+                    "clear-all-items-link",
                 );
-                if (doltHubIssueButton)
-                    // This button now opens the dialog
-                    doltHubIssueButton.addEventListener(
-                        "click",
-                        openDoltHubIssueDialog,
-                    );
+                if (clearAllItemsLink) {
+                    clearAllItemsLink.addEventListener("click", (e) => {
+                        e.preventDefault();
+                        const hasItems = collectedMatchesForEmail.length > 0;
+                        const isPinned = !!pinnedPrayerDetails;
 
-                const clearMatchesButton = document.getElementById(
-                    "clear-collected-matches-button",
-                );
-                if (clearMatchesButton) {
-                    clearMatchesButton.addEventListener("click", () => {
-                        if (collectedMatchesForEmail.length > 0) {
-                            if (
-                                confirm(
-                                    "Are you sure you want to clear the entire list of collected matches? This cannot be undone.",
-                                )
-                            ) {
-                                collectedMatchesForEmail = [];
-                                updatePrayerMatchingToolDisplay();
-                                if (
-                                    snackbarContainer &&
-                                    snackbarContainer.MaterialSnackbar
-                                ) {
-                                    snackbarContainer.MaterialSnackbar.showSnackbar(
-                                        {
-                                            message:
-                                                "Collected matches cleared.",
-                                        },
-                                    );
-                                }
+                        if (!hasItems && !isPinned) {
+                            if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
+                                snackbarContainer.MaterialSnackbar.showSnackbar({
+                                    message: "Nothing to clear.",
+                                });
                             }
-                        } else {
-                            if (
-                                snackbarContainer &&
-                                snackbarContainer.MaterialSnackbar
-                            ) {
-                                snackbarContainer.MaterialSnackbar.showSnackbar(
-                                    { message: "Match list is already empty." },
-                                );
+                            return;
+                        }
+
+                        if (confirm("Are you sure you want to clear all collected items and unpin the current prayer (if any)? This cannot be undone.")) {
+                            collectedMatchesForEmail = [];
+                            let message = "All collected items cleared.";
+                            if (isPinned) {
+                                unpinPrayer(); // unpinPrayer already calls updatePrayerMatchingToolDisplay and may show its own snackbar
+                                message = "All items cleared and prayer unpinned.";
+                            } else {
+                                updatePrayerMatchingToolDisplay(); // If not unpinning, still need to update display for cleared items
+                            }
+
+                            if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
+                                snackbarContainer.MaterialSnackbar.showSnackbar({
+                                    message: message,
+                                });
                             }
                         }
                     });
                 }
 
-                const showSqlButton =
-                    document.getElementById("show-sql-button");
-                const openSqlDoltHubButton = document.getElementById(
-                    "open-sql-doltub-button",
-                );
+                // SQL Display Dialog (no longer a primary feature, Show SQL button removed)
+                // Kept for reference or if needed by other parts, but the button to open it is gone.
                 const sqlDialog = document.getElementById("sql-display-dialog");
                 const sqlTextarea = document.getElementById(
                     "sql-display-textarea",
@@ -3167,67 +3092,7 @@
                     "close-sql-dialog-button",
                 );
 
-                if (showSqlButton && sqlDialog && sqlTextarea) {
-                    showSqlButton.addEventListener("click", () => {
-                        if (collectedMatchesForEmail.length === 0) {
-                            if (
-                                snackbarContainer &&
-                                snackbarContainer.MaterialSnackbar
-                            )
-                                snackbarContainer.MaterialSnackbar.showSnackbar(
-                                    {
-                                        message:
-                                            "No matches to generate SQL for.",
-                                    },
-                                );
-                            return;
-                        }
-                        const queries = generateSqlUpdates(false);
-                        sqlTextarea.value =
-                            queries.length > 0
-                                ? queries.join("\n\n")
-                                : "No SQL UPDATE statements generated for these matches.";
-                        if (typeof sqlDialog.showModal === "function")
-                            sqlDialog.showModal();
-                        else alert("SQL Dialog could not be opened.");
-                    });
-                }
-
-                if (openSqlDoltHubButton) {
-                    openSqlDoltHubButton.addEventListener("click", () => {
-                        if (collectedMatchesForEmail.length === 0) {
-                            if (
-                                snackbarContainer &&
-                                snackbarContainer.MaterialSnackbar
-                            )
-                                snackbarContainer.MaterialSnackbar.showSnackbar(
-                                    {
-                                        message:
-                                            "No matches to generate SQL for.",
-                                    },
-                                );
-                            return;
-                        }
-                        const queries = generateSqlUpdates(false);
-                        if (queries.length === 0) {
-                            if (
-                                snackbarContainer &&
-                                snackbarContainer.MaterialSnackbar
-                            )
-                                snackbarContainer.MaterialSnackbar.showSnackbar(
-                                    {
-                                        message:
-                                            "No SQL queries to run on DoltHub.",
-                                    },
-                                );
-                            return;
-                        }
-                        window.open(
-                            `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(queries.join("\n"))}`,
-                            "_blank",
-                        );
-                    });
-                }
+                // The old "Show SQL" button's functionality is now implicitly part of the dolthub-issue-dialog textarea.
 
                 if (copySqlButton && sqlTextarea) {
                     copySqlButton.addEventListener("click", () => {
@@ -3313,6 +3178,38 @@
                 const closeDoltHubIssueDialogButton = document.getElementById(
                     "close-dolthub-issue-dialog-button",
                 );
+                const dialogMailButton = document.getElementById("dialog-mail-button");
+                const dialogOpenSqlDoltHubButton = document.getElementById("dialog-open-sql-doltub-button");
+
+
+                if (dialogMailButton) {
+                    dialogMailButton.addEventListener("click", sendMatchesByEmail);
+                }
+
+                if (dialogOpenSqlDoltHubButton) {
+                    dialogOpenSqlDoltHubButton.addEventListener("click", () => {
+                        if (collectedMatchesForEmail.length === 0) {
+                            if (snackbarContainer && snackbarContainer.MaterialSnackbar)
+                                snackbarContainer.MaterialSnackbar.showSnackbar({
+                                    message: "No items to generate SQL for.",
+                                });
+                            return;
+                        }
+                        const queries = generateSqlUpdates(false); // No comments for DoltHub query
+                        if (queries.length === 0) {
+                            if (snackbarContainer && snackbarContainer.MaterialSnackbar)
+                                snackbarContainer.MaterialSnackbar.showSnackbar({
+                                    message: "No SQL queries to run on DoltHub for these items.",
+                                });
+                            return;
+                        }
+                        window.open(
+                            `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(queries.join("\n"))}`,
+                            "_blank",
+                        );
+                    });
+                }
+
 
                 if (copyDoltHubIssueTextButton && dolthubIssueTextarea) {
                     copyDoltHubIssueTextButton.addEventListener("click", () => {
@@ -3329,7 +3226,7 @@
                                         snackbarContainer.MaterialSnackbar.showSnackbar(
                                             {
                                                 message:
-                                                    "Issue content copied!",
+                                                    "Content copied!",
                                             },
                                         );
                                 })
@@ -3346,7 +3243,7 @@
                                         snackbarContainer.MaterialSnackbar.showSnackbar(
                                             {
                                                 message:
-                                                    "Issue content copied (fallback)!",
+                                                    "Content copied (fallback)!",
                                             },
                                         );
                                 });
@@ -3359,7 +3256,7 @@
                                 snackbarContainer.MaterialSnackbar.showSnackbar(
                                     {
                                         message:
-                                            "Failed to copy issue content.",
+                                            "Failed to copy content.",
                                     },
                                 );
                         }
