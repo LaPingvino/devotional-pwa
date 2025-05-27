@@ -1663,13 +1663,13 @@ function getLanguagePickerShellHtml() {
             </button>
             <ul class="mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect"
                 for="${menuId}-btn" id="${allLanguagesMenuUlId}">
-              <li id="language-search-li">
+              <li id="language-search-li" onclick="event.stopPropagation();">
                 <div class="mdl-textfield mdl-js-textfield">
-                  <input class="mdl-textfield__input" type="text" id="${searchInputId}" onkeyup="filterLanguageMenu()">
+                  <input class="mdl-textfield__input" type="text" id="${searchInputId}" onkeyup="filterLanguageMenu()" onclick="event.stopPropagation();">
                   <label class="mdl-textfield__label" for="${searchInputId}">Search languages...</label>
-                </div>
+                 </div>
               </li>
-              <li class="mdl-menu__divider" style="margin-top:0;"></li> {/* style="margin-top:0;" is fine for MDL structure */}
+              <li class="mdl-menu__divider" style="margin-top:0;"></li>
               <!-- Dynamic menu items will be inserted here -->
             </ul>
             <div id="all-languages-message-placeholder"></div>
@@ -1841,22 +1841,8 @@ async function populateLanguageSelection(currentActiveLangCode = null) {
     });
     const menuItemsHtml = (await Promise.all(menuItemPromises)).join('\n');
 
-    allLanguagesMenuHtml = `
-      <button id="${menuId}-btn" class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect">
-        More Languages <i class="material-icons" role="presentation">arrow_drop_down</i>
-      </button>
-      <ul class="mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect"
-          for="${menuId}-btn" id="${allLanguagesMenuUlId}" style="max-height: 300px; overflow-y: auto;">
-        <li style="padding: 0 8px; position: sticky; top: 0; background-color: white; z-index:1;">
-          <div class="mdl-textfield mdl-js-textfield" style="width:calc(100% - 16px); padding:0;">
-            <input class="mdl-textfield__input" type="text" id="${searchInputId}" onkeyup="filterLanguageMenu()">
-            <label class="mdl-textfield__label" for="${searchInputId}">Search languages...</label>
-          </div>
-        </li>
-        <li class="mdl-menu__divider" style="margin-top:0;"></li>
-        ${menuItemsHtml}
-      </ul>
-    `;
+    // menuItemsHtml will be appended to menuUlElement later in the code.
+    // The button and ul shell are already in the DOM from getLanguagePickerShellHtml.
 
     // Define filterLanguageMenu within the scope or ensure it's globally available
     // Attaching to window is a way to make it available for inline onkeyup
