@@ -481,3 +481,61 @@
                 display: flex;
                 align-items: center;
             }
+
+/* === Language Picker Styles === */
+.language-picker-tabs .mdl-tabs__tab-bar {
+    justify-content: flex-start;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.language-picker-tabs .more-languages-section-wrapper {
+    margin-left: auto;
+    padding-left: 15px;
+    align-self: center;
+    display: inline-block;
+}
+
+.language-picker-tabs #all-languages-menu-btn {
+    text-transform: none; /* Override MDL uppercase */
+}
+
+.language-picker-tabs #language-search-li {
+    padding: 0 8px;
+    position: sticky;
+    top: 0;
+    background-color: white;
+    z-index: 1;
+}
+
+.language-picker-tabs #language-search-li .mdl-textfield {
+    width: calc(100% - 16px);
+    padding: 0;
+}
+
+.language-picker-tabs #all-languages-menu-ul {
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.language-picker-tabs #all-languages-message-placeholder {
+    font-size: 0.9em;
+    color: #555;
+    margin-top: 5px;
+    display: inline-block;
+}
+
+.text-center {
+    text-align: center;
+}
+
+.main-content-spinner {
+    text-align:center;
+    padding:20px;
+}
+
+#language-tab-panel-favorites {
+    padding-top: 10px;
+}

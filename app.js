@@ -1083,10 +1083,6 @@ async function renderPrayer(
   // as we need the prayer's language. We'll pass activeLangForNav if available,
   // otherwise, the picker will show with no specific language active initially,
   // or we could make a preliminary query for just the prayer's language.
-  // For now, if activeLangForNav is null, the picker might not have an "active" tab from recent.
-  // The prayer's own language will be used for header nav later.
-  const languagePickerHtml = await generateLanguageSelectionHtml(activeLangForNav);
-
 
   const sql = `SELECT version, text, language, phelps, name, source, link FROM writings WHERE version = '${versionId}' LIMIT 1`;
   const rows = await executeQuery(sql);
@@ -1098,6 +1094,12 @@ async function renderPrayer(
   }
 
   const prayer = rows[0];
+
+  // Determine the language to highlight in the picker:
+  // Use activeLangForNav if provided (context from URL), otherwise use the prayer's own language.
+  const languageToHighlightInPicker = activeLangForNav || prayer.language;
+  populateLanguageSelection(languageToHighlightInPicker); // Async populate
+
   cachePrayerText({ ...prayer });
 
   const authorName = getAuthorFromPhelps(prayer.phelps);
@@ -1191,9 +1193,11 @@ async function renderPrayer(
                         <div style="font-size: 0.7em; margin-left: 2em; margin-top: 0.3em; color: #555;">Phelps ID: ${phelpsDisplayHtml}</div>
                         <div style="font-size: 0.7em; margin-left: 2em; margin-top: 0.3em; color: #555;">Version ID: ${prayer.version}</div>
                     </div>`;
-  contentDiv.innerHTML = languagePickerHtml + html; // Prepend language picker
+ contentDiv.innerHTML = getLanguagePickerShellHtml() + html; // Prepend language picker SHELL
+ if (typeof componentHandler !== "undefined") componentHandler.upgradeElement(contentDiv.querySelector('.mdl-js-tabs'));
 
-  const favoriteButton = document.createElement("button");
+
+ const favoriteButton = document.createElement("button");
   favoriteButton.className =
     "mdl-button mdl-js-button mdl-button--icon favorite-toggle-button";
   const favoriteIcon = document.createElement("i");
@@ -1401,7 +1405,15 @@ async function renderPrayersForLanguage(
   updateHeaderNavigation([]);
   updateDrawerLanguageNavigation([]);
 
-  const languagePickerHtml = await generateLanguageSelectionHtml(langCode);
+  const languagePickerHtml = getLanguagePickerShellHtml(); // Get shell first
+  // Insert shell + spinner BEFORE fetching other data for this view
+  contentDiv.innerHTML = languagePickerHtml +
+    '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block; margin-top: 20px;"></div>';
+  if (typeof componentHandler !== "undefined") componentHandler.upgradeElement(contentDiv.querySelector('.mdl-js-tabs'));
+
+  // Asynchronously populate the picker.
+  populateLanguageSelection(langCode); // Fire and forget.
+
   const languageDisplayName = await getLanguageDisplayName(langCode);
   let filterCondition = showOnlyUnmatched
     ? " AND (phelps IS NULL OR phelps = '')"
@@ -1544,13 +1556,20 @@ async function renderPrayerCodeView(phelpsCode, page = 1) {
     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
   if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
 
-  const languagePickerHtml = await generateLanguageSelectionHtml(null); // No specific active lang for this view
+  const pickerShellHtml = getLanguagePickerShellHtml();
+  // Insert shell + spinner BEFORE fetching other data for this view
+  contentDiv.innerHTML = pickerShellHtml +
+    '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block; margin-top: 20px;"></div>';
+  if (typeof componentHandler !== "undefined") componentHandler.upgradeElement(contentDiv.querySelector('.mdl-js-tabs'));
 
-  const phelpsLangsSql = `SELECT DISTINCT language FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' ORDER BY language`;
+  // Asynchronously populate the picker.
+  populateLanguageSelection(null); // No specific active lang for this view. Fire and forget.
+
+  const phelpsLangsSql = `SELECT DISTINCT language FROM writings WHERE phelps = '${phelpsCode.replace(/\'/g, "''")}' ORDER BY language`;
   const distinctLangs = await executeQuery(phelpsLangsSql);
   const navLinks = distinctLangs.map((langRow) => ({
     text: langRow.language.toUpperCase(),
-    href: `#prayercode/${phelpsCode}/${langRow.language}`,
+    href: '#prayercode/' + phelpsCode + '/' + langRow.language,
     isActive: false,
   }));
   updateHeaderNavigation(navLinks);
@@ -1623,7 +1642,42 @@ async function renderPrayerCodeView(phelpsCode, page = 1) {
   }
 
   contentDiv.innerHTML = `${languagePickerHtml}<header><h2><span id="category">Prayer Code</span><span id="blocktitle">${phelpsCode} (Page ${page}) - All Languages</span></h2></header>${listHtml}${paginationHtml}`;
-  if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
+  // componentHandler.upgradeDom() will be called after all content, including picker population, finishes
+  // For now, the shell upgrade is done earlier.
+  // If issues arise with MDL components in listHtml/paginationHtml, a targeted upgrade here might be needed.
+  if (typeof componentHandler !== "undefined") componentHandler.upgradeDom(); // Or more targeted if possible
+}
+
+function getLanguagePickerShellHtml() {
+    const menuId = "all-languages-menu"; // For the 'for' attribute
+    const searchInputId = "language-search-input";
+    const allLanguagesMenuUlId = "all-languages-menu-ul";
+
+    return `
+      <div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect language-picker-tabs">
+        <div class="mdl-tabs__tab-bar" id="language-picker-tab-bar">
+          <!-- Favorites and Recent tabs will be inserted here by populateLanguageSelection -->
+          <div id="more-languages-wrapper" class="more-languages-section-wrapper">
+            <button id="${menuId}-btn" class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect">
+              More Languages <i class="material-icons" role="presentation">arrow_drop_down</i>
+            </button>
+            <ul class="mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect"
+                for="${menuId}-btn" id="${allLanguagesMenuUlId}">
+              <li id="language-search-li">
+                <div class="mdl-textfield mdl-js-textfield">
+                  <input class="mdl-textfield__input" type="text" id="${searchInputId}" onkeyup="filterLanguageMenu()">
+                  <label class="mdl-textfield__label" for="${searchInputId}">Search languages...</label>
+                </div>
+              </li>
+              <li class="mdl-menu__divider" style="margin-top:0;"></li> {/* style="margin-top:0;" is fine for MDL structure */}
+              <!-- Dynamic menu items will be inserted here -->
+            </ul>
+            <div id="all-languages-message-placeholder"></div>
+          </div>
+        </div>
+        <!-- Tab panels are handled by specific views, e.g., favorites panel in renderLanguageList -->
+      </div>
+    `;
 }
 
 async function resolveAndRenderPrayerByPhelpsAndLang(
@@ -1676,7 +1730,29 @@ async function resolveAndRenderPrayerByPhelpsAndLang(
   }
 }
 
-async function generateLanguageSelectionHtml(currentActiveLangCode = null) {
+async function populateLanguageSelection(currentActiveLangCode = null) {
+  const tabBarElement = document.getElementById('language-picker-tab-bar');
+  const moreLanguagesWrapperElement = document.getElementById('more-languages-wrapper');
+  const menuUlElement = document.getElementById('all-languages-menu-ul');
+  const messagePlaceholderElement = document.getElementById('all-languages-message-placeholder');
+
+  if (!tabBarElement || !menuUlElement || !moreLanguagesWrapperElement || !messagePlaceholderElement) {
+    console.error("Language picker shell elements not found in DOM. Cannot populate.");
+    return;
+  }
+
+  // Clear previous dynamic content (safer than replacing entire innerHTML of tab bar)
+  // Find existing tab links (not the more-languages-wrapper) and remove them
+  const existingTabLinks = tabBarElement.querySelectorAll('a.mdl-tabs__tab');
+  existingTabLinks.forEach(link => link.remove());
+  
+  // Clear previous menu items (children of ul, skipping search and divider)
+  while (menuUlElement.children.length > 2) { // Assumes search li and divider li are first two
+      menuUlElement.removeChild(menuUlElement.lastChild);
+  }
+  messagePlaceholderElement.innerHTML = ''; // Clear previous message
+
+
   try {
     await fetchLanguageNames(); // Ensure names are loaded for display
   } catch (error) {
@@ -1749,11 +1825,11 @@ async function generateLanguageSelectionHtml(currentActiveLangCode = null) {
   );
 
   let allLanguagesMenuHtml = "";
-  const searchInputId = "language-search-input"; // Made constant for filterLanguageMenu closure
-  const allLanguagesMenuUlId = "all-languages-menu-ul"; // Made constant
+  const searchInputId = "language-search-input"; // Used for filterLanguageMenu closure
+  const allLanguagesMenuUlId = "all-languages-menu-ul"; // Used for filterLanguageMenu closure
 
   if (otherLanguagesWithStats.length > 0) {
-    const menuId = "all-languages-menu";
+    moreLanguagesWrapperElement.style.display = 'inline-block'; // Show the "More Languages" section
 
     const menuItemPromises = otherLanguagesWithStats.map(async (langData) => {
       const langCode = langData.language;
@@ -1804,41 +1880,86 @@ async function generateLanguageSelectionHtml(currentActiveLangCode = null) {
                     items[i].style.display = "none";
                 }
             }
-        }}; // Closing brace for function, then semicolon for assignment
-    }
+        }; // Closes function body, semicolon for assignment
+    } // Closes 'if (typeof window.filterLanguageMenu !== 'function')'
 
-  } else if (allLangsWithStats.length > 0 && recentLangDetails.length === allLangsWithStats.length && recentLangDetails.length > 0) {
-    allLanguagesMenuHtml = `<p style="font-size:0.9em; color:#555;">All available languages are shown in "Recent".</p>`;
-  }
+    // Append new menu items
+// The menuItemsHtml is already a string of <li> elements
+// We need to insert these LI elements into the menuUlElement
+// A simple way for now, though could be more performant for large lists
+const tempDiv = document.createElement('div');
+tempDiv.innerHTML = menuItemsHtml; // menuItemsHtml was generated earlier
+Array.from(tempDiv.children).forEach(child => {
+    menuUlElement.appendChild(child);
+});
+} // Closes 'if (otherLanguagesWithStats.length > 0)'
+else if (allLangsWithStats.length > 0 && recentLangDetails.length === allLangsWithStats.length && recentLangDetails.length > 0) {
+messagePlaceholderElement.innerHTML = `<p style="font-size:0.9em; color:#555;">All available languages are shown in "Recent".</p>`;
+moreLanguagesWrapperElement.style.display = 'inline-block'; // Show the wrapper to display this message
+// Hide the button itself if only the message is shown
+const moreButton = document.getElementById('all-languages-menu-btn');
+if(moreButton) moreButton.style.display = 'none';
 
-  let languageSelectionParts = [];
-  // The tab bar now includes Favorites and Recent, or just Favorites if no recent.
-  // The "RECENT:" label might be redundant if "Favorites" is always there.
-  // We wrap in mdl-tabs only if there's something to show in the tab bar.
-  if (recentAndFavoritesTabsBarHtml) { // Will always be true because Favorites tab is always added
-    languageSelectionParts.push(`
-      <div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect">
-        <div class="mdl-tabs__tab-bar" style="justify-content: center; border-bottom: 1px solid #eee; padding-bottom: 5px; flex-wrap: wrap;">
-          ${recentAndFavoritesTabsBarHtml}
-        </div>
-      </div>
-    `);
+} else {
+// No "other" languages and not all are recent (or no languages at all)
+// Hide the "More Languages" section entirely if there are no other languages
+  if (moreLanguagesWrapperElement) {
+    moreLanguagesWrapperElement.style.display = 'none';
   }
-  if (allLanguagesMenuHtml) {
-    // Wrap "More Languages" button in a div for consistent centering/spacing if tabs are present or not
-    const marginTopStyle = recentLangDetails.length > 0 ? 'margin-top:15px;' : 'margin-top:5px;'; // Less margin if no tabs
-    languageSelectionParts.push(`<div style="text-align:center; ${marginTopStyle}">${allLanguagesMenuHtml}</div>`);
-  }
-  
-  if (languageSelectionParts.length === 0 && allLangsWithStats.length > 0) {
-    return '<p style="text-align:center;">Languages available but not displayed (check logic).</p>';
-  }
-  
-  return languageSelectionParts.join('');
 }
 
+
+// Populate tab bar: Prepend recent/favorites tabs to the existing "More Languages" section in the tab bar.
+// The "More Languages" section is already in the shell. We add tabs before it.
+if (recentAndFavoritesTabsBarHtml) {
+  const tempTabsDiv = document.createElement('div');
+  tempTabsDiv.innerHTML = recentAndFavoritesTabsBarHtml; // This is a string of <a> tags
+  const moreLanguagesDiv = tabBarElement.querySelector('.more-languages-section-wrapper');
+  if (moreLanguagesDiv) {
+      Array.from(tempTabsDiv.children).reverse().forEach(tabLink => { // reverse to prepend correctly
+          tabBarElement.insertBefore(tabLink, moreLanguagesDiv);
+      });
+  } else { // Fallback if more-languages-wrapper isn't there (should be, from shell)
+      tabBarElement.innerHTML = recentAndFavoritesTabsBarHtml + tabBarElement.innerHTML;
+  }
+}
+
+// Ensure MDL components in the picker are upgraded if they were dynamically added or modified.
+// This is crucial for tabs, menu, button ripples, textfield in search.
+if (typeof componentHandler !== "undefined") {
+const pickerElement = tabBarElement.closest('.mdl-tabs');
+if (pickerElement) {
+    componentHandler.upgradeElement(pickerElement); // Upgrade tabs
+    const menuButton = pickerElement.querySelector('#all-languages-menu-btn');
+    const menuUL = pickerElement.querySelector('#all-languages-menu-ul');
+    const searchTf = pickerElement.querySelector('#language-search-li .mdl-js-textfield');
+    if (menuButton) componentHandler.upgradeElement(menuButton);
+    if (menuUL) componentHandler.upgradeElement(menuUL);
+    if (searchTf) componentHandler.upgradeElement(searchTf);
+
+    // MDL menus might need specific re-initialization if items are added dynamically
+    // For simplicity, upgradeDom on the menu might be easiest if specific upgrade isn't clean
+    // componentHandler.upgradeDom(menuUL); // Alternative
+} else {
+    componentHandler.upgradeDom(); // Broader upgrade if specific element not found
+}
+}
+} // Closes populateLanguageSelection
+
+// This function now manipulates DOM directly, doesn't return HTML for the whole picker.
+
 async function renderLanguageList() {
-  contentDiv.innerHTML =
+// Stage 1: Render the shell immediately
+contentDiv.innerHTML = getLanguagePickerShellHtml() + 
+'<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block; margin-top: 20px;"></div>'; // Spinner for data loading
+if (typeof componentHandler !== "undefined") componentHandler.upgradeElement(contentDiv.querySelector('.mdl-js-tabs')); // Upgrade tabs shell
+
+// Clear main page header/drawer nav as this view controls its own nav via the picker
+updateHeaderNavigation([]);
+updateDrawerLanguageNavigation([]);
+
+currentPageByLanguage = {};
+currentPageBySearchTerm = {};
     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
   if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
   updateHeaderNavigation([]);
@@ -1861,7 +1982,7 @@ async function renderLanguageList() {
 
     if (phelpsCodesToFetchForFavs.length > 0) {
       const phelpsInClause = phelpsCodesToFetchForFavs
-        .map((p) => `\'${p.replace(/\'/g, "\'\'")}\'`)
+        .map((p) => `'${p.replace(/'/g, "''")}'`) // Simpler escaping for SQL
         .join(",");
       const favTranslationsSql = `SELECT version, language, phelps, name, link FROM writings WHERE phelps IN (${phelpsInClause})`;
       try {
@@ -1910,28 +2031,115 @@ async function renderLanguageList() {
     favoritesDisplayHtml += `<div id="favorite-prayers-section" style="text-align: center; padding: 20px 0; margin-bottom:10px;"><p>You haven't favorited any prayers yet. <br/>Click the <i class="material-icons" style="vertical-align: bottom; font-size: 1.2em;">star_border</i> icon on a prayer's page to add it here!</p></div>`;
   }
 
-  // When renderLanguageList is called, currentActiveLangCode for generateLanguageSelectionHtml is null,
+  // When renderLanguageList is called, currentActiveLangCode for populateLanguageSelection is null,
   // so the "Favorites" tab in the picker will be marked active.
-  const languageSelectionHtml = await generateLanguageSelectionHtml(null);
+  const pickerShellHtml = getLanguagePickerShellHtml(); // Get shell
 
-  if (!languageSelectionHtml) { // Handles case where generateLanguageSelectionHtml returns empty/error
-    contentDiv.innerHTML = `<p>Error loading language selection.</p>`;
-    return;
-  }
-  // Update contentDiv
-  // The languageSelectionHtml contains the tab bar.
-  // The favoritesDisplayHtml is wrapped in a panel corresponding to the "Favorites" tab.
-  contentDiv.innerHTML =
+  // Stage 1: Render the shell immediately with a main page spinner
+  contentDiv.innerHTML = 
     `<header><h2><span id="category">Prayers</span><span id="blocktitle">Available Languages</span></h2></header>
-     ${languageSelectionHtml}
-     <div class="mdl-tabs__panel is-active" id="language-tab-panel-favorites" style="padding-top: 10px;">
-       ${favoritesDisplayHtml}
+     ${pickerShellHtml}
+     <div id="main-content-area-spinner" class="main-content-spinner">
+        <div class="mdl-spinner mdl-js-spinner is-active"></div>
      </div>
-     <p style="text-align:center; font-size:0.9em; color: #555; margin-top:20px;">Counts are (Unique Phelps Codes / Total Unique Prayers). Select a language to browse.</p>`;
-
+     <div class="mdl-tabs__panel" id="language-tab-panel-favorites">
+       <!-- Favorites content will be injected here -->
+     </div>
+     <p class="text-center" style="font-size:0.9em; color: #555; margin-top:20px;">Counts are (Unique Phelps Codes / Total Unique Prayers). Select a language to browse.</p>`;
+  
   if (typeof componentHandler !== "undefined") {
-    componentHandler.upgradeDom();
+    componentHandler.upgradeDom(); // Upgrade shell, including tabs, menu button, textfield in menu
   }
+
+  // Stage 2: Asynchronously populate the language picker and then the favorites
+  populateLanguageSelection(null).then(async () => {
+    // Once picker is populated (or at least population has started), load and display favorites.
+    // The spinner from the initial shell render will cover this.
+    let localFavoritesDisplayHtml = ""; // Use a local variable for this async block
+    if (favoritePrayers.length > 0) {
+      localFavoritesDisplayHtml += `<div id="favorite-prayers-section"><h3>⭐ Your Favorite Prayers</h3>`; // Removed inline style
+      const phelpsCodesToFetchForFavs = [
+        ...new Set(
+          favoritePrayers.filter((fp) => fp.phelps).map((fp) => fp.phelps),
+        ),
+      ];
+      let allPhelpsDetailsForFavCards = {};
+
+      if (phelpsCodesToFetchForFavs.length > 0) {
+        const phelpsInClause = phelpsCodesToFetchForFavs
+          .map((p) => "'" + p.replace(/'/g, "''") + "'")
+          .join(",");
+        const favTranslationsSql = `SELECT version, language, phelps, name, link FROM writings WHERE phelps IN (${phelpsInClause})`;
+        try {
+          const translationRows = await executeQuery(favTranslationsSql);
+          translationRows.forEach((row) => {
+            if (!allPhelpsDetailsForFavCards[row.phelps])
+              allPhelpsDetailsForFavCards[row.phelps] = [];
+            allPhelpsDetailsForFavCards[row.phelps].push({
+              ...row,
+            });
+          });
+        } catch (e) {
+          console.error("Failed to fetch details for favorite phelps codes:", e);
+        }
+      }
+
+      const favoriteCardPromises = [];
+      for (const fp of favoritePrayers) {
+        const cached = getCachedPrayerText(fp.version);
+        let textForCardPreview = "Preview not available.";
+        let nameForCard = fp.name || (cached ? cached.name : null);
+        let langForCard = fp.language || (cached ? cached.language : "N/A");
+        let phelpsForCard = fp.phelps || (cached ? cached.phelps : null);
+        let linkForCard = cached ? cached.link : null;
+        if (cached && cached.text)
+          textForCardPreview =
+            cached.text.substring(0, MAX_PREVIEW_LENGTH) +
+            (cached.text.length > MAX_PREVIEW_LENGTH ? "..." : "");
+        favoriteCardPromises.push(
+          createPrayerCardHtml(
+            {
+              version: fp.version,
+              name: nameForCard || '',
+              language: langForCard || 'N/A', // 'N/A' was already a fallback but good to be explicit
+              phelps: phelpsForCard || '',
+              opening_text: textForCardPreview || '',
+              link: linkForCard || '',
+            },
+            allPhelpsDetailsForFavCards,
+          ),
+        );
+      }
+      const favoriteCardsHtmlArray = await Promise.all(favoriteCardPromises);
+      localFavoritesDisplayHtml += `<div class="favorite-prayer-grid">${favoriteCardsHtmlArray.join("")}</div></div>`;
+    } else {
+      localFavoritesDisplayHtml += `<div id="favorite-prayers-section" class="text-center" style="padding: 20px 0; margin-bottom:10px;"><p>You haven't favorited any prayers yet. <br/>Click the <i class="material-icons" style="vertical-align: bottom; font-size: 1.2em;">star_border</i> icon on a prayer's page to add it here!</p></div>`;
+    }
+
+    // Inject favorites HTML into its panel and remove spinner
+    const favoritesPanel = document.getElementById('language-tab-panel-favorites');
+    const mainSpinner = document.getElementById('main-content-area-spinner');
+    if (favoritesPanel) {
+        favoritesPanel.innerHTML = localFavoritesDisplayHtml;
+        favoritesPanel.classList.add('is-active'); // Ensure it\'s active
+    }
+    if (mainSpinner) {
+        mainSpinner.remove();
+    }
+    
+    // Re-upgrade components in the favorites panel if necessary
+    if (typeof componentHandler !== "undefined" && favoritesPanel) {
+      // componentHandler.upgradeDom(favoritesPanel); // More targeted
+      componentHandler.upgradeDom(); // Broader might be safer if cards have MDL elements
+    }
+  }).catch(error => {
+      console.error("Error populating language selection or favorites:", error);
+      const mainSpinner = document.getElementById('main-content-area-spinner');
+      if(mainSpinner) mainSpinner.remove();
+      // contentDiv may have shell, or may need a simpler error message
+      const errorDisplay = contentDiv.querySelector('#language-tab-panel-favorites') || contentDiv;
+      errorDisplay.innerHTML = `<p>Error loading page content.</p>`;
+  });
 }
 
 async function renderSearchResults(searchTerm, page = 1) {
