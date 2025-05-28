@@ -2344,9 +2344,107 @@ if (pickerElement) {
 // This function now manipulates DOM directly, doesn't return HTML for the whole picker.
 
 // Helper function to render the specific content for the language list view.
+
+async function _fetchAndDisplayRandomPrayer(containerElement) { // Changed parameter name
+  if (!containerElement) { // Check the element directly
+    console.error("Random prayer container element not provided or invalid.");
+    return;
+  }
+  containerElement.innerHTML = '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block; padding: 20px 0;"></div>';
+  if (typeof componentHandler !== 'undefined') {
+    componentHandler.upgradeDom(containerElement);
+  }
+
+  try {
+    // Fetching random prayer in three steps for performance:
+    // 1. Count total prayers in the database. This helps determine the range for a random offset for metadata retrieval.
+    // 2. Get a random prayer's metadata (version, name, lang, phelps) using this offset.
+    //    Ordering by an indexed column (e.g., 'version') is crucial for efficient OFFSET.
+    //    This step does NOT initially filter by text presence to ensure the count and offset operations are fast.
+    // 3. Fetch the actual TEXT field for the selected prayer's version in a separate, targeted query.
+    //    This ensures the large TEXT field is only retrieved by its primary key/indexed 'version'.
+    //    A check for text presence is done AFTER retrieval.
+
+    const countSql = "SELECT COUNT(*) as total FROM writings"; // Count all prayers
+    const countResult = await executeQuery(countSql);
+    // Ensure countResult is valid and has a 'total' property before parsing
+    const totalPrayers = countResult && countResult.length > 0 && typeof countResult[0].total !== 'undefined'
+        ? parseInt(countResult[0].total, 10)
+        : 0;
+
+    if (totalPrayers === 0) {
+      // This message now means no prayers in the entire table, which is unlikely but a good guard.
+      containerElement.innerHTML = '<p style="text-align:center; padding:10px;">No prayers found in the database.</p>';
+      return;
+    }
+
+    const randomOffset = Math.floor(Math.random() * totalPrayers);
+    // Order by version (assuming it's indexed) for efficient OFFSET
+    // No WHERE clause on 'text' here for performance; text presence will be checked after fetching.
+    const prayerMetadataSql = `SELECT version, name, language, phelps FROM writings ORDER BY version LIMIT 1 OFFSET ${randomOffset}`;
+    const prayerMetadataRows = await executeQuery(prayerMetadataSql);
+
+    if (!prayerMetadataRows || prayerMetadataRows.length === 0) {
+      containerElement.innerHTML = '<p style="color:red; text-align:center; padding:10px;">Could not load random prayer metadata.</p>';
+      return;
+    }
+
+    const prayerMetadata = prayerMetadataRows[0];
+
+    // Third step: Fetch the prayer text separately using its version ID
+    const prayerTextSql = `SELECT text FROM writings WHERE version = '${prayerMetadata.version}'`;
+    const prayerTextRows = await executeQuery(prayerTextSql);
+
+    // Check if text was successfully fetched and is not empty
+    if (!prayerTextRows || prayerTextRows.length === 0 || typeof prayerTextRows[0].text === 'undefined' || prayerTextRows[0].text.trim() === '') {
+      // If the randomly selected prayer has no text or empty text, inform the user.
+      // Avoid retrying here to prevent potential loops if many prayers lack text or if text fetching is problematic.
+      containerElement.innerHTML = '<p style="text-align:center; padding:10px;">Prayer of the Moment: Selected prayer has no displayable text.</p>';
+      return;
+    }
+
+    // Combine metadata with text
+    const prayer = { ...prayerMetadata, text: prayerTextRows[0].text };
+    const langDisplayName = await getLanguageDisplayName(prayer.language);
+
+    let prayerHtml = `
+      <div class="random-prayer-card" style="padding: 15px; margin-bottom: 20px; background-color: #fff; border: 1px solid #e0e0e0; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);">
+        <h4 style="margin-top:0; font-size: 1.2em; color: #3f51b5;">Prayer of the Moment</h4>
+        <p style="font-size: 0.9em; color: #555; margin-bottom:10px;"><em>${prayer.name || (prayer.phelps ? `${prayer.phelps} - ${langDisplayName}` : `A prayer in ${langDisplayName}`)}</em></p>
+        <div class="scripture" style="white-space: pre-wrap; max-height: 150px; overflow-y: auto; padding: 10px; border: 1px solid #eee; margin-bottom:15px; font-size: 0.95em; line-height:1.5;">
+          ${prayer.text.substring(0, 400)}${prayer.text.length > 400 ? '...' : ''}
+        </div>
+        <a href="#prayer/${prayer.version}" class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent">
+          <i class="material-icons" style="margin-right:4px;">open_in_new</i> Read Full Prayer
+        </a>
+      </div>
+    `;
+    containerElement.innerHTML = prayerHtml;
+    if (typeof componentHandler !== 'undefined') {
+      componentHandler.upgradeDom(containerElement);
+    }
+
+  }
+ catch (error) {
+   console.error("Error fetching or displaying random prayer:", error);
+   containerElement.innerHTML = '<p style="color:red; text-align:center; padding:10px;">Could not load Prayer of the Moment.</p>';
+ }
+}
+
 async function _renderLanguageListContent() {
-    const contentWrapper = document.createElement('div');
-    contentWrapper.innerHTML = `
+    const overallWrapper = document.createElement('div');
+
+    // 1. Random Prayer Section (placeholder)
+    const randomPrayerPlaceholder = document.createElement('div');
+    randomPrayerPlaceholder.id = 'random-prayer-module'; // Changed ID for clarity
+    randomPrayerPlaceholder.style.marginBottom = '20px';
+    // Initial placeholder text, spinner will be added by _fetchAndDisplayRandomPrayer
+    randomPrayerPlaceholder.innerHTML = '<p style="text-align:center; padding:10px;"><em>Loading Prayer of the Moment...</em></p>'; 
+    overallWrapper.appendChild(randomPrayerPlaceholder);
+
+    // 2. Main area for language list specific content (favorites currently)
+    const langListSpecificContent = document.createElement('div');
+    langListSpecificContent.innerHTML = `
       <div id="main-content-area-for-langlist" style="min-height: 100px;">
         <div class="mdl-tabs__panel is-active" id="language-tab-panel-favorites">
           <!-- Favorites content will be loaded here -->
@@ -2356,8 +2454,8 @@ async function _renderLanguageListContent() {
         Counts are (Unique Phelps Codes / Total Unique Prayers). Select a language to browse.
       </p>
     `;
-
-    const favoritesPanel = contentWrapper.querySelector('#language-tab-panel-favorites');
+    const favoritesPanel = langListSpecificContent.querySelector('#language-tab-panel-favorites');
+    overallWrapper.appendChild(langListSpecificContent);
     
     // Logic to load and display favorites
     let localFavoritesDisplayHtml = "";
@@ -2428,7 +2526,12 @@ async function _renderLanguageListContent() {
         favoritesPanel.innerHTML = localFavoritesDisplayHtml;
     }
     
-    return contentWrapper;
+    // Kick off the async fetch for the random prayer. 
+    // It will update its placeholder div when ready.
+    // No await here, let it load in background.
+    _fetchAndDisplayRandomPrayer(randomPrayerPlaceholder); 
+
+    return overallWrapper;
 }
 
 async function renderLanguageList() {
