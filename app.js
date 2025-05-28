@@ -2188,15 +2188,25 @@ async function populateLanguageSelection(currentActiveLangCode = null) {
   if (otherLanguagesWithStats.length > 0) {
     moreLanguagesWrapperElement.style.display = 'inline-block'; // Show the "More Languages" section
 
-    const menuItemPromises = otherLanguagesWithStats.map(async (langData) => {
+    // Augment languages with their display names for sorting
+    const languagesWithDisplayNamesPromises = otherLanguagesWithStats.map(async (langData) => {
+      const displayName = await getLanguageDisplayName(langData.language);
+      return { ...langData, displayName }; // Keep original stats, add displayName
+    });
+    const augmentedLanguages = await Promise.all(languagesWithDisplayNamesPromises);
+
+    // Sort by display name
+    augmentedLanguages.sort((a, b) => a.displayName.localeCompare(b.displayName));
+
+    // Generate HTML list items from the sorted list
+    const menuItemsHtml = augmentedLanguages.map(langData => {
       const langCode = langData.language;
-      const displayName = await getLanguageDisplayName(langCode);
+      const displayName = langData.displayName; // Already fetched
       const phelpsCount = parseInt(langData.phelps_covered_count, 10) || 0;
       const nonPhelpsCount = parseInt(langData.versions_without_phelps_count, 10) || 0;
       const totalConceptualPrayers = phelpsCount + nonPhelpsCount;
       return `<li class="mdl-menu__item" onclick="setLanguageView('${langCode}', 1, false)" data-val="${langCode}">${displayName} (${phelpsCount}/${totalConceptualPrayers})</li>`;
-    });
-    const menuItemsHtml = (await Promise.all(menuItemPromises)).join('\n');
+    }).join('\n');
 
     if (menuUlElement) {
         const searchLiHtml = `
