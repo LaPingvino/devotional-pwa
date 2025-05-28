@@ -1,484 +1,451 @@
-            .star {
-                font-family: "Noto Sans Symbols 2";
-                font-size: 1.5em;
-            }
+.star {
+    font-family: "Noto Sans Symbols 2";
+    font-size: 1.5em;
+}
 
-            body {
-                font-size: 1.3em;
-                background-color: #f4f6f6;
-            }
+body {
+    font-size: 1.3em;
+    background-color: #f4f6f6;
+}
 
-            /* New styles for two-column layout */
-            #main-view-container {
-                display: flex;
-                flex-wrap: wrap; /* Allow columns to wrap on smaller screens */
-                padding: 10px; /* Outer padding for the entire two-column area */
-            }
+/* New styles for two-column layout */
+#main-view-container {
+    display: flex;
+    flex-wrap: wrap; /* Allow columns to wrap on smaller screens */
+    padding: 10px; /* Outer padding for the entire two-column area */
+}
 
-            #content-column {
-                flex: 3; /* Main content takes more space, e.g., ~75% */
-                min-width: 0; /* Important for flex item shrinking */
-                display: flex; /* To allow #content to be a card within */
-                flex-direction: column;
-            }
+#content-column {
+    flex: 3; /* Main content takes more space, e.g., ~75% */
+    min-width: 0; /* Important for flex item shrinking */
+    display: flex; /* To allow #content to be a card within */
+    flex-direction: column;
+}
 
-            #content {
-                position: relative; /* For favorite button positioning */
-                margin: 15px; /* Card-like margin */
-                background-color: #ffffff;
-                padding: 20px;
-                border-radius: 4px;
-                box-shadow:
-                    0 2px 2px 0 rgba(0, 0, 0, 0.14),
-                    0 3px 1px -2px rgba(0, 0, 0, 0.2),
-                    0 1px 5px 0 rgba(0, 0, 0, 0.12);
-            }
+#content {
+    /* position: relative; */ /* REMOVED as per request */
+    margin: 15px; /* Card-like margin */
+    background-color: #ffffff;
+    padding: 20px;
+    border-radius: 4px;
+    box-shadow:
+        0 2px 2px 0 rgba(0, 0, 0, 0.14),
+        0 3px 1px -2px rgba(0, 0, 0, 0.2),
+        0 1px 5px 0 rgba(0, 0, 0, 0.12);
+}
 
-            #prayer-matching-tool {
-                flex: 1; /* Tool takes less space, e.g., ~25% */
-                min-width: 320px; /* Minimum width for the tool */
-                margin: 15px; /* Card-like margin */
-                padding: 20px;
-                background-color: #fffde7; /* Light Yellow */
-                border-radius: 4px;
-                box-shadow:
-                    0 2px 2px 0 rgba(0, 0, 0, 0.14),
-                    0 3px 1px -2px rgba(0, 0, 0, 0.2),
-                    0 1px 5px 0 rgba(0, 0, 0, 0.12);
-                align-self: flex-start; /* Keep it at the top of the flex row */
-                max-height: calc(
-                    100vh - 100px
-                ); /* Adjust based on header/margins */
-                overflow-y: auto; /* Make tool scrollable if content exceeds max-height */
-            }
+#prayer-matching-tool {
+    flex: 1; /* Tool takes less space, e.g., ~25% */
+    min-width: 320px; /* Minimum width for the tool */
+    margin: 15px; /* Card-like margin */
+    padding: 20px;
+    background-color: #fffde7; /* Light Yellow */
+    border-radius: 4px;
+    box-shadow:
+        0 2px 2px 0 rgba(0, 0, 0, 0.14),
+        0 3px 1px -2px rgba(0, 0, 0, 0.2),
+        0 1px 5px 0 rgba(0, 0, 0, 0.12);
+    align-self: flex-start; /* Keep it at the top of the flex row */
+    max-height: calc(
+        100vh - 100px
+    ); /* Adjust based on header/margins */
+    overflow-y: auto; /* Make tool scrollable if content exceeds max-height */
+}
 
-            #contribution-section {
-                margin: 0 25px 25px 25px; /* Align with cards above (10px padding + 15px margin) */
-                padding: 20px;
-                background-color: #e8f5e9;
-                border-radius: 4px;
-                box-shadow:
-                    0 2px 2px 0 rgba(0, 0, 0, 0.14),
-                    0 3px 1px -2px rgba(0, 0, 0, 0.2),
-                    0 1px 5px 0 rgba(0, 0, 0, 0.12);
-            }
+#contribution-section {
+    margin: 0 25px 25px 25px;
+    padding: 20px;
+    background-color: #e8f5e9;
+    border-radius: 4px;
+    box-shadow:
+        0 2px 2px 0 rgba(0, 0, 0, 0.14),
+        0 3px 1px -2px rgba(0, 0, 0, 0.2),
+        0 1px 5px 0 rgba(0, 0, 0, 0.12);
+}
 
-            @media screen and (max-width: 1024px) {
-                /* Breakpoint for stacking columns */
-                #main-view-container {
-                    flex-direction: column;
-                    padding: 5px; /* Reduce padding when stacked */
-                }
-                #content-column {
-                    order: 1; /* Content first */
-                }
-                #prayer-matching-tool {
-                    order: 2; /* Tool second */
-                    min-width: 0; /* Allow it to be full width, override base 320px */
-                    max-height: none; /* Allow full height for content */
-                    overflow-y: visible;
-                }
-                #contribution-section {
-                    /* #main-view-container padding 5px + #content margin 15px = 20px effective indent */
-                    /* So, #contribution-section needs L/R margin 20px to align */
-                    margin: 15px 20px; /* Consistent margin for stacked layout, L/R adjusted */
-                }
-            }
+@media screen and (max-width: 1024px) {
+    #main-view-container {
+        flex-direction: column;
+        padding: 5px;
+    }
+    #content-column {
+        order: 1;
+    }
+    #prayer-matching-tool {
+        order: 2;
+        min-width: 0;
+        max-height: none;
+        overflow-y: visible;
+    }
+    #contribution-section {
+        margin: 15px 20px;
+    }
+}
 
-            @media screen and (max-width: 480px) {
-                #main-view-container {
-                    padding: 0; /* No padding for the container on very small screens */
-                }
-                #content,
-                #prayer-matching-tool,
-                #contribution-section {
-                    margin: 10px; /* Reduce margins for cards, all will align as parent padding is 0 */
-                    padding: 15px; /* Reduce padding inside cards */
-                }
-            }
+@media screen and (max-width: 480px) {
+    #main-view-container {
+        padding: 0;
+    }
+    #content,
+    #prayer-matching-tool,
+    #contribution-section {
+        margin: 10px;
+        padding: 15px;
+    }
+}
 
-            /* Header fixes for mobile visibility */
-            @media screen and (max-width: 767px) {
-                /* Mobile and small tablets */
-                .mdl-layout__header-row {
-                    padding-right: 8px; /* Reduce right padding for more space for icons/nav */
-                }
-                .mdl-layout__header-row .mdl-layout-title {
-                    font-size: 1rem; /* Smaller title */
-                    flex: 0 1 auto; /* Allow title to shrink but not grow, auto basis */
-                    white-space: nowrap;
-                    overflow: hidden;
-                    text-overflow: ellipsis;
-                }
-                .mdl-layout__header-row .mdl-textfield--expandable {
-                    flex-shrink: 0;
-                }
-                .mdl-layout__header-row
-                    .mdl-textfield--expandable
-                    > .mdl-button--icon {
-                    margin-right: 2px;
-                }
+@media screen and (max-width: 767px) {
+    .mdl-layout__header-row {
+        padding-right: 8px;
+    }
+    .mdl-layout__header-row .mdl-layout-title {
+        font-size: 1rem;
+        flex: 0 1 auto;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+    .mdl-layout__header-row .mdl-textfield--expandable {
+        flex-shrink: 0;
+    }
+    .mdl-layout__header-row
+        .mdl-textfield--expandable
+        > .mdl-button--icon {
+        margin-right: 2px;
+    }
+    .mdl-layout__header-row #prayer-language-nav {
+        flex-shrink: 0;
+    }
+    .mdl-layout__header-row
+        #prayer-language-nav.mdl-navigation
+        .mdl-navigation__link {
+        padding: 0 4px;
+        font-size: 0.75em;
+        white-space: nowrap;
+    }
+    .mdl-layout__header-row #prayer-language-nav .mdl-button--icon {
+        margin-left: 2px;
+    }
+}
 
-                .mdl-layout__header-row #prayer-language-nav {
-                    flex-shrink: 0;
-                }
-                .mdl-layout__header-row
-                    #prayer-language-nav.mdl-navigation
-                    .mdl-navigation__link {
-                    padding: 0 4px;
-                    font-size: 0.75em;
-                    white-space: nowrap;
-                }
-                .mdl-layout__header-row #prayer-language-nav .mdl-button--icon {
-                    margin-left: 2px;
-                }
-            }
-            /* Drawer specific styles */
-            .mdl-layout__drawer #drawer-prayer-language-nav {
-                padding-top: 0;
-                padding-bottom: 8px;
-                border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-                margin-bottom: 8px;
-                max-height: 150px; /* Limit height and make scrollable if many languages */
-                overflow-y: auto;
-            }
-            .mdl-layout__drawer
-                #drawer-prayer-language-nav
-                .mdl-navigation__link {
-                color: rgba(
-                    0,
-                    0,
-                    0,
-                    0.87
-                ); /* Standard text color for drawer links */
-            }
-            .mdl-layout__drawer .main-drawer-nav {
-                /* Class for original nav items */
-                padding-top: 8px;
-            }
+.mdl-layout__drawer #drawer-prayer-language-nav {
+    padding-top: 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+    margin-bottom: 8px;
+    max-height: 150px;
+    overflow-y: auto;
+}
+.mdl-layout__drawer
+    #drawer-prayer-language-nav
+    .mdl-navigation__link {
+    color: rgba(0,0,0,0.87);
+}
+.mdl-layout__drawer .main-drawer-nav {
+    padding-top: 8px;
+}
 
-            #content a {
-                font-weight: bold;
-                padding: 3px;
-            }
-            #content a + a::before {
-                content: " - ";
-            }
-            #content .prayer-list-item a + a::before,
-            #content .prayer-code-list-item a + a::before {
-                content: "";
-            }
-            #content .other-versions-in-lang-list a + a::before {
-                /* Remove dash for this specific list */
-                content: "";
-            }
+#content a {
+    font-weight: bold;
+    padding: 3px;
+}
+#content a + a::before {
+    content: " - ";
+}
+#content .prayer-list-item a + a::before,
+#content .prayer-code-list-item a + a::before {
+    content: "";
+}
+#content .other-versions-in-lang-list a + a::before {
+    content: "";
+}
 
-            .author::before {
-                content: "--";
-            }
-            header, /* This refers to the <header> inside #content, not the main layout header */
-            .scripture {
-                padding-left: 1em;
-            }
-            .scripture {
-                font-family: "Gentium", "Times New Roman", serif;
-                border-left: black solid 2px;
-                max-width: 800px; /* Keep scripture text from being too wide */
-            }
-            .author {
-                margin-top: 1em;
-                margin-left: 2em;
-                font-weight: bold;
-            }
-            h2 {
-                /* Applies to h2 within #content and #prayer-matching-tool */
-                font-size: 1.2em;
-            }
-            #category {
-                font-size: 1.2em;
-                font-weight: bold;
-            }
-            #blocktitle {
-                color: #777777;
-            }
-            small {
-                /* Applies to small in drawer */
-                font-family: "Gentium", "Times New Roman", serif;
-                font-size: 0.9em;
-                display: block;
-                margin: 5px;
-                margin-top: 20px;
-            }
-            .prayer-list-item {
-                /* May become unused but kept for now */
-                margin-bottom: 0.5em;
-            }
-            .pagination {
-                margin-top: 20px;
-                text-align: center;
-            }
-            .pagination button {
-                margin: 0 5px;
-            }
-            .mdl-layout__header-row .mdl-textfield__input {
-                color: white;
-            }
-            .mdl-layout__header-row .mdl-textfield__label:after {
-                background-color: white;
-            }
-            .language-buttons-container {
-                display: flex;
-                flex-wrap: wrap;
-                justify-content: center;
-                padding: 10px 0;
-            }
-            .language-buttons-container .mdl-button {
-                margin: 5px;
-                /* Styles for text-transform, font-variant, etc. removed. */
-                /* MDL default button styles will largely apply. */
-                /* We can specifically target the menu trigger later if needed. */
-            }
-            .language-buttons-container .mdl-button.lang-button-green {
-                background-color: #4caf50; /* Green */
-                color: white;
-            }
-            .language-buttons-container .mdl-button.lang-button-yellow {
-                background-color: #ffeb3b; /* Yellow */
-                color: #333; /* Darker text for yellow bg */
-            }
-            .language-buttons-container .mdl-button.lang-button-green:hover,
-            .language-buttons-container .mdl-button.lang-button-yellow:hover {
-                opacity: 0.8;
-            }
+.author::before {
+    content: "--";
+}
+header,
+.scripture {
+    padding-left: 1em;
+}
+.scripture {
+    font-family: "Gentium", "Times New Roman", serif;
+    border-left: black solid 2px;
+    max-width: 800px;
+}
+.author {
+    margin-top: 1em;
+    margin-left: 2em;
+    font-weight: bold;
+}
+h2 {
+    font-size: 1.2em;
+}
+#category {
+    font-size: 1.2em;
+    font-weight: bold;
+}
+#blocktitle {
+    color: #777777;
+}
+small {
+    font-family: "Gentium", "Times New Roman", serif;
+    font-size: 0.9em;
+    display: block;
+    margin: 5px;
+    margin-top: 20px;
+}
+.prayer-list-item {
+    margin-bottom: 0.5em;
+}
+.pagination {
+    margin-top: 20px;
+    text-align: center;
+}
+.pagination button {
+    margin: 0 5px;
+}
+.mdl-layout__header-row .mdl-textfield__input {
+    color: white;
+}
+.mdl-layout__header-row .mdl-textfield__label:after {
+    background-color: white;
+}
+.language-buttons-container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    padding: 10px 0;
+}
+.language-buttons-container .mdl-button {
+    margin: 5px;
+}
+.language-buttons-container .mdl-button.lang-button-green {
+    background-color: #4caf50;
+    color: white;
+}
+.language-buttons-container .mdl-button.lang-button-yellow {
+    background-color: #ffeb3b;
+    color: #333;
+}
+.language-buttons-container .mdl-button.lang-button-green:hover,
+.language-buttons-container .mdl-button.lang-button-yellow:hover {
+    opacity: 0.8;
+}
 
-            #prayer-language-nav .mdl-menu__container {
-                /* Header language menu */
-                z-index: 10001 !important;
-            }
-            #drawer-prayer-language-nav .mdl-menu__container {
-                /* Drawer language menu, if it were to become one */
-                z-index: 10001 !important; /* Ensure drawer menus are also on top */
-            }
-            .prayer-actions {
-                margin-top: 20px;
-                padding-top: 15px;
-                border-top: 1px solid #eee;
-                display: flex; /* For button alignment */
-                flex-wrap: wrap; /* Allow buttons to wrap */
-                gap: 10px; /* Space between buttons */
-            }
-            .prayer-actions .mdl-button .material-icons {
-                margin-right: 8px;
-            }
+#prayer-language-nav .mdl-menu__container {
+    z-index: 10001 !important;
+}
+#drawer-prayer-language-nav .mdl-menu__container {
+    z-index: 10001 !important;
+}
+.prayer-actions {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px solid #eee;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.prayer-actions .mdl-button .material-icons {
+    margin-right: 8px;
+}
 
-            /* Prayer Matching Tool Specific Styles */
-            #prayer-matching-tool h4 {
-                margin-top: 0;
-                color: #3f51b5;
-            }
-            #prayer-matching-tool h5 {
-                color: #546e7a;
-            }
-            #pinned-prayer-section > p {
-                /* Styles the metadata paragraph */
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                margin-bottom: 10px; /* Space before text display or if no text */
-            }
-            #pinned-prayer-section .mdl-button--icon {
-                margin-left: 10px;
-            }
-            #pinned-prayer-text-display {
-                /* For the actual pinned prayer text */
-                margin-top: 10px;
-                padding: 10px;
-                background-color: #fdfdfd;
-                border: 1px solid #e0e0e0;
-                border-radius: 4px;
-                max-height: 250px;
-                overflow-y: auto;
-                white-space: pre-wrap;
-                font-size: 0.9em;
-                line-height: 1.4;
-            }
-            #collected-items-list li { /* Renamed from collected-matches-list */
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 5px;
-            }
-            #collected-items-list li .match-text { /* Class name .match-text is okay functionally */
-                flex-grow: 1;
-                margin-right: 8px;
-                word-break: break-word;
-            }
-            #collected-items-list li .mdl-button--icon {
-                min-width: 24px; /* Ensure button is clickable */
-                height: 24px;
-                padding: 0;
-                line-height: 24px;
-            }
+#prayer-matching-tool h4 {
+    margin-top: 0;
+    color: #3f51b5;
+}
+#prayer-matching-tool h5 {
+    color: #546e7a;
+}
+#pinned-prayer-section > p {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+#pinned-prayer-section .mdl-button--icon {
+    margin-left: 10px;
+}
+#pinned-prayer-text-display {
+    margin-top: 10px;
+    padding: 10px;
+    background-color: #fdfdfd;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    max-height: 250px;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    font-size: 0.9em;
+    line-height: 1.4;
+}
+#collected-items-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+#collected-items-list li .match-text {
+    flex-grow: 1;
+    margin-right: 8px;
+    word-break: break-word;
+    overflow-wrap: break-word; 
+    min-width: 0;
+}
+#collected-items-list li .mdl-button--icon {
+    min-width: 24px;
+    height: 24px;
+    padding: 0;
+    line-height: 24px;
+    flex-shrink: 0;
+}
 
-            /* Favorite Prayer Styles (now general prayer card styles) */
-            .favorite-toggle-button {
-                position: absolute;
-                top: 10px; /* Adjusted to be slightly inside padding */
-                right: 10px; /* Adjusted */
-                color: #bdbdbd; /* Default (not favorite) */
-                z-index: 10; /* Ensure it\'s above other content */
-            }
-            .favorite-toggle-button.is-favorite {
-                color: gold; /* Favorited */
-            }
-            .favorite-toggle-button .material-icons {
-                font-size: 28px; /* Adjust size */
-            }
+/* MODIFIED: Favorite Prayer Button - No longer position: absolute */
+.favorite-toggle-button {
+    color: #bdbdbd; /* Default (not favorite) */
+    margin: 8px; /* Basic margin for flow */
+    display: inline-flex; /* Align icon and potential text if any */
+    align-items: center;
+    vertical-align: middle;
+    /* Note: Its visual placement now depends on where it's appended in app.js.
+       It will appear in the normal document flow. You might want to append it
+       within .prayer-actions or another suitable place. */
+}
+.favorite-toggle-button.is-favorite {
+    color: gold;
+}
+.favorite-toggle-button .material-icons {
+    font-size: 28px;
+}
 
-            #favorite-prayers-section {
-                /* Specific container for favorites on home page */
-                margin-bottom: 20px;
-                padding-bottom: 15px;
-                border-bottom: 1px solid #ddd;
-            }
-            #favorite-prayers-section h3 {
-                font-size: 1.1em;
-                color: #3f51b5; /* Consistent with other tool titles */
-                margin-top: 0; /* Align with card content */
-                margin-bottom: 10px;
-            }
+#favorite-prayers-section {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #ddd;
+}
+#favorite-prayers-section h3 {
+    font-size: 1.1em;
+    color: #3f51b5;
+    margin-top: 0;
+    margin-bottom: 10px;
+}
 
-            /* General Prayer Card Grid Styles (reusing .favorite-prayer-grid) */
-            .favorite-prayer-grid {
-                /* Applied to all card lists now */
-                display: grid;
-                grid-template-columns: repeat(
-                    auto-fill,
-                    minmax(300px, 1fr)
-                ); /* Responsive grid */
-                gap: 15px; /* Space between cards */
-            }
+.favorite-prayer-grid {
+    display: grid;
+    grid-template-columns: repeat(
+        auto-fill,
+        minmax(300px, 1fr)
+    );
+    gap: 15px;
+}
 
-            /* General Prayer Card Styles (reusing .favorite-prayer-card) */
-            .favorite-prayer-card {
-                /* Applied to all prayer cards now */
-                background-color: #fff;
-                border: 1px solid #e0e0e0;
-                border-radius: 4px;
-                padding: 15px;
-                box-shadow:
-                    0 1px 3px rgba(0, 0, 0, 0.12),
-                    0 1px 2px rgba(0, 0, 0, 0.24);
-                display: flex;
-                flex-direction: column;
-                justify-content: space-between; /* Pushes translations to the bottom */
-                min-height: 150px; /* Ensure a minimum height */
-            }
+.favorite-prayer-card {
+    background-color: #fff;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    padding: 15px;
+    box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.12),
+        0 1px 2px rgba(0, 0, 0, 0.24);
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 150px;
+}
+.favorite-prayer-card-header {
+    font-size: 1.1em;
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #3f51b5;
+}
+.favorite-prayer-card-header a {
+    text-decoration: none;
+    color: inherit;
+}
+.favorite-prayer-card-preview {
+    font-size: 0.9em;
+    color: #555;
+    margin-bottom: 10px;
+    line-height: 1.4;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    max-height: calc(
+        1.4em * 3
+    );
+}
+.favorite-prayer-card-meta {
+    font-size: 0.8em;
+    color: #777;
+    margin-bottom: 10px;
+}
+.favorite-prayer-card-meta span {
+    margin-right: 10px;
+    display: inline-block;
+}
+.favorite-prayer-card-meta .phelps-code a {
+    color: #007bff;
+    text-decoration: none;
+}
+.favorite-prayer-card-meta .phelps-code a:hover {
+    text-decoration: underline;
+}
+.favorite-prayer-card-translations {
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+}
+.favorite-prayer-card-translations h5 {
+    font-size: 0.85em;
+    color: #546e7a;
+    margin-top: 0;
+    margin-bottom: 5px;
+}
+.favorite-prayer-card-translations-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+}
+.favorite-prayer-card-translations-item a {
+    font-size: 0.8em;
+    text-decoration: none;
+    color: #1976d2;
+    background-color: #e3f2fd;
+    padding: 2px 6px;
+    border-radius: 3px;
+    transition: background-color 0.2s;
+}
+.favorite-prayer-card-translations-item a:hover {
+    background-color: #bbdefb;
+}
+.other-versions-in-lang-list {
+    list-style: disc;
+    padding-left: 20px;
+    font-size: 0.8em;
+    margin: 0;
+}
+.other-versions-in-lang-list li {
+    margin-bottom: 3px;
+}
+.other-versions-in-lang-list a {
+    text-decoration: none;
+    color: #007bff;
+}
+.other-versions-in-lang-list a:hover {
+    text-decoration: underline;
+}
 
-            .favorite-prayer-card-header {
-                font-size: 1.1em;
-                font-weight: bold;
-                margin-bottom: 8px;
-                color: #3f51b5;
-            }
-            .favorite-prayer-card-header a {
-                text-decoration: none;
-                color: inherit;
-            }
-
-            .favorite-prayer-card-preview {
-                font-size: 0.9em;
-                color: #555;
-                margin-bottom: 10px;
-                line-height: 1.4;
-                overflow: hidden;
-                display: -webkit-box;
-                -webkit-line-clamp: 3; /* Limit to 3 lines */
-                -webkit-box-orient: vertical;
-                max-height: calc(
-                    1.4em * 3
-                ); /* Fallback for max-height based on line-height and clamp */
-            }
-
-            .favorite-prayer-card-meta {
-                font-size: 0.8em;
-                color: #777;
-                margin-bottom: 10px;
-            }
-            .favorite-prayer-card-meta span {
-                margin-right: 10px;
-                display: inline-block; /* Ensure proper spacing */
-            }
-            .favorite-prayer-card-meta .phelps-code a {
-                color: #007bff;
-                text-decoration: none;
-            }
-            .favorite-prayer-card-meta .phelps-code a:hover {
-                text-decoration: underline;
-            }
-
-            .favorite-prayer-card-translations {
-                margin-top: auto; /* Pushes to bottom if card is taller */
-                padding-top: 10px;
-                border-top: 1px solid #eee;
-            }
-
-            .favorite-prayer-card-translations h5 {
-                font-size: 0.85em;
-                color: #546e7a;
-                margin-top: 0;
-                margin-bottom: 5px;
-            }
-
-            .favorite-prayer-card-translations-list {
-                /* For other language links */
-                list-style: none;
-                padding: 0;
-                margin: 0;
-                display: flex;
-                flex-wrap: wrap;
-                gap: 5px;
-            }
-
-            .favorite-prayer-card-translations-item a {
-                font-size: 0.8em;
-                text-decoration: none;
-                color: #1976d2;
-                background-color: #e3f2fd;
-                padding: 2px 6px;
-                border-radius: 3px;
-                transition: background-color 0.2s;
-            }
-            .favorite-prayer-card-translations-item a:hover {
-                background-color: #bbdefb;
-            }
-
-            .other-versions-in-lang-list {
-                /* For same language, different version links */
-                list-style: disc;
-                padding-left: 20px;
-                font-size: 0.8em; /* Slightly smaller */
-                margin: 0;
-            }
-            .other-versions-in-lang-list li {
-                margin-bottom: 3px;
-            }
-            .other-versions-in-lang-list a {
-                text-decoration: none;
-                color: #007bff;
-            }
-            .other-versions-in-lang-list a:hover {
-                text-decoration: underline;
-            }
-
-            .filter-switch-container {
-                margin-bottom: 15px;
-                padding: 10px;
-                background-color: #f9f9f9;
-                border-radius: 4px;
-                display: flex;
-                align-items: center;
-            }
+.filter-switch-container {
+    margin-bottom: 15px;
+    padding: 10px;
+    background-color: #f9f9f9;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+}
 
 /* === Language Picker Styles === */
 .language-picker-tabs .mdl-tabs__tab-bar {
@@ -488,36 +455,33 @@
     flex-wrap: wrap;
     align-items: center;
 }
-
 .language-picker-tabs .more-languages-section-wrapper {
     margin-left: auto;
     padding-left: 15px;
     align-self: center;
     display: inline-block;
 }
-
 .language-picker-tabs #all-languages-menu-btn {
-    text-transform: none; /* Override MDL uppercase */
+    text-transform: none;
+    white-space: normal;
+    height: auto;
+    line-height: 1.3;
+    padding-top: 8px;
+    padding-bottom: 8px;
 }
-
+/* MODIFIED: Language search LI - No longer sticky */
 .language-picker-tabs #language-search-li {
     padding: 0 8px;
-    position: sticky;
-    top: 0;
-    background-color: white;
-    z-index: 1;
+    /* No position, top, background, z-index for sticky behavior */
 }
-
 .language-picker-tabs #language-search-li .mdl-textfield {
     width: calc(100% - 16px);
     padding: 0;
 }
-
 .language-picker-tabs #all-languages-menu-ul {
-    max-height: 300px;
+    max-height: 65vh; /* Retaining responsive height */
     overflow-y: auto;
 }
-
 .language-picker-tabs #all-languages-message-placeholder {
     font-size: 0.9em;
     color: #555;
@@ -528,60 +492,95 @@
 .text-center {
     text-align: center;
 }
-
 .main-content-spinner {
     text-align:center;
     padding:20px;
 }
-
 #language-tab-panel-favorites {
     padding-top: 10px;
 }
 
 /* === Translations Switcher Styles === */
 .translations-switcher {
-  padding: 8px 16px; /* Match MDL tab bar horizontal padding roughly */
-  margin-bottom: 10px; /* Space before prayer details */
+  padding: 8px 16px;
+  margin-bottom: 10px;
   display: flex;
   align-items: center;
-  flex-wrap: wrap; /* Allow links to wrap to the next line */
-  background-color: #f5f5f5; /* A slightly different background to distinguish from tabs */
-  border-bottom: 1px solid #e0e0e0; /* Similar to MDL tab bottom border */
+  flex-wrap: wrap;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #e0e0e0;
 }
-
 .translations-switcher-label {
-  font-weight: 500; /* Medium weight, similar to MDL tab labels */
+  font-weight: 500;
   margin-right: 10px;
   font-size: 0.9em;
-  color: #333; /* Darker text */
-  padding: 8px 0; /* Align vertically with links */
+  color: #333;
+  padding: 8px 0;
 }
-
 .translations-switcher .translation-link {
   margin-right: 8px;
-  margin-bottom: 4px; /* For wrapping */
-  margin-top: 4px; /* For wrapping */
-  padding: 6px 12px; /* Slightly smaller padding than main tabs */
+  margin-bottom: 4px;
+  margin-top: 4px;
+  padding: 6px 12px;
   text-decoration: none;
-  color: rgba(0,0,0,.54); /* MDL tab default color */
-  font-size: 0.875em; /* 14px, typical MDL tab font size */
+  color: rgba(0,0,0,.54);
+  font-size: 0.875em;
   font-weight: 500;
   border-radius: 2px;
   transition: background-color 0.2s, color 0.2s;
-  border: 1px solid transparent; /* For consistent height */
-  text-transform: uppercase; /* Match MDL tab style */
+  border: 1px solid transparent;
+  text-transform: uppercase;
 }
-
 .translations-switcher .translation-link:hover {
-  background-color: rgba(0,0,0,0.05); /* Subtle hover */
+  background-color: rgba(0,0,0,0.05);
   color: rgba(0,0,0,.74);
   text-decoration: none;
 }
-
 .translations-switcher .translation-link.is-active {
-  color: #3f51b5; /* MDL primary color for active link, or your theme's active tab color */
-  /* border-bottom: 2px solid #3f51b5; /* Underline like an active tab */
-  /* Or, a background fill might be clearer */
-  background-color: #e8eaf6; /* Light indigo for active background */
-  font-weight: 500; /* Ensure active is bold if not already */
+  color: #3f51b5;
+  background-color: #e8eaf6;
+  font-weight: 500;
 }
+
+.language-picker-tabs {
+    display: block;
+}
+
+/* Tab text wrapping */
+.language-picker-tabs .mdl-tabs__tab-bar .mdl-tabs__tab {
+    white-space: normal;
+    height: auto;
+    line-height: 1.2;
+    padding: 12px 8px;
+    text-align: center;
+    max-width: 150px;
+}
+
+/* Tab stats span wrapping */
+.language-picker-tabs .mdl-tabs__tab-bar .mdl-tabs__tab span[style*="font-size:0.8em"] {
+    display: block;
+    margin-top: 2px;
+}
+
+/* Icon alignment in More Languages Button */
+.language-picker-tabs #all-languages-menu-btn .material-icons {
+    vertical-align: middle;
+}
+
+/* Z-index for More Languages menu */
+.language-picker-tabs .mdl-menu__container {
+    z-index: 10005 !important; /* Value from your previous file, ensure it's high enough */
+}
+
+/* === START: Fix for Content Overlap & Mobile Viewport Issues (ensure these are active) === */
+main.mdl-layout__content {
+    padding-top: 56px; /* For mobile */
+    box-sizing: border-box;
+}
+
+@media screen and (min-width: 1025px) {
+    main.mdl-layout__content {
+        padding-top: 64px; /* For desktop */
+    }
+}
+/* === END: Fix for Content Overlap & Mobile Viewport Issues === */
