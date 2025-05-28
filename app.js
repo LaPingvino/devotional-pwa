@@ -2324,12 +2324,35 @@ currentPageBySearchTerm = {};
 }
 
 async function renderSearchResults(searchTerm, page = 1) {
+  console.log("enter function renderSearchResults");
   currentPageBySearchTerm[searchTerm] = page;
-  contentDiv.innerHTML =
-    '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
-  if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
+  
+  // Initial spinner setup
+  const pickerShellHtml = getLanguagePickerShellHtml(); // Get picker shell for consistent layout
+  contentDiv.innerHTML = pickerShellHtml + // Include picker shell
+    '<div id="search-results-content-area">' + // Dedicated area for search results
+    '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block; margin-top:20px;"></div>' +
+    '</div>';
+  if (typeof componentHandler !== "undefined") {
+    const tabsElement = contentDiv.querySelector('.mdl-js-tabs');
+    if (tabsElement) componentHandler.upgradeElement(tabsElement);
+  }
+  
+  // Populate language picker (no specific language active for search results)
+  populateLanguageSelection(null);
+  
+  // Clear header/drawer navigation; search results don't have specific language nav
   updateHeaderNavigation([]);
   updateDrawerLanguageNavigation([]);
+
+  const searchResultsContentArea = document.getElementById('search-results-content-area');
+  if (!searchResultsContentArea) {
+      console.error("Critical error: #search-results-content-area not found.");
+      // If the area is missing, display error within the picker shell context
+      contentDiv.innerHTML = pickerShellHtml + '<p style="color:red; text-align:center; padding:20px;">Error: Search results area could not be initialized.</p>';
+      if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
+      return;
+  }
 
   const headerSearchInput = document.getElementById("header-search-field");
   if (headerSearchInput && headerSearchInput.value !== searchTerm)
@@ -2362,16 +2385,25 @@ async function renderSearchResults(searchTerm, page = 1) {
           ? cachedPrayer.text.substring(0, MAX_PREVIEW_LENGTH) +
             (cachedPrayer.text.length > MAX_PREVIEW_LENGTH ? "..." : "")
           : "No text preview.",
-        source: "cache",
+        source: "cache", // Mark source for clarity
       });
   });
 
-  const dbNameSql = `SELECT version, name, language, phelps, link FROM writings WHERE name LIKE '%${saneSearchTermForSql}%' ORDER BY name, version`;
-  const dbNameItemsRaw = await executeQuery(dbNameSql);
-  const dbNameItems = dbNameItemsRaw.map((item) => ({
-    ...item,
-    source: "db_name",
-  }));
+  const dbNameSql = `SELECT version, name, language, phelps, link, source FROM writings WHERE name LIKE '%${saneSearchTermForSql}%' ORDER BY name, version`;
+  let dbNameItems = [];
+  try {
+    const dbNameItemsRaw = await executeQuery(dbNameSql);
+    dbNameItems = dbNameItemsRaw.map((item) => ({
+        ...item,
+        source: "db_name", // Mark source
+      }));
+  } catch (error) {
+    console.error("Error fetching search results from DB (name match):", error);
+    searchResultsContentArea.innerHTML = `<p>Error loading search results: ${error.message}</p>`;
+    if (typeof componentHandler !== "undefined") componentHandler.upgradeDom(searchResultsContentArea);
+    return;
+  }
+  
 
   let combinedResults = [];
   const processedVersions = new Set();
@@ -2389,12 +2421,13 @@ async function renderSearchResults(searchTerm, page = 1) {
   });
 
   const totalResults = combinedResults.length;
+  let currentPage = page; // Use a local variable for current page in this render
   const totalPages = Math.ceil(totalResults / ITEMS_PER_PAGE);
-  if (page > totalPages && totalPages > 0) page = totalPages;
-  else if (totalPages === 0 && page > 1) page = 1;
-  currentPageBySearchTerm[searchTerm] = page;
+  if (currentPage > totalPages && totalPages > 0) currentPage = totalPages;
+  else if (totalPages === 0 && currentPage > 1) currentPage = 1;
+  currentPageBySearchTerm[searchTerm] = currentPage; // Update global state if needed
 
-  const startIndex = (page - 1) * ITEMS_PER_PAGE;
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const paginatedCombinedResults = combinedResults.slice(
     startIndex,
     startIndex + ITEMS_PER_PAGE,
@@ -2402,40 +2435,50 @@ async function renderSearchResults(searchTerm, page = 1) {
   const displayItems = [];
   for (const item of paginatedCombinedResults) {
     let displayItem = { ...item };
-    if (item.source === "db_name" && !item.opening_text) {
+    // Ensure opening_text is present, fetch if it's a db_name item and text isn't already there
+    if ((item.source === "db_name" || !item.opening_text) && !item.text) { // If no text from initial query or no preview
       const cached = getCachedPrayerText(item.version);
-      if (cached) {
-        displayItem = {
-          ...displayItem,
-          ...cached,
-          opening_text: cached.text
-            ? cached.text.substring(0, MAX_PREVIEW_LENGTH) +
-              (cached.text.length > MAX_PREVIEW_LENGTH ? "..." : "")
-            : "No text preview.",
-        };
+      if (cached && cached.text) {
+        displayItem = { ...item, ...cached }; // Merge cached data
+        displayItem.text = cached.text; // Ensure text property is set for preview generation
       } else {
-        const textQuerySql = `SELECT text, name, phelps, language, link FROM writings WHERE version = '${item.version}' LIMIT 1`;
-        const textRows = await executeQuery(textQuerySql);
-        if (textRows.length > 0) {
-          const dbItem = textRows[0];
-          displayItem = {
-            ...displayItem,
-            ...dbItem,
-            opening_text: dbItem.text
-              ? dbItem.text.substring(0, MAX_PREVIEW_LENGTH) +
-                (dbItem.text.length > MAX_PREVIEW_LENGTH ? "..." : "")
-              : "No text preview.",
-          };
-          cachePrayerText({ ...dbItem });
-        } else displayItem.opening_text = "Text not found for preview.";
+        const textQuerySql = `SELECT text, name, phelps, language, link, source FROM writings WHERE version = '${item.version}' LIMIT 1`;
+        try {
+            const textRows = await executeQuery(textQuerySql);
+            if (textRows.length > 0) {
+              const dbItemWithText = textRows[0];
+              displayItem = { ...item, ...dbItemWithText }; // Merge, prioritizing dbItemWithText for text
+              displayItem.text = dbItemWithText.text;
+              cachePrayerText({ ...dbItemWithText }); // Cache the full item with text
+            } else {
+              displayItem.text = null; // Explicitly null if not found
+            }
+        } catch (error) {
+            console.error(`Error fetching text for search result item ${item.version}:`, error);
+            displayItem.text = null;
+        }
       }
+    } else if (item.text && !item.opening_text) { // If item has text but no opening_text yet
+        // This case might happen if 'text' was populated from db_name query directly
+        // but 'opening_text' wasn't generated yet for it.
+        // This is somewhat redundant if the main loop below handles it, but ensures preview logic.
+    }
+
+
+    // Generate opening_text if text is available
+    if (displayItem.text) {
+        displayItem.opening_text = displayItem.text.substring(0, MAX_PREVIEW_LENGTH) +
+            (displayItem.text.length > MAX_PREVIEW_LENGTH ? "..." : "");
+    } else {
+        displayItem.opening_text = "No text preview available.";
     }
     displayItems.push(displayItem);
   }
 
   if (totalResults === 0) {
-    const searchExplanationForNoResults = `<div style="margin-top: 15px; padding: 10px; background-color: #f0f0f0; border-radius: 4px; font-size: 0.9em;"><p style="margin-bottom: 5px;"><strong>Search Information:</strong></p><ul style="margin-top: 0; padding-left: 20px;"><li>This search looked for "${searchTerm}" in prayer <strong>titles</strong> from the main database.</li><li>It also checked the <strong>full text</strong> of ${allCached.length} prayer(s) stored in your browser's local cache.</li><li>Try browsing <a href="#prayers">language lists</a> to add prayers to cache for full-text search.</li></ul></div>`;
-    contentDiv.innerHTML = `<p>No prayers found matching "${searchTerm}".</p>${searchExplanationForNoResults}<p style="margin-top: 15px;">For comprehensive text search, try <a href="https://tiddly.holywritings.net/workspace" target="_blank">tiddly.holywritings.net/workspace</a>.</p><p>Debug: <a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(dbNameSql)}" target="_blank">View DB Name Query</a></p>`;
+    const searchExplanationForNoResults = `<div style="margin-top: 15px; padding: 10px; background-color: #f0f0f0; border-radius: 4px; font-size: 0.9em;"><p style="margin-bottom: 5px;"><strong>Search Information:</strong></p><ul style="margin-top: 0; padding-left: 20px;"><li>This search looked for "${searchTerm}" in prayer <strong>titles</strong> from the main database.</li><li>It also checked the <strong>full text</strong> of ${allCached.length} prayer(s) stored in your browser's local cache.</li><li>Try Browse <a href="#languages">language lists</a> to add prayers to cache for full-text search.</li></ul></div>`;
+    searchResultsContentArea.innerHTML = `<header><h2><span id="category">Search Results</span><span id="blocktitle">For "${searchTerm}"</span></h2></header><p>No prayers found matching "${searchTerm}".</p>${searchExplanationForNoResults}<p style="margin-top: 15px;">For comprehensive text search, try <a href="https://tiddly.holywritings.net/workspace" target="_blank">tiddly.holywritings.net/workspace</a>.</p><p>Debug: <a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(dbNameSql)}" target="_blank">View DB Name Query</a></p>`;
+    if (typeof componentHandler !== "undefined") componentHandler.upgradeDom(searchResultsContentArea);
     return;
   }
 
@@ -2453,37 +2496,38 @@ async function renderSearchResults(searchTerm, page = 1) {
       translationRows.forEach((row) => {
         if (!allPhelpsDetailsForCards[row.phelps])
           allPhelpsDetailsForCards[row.phelps] = [];
-        allPhelpsDetailsForCards[row.phelps].push({
-          ...row,
-        });
+        allPhelpsDetailsForCards[row.phelps].push({ ...row });
       });
     } catch (e) {
       console.error("Failed to fetch details for phelps codes in search:", e);
     }
   }
 
-  const listCardsHtmlArray = displayItems.map((pData) =>
+  // Corrected part: await Promise.all()
+  const listCardPromises = displayItems.map((pData) =>
     createPrayerCardHtml(pData, allPhelpsDetailsForCards),
   );
+  const listCardsHtmlArray = await Promise.all(listCardPromises);
   const listHtml = `<div class="favorite-prayer-grid">${listCardsHtmlArray.join("")}</div>`;
+  
   let paginationHtml = "";
   if (totalPages > 1) {
     const escapedSearchTerm = searchTerm
       .replace(/'/g, "\\'")
-      .replace(/"/g, '\\"');
+      .replace(/"/g, '\\"'); // Ensure searchTerm is properly escaped for JS context
     paginationHtml = '<div class="pagination">';
-    if (page > 1)
-      paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="renderSearchResults('${escapedSearchTerm}', ${page - 1})">Previous</button>`;
-    paginationHtml += ` <span>Page ${page} of ${totalPages}</span> `;
-    if (page < totalPages)
-      paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="renderSearchResults('${escapedSearchTerm}', ${page + 1})">Next</button>`;
+    if (currentPage > 1)
+      paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="renderSearchResults('${escapedSearchTerm}', ${currentPage - 1})">Previous</button>`;
+    paginationHtml += ` <span>Page ${currentPage} of ${totalPages}</span> `;
+    if (currentPage < totalPages)
+      paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="renderSearchResults('${escapedSearchTerm}', ${currentPage + 1})">Next</button>`;
     paginationHtml += "</div>";
   }
-  const searchInfoHtml = `<div style="margin-top: 15px; padding: 10px; background-color: #f0f0f0; border-radius: 4px; font-size: 0.9em;"><p style="margin-bottom: 5px;"><strong>How this search works:</strong></p><ul style="margin-top: 0; padding-left: 20px;"><li>Searches prayer <strong>titles</strong> in database.</li><li>Searches <strong>full text</strong> of cached prayers.</li><li>View prayers via <a href="#prayers">language lists</a> to improve cache for full-text search.</li></ul></div>`;
+  const searchInfoHtml = `<div style="margin-top: 15px; padding: 10px; background-color: #f0f0f0; border-radius: 4px; font-size: 0.9em;"><p style="margin-bottom: 5px;"><strong>How this search works:</strong></p><ul style="margin-top: 0; padding-left: 20px;"><li>Searches prayer <strong>titles</strong> in database.</li><li>Searches <strong>full text</strong> of cached prayers.</li><li>View prayers via <a href="#languages">language lists</a> to improve cache for full-text search.</li></ul></div>`;
   const tiddlySuggestionHtml = `<p style="margin-top: 20px; text-align: center; font-size: 0.9em;">For more comprehensive text search, try <a href="https://tiddly.holywritings.net/workspace" target="_blank">tiddly.holywritings.net/workspace</a>.</p>`;
 
-  contentDiv.innerHTML = `<header><h2><span id="category">Search Results</span><span id="blocktitle">For "${searchTerm}" (Page ${page})</span></h2></header>${listHtml}${paginationHtml}${searchInfoHtml}${tiddlySuggestionHtml}`;
-  if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
+  searchResultsContentArea.innerHTML = `<header><h2><span id="category">Search Results</span><span id="blocktitle">For "${searchTerm}" (Page ${currentPage})</span></h2></header>${listHtml}${paginationHtml}${searchInfoHtml}${tiddlySuggestionHtml}`;
+  if (typeof componentHandler !== "undefined") componentHandler.upgradeDom(searchResultsContentArea);
 }
 
 async function handleRouteChange() {
