@@ -73,11 +73,8 @@ function addRecentLanguage(langCode) {
 
 const contentDiv = document.getElementById("content");
 const prayerLanguageNav = document.getElementById("prayer-language-nav");
-const drawerPrayerLanguageNav = document.getElementById(
-  "drawer-prayer-language-nav",
-);
 
-let currentPageByLanguage = {}; // { langCode: { page, showOnlyUnmatched } }
+let currentPageByLanguage = {};
 let currentPageBySearchTerm = {}; // { searchTerm: page }
 let currentPageByPhelpsCode = {}; // { phelpsCode: page }
 let currentPageByPhelpsLangCode = {}; // { phelps/lang : page } - not used yet for pagination but good for state
@@ -1136,7 +1133,6 @@ async function renderPrayer(
 
   // Clear header/drawer navigation. They will NOT be repopulated with translation lists.
   updateHeaderNavigation([]);
-  updateDrawerLanguageNavigation([]);
 
   // 2. Fetch prayer data
   const sql = `SELECT version, text, language, phelps, name, source, link FROM writings WHERE version = '${versionId}' LIMIT 1`;
@@ -1478,7 +1474,6 @@ async function renderPrayersForLanguage(
 
   // Clear header/drawer navigation as this view will repopulate them or the picker will.
   updateHeaderNavigation([]);
-  updateDrawerLanguageNavigation([]);
 
   const languageDisplayName = await getLanguageDisplayName(langCode);
   let filterCondition = showOnlyUnmatched
@@ -1653,7 +1648,6 @@ async function renderPrayerCodeView(phelpsCode, page = 1) {
       console.error("Error fetching languages for Phelps code navigation:", error);
   }
   updateHeaderNavigation(navLinks);
-  updateDrawerLanguageNavigation(navLinks);
 
 
   // Fetch metadata for the prayer list
@@ -1812,7 +1806,6 @@ async function resolveAndRenderPrayerByPhelpsAndLang(
     }));
     const navLinks = await Promise.all(navLinkPromises);
     updateHeaderNavigation(navLinks);
-    updateDrawerLanguageNavigation(navLinks);
     return;
   }
 
@@ -1839,7 +1832,6 @@ async function resolveAndRenderPrayerByPhelpsAndLang(
 }
 
 async function populateLanguageSelection(currentActiveLangCode = null) {
-  console.log("populateLanguageSelection CALLED. currentActiveLangCode:", currentActiveLangCode); // LOG ENTRY
   const tabBarElement = document.getElementById('language-picker-tab-bar');
   const moreLanguagesWrapperElement = document.getElementById('more-languages-wrapper');
   const menuUlElement = document.getElementById('all-languages-menu-ul');
@@ -1870,17 +1862,13 @@ async function populateLanguageSelection(currentActiveLangCode = null) {
   const sql = `SELECT w.language, (SELECT COUNT(DISTINCT sub.phelps) FROM writings sub WHERE sub.language = w.language AND sub.phelps IS NOT NULL AND sub.phelps != \'\') AS phelps_covered_count, (SELECT COUNT(DISTINCT CASE WHEN sub.phelps IS NOT NULL AND sub.phelps != \'\' THEN NULL ELSE sub.version END) FROM writings sub WHERE sub.language = w.language) AS versions_without_phelps_count FROM writings w WHERE w.language IS NOT NULL AND w.language != \'\' GROUP BY w.language ORDER BY w.language;`;
   
   let allLangsWithStats = getCachedLanguageStats();
-  console.log("populateLanguageSelection: Initial cached stats:", allLangsWithStats ? JSON.parse(JSON.stringify(allLangsWithStats)) : null); // LOG Initial Cache
   let fetchedFreshData = false;
   let attemptedFetch = false;
 
   if (!allLangsWithStats) {
-    console.log("populateLanguageSelection: No fresh language stats in cache, attempting fetch..."); // LOG No Fresh Cache
     attemptedFetch = true;
     try {
-      console.log("populateLanguageSelection: Calling executeQuery for language stats."); // LOG Calling executeQuery
       allLangsWithStats = await executeQuery(sql);
-      console.log("populateLanguageSelection: Fetched stats from API:", allLangsWithStats ? JSON.parse(JSON.stringify(allLangsWithStats)) : null); // LOG API Fetch Result
       if (allLangsWithStats && allLangsWithStats.length > 0) {
         cacheLanguageStats(allLangsWithStats);
         fetchedFreshData = true;
@@ -1891,36 +1879,29 @@ async function populateLanguageSelection(currentActiveLangCode = null) {
         allLangsWithStats = []; 
       }
     } catch (e) { 
-      console.error("Error during executeQuery for language stats:", e); // LOG executeQuery Error
       // executeQuery now throws, so we catch it here.
       // allLangsWithStats will remain as it was (either null from initial getCachedLanguageStats or stale data if loaded later)
       // The subsequent logic will handle trying stale cache.
       allLangsWithStats = allLangsWithStats || []; // Ensure it's at least an empty array if it was null/undefined
     }
   } else {
-    console.log("populateLanguageSelection: Using fresh language stats from cache."); // LOG Using Fresh Cache
     fetchedFreshData = true; // Technically it\'s fresh from cache
   }
 
   // If fetch failed or cache was empty initially, try to get stale cache
   if ((attemptedFetch && !fetchedFreshData) || !allLangsWithStats || allLangsWithStats.length === 0) {
-    console.log("populateLanguageSelection: Fetch might have failed or returned no data, trying stale cache for language stats..."); // LOG Trying Stale Cache
     const staleStats = getCachedLanguageStats(true); // Allow stale
-    console.log("populateLanguageSelection: Stale stats from cache:", staleStats ? JSON.parse(JSON.stringify(staleStats)) : null); // LOG Stale Cache Result
     if (staleStats && staleStats.length > 0) {
       allLangsWithStats = staleStats;
       // console.log("Using stale language stats from cache.");
       // Optionally, set a flag here to indicate to the UI that data is stale
       // For now, just using it transparently.
     } else if (!allLangsWithStats || allLangsWithStats.length === 0) {
-      console.log("populateLanguageSelection: No language stats available in cache (fresh or stale) after fetch attempt."); // LOG No Stale Cache
       allLangsWithStats = []; // Ensure it\'s an array
     }
   }
 
-  console.log("populateLanguageSelection: Final allLangsWithStats count:", allLangsWithStats.length); // LOG Final Stats Count
   if (allLangsWithStats.length === 0) {
-    console.warn("populateLanguageSelection: No language stats available to populate picker after all checks."); // LOG No Stats Warning
     // const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(sql)}`;
     // return `<p>No languages found.</p><p>Query:</p><pre>${sql}</pre><p><a href=\"${debugQueryUrl}\" target=\"_blank\">Debug query</a></p>`;
     // Instead of returning HTML, manipulate DOM for error message
@@ -1931,7 +1912,6 @@ async function populateLanguageSelection(currentActiveLangCode = null) {
   }
 
   const recentLanguageCodes = getRecentLanguages();
-  console.log("populateLanguageSelection: Recent codes:", JSON.parse(JSON.stringify(recentLanguageCodes))); // LOG Recent Codes
   let recentAndFavoritesTabsBarHtml = "";
   const recentLangDetails = [];
 
@@ -1986,7 +1966,6 @@ async function populateLanguageSelection(currentActiveLangCode = null) {
   const otherLanguagesWithStats = allLangsWithStats.filter(lang =>
     !recentLanguageCodes.find(rlc => rlc === lang.language.toLowerCase())
   );
-  console.log("populateLanguageSelection: Other languages count for menu:", otherLanguagesWithStats.length); // LOG Other Languages Count
 
   // let allLanguagesMenuHtml = ""; // This variable is not used to build the final string for the section anymore
   const searchInputId = "language-search-input"; // Used for filterLanguageMenu closure
@@ -2016,8 +1995,6 @@ async function populateLanguageSelection(currentActiveLangCode = null) {
         const dividerHtml = '<li class="mdl-menu__divider" style="margin-top:0;"></li>';
         
         menuUlElement.innerHTML = searchLiHtml + dividerHtml + menuItemsHtml; // Rebuild entire menu content
-
-        console.log("populateLanguageSelection: menuUlElement.innerHTML AFTER REBUILD:", menuUlElement.innerHTML);
     }
 
     // Define filterLanguageMenu within the scope or ensure it's globally available
@@ -2092,8 +2069,6 @@ if (tabBarElement) {
             });
         }
     }
-    // Log tabBarElement's state AFTER all its direct children are set
-    console.log("populateLanguageSelection: tabBarElement.innerHTML AFTER tab injection:", tabBarElement.innerHTML);
 }
 // No redundant if(tabBarElement) checks needed here.
 
@@ -2129,14 +2104,12 @@ if (typeof componentHandler !== "undefined") componentHandler.upgradeElement(con
 
 // Clear main page header/drawer nav as this view controls its own nav via the picker
 updateHeaderNavigation([]);
-updateDrawerLanguageNavigation([]);
 
 currentPageByLanguage = {};
 currentPageBySearchTerm = {};
     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
   if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
   updateHeaderNavigation([]);
-  updateDrawerLanguageNavigation([]);
 
   currentPageByLanguage = {};
   currentPageBySearchTerm = {};
@@ -2343,7 +2316,6 @@ async function renderSearchResults(searchTerm, page = 1) {
   
   // Clear header/drawer navigation; search results don't have specific language nav
   updateHeaderNavigation([]);
-  updateDrawerLanguageNavigation([]);
 
   const searchResultsContentArea = document.getElementById('search-results-content-area');
   if (!searchResultsContentArea) {

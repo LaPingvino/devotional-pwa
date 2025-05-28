@@ -1,30 +1,53 @@
+html {
+    height: 100%;
+    margin: 0;
+}
+
+body {
+    font-size: 1.3em;
+    background-color: #f4f4f6;
+    height: 100%;
+    margin: 0;
+    overflow-x: hidden;
+}
+
+.mdl-layout {
+    min-height: 100vh;
+}
+
 .star {
     font-family: "Noto Sans Symbols 2";
     font-size: 1.5em;
 }
 
-body {
-    font-size: 1.3em;
-    background-color: #f4f6f6;
+
+/* Header Adjustments */
+.mdl-layout__header-row .mdl-layout-title {
+    padding-left: 16px; 
+    margin-left: 0; 
+    flex-grow: 0; 
 }
 
-/* New styles for two-column layout */
+.mdl-layout__header-row .mdl-layout-spacer {
+    flex-grow: 1; 
+}
+
+/* Main Content Layout */
 #main-view-container {
     display: flex;
-    flex-wrap: wrap; /* Allow columns to wrap on smaller screens */
-    padding: 10px; /* Outer padding for the entire two-column area */
+    flex-wrap: wrap;
+    padding: 10px;
 }
 
 #content-column {
-    flex: 3; /* Main content takes more space, e.g., ~75% */
-    min-width: 0; /* Important for flex item shrinking */
-    display: flex; /* To allow #content to be a card within */
+    flex: 3;
+    min-width: 0;
+    display: flex;
     flex-direction: column;
 }
 
 #content {
-    /* position: relative; */ /* REMOVED as per request */
-    margin: 15px; /* Card-like margin */
+    margin: 15px;
     background-color: #ffffff;
     padding: 20px;
     border-radius: 4px;
@@ -35,25 +58,22 @@ body {
 }
 
 #prayer-matching-tool {
-    flex: 1; /* Tool takes less space, e.g., ~25% */
-    min-width: 320px; /* Minimum width for the tool */
-    margin: 15px; /* Card-like margin */
+    flex: 1;
+    min-width: 320px;
+    margin: 15px;
     padding: 20px;
-    background-color: #fffde7; /* Light Yellow */
+    background-color: #fffde7;
     border-radius: 4px;
     box-shadow:
         0 2px 2px 0 rgba(0, 0, 0, 0.14),
         0 3px 1px -2px rgba(0, 0, 0, 0.2),
         0 1px 5px 0 rgba(0, 0, 0, 0.12);
-    align-self: flex-start; /* Keep it at the top of the flex row */
-    max-height: calc(
-        100vh - 100px
-    ); /* Adjust based on header/margins */
-    overflow-y: auto; /* Make tool scrollable if content exceeds max-height */
+    align-self: flex-start;
+    max-height: calc(100vh - 130px); /* Adjusted for minimal top padding */
+    overflow-y: auto;
 }
 
 #contribution-section {
-    margin: 0 25px 25px 25px;
     padding: 20px;
     background-color: #e8f5e9;
     border-radius: 4px;
@@ -61,8 +81,10 @@ body {
         0 2px 2px 0 rgba(0, 0, 0, 0.14),
         0 3px 1px -2px rgba(0, 0, 0, 0.2),
         0 1px 5px 0 rgba(0, 0, 0, 0.12);
+    margin-top: 20px;
 }
 
+/* Responsive Layout Adjustments */
 @media screen and (max-width: 1024px) {
     #main-view-container {
         flex-direction: column;
@@ -82,6 +104,25 @@ body {
     }
 }
 
+@media screen and (max-width: 767px) {
+    .mdl-layout__header-row {
+        padding-left: 0; 
+        padding-right: 8px; 
+    }
+    .mdl-layout__header-row .mdl-layout-title {
+        font-size: 1rem;
+        flex: 0 1 auto; 
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        margin-right: 8px;
+        padding-left: 16px;
+    }
+    .mdl-layout__header-row .mdl-textfield--expandable {
+        flex-shrink: 0; 
+    }
+}
+
 @media screen and (max-width: 480px) {
     #main-view-container {
         padding: 0;
@@ -92,59 +133,18 @@ body {
         margin: 10px;
         padding: 15px;
     }
-}
-
-@media screen and (max-width: 767px) {
-    .mdl-layout__header-row {
-        padding-right: 8px;
+    .language-picker-tabs .mdl-tabs__tab-bar .mdl-tabs__tab {
+        padding: 8px 6px; 
+        font-size: 0.9em; 
+        min-width: 70px;  
     }
-    .mdl-layout__header-row .mdl-layout-title {
-        font-size: 1rem;
-        flex: 0 1 auto;
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
-    }
-    .mdl-layout__header-row .mdl-textfield--expandable {
-        flex-shrink: 0;
-    }
-    .mdl-layout__header-row
-        .mdl-textfield--expandable
-        > .mdl-button--icon {
-        margin-right: 2px;
-    }
-    .mdl-layout__header-row #prayer-language-nav {
-        flex-shrink: 0;
-    }
-    .mdl-layout__header-row
-        #prayer-language-nav.mdl-navigation
-        .mdl-navigation__link {
-        padding: 0 4px;
-        font-size: 0.75em;
-        white-space: nowrap;
-    }
-    .mdl-layout__header-row #prayer-language-nav .mdl-button--icon {
+    .language-picker-tabs .mdl-tabs__tab-bar .mdl-tabs__tab span[style*="font-size"] { /* General targeting for stats span */
+        font-size: 0.7em !important; 
         margin-left: 2px;
     }
 }
 
-.mdl-layout__drawer #drawer-prayer-language-nav {
-    padding-top: 0;
-    padding-bottom: 8px;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-    margin-bottom: 8px;
-    max-height: 150px;
-    overflow-y: auto;
-}
-.mdl-layout__drawer
-    #drawer-prayer-language-nav
-    .mdl-navigation__link {
-    color: rgba(0,0,0,0.87);
-}
-.mdl-layout__drawer .main-drawer-nav {
-    padding-top: 8px;
-}
-
+/* General Content Styling */
 #content a {
     font-weight: bold;
     padding: 3px;
@@ -163,7 +163,7 @@ body {
 .author::before {
     content: "--";
 }
-header,
+header, /* Generic header tag style */
 .scripture {
     padding-left: 1em;
 }
@@ -177,17 +177,18 @@ header,
     margin-left: 2em;
     font-weight: bold;
 }
-h2 {
+h2 { /* General h2 */
     font-size: 1.2em;
 }
 #category {
     font-size: 1.2em;
     font-weight: bold;
+    margin-right: 0.5em; /* Space to the right */
 }
 #blocktitle {
     color: #777777;
 }
-small {
+small { /* General small */
     font-family: "Gentium", "Times New Roman", serif;
     font-size: 0.9em;
     display: block;
@@ -204,12 +205,16 @@ small {
 .pagination button {
     margin: 0 5px;
 }
+
+/* MDL Overrides/Specifics */
 .mdl-layout__header-row .mdl-textfield__input {
     color: white;
 }
 .mdl-layout__header-row .mdl-textfield__label:after {
     background-color: white;
 }
+
+/* Language Buttons (General Purpose) */
 .language-buttons-container {
     display: flex;
     flex-wrap: wrap;
@@ -232,12 +237,7 @@ small {
     opacity: 0.8;
 }
 
-#prayer-language-nav .mdl-menu__container {
-    z-index: 10001 !important;
-}
-#drawer-prayer-language-nav .mdl-menu__container {
-    z-index: 10001 !important;
-}
+/* Prayer Actions & Matching Tool Specifics */
 .prayer-actions {
     margin-top: 20px;
     padding-top: 15px;
@@ -299,16 +299,13 @@ small {
     flex-shrink: 0;
 }
 
-/* MODIFIED: Favorite Prayer Button - No longer position: absolute */
+/* Favorite Prayer Button & Section */
 .favorite-toggle-button {
-    color: #bdbdbd; /* Default (not favorite) */
-    margin: 8px; /* Basic margin for flow */
-    display: inline-flex; /* Align icon and potential text if any */
+    color: #bdbdbd; 
+    margin: 8px; 
+    display: inline-flex; 
     align-items: center;
     vertical-align: middle;
-    /* Note: Its visual placement now depends on where it's appended in app.js.
-       It will appear in the normal document flow. You might want to append it
-       within .prayer-actions or another suitable place. */
 }
 .favorite-toggle-button.is-favorite {
     color: gold;
@@ -370,9 +367,7 @@ small {
     display: -webkit-box;
     -webkit-line-clamp: 3;
     -webkit-box-orient: vertical;
-    max-height: calc(
-        1.4em * 3
-    );
+    max-height: calc(1.4em * 3);
 }
 .favorite-prayer-card-meta {
     font-size: 0.8em;
@@ -421,6 +416,8 @@ small {
 .favorite-prayer-card-translations-item a:hover {
     background-color: #bbdefb;
 }
+
+/* Other Versions List (within prayer display) */
 .other-versions-in-lang-list {
     list-style: disc;
     padding-left: 20px;
@@ -438,6 +435,7 @@ small {
     text-decoration: underline;
 }
 
+/* Filter Switch (Unmatched prayers) */
 .filter-switch-container {
     margin-bottom: 15px;
     padding: 10px;
@@ -447,47 +445,92 @@ small {
     align-items: center;
 }
 
-/* === Language Picker Styles === */
-.language-picker-tabs .mdl-tabs__tab-bar {
-    justify-content: flex-start;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 5px;
-    flex-wrap: wrap;
-    align-items: center;
+/* === Language Picker Styles === (Revised Strategy) */
+.language-picker-tabs { /* Outermost container for the entire language picker */
+    display: block; 
+    width: 100%;    
+    box-sizing: border-box; 
+    margin-bottom: 15px; 
+    border-bottom: 1px solid #eee; /* The separator line for the whole picker */
+    padding-bottom: 8px; /* Space AFTER all content, before this border */
+    overflow: auto; /* BFC to correctly calculate height, auto might be gentler with menus */
 }
-.language-picker-tabs .more-languages-section-wrapper {
-    margin-left: auto;
-    padding-left: 15px;
-    align-self: center;
-    display: inline-block;
+
+.language-picker-tabs .mdl-tabs__tab-bar { /* Direct child, containing MDL tabs and "More" button */
+    display: flex; 
+    flex-wrap: wrap; 
+    justify-content: flex-start; 
+    border-bottom: none !important; /* CRITICAL: No border here, let MDL manage active tab underlines */
+    align-items: stretch;
+    height: auto !important; /* CRITICAL: Override MDL's fixed height */
+    /* No padding-bottom here; parent's padding-bottom handles space */
 }
-.language-picker-tabs #all-languages-menu-btn {
-    text-transform: none;
+
+.language-picker-tabs .mdl-tabs__tab-bar .mdl-tabs__tab {
     white-space: normal;
     height: auto;
     line-height: 1.3;
+    padding: 10px 8px;
+    text-align: center;
+    flex-grow: 1;
+    flex-basis: auto;
+    min-width: 80px;
+    margin-right: 4px; /* Horizontal spacing between tabs */
+    margin-bottom: 8px; /* Vertical spacing between rows of tabs AND space below last row */
+}
+
+.language-picker-tabs .mdl-tabs__tab-bar .mdl-tabs__tab span[style*="font-size"] { /* General targeting for stats */
+    display: inline; 
+    margin-left: 4px;
+    font-size: 0.75em !important; 
+    opacity: 0.85 !important; 
+}
+
+.language-picker-tabs .more-languages-section-wrapper {
+    display: flex; 
+    align-items: center; 
+    margin-left: auto; /* Pushes to the right */
+    padding-left: 15px; /* Space from tabs if on same line */
+    margin-bottom: 8px; /* Consistent bottom margin like tabs */
+}
+
+.language-picker-tabs #all-languages-menu-btn {
+    text-transform: none;
+    white-space: normal;
+    height: 36px; /* Consistent MDL button height */
+    line-height: 1.3;
     padding-top: 8px;
     padding-bottom: 8px;
+    display: inline-flex; /* Align text and icon */
+    align-items: center;
 }
-/* MODIFIED: Language search LI - No longer sticky */
+
 .language-picker-tabs #language-search-li {
     padding: 0 8px;
-    /* No position, top, background, z-index for sticky behavior */
 }
+
 .language-picker-tabs #language-search-li .mdl-textfield {
     width: calc(100% - 16px);
     padding: 0;
 }
+
 .language-picker-tabs #all-languages-menu-ul {
-    max-height: 65vh; /* Retaining responsive height */
+    max-height: 65vh;
     overflow-y: auto;
 }
+
 .language-picker-tabs #all-languages-message-placeholder {
     font-size: 0.9em;
     color: #555;
     margin-top: 5px;
     display: inline-block;
 }
+
+/* Z-index for More Languages menu */
+.language-picker-tabs .mdl-menu__container { /* This is the MDL generated wrapper for the menu */
+    z-index: 10005 !important; 
+}
+
 
 .text-center {
     text-align: center;
@@ -496,7 +539,7 @@ small {
     text-align:center;
     padding:20px;
 }
-#language-tab-panel-favorites {
+#language-tab-panel-favorites { /* Panel for favorites when "Favorites" tab is active */
     padding-top: 10px;
 }
 
@@ -542,45 +585,14 @@ small {
   font-weight: 500;
 }
 
-.language-picker-tabs {
-    display: block;
-}
-
-/* Tab text wrapping */
-.language-picker-tabs .mdl-tabs__tab-bar .mdl-tabs__tab {
-    white-space: normal;
-    height: auto;
-    line-height: 1.2;
-    padding: 12px 8px;
-    text-align: center;
-    max-width: 150px;
-}
-
-/* Tab stats span wrapping */
-.language-picker-tabs .mdl-tabs__tab-bar .mdl-tabs__tab span[style*="font-size:0.8em"] {
-    display: block;
-    margin-top: 2px;
-}
-
-/* Icon alignment in More Languages Button */
-.language-picker-tabs #all-languages-menu-btn .material-icons {
-    vertical-align: middle;
-}
-
-/* Z-index for More Languages menu */
-.language-picker-tabs .mdl-menu__container {
-    z-index: 10005 !important; /* Value from your previous file, ensure it's high enough */
-}
-
-/* === START: Fix for Content Overlap & Mobile Viewport Issues (ensure these are active) === */
+/* === Fix for Content Overlap & Mobile Viewport Issues === */
 main.mdl-layout__content {
-    padding-top: 56px; /* For mobile */
+    padding-top: 10px; /* Drastically reduced */
     box-sizing: border-box;
 }
 
-@media screen and (min-width: 1025px) {
+@media screen and (min-width: 1025px) { 
     main.mdl-layout__content {
-        padding-top: 64px; /* For desktop */
+        padding-top: 10px; /* Drastically reduced */
     }
 }
-/* === END: Fix for Content Overlap & Mobile Viewport Issues === */
