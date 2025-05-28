@@ -71,6 +71,120 @@ function addRecentLanguage(langCode) {
 }
 // --- End Recent Language Storage ---
 
+window.currentPrayerForStaticActions = null; // Holds { prayer, initialDisplayPrayerLanguage, nameToDisplay, languageToDisplay, finalDisplayLanguageForPhelpsMeta, phelpsIsSuggested }
+
+function initializeStaticPrayerActions() {
+    console.log("[initializeStaticPrayerActions] Initializing listeners for static prayer action buttons.");
+    const snackbarContainer = document.querySelector(".mdl-js-snackbar");
+
+    const staticPinBtn = document.getElementById('static-action-pin-this');
+    if (staticPinBtn) {
+        staticPinBtn.addEventListener('click', () => {
+            if (window.currentPrayerForStaticActions && window.currentPrayerForStaticActions.prayer) {
+                console.log("[Static Action] Pin this Prayer clicked.", window.currentPrayerForStaticActions.prayer.version);
+                pinPrayer(window.currentPrayerForStaticActions.prayer);
+                if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
+                    snackbarContainer.MaterialSnackbar.showSnackbar({ message: "Prayer pinned!" });
+                }
+            } else { console.warn("Static Pin: No context."); }
+        });
+    } else { console.warn("Static button 'static-action-pin-this' not found."); }
+
+    const staticAddMatchBtn = document.getElementById('static-action-add-match');
+    if (staticAddMatchBtn) {
+        staticAddMatchBtn.addEventListener('click', () => {
+            if (window.currentPrayerForStaticActions && window.currentPrayerForStaticActions.prayer) {
+                console.log("[Static Add Match Button Click] Clicked. Prayer version:", window.currentPrayerForStaticActions.prayer.version);
+                addCurrentPrayerAsMatch(window.currentPrayerForStaticActions.prayer);
+            } else { console.warn("[Static Add Match Button Click] No prayer context available."); }
+        });
+    } else { console.warn("Static button 'static-action-add-match' not found."); }
+
+    const staticReplacePinBtn = document.getElementById('static-action-replace-pin');
+    if (staticReplacePinBtn) {
+        staticReplacePinBtn.addEventListener('click', () => {
+            if (window.currentPrayerForStaticActions && window.currentPrayerForStaticActions.prayer) {
+                console.log("[Static Replace Pin Button Click] Clicked. Prayer version:", window.currentPrayerForStaticActions.prayer.version);
+                pinPrayer(window.currentPrayerForStaticActions.prayer); // pinPrayer replaces if already pinned, effectively
+                if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
+                    snackbarContainer.MaterialSnackbar.showSnackbar({ message: "Pinned prayer replaced. Item list preserved." });
+                }
+            } else { console.warn("[Static Replace Pin Button Click] No prayer context available."); }
+        });
+    } else { console.warn("Static button 'static-action-replace-pin' not found."); }
+
+    const staticSuggestPhelpsBtn = document.getElementById('static-action-suggest-phelps');
+    if (staticSuggestPhelpsBtn) {
+        staticSuggestPhelpsBtn.addEventListener('click', () => {
+            const context = window.currentPrayerForStaticActions;
+            if (context && context.prayer) {
+                console.log("[Static Suggest Phelps Button Click] Clicked. Prayer version:", context.prayer.version);
+                const enteredCode = prompt(`Enter Phelps code for:\\n${context.prayer.name || "Version " + context.prayer.version}\\n(${context.initialDisplayPrayerLanguage})`);
+                if (enteredCode && enteredCode.trim() !== "") {
+                    addPhelpsCodeToMatchList(context.prayer, enteredCode.trim());
+                }
+            } else { console.warn("[Static Suggest Phelps Button Click] No prayer context available."); }
+        });
+    } else { console.warn("Static button 'static-action-suggest-phelps' not found."); }
+
+    const staticChangeLangBtn = document.getElementById('static-action-change-lang');
+    if (staticChangeLangBtn) {
+        staticChangeLangBtn.addEventListener('click', () => {
+            const context = window.currentPrayerForStaticActions;
+            if (context && context.prayer) {
+                console.log("[Static Change Language Button Click] Clicked. Prayer version:", context.prayer.version);
+                const newLang = prompt(`Enter new language code for:\\n${context.nameToDisplay || "Version " + context.prayer.version}\\n(V: ${context.prayer.version})\\nCurrent language: ${context.finalDisplayLanguageForPhelpsMeta}`, context.languageToDisplay);
+                if (newLang && newLang.trim() !== "" && newLang.trim().toLowerCase() !== context.languageToDisplay.toLowerCase()) {
+                    addLanguageChangeToMatchList(context.prayer, newLang.trim());
+                } else if (newLang && newLang.trim().toLowerCase() === context.languageToDisplay.toLowerCase()) {
+                    alert("New language is the same as the current language.");
+                }
+            } else { console.warn("[Static Change Language Button Click] No prayer context available."); }
+        });
+    } else { console.warn("Static button 'static-action-change-lang' not found."); }
+
+    const staticChangeNameBtn = document.getElementById('static-action-change-name');
+    if (staticChangeNameBtn) {
+        staticChangeNameBtn.addEventListener('click', () => {
+            const context = window.currentPrayerForStaticActions;
+            if (context && context.prayer) {
+                console.log("[Static Change Name Button Click] Clicked. Prayer version:", context.prayer.version);
+                const newName = prompt(`Enter name for:\\nVersion ${context.prayer.version} (Lang: ${context.finalDisplayLanguageForPhelpsMeta})\\nCurrent name: ${context.nameToDisplay || "Not Set"}`, context.nameToDisplay || "");
+                if (newName !== null) {
+                    addNameChangeToMatchList(context.prayer, newName.trim());
+                }
+            } else { console.warn("[Static Change Name Button Click] No prayer context available."); }
+        });
+    } else { console.warn("Static button 'static-action-change-name' not found."); }
+
+    const staticAddNoteBtn = document.getElementById('static-action-add-note');
+    if (staticAddNoteBtn) {
+        staticAddNoteBtn.addEventListener('click', () => {
+            const context = window.currentPrayerForStaticActions;
+            if (context && context.prayer) {
+                console.log("[Static Add Note Button Click] Clicked. Prayer version:", context.prayer.version);
+                const note = prompt(`Enter a general note for:\\\\n${context.nameToDisplay || "Version " + context.prayer.version} (V: ${context.prayer.version})`);
+                if (note && note.trim() !== "") {
+                    addNoteToMatchList(context.prayer, note.trim());
+                }
+            } else { console.warn("[Static Add Note Button Click] No prayer context available."); }
+        });
+    } else { console.warn("Static button 'static-action-add-note' not found."); }
+
+    const staticUnpinBtn = document.getElementById('static-action-unpin-this');
+    if (staticUnpinBtn) {
+        staticUnpinBtn.addEventListener('click', () => {
+            if (window.currentPrayerForStaticActions && window.currentPrayerForStaticActions.prayer) {
+                console.log("[Static Unpin Button Click] Clicked. Prayer version:", window.currentPrayerForStaticActions.prayer.version);
+                unpinPrayer(); // unpinPrayer uses global pinnedPrayerDetails and updates UI
+                if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
+                    snackbarContainer.MaterialSnackbar.showSnackbar({ message: "Prayer unpinned." });
+                }
+            } else { console.warn("[Static Unpin Button Click] No prayer context available."); }
+        });
+    } else { console.warn("Static button 'static-action-unpin-this' not found."); }
+}
+
 const contentDiv = document.getElementById("content");
 const prayerLanguageNav = document.getElementById("prayer-language-nav");
 
@@ -443,14 +557,20 @@ function pinPrayer(prayerData) {
 }
 
 function unpinPrayer() {
+  console.log("[unpinPrayer] Called. Current pinnedPrayerDetails before unpin:", JSON.stringify(pinnedPrayerDetails));
   const wasPinned = !!pinnedPrayerDetails;
   pinnedPrayerDetails = null;
+  console.log("[unpinPrayer] pinnedPrayerDetails has been set to null.");
   updatePrayerMatchingToolDisplay(); // Will update the pinned section and clearAllLink visibility
-  // handleRouteChange(); // Not strictly necessary for unpin alone if view doesn't change
+  console.log("[unpinPrayer] Calling handleRouteChange to refresh view after unpin.");
+  handleRouteChange(); // This is CRUCIAL to re-render the prayer page and update button states
   const snackbarContainer = document.querySelector(".mdl-js-snackbar");
   if (wasPinned && snackbarContainer && snackbarContainer.MaterialSnackbar) {
+    // The snackbar message from initializeStaticPrayerActions for the unpin button might be more immediate.
+    // This one serves as a fallback or secondary notification if needed, though often the button's own feedback is enough.
+    // For now, let's keep it to see its timing.
     snackbarContainer.MaterialSnackbar.showSnackbar({
-      message: "Prayer unpinned. Item list preserved.",
+      message: "Prayer unpinned (from unpinPrayer fn).",
     });
   }
 }
@@ -1150,10 +1270,20 @@ async function renderPageLayout(viewSpec) {
         showLanguageSwitcher = true,
         showBackButton = false,
         customHeaderContentRenderer = null,
-        activeLangCodeForPicker = null // New parameter from ViewSpec
+        activeLangCodeForPicker = null, // New parameter from ViewSpec
+        isPrayerPage = false // New flag to identify prayer pages
     } = viewSpec;
-    console.log("[renderPageLayout] Received viewSpec.titleKey:", titleKey);
+    console.log("[renderPageLayout] Received viewSpec.titleKey:", titleKey, "isPrayerPage:", isPrayerPage);
     console.log("[renderPageLayout] Received viewSpec.activeLangCodeForPicker:", activeLangCodeForPicker);
+
+    // Hide static prayer actions host if not on a prayer page
+    const staticActionsHostGlobal = document.getElementById('static-prayer-actions-host');
+    if (staticActionsHostGlobal) {
+        if (!isPrayerPage) {
+            staticActionsHostGlobal.style.display = 'none';
+            console.log("[renderPageLayout] Hiding static-prayer-actions-host as not on a prayer page.");
+        }
+    }
 
     const headerTitleSpan = document.getElementById('page-main-title');
     const headerFavoriteButton = document.getElementById('page-header-favorite-button');
@@ -1307,6 +1437,7 @@ async function renderPageLayout(viewSpec) {
 
         // 6. Upgrade MDL components in the newly added view-specific content
         if (typeof componentHandler !== 'undefined') {
+            console.log('[renderPageLayout] Upgrading DOM for view-specific content in #view-specific-content-container.');
             componentHandler.upgradeDom(viewContentContainer);
         }
     } catch (error) {
@@ -1416,24 +1547,32 @@ async function _renderPrayerContent(prayerObject, phelpsCodeForNav, activeLangFo
   }
   const prayer = prayerObject; // Use a consistent variable name internally
   const authorName = getAuthorFromPhelps(prayer.phelps);
+  
+  // These are needed for button prompts and context for static actions
   const initialDisplayPrayerLanguage = await getLanguageDisplayName(prayer.language);
+  const phelpsToDisplay = titleCalculationResults.phelpsToDisplay; // Effective Phelps code for display
+  const languageToDisplay = titleCalculationResults.languageToDisplay; // Effective language for display
+  const nameToDisplay = titleCalculationResults.nameToDisplay; // Effective name for display
+  const effectiveLanguageDisplayName = await getLanguageDisplayName(languageToDisplay); // Display name of effective language
 
-  // phelpsToDisplay is now passed in via titleCalculationResults
-  const phelpsToDisplay = titleCalculationResults.phelpsToDisplay;
-  const languageToDisplay = titleCalculationResults.languageToDisplay; // May not be needed if activeLangForNav is primary
-  const nameToDisplay = titleCalculationResults.nameToDisplay;
+  // Set context for static button event listeners
+  // Ensure all potentially needed values from titleCalculationResults are included
+  window.currentPrayerForStaticActions = {
+    prayer: prayer,
+    initialDisplayPrayerLanguage: initialDisplayPrayerLanguage,
+    nameToDisplay: nameToDisplay,
+    languageToDisplay: languageToDisplay,
+    finalDisplayLanguageForPhelpsMeta: effectiveLanguageDisplayName, // Use the renamed variable here
+    phelpsIsSuggested: titleCalculationResults.phelpsIsSuggested
+  };
 
   // Update static page header elements - only favorite button here
-  // The main title is set by renderPageLayout using titleKey from ViewSpec.
-
-
-  let contentHtml = '';
   if (staticPageHeaderFavoriteButton) {
     staticPageHeaderFavoriteButton.style.display = 'inline-flex';
     staticPageHeaderFavoriteButton.innerHTML = isPrayerFavorite(prayer.version)
         ? '<i class="material-icons">star</i> Favorited'
         : '<i class="material-icons">star_border</i> Favorite';
-    staticPageHeaderFavoriteButton.onclick = () => toggleFavoritePrayer(prayer, staticPageHeaderFavoriteButton); // Pass button for direct update
+    staticPageHeaderFavoriteButton.onclick = () => toggleFavoritePrayer(prayer, staticPageHeaderFavoriteButton);
     if (typeof componentHandler !== 'undefined') {
         componentHandler.upgradeElement(staticPageHeaderFavoriteButton);
     }
@@ -1441,8 +1580,7 @@ async function _renderPrayerContent(prayerObject, phelpsCodeForNav, activeLangFo
   
   cachePrayerText({ ...prayer });
 
-  // --- Build content HTML string ---
-  // let contentHtml = ''; // Removed redundant declaration
+  const fragment = document.createDocumentFragment();
 
   // 1. Translations Switcher
   const translationsAreaDiv = document.createElement('div');
@@ -1502,7 +1640,7 @@ async function _renderPrayerContent(prayerObject, phelpsCodeForNav, activeLangFo
     // --- END TEMPORARY LOGS ---
     translationsAreaDiv.innerHTML = '';
   }
-  contentHtml += translationsAreaDiv.outerHTML;
+  fragment.appendChild(translationsAreaDiv);
 
   // 2. Prayer Details Container
   const prayerDetailsContainer = document.createElement('div');
@@ -1532,124 +1670,108 @@ async function _renderPrayerContent(prayerObject, phelpsCodeForNav, activeLangFo
     </div>`;
   prayerDetailsContainer.innerHTML = prayerCoreHtml;
 
-  const actionsDiv = document.createElement("div");
-  actionsDiv.className = "prayer-actions";
-  if (pinnedPrayerDetails) {
-    if (pinnedPrayerDetails.version !== prayer.version) {
-      const addMatchButton = document.createElement("button");
-      addMatchButton.className = "mdl-button mdl-js-button mdl-button--raised mdl-button--accent";
-      const pinnedNameSnippet = (pinnedPrayerDetails.name || `Version ${pinnedPrayerDetails.version}`).substring(0, 20);
-      addMatchButton.innerHTML = `<i class="material-icons">playlist_add_check</i>Match with Pinned: ${pinnedNameSnippet}${pinnedNameSnippet.length === 20 ? "..." : ""}`;
-      addMatchButton.addEventListener('click', () => addCurrentPrayerAsMatch(prayer));
-      actionsDiv.appendChild(addMatchButton);
-      if (typeof componentHandler !== 'undefined') {
-        componentHandler.upgradeElement(addMatchButton);
-      }
+  // --- Prayer Actions Section (Managed Static Elements Approach) ---
+  // window.currentPrayerForStaticActions is now an object, set earlier.
 
-      const replacePinButton = document.createElement("button");
-      replacePinButton.className = "mdl-button mdl-js-button mdl-button--raised";
-      replacePinButton.innerHTML = '<i class="material-icons">swap_horiz</i> Replace Pin';
-      replacePinButton.title = "Replaces the currently pinned prayer with this one. Item list preserved.";
-      replacePinButton.addEventListener('click', () => {
-        pinPrayer(prayer);
-        const snackbarContainer = document.querySelector(".mdl-js-snackbar");
-        if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
-          snackbarContainer.MaterialSnackbar.showSnackbar({ message: "Pinned prayer replaced. Item list preserved." });
-        }
+  const staticHost = document.getElementById('static-prayer-actions-host');
+  console.log("[_renderPrayerContent] staticHost from getElementById:", staticHost); // DEBUG
+  const staticPinBtn = document.getElementById('static-action-pin-this');
+  const staticAddMatchBtn = document.getElementById('static-action-add-match');
+  const staticReplacePinBtn = document.getElementById('static-action-replace-pin');
+  const staticIsPinnedMsg = document.getElementById('static-action-is-pinned-msg');
+  const staticUnpinBtn = document.getElementById('static-action-unpin-this');
+  const staticSuggestPhelpsBtn = document.getElementById('static-action-suggest-phelps');
+  const staticChangeLangBtn = document.getElementById('static-action-change-lang');
+  const staticChangeNameBtn = document.getElementById('static-action-change-name');
+  const staticAddNoteBtn = document.getElementById('static-action-add-note');
+
+  if (staticHost) {
+      // Move the staticHost into the prayerDetailsContainer for correct positioning within the prayer's content
+      prayerDetailsContainer.appendChild(staticHost);
+      staticHost.style.display = 'flex'; // Ensure the host container is visible
+
+      console.log("[_renderPrayerContent] staticHost processed and moved. Display:", staticHost.style.display); // DEBUG
+
+      // Ensure all static buttons are made visible (overriding display:none from index.html)
+      // and then set their initial disabled state for this render pass.
+      // The 'is pinned' message visibility is handled separately.
+
+      const allStaticButtons = [staticPinBtn, staticUnpinBtn, staticAddMatchBtn, staticReplacePinBtn, staticSuggestPhelpsBtn, staticChangeLangBtn, staticChangeNameBtn, staticAddNoteBtn];
+      allStaticButtons.forEach(btn => {
+          if (btn) {
+              btn.style.display = ''; // Make button visible
+              btn.disabled = true;  // Default to disabled, specific logic will enable them
+          }
       });
-      actionsDiv.appendChild(replacePinButton);
-      if (typeof componentHandler !== 'undefined') {
-        componentHandler.upgradeElement(replacePinButton);
+      
+      // These buttons are always active (visible and enabled)
+      if (staticChangeLangBtn) staticChangeLangBtn.disabled = false;
+      if (staticChangeNameBtn) staticChangeNameBtn.disabled = false;
+      if (staticAddNoteBtn) staticAddNoteBtn.disabled = false;
+
+      // Hide "is pinned" message initially
+      if (staticIsPinnedMsg) staticIsPinnedMsg.style.display = 'none';
+
+      console.log(`[_renderPrayerContent] Initial states after visibility loop: PinBtn display=${staticPinBtn?.style.display}, disabled=${staticPinBtn?.disabled}; UnpinBtn display=${staticUnpinBtn?.style.display}, disabled=${staticUnpinBtn?.disabled}; AddMatchBtn display=${staticAddMatchBtn?.style.display}, disabled=${staticAddMatchBtn?.disabled}`); // DEBUG
+
+      // Logic to enable/disable buttons and show/hide message based on context
+      console.log(`[_renderPrayerContent] Context for button states: prayer.version=${prayer.version}, pinnedPrayerDetails.version=${pinnedPrayerDetails?.version}`); // DEBUG
+      if (pinnedPrayerDetails) {
+          if (pinnedPrayerDetails.version !== prayer.version) { // A different prayer is pinned
+              console.log("[_renderPrayerContent] Branch: Different prayer is pinned."); // DEBUG
+              if (staticAddMatchBtn) {
+                  const pinnedNameSnippet = (pinnedPrayerDetails.name || `Version ${pinnedPrayerDetails.version}`).substring(0, 20);
+                  staticAddMatchBtn.innerHTML = `<i class="material-icons">playlist_add_check</i>Match with Pinned: ${pinnedNameSnippet}${pinnedNameSnippet.length === 20 ? "..." : ""}`;
+                  staticAddMatchBtn.disabled = false;
+              }
+              if (staticReplacePinBtn) staticReplacePinBtn.disabled = false;
+              // staticPinBtn remains disabled
+              // staticUnpinBtn remains disabled
+              console.log(`[_renderPrayerContent] States in 'Different prayer pinned': PinBtn display=${staticPinBtn?.style.display}, disabled=${staticPinBtn?.disabled}; UnpinBtn display=${staticUnpinBtn?.style.display}, disabled=${staticUnpinBtn?.disabled}; AddMatchBtn display=${staticAddMatchBtn?.style.display}, disabled=${staticAddMatchBtn?.disabled}`); // DEBUG
+           } else { // The current prayer IS the pinned one
+              console.log("[_renderPrayerContent] Branch: Current prayer IS pinned."); // DEBUG
+              if (staticIsPinnedMsg) staticIsPinnedMsg.style.display = 'block';
+              if (staticUnpinBtn) staticUnpinBtn.disabled = false;
+              // staticPinBtn, staticAddMatchBtn, staticReplacePinBtn remain disabled
+              console.log(`[_renderPrayerContent] States in 'Current prayer IS pinned': PinBtn display=${staticPinBtn?.style.display}, disabled=${staticPinBtn?.disabled}; UnpinBtn display=${staticUnpinBtn?.style.display}, disabled=${staticUnpinBtn?.disabled}; AddMatchBtn display=${staticAddMatchBtn?.style.display}, disabled=${staticAddMatchBtn?.disabled}`); // DEBUG
+           }
+       } else { // No prayer is pinned
+          console.log("[_renderPrayerContent] Branch: No prayer pinned."); // DEBUG
+          if (staticPinBtn) staticPinBtn.disabled = false;
+          // staticUnpinBtn, staticAddMatchBtn, staticReplacePinBtn remain disabled
+          if (staticAddMatchBtn) { // Reset text if no prayer is pinned
+             staticAddMatchBtn.innerHTML = `<i class="material-icons">playlist_add_check</i> Match with Pinned`;
+           }
+           if (staticIsPinnedMsg) staticIsPinnedMsg.style.display = 'none';
+           console.log(`[_renderPrayerContent] States in 'No prayer pinned': PinBtn display=${staticPinBtn?.style.display}, disabled=${staticPinBtn?.disabled}; UnpinBtn display=${staticUnpinBtn?.style.display}, disabled=${staticUnpinBtn?.disabled}; AddMatchBtn display=${staticAddMatchBtn?.style.display}, disabled=${staticAddMatchBtn?.disabled}`); // DEBUG
+       }
+
+       // Enable/Disable "Suggest Phelps Code" button
+      if (staticSuggestPhelpsBtn) {
+          const context = window.currentPrayerForStaticActions;
+          if (!prayer.phelps && !(context && context.phelpsIsSuggested)) {
+              staticSuggestPhelpsBtn.disabled = false;
+          } else {
+              staticSuggestPhelpsBtn.disabled = true; // Already has phelps or is suggested
+          }
       }
-    } else {
-      const pElement = document.createElement("p");
-      pElement.innerHTML = "<em>This prayer is currently pinned. Use the tool on the right to manage items or unpin.</em>";
-      actionsDiv.appendChild(pElement);
-    }
-  } else {
-    const pinButton = document.createElement("button");
-    pinButton.className = "mdl-button mdl-js-button mdl-button--raised mdl-button--colored";
-    pinButton.innerHTML = '<i class="material-icons">push_pin</i> Pin this Prayer';
-    pinButton.addEventListener('click', () => {
-      console.log("[PinButton Click Listener] Clicked. Prayer object:", JSON.stringify(prayer));
-      pinPrayer(prayer);
-      const snackbarContainer = document.querySelector(".mdl-js-snackbar");
-      if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
-        snackbarContainer.MaterialSnackbar.showSnackbar({ message: "Prayer pinned! Navigate to find items or suggestions." });
+
+      // Update titles for always-enabled buttons (context should exist)
+      const currentContext = window.currentPrayerForStaticActions;
+      if (staticChangeLangBtn && currentContext) {
+           staticChangeLangBtn.title = `Current effective language: ${currentContext.finalDisplayLanguageForPhelpsMeta}`;
       }
-    });
-    actionsDiv.appendChild(pinButton);
-    if (typeof componentHandler !== 'undefined') {
-      componentHandler.upgradeElement(pinButton);
-    }
-  }
-
-  if (!prayer.phelps && !titleCalculationResults.phelpsIsSuggested) {
-    const suggestPhelpsButton = document.createElement("button");
-    suggestPhelpsButton.className = "mdl-button mdl-js-button mdl-button--raised";
-    suggestPhelpsButton.innerHTML = '<i class="material-icons">library_add</i> Add/Suggest Phelps Code';
-    suggestPhelpsButton.addEventListener('click', () => {
-      const enteredCode = prompt(`Enter Phelps code for:\\n${prayer.name || "Version " + prayer.version}\\n(${initialDisplayPrayerLanguage})`);
-      if (enteredCode && enteredCode.trim() !== "") {
-        addPhelpsCodeToMatchList(prayer, enteredCode.trim());
+      if (staticChangeNameBtn && currentContext) {
+           staticChangeNameBtn.title = `Current effective name: ${currentContext.nameToDisplay || "Not Set"}`;
       }
-    });
-    actionsDiv.appendChild(suggestPhelpsButton);
-    if (typeof componentHandler !== 'undefined') {
-      componentHandler.upgradeElement(suggestPhelpsButton);
-    }
   }
+  // --- End Static Prayer Actions ---
 
-  const changeLangButton = document.createElement("button");
-  changeLangButton.className = "mdl-button mdl-js-button mdl-button--raised";
-  changeLangButton.innerHTML = '<i class="material-icons">translate</i> Change Language';
-  changeLangButton.title = `Current language: ${finalDisplayLanguageForPhelpsMeta}`;
-  changeLangButton.addEventListener('click', () => {
-    const newLang = prompt(`Enter new language code for:\\n${nameToDisplay || "Version " + prayer.version}\\n(V: ${prayer.version})\\nCurrent language: ${finalDisplayLanguageForPhelpsMeta}`, languageToDisplay);
-    if (newLang && newLang.trim() !== "" && newLang.trim().toLowerCase() !== languageToDisplay.toLowerCase()) {
-      addLanguageChangeToMatchList(prayer, newLang.trim());
-    } else if (newLang && newLang.trim().toLowerCase() === languageToDisplay.toLowerCase()) {
-      alert("New language is the same as the current language.");
-    }
-  });
-  actionsDiv.appendChild(changeLangButton);
-  if (typeof componentHandler !== 'undefined') {
-    componentHandler.upgradeElement(changeLangButton);
-  }
-
-  const changeNameButton = document.createElement("button");
-  changeNameButton.className = "mdl-button mdl-js-button mdl-button--raised";
-  changeNameButton.innerHTML = '<i class="material-icons">edit_note</i> Add/Change Name';
-  changeNameButton.title = `Current name: ${prayer.name || "Not Set"}`;
-  changeNameButton.addEventListener('click', () => {
-    const newName = prompt(`Enter name for:\\nVersion ${prayer.version} (Lang: ${finalDisplayLanguageForPhelpsMeta})\\nCurrent name: ${nameToDisplay || "Not Set"}`, nameToDisplay || "");
-    if (newName !== null) {
-      addNameChangeToMatchList(prayer, newName.trim());
-    }
-  });
-  actionsDiv.appendChild(changeNameButton);
-  if (typeof componentHandler !== 'undefined') {
-    componentHandler.upgradeElement(changeNameButton);
-  }
-
-  const addNoteButton = document.createElement("button");
-  addNoteButton.className = "mdl-button mdl-js-button mdl-button--raised";
-  addNoteButton.innerHTML = '<i class="material-icons">speaker_notes</i> Add General Note';
-  addNoteButton.addEventListener('click', () => {
-    const note = prompt(`Enter a general note for:\\n${nameToDisplay || "Version " + prayer.version} (V: ${prayer.version})`);
-    if (note && note.trim() !== "") {
-      addNoteToMatchList(prayer, note.trim());
-    }
-  });
-  actionsDiv.appendChild(addNoteButton);
-  if (typeof componentHandler !== 'undefined') {
-    componentHandler.upgradeElement(addNoteButton);
-  }
-  prayerDetailsContainer.appendChild(actionsDiv);
+  fragment.appendChild(prayerDetailsContainer);
 
   // 3. "Other versions in this language" (if applicable)
   if (phelpsToDisplay && (phelpsCodeForNav === phelpsToDisplay) && prayer.language) { // Ensure prayer.language exists
-    const sameLangVersionsSql = `SELECT version, name, link FROM writings WHERE phelps = '${phelpsToDisplay.replace(/\\'/g, "''")}' AND language = '${prayer.language.replace(/\\'/g, "''")}' AND version != '${prayer.version}' ORDER BY name`;
+    const sameLangVersionsSql = `SELECT version, name, link FROM writings WHERE phelps = '${phelpsToDisplay.replace(/\'/g, "''")}' AND language = '${prayer.language.replace(/\'/g, "''")}' AND version != '${prayer.version}' ORDER BY name`;
     try {
         const sameLangVersions = await executeQuery(sameLangVersionsSql);
         if (sameLangVersions.length > 0) {
@@ -1660,21 +1782,20 @@ async function _renderPrayerContent(prayerObject, phelpsCodeForNav, activeLangFo
             const langForOtherVersionsTitle = await getLanguageDisplayName(prayer.language);
             let otherListHtml = `<h5>Other versions in ${langForOtherVersionsTitle} for ${phelpsToDisplay}:</h5><ul class="other-versions-in-lang-list">`;
             sameLangVersions.forEach((altVersion) => {
-                const displayName = altVersion.name || `Version ${altVersion.version}`;
+                const displayName = altVersion.name || `Version ${altVersion.version}`
                 const domain = altVersion.link ? `(${getDomain(altVersion.link)})` : "";
                 otherListHtml += `<li><a href="#prayer/${altVersion.version}">${displayName} ${domain}</a></li>`;
             });
             otherListHtml += `</ul>`;
             otherVersionsDiv.innerHTML = otherListHtml;
-            prayerDetailsContainer.appendChild(otherVersionsDiv);
+            prayerDetailsContainer.appendChild(otherVersionsDiv); // Appends to prayerDetailsContainer, which is part of fragment
         }
     } catch (e) {
         console.error("Error fetching other versions in same language:", e);
         // Optionally append an error message to prayerDetailsContainer
     }
   }
-  contentHtml += prayerDetailsContainer.outerHTML;
-  return contentHtml;
+  return fragment; // Return the constructed DOM fragment
 }
 
 async function renderPrayer(
@@ -1729,7 +1850,8 @@ async function renderPrayer(
     contentRenderer: () => _renderPrayerContent(prayerData, phelpsCodeForNav, activeLangForNav, titleInfo),
     showLanguageSwitcher: true, 
     showBackButton: true,
-    activeLangCodeForPicker: activeLanguageForPicker
+    activeLangCodeForPicker: activeLanguageForPicker,
+    isPrayerPage: true // Indicate this is a prayer page
   };
   console.log("[renderPrayer] ViewSpec being passed to renderPageLayout:", JSON.stringify(viewSpecForPrayer, (key, value) => typeof value === 'function' ? 'Function' : value));
   await renderPageLayout(viewSpecForPrayer);
@@ -2720,11 +2842,12 @@ async function renderSearchResults(searchTerm, page = 1) {
   }
 
   await renderPageLayout({
-    titleKey: `Search Results for "${searchTerm ? searchTerm.replace(/"/g, '&quot;') : ''}"`,
+    titleKey: `Search Results for \"${searchTerm ? searchTerm.replace(/\"/g, '&quot;') : ''}\"`,
     contentRenderer: async () => _renderSearchResultsContent(searchTerm, page),
     showLanguageSwitcher: true, // Original function included the language picker
     showBackButton: true,       // Useful to go back from search results
-    activeLangCodeForPicker: null 
+    activeLangCodeForPicker: null,
+    // isPrayerPage: false (default)
   });
 }
 
@@ -2895,7 +3018,11 @@ document.addEventListener("DOMContentLoaded", () => {
           unpinPrayer(); // unpinPrayer already calls updatePrayerMatchingToolDisplay and may show its own snackbar
           message = "All items cleared and prayer unpinned.";
         } else {
-          updatePrayerMatchingToolDisplay(); // If not unpinning, still need to update display for cleared items
+          if (typeof componentHandler !== 'undefined') {
+              console.log('[renderPageLayout] Upgrading DOM for MDL components after new content rendering.');
+              componentHandler.upgradeDom();
+          }
+          updatePrayerMatchingToolDisplay();
         }
 
         if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
@@ -3105,4 +3232,5 @@ document.addEventListener("DOMContentLoaded", () => {
   handleRouteChange();
 });
 
-window.addEventListener("hashchange", handleRouteChange);
+window.addEventListener('hashchange', handleRouteChange);
+initializeStaticPrayerActions();

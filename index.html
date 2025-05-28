@@ -75,6 +75,36 @@
                                     <!-- Title will be populated by JS -->
                                 </h2>
                             </header>
+
+                            <!-- Statically defined prayer actions container -->
+                            <div id="static-prayer-actions-host" class="prayer-actions" style="display: none; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; display: flex; flex-wrap: wrap; gap: 10px;">
+                                <button id="static-action-pin-this" class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored" style="display: none;">
+                                    <i class="material-icons">push_pin</i> Pin this Prayer
+                                </button>
+                                <button id="static-action-add-match" class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent" style="display: none;">
+                                    <i class="material-icons">playlist_add_check</i> Match with Pinned
+                                </button>
+                                <button id="static-action-replace-pin" class="mdl-button mdl-js-button mdl-button--raised" style="display: none;" title="Replaces the currently pinned prayer with this one. Item list preserved.">
+                                    <i class="material-icons">swap_horiz</i> Replace Pin
+                                </button>
+                                <p id="static-action-is-pinned-msg" style="display: none; margin: 8px 0; width: 100%;"><em>This prayer is currently pinned.</em></p>
+                                <button id="static-action-unpin-this" class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent" style="display: none;">
+                                    <i class="material-icons">highlight_off</i> Unpin this Prayer
+                                </button>
+                                <button id="static-action-suggest-phelps" class="mdl-button mdl-js-button mdl-button--raised" style="display: none;">
+                                    <i class="material-icons">library_add</i> Add/Suggest Phelps Code
+                                </button>
+                                <button id="static-action-change-lang" class="mdl-button mdl-js-button mdl-button--raised" style="display: none;">
+                                    <i class="material-icons">translate</i> Change Language
+                                </button>
+                                <button id="static-action-change-name" class="mdl-button mdl-js-button mdl-button--raised" style="display: none;">
+                                    <i class="material-icons">edit_note</i> Add/Change Name
+                                </button>
+                                <button id="static-action-add-note" class="mdl-button mdl-js-button mdl-button--raised" style="display: none;">
+                                    <i class="material-icons">speaker_notes</i> Add General Note
+                                </button>
+                            </div>
+
                             <div id="dynamic-content-area">
                                 <p>Loading content...</p>
                             </div>
