@@ -1151,10 +1151,23 @@ async function renderPageLayout(viewSpec) {
         customHeaderContentRenderer = null,
         activeLangCodeForPicker = null // New parameter from ViewSpec
     } = viewSpec;
+    console.log("[renderPageLayout] Received viewSpec.titleKey:", titleKey);
+    console.log("[renderPageLayout] Received viewSpec.activeLangCodeForPicker:", activeLangCodeForPicker);
 
-    const mainContentElement = contentDiv; // Global: const contentDiv = document.getElementById("content");
     const headerTitleSpan = document.getElementById('page-main-title');
     const headerFavoriteButton = document.getElementById('page-header-favorite-button');
+    // Define the specific area for dynamic content, leaving the header (#page-header-container) intact.
+    const dynamicContentHostElement = document.getElementById('dynamic-content-area'); 
+
+    if (!dynamicContentHostElement) {
+        console.error("Critical: #dynamic-content-area not found in DOM. Page layout cannot proceed.");
+        // Fallback: Clear the main contentDiv if dynamic area is missing, and show error.
+        // This might still wipe the title if it's inside contentDiv, but it's a fallback.
+        if (contentDiv) {
+            contentDiv.innerHTML = '<p style="color:red; text-align:center; padding:20px;">Error: Page structure is broken (#dynamic-content-area missing).</p>';
+        }
+        return; 
+    }
 
     // 1. Reset Header elements
     if (headerFavoriteButton) {
@@ -1182,6 +1195,7 @@ async function renderPageLayout(viewSpec) {
     if (customHeaderContentRenderer) {
         if (headerTitleSpan) {
             // customHeaderContentRenderer is responsible for the content of the title area
+            console.log("[renderPageLayout] Using customHeaderContentRenderer.");
             const customContent = customHeaderContentRenderer(); // Assuming this is synchronous for now
             if (typeof customContent === 'string') {
                 headerTitleSpan.innerHTML = customContent;
@@ -1199,6 +1213,7 @@ async function renderPageLayout(viewSpec) {
         // Default header: Title + optional Back Button
         if (headerTitleSpan) {
             const titleText = (typeof getLocalizedString === 'function' ? getLocalizedString(titleKey) : titleKey) || titleKey;
+            console.log("[renderPageLayout] Setting headerTitleSpan.textContent to:", titleText);
             headerTitleSpan.textContent = titleText;
         }
 
@@ -1242,23 +1257,22 @@ async function renderPageLayout(viewSpec) {
         }
     }
 
-    // 2. Clear main content area (#content)
-    mainContentElement.innerHTML = '';
+    // 2. Clear the specific dynamic content area
+    dynamicContentHostElement.innerHTML = '';
 
-    // 3. Render Language Switcher (if requested)
+    // 3. Render Language Switcher (if requested) into the dynamic area
     if (showLanguageSwitcher) {
         const pickerShellHtml = getLanguagePickerShellHtml(); // Assumes app.getLanguagePickerShellHtml or global
-        mainContentElement.insertAdjacentHTML('beforeend', pickerShellHtml);
+        dynamicContentHostElement.insertAdjacentHTML('beforeend', pickerShellHtml);
         // populateLanguageSelection is async and handles its own MDL upgrades.
         // Pass activeLangCodeForPicker to highlight the correct language.
         await populateLanguageSelection(activeLangCodeForPicker);
     }
 
-    // 4. Prepare container for view-specific content
-    // This container will be appended *after* the language switcher (if any) in mainContentElement
+    // 4. Prepare container for view-specific content within the dynamic area
     const viewContentContainer = document.createElement('div');
     viewContentContainer.id = 'view-specific-content-container';
-    mainContentElement.appendChild(viewContentContainer);
+    dynamicContentHostElement.appendChild(viewContentContainer);
 
     // 5. Render view-specific content with a loading spinner
     const tempSpinner = document.createElement('div');
@@ -1308,32 +1322,28 @@ async function renderPageLayout(viewSpec) {
     // No final broad MDL upgrade; rely on targeted upgrades.
 }
 
-async function _renderPrayerContent(versionId, phelpsCodeForNav, activeLangForNav) {
-  const staticPageHeaderFavoriteButton = document.getElementById('page-header-favorite-button');
-  const staticPageMainTitle = document.getElementById('page-main-title');
-
-  // 1. Fetch prayer data
-  const sql = `SELECT version, text, language, phelps, name, source, link FROM writings WHERE version = '${versionId}' LIMIT 1`;
-  let rows;
-  try {
-    rows = await executeQuery(sql);
-  } catch (error) {
-    if (staticPageMainTitle) staticPageMainTitle.textContent = 'Error'; // Update title directly
-    // The language picker shell is handled by renderPageLayout.
-    // This function just returns the content for the view-specific area.
-    return `<p>Error loading prayer data: ${error.message}.</p><p>Query used:</p><pre style="white-space: pre-wrap; word-break: break-all; background: #eee; padding: 10px; border-radius: 4px;">${sql}</pre>`;
+/**
+ * Calculates the dynamic title for a prayer page, considering suggestions.
+ * @param {object} prayer - The core prayer object from the database.
+ * @param {Array} collectedMatchesForEmailFromApp - The global collectedMatchesForEmail array.
+ * @returns {Promise<object>} An object containing titleText, and suggestion details.
+ */
+async function _calculatePrayerPageTitle(prayer, collectedMatchesForEmailFromApp) {
+  console.log("[_calculatePrayerPageTitle] Input prayer:", JSON.stringify(prayer));
+  console.log("[_calculatePrayerPageTitle] Input collectedMatchesForEmailFromApp:", JSON.stringify(collectedMatchesForEmailFromApp));
+  if (!prayer) {
+    console.log("[_calculatePrayerPageTitle] Prayer object is null/undefined, returning default title info.");
+    return {
+      titleText: "Prayer not found",
+      nameIsSuggested: false,
+      phelpsIsSuggested: false,
+      languageIsSuggested: false,
+      phelpsToDisplay: null,
+      languageToDisplay: null,
+      nameToDisplay: null
+    };
   }
 
-  if (!rows || !rows.length) {
-    if (staticPageMainTitle) staticPageMainTitle.textContent = 'Not Found';
-    const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(sql)}`;
-    return `<p>Prayer with ID ${versionId} not found.</p><p>Query used:</p><pre style="white-space: pre-wrap; word-break: break-all; background: #eee; padding: 10px; border-radius: 4px;">${sql}</pre><p><a href="${debugQueryUrl}" target="_blank">Debug this query on DoltHub</a></p>`;
-  }
-
-  const prayer = rows[0];
-
-  // --- Logic for prayer title and suggested edits ---
-  const authorName = getAuthorFromPhelps(prayer.phelps);
   const initialDisplayPrayerLanguage = await getLanguageDisplayName(prayer.language);
   let prayerTitleText = prayer.name ||
     (prayer.phelps ? `${prayer.phelps} - ${initialDisplayPrayerLanguage}` : null) ||
@@ -1346,7 +1356,7 @@ async function _renderPrayerContent(versionId, phelpsCodeForNav, activeLangForNa
   let nameToDisplay = prayer.name;
   let nameIsSuggested = false;
 
-  for (const match of collectedMatchesForEmail) {
+  for (const match of collectedMatchesForEmailFromApp) {
     if (match.prayer && match.prayer.version === prayer.version) {
       if (match.type === "assign_phelps") {
         phelpsToDisplay = match.newPhelps;
@@ -1381,20 +1391,42 @@ async function _renderPrayerContent(versionId, phelpsCodeForNav, activeLangForNa
   const displayLangForTitleAfterSuggestions = await getLanguageDisplayName(languageToDisplay);
   prayerTitleText = nameToDisplay || (phelpsToDisplay ? `${phelpsToDisplay} - ${displayLangForTitleAfterSuggestions}` : `Prayer ${prayer.version}`);
 
-  // Update static page header elements
-  if (staticPageMainTitle) {
-    staticPageMainTitle.innerHTML = ''; // Clear placeholder
-    staticPageMainTitle.textContent = prayerTitleText;
-    if (nameIsSuggested) {
-      const suggestionIndicator = document.createElement('em');
-      suggestionIndicator.style.color = 'red';
-      suggestionIndicator.style.fontSize = '0.8em';
-      suggestionIndicator.style.marginLeft = '8px';
-      suggestionIndicator.textContent = '(Suggested Name)';
-      staticPageMainTitle.appendChild(suggestionIndicator);
-    }
-  }
+  console.log("[_calculatePrayerPageTitle] Calculated prayerTitleText:", prayerTitleText);
+  return {
+    titleText: prayerTitleText,
+    nameIsSuggested,
+    phelpsIsSuggested,
+    languageIsSuggested,
+    phelpsToDisplay,
+    languageToDisplay,
+    nameToDisplay
+  };
+}
 
+
+async function _renderPrayerContent(prayerObject, phelpsCodeForNav, activeLangForNav, titleCalculationResults) {
+  const staticPageHeaderFavoriteButton = document.getElementById('page-header-favorite-button');
+  // const staticPageMainTitle = document.getElementById('page-main-title'); // Title is set by renderPageLayout
+
+  if (!prayerObject) {
+    // This case should ideally be handled before calling _renderPrayerContent,
+    // e.g., in renderPrayer or resolveAndRenderPrayerByPhelpsAndLang.
+    return `<p>Error: Prayer data not provided to content renderer.</p>`;
+  }
+  const prayer = prayerObject; // Use a consistent variable name internally
+  const authorName = getAuthorFromPhelps(prayer.phelps);
+  const initialDisplayPrayerLanguage = await getLanguageDisplayName(prayer.language);
+
+  // phelpsToDisplay is now passed in via titleCalculationResults
+  const phelpsToDisplay = titleCalculationResults.phelpsToDisplay;
+  const languageToDisplay = titleCalculationResults.languageToDisplay; // May not be needed if activeLangForNav is primary
+  const nameToDisplay = titleCalculationResults.nameToDisplay;
+
+  // Update static page header elements - only favorite button here
+  // The main title is set by renderPageLayout using titleKey from ViewSpec.
+
+
+  let contentHtml = '';
   if (staticPageHeaderFavoriteButton) {
     staticPageHeaderFavoriteButton.style.display = 'inline-flex';
     staticPageHeaderFavoriteButton.innerHTML = isPrayerFavorite(prayer.version)
@@ -1409,7 +1441,7 @@ async function _renderPrayerContent(versionId, phelpsCodeForNav, activeLangForNa
   cachePrayerText({ ...prayer });
 
   // --- Build content HTML string ---
-  let contentHtml = '';
+  // let contentHtml = ''; // Removed redundant declaration
 
   // 1. Translations Switcher
   const translationsAreaDiv = document.createElement('div');
@@ -1478,14 +1510,14 @@ async function _renderPrayerContent(versionId, phelpsCodeForNav, activeLangForNa
   const finalDisplayLanguageForPhelpsMeta = await getLanguageDisplayName(languageToDisplay);
   let phelpsDisplayHtml = "Not Assigned";
   if (phelpsToDisplay) {
-    const textPart = phelpsIsSuggested
+    const textPart = titleCalculationResults.phelpsIsSuggested
       ? `<span style="font-weight: bold; color: red;">${phelpsToDisplay}</span>`
       : `<a href="#prayercode/${phelpsToDisplay}">${phelpsToDisplay}</a>`;
     phelpsDisplayHtml = `${textPart} (Lang: ${finalDisplayLanguageForPhelpsMeta})`;
   } else {
     phelpsDisplayHtml = `Not Assigned (Lang: ${finalDisplayLanguageForPhelpsMeta})`;
   }
-  if (languageIsSuggested) {
+  if (titleCalculationResults.languageIsSuggested) {
     phelpsDisplayHtml += ` <span style="font-weight: bold; color: red;">(New Lang: ${finalDisplayLanguageForPhelpsMeta})</span>`;
   }
 
@@ -1541,7 +1573,7 @@ async function _renderPrayerContent(versionId, phelpsCodeForNav, activeLangForNa
     actionsDiv.appendChild(pinButton);
   }
 
-  if (!prayer.phelps && !phelpsIsSuggested) {
+  if (!prayer.phelps && !titleCalculationResults.phelpsIsSuggested) {
     const suggestPhelpsButton = document.createElement("button");
     suggestPhelpsButton.className = "mdl-button mdl-js-button mdl-button--raised";
     suggestPhelpsButton.innerHTML = '<i class="material-icons">library_add</i> Add/Suggest Phelps Code';
@@ -1627,57 +1659,57 @@ async function renderPrayer(
   phelpsCodeForNav = null,
   activeLangForNav = null,
 ) {
+  console.log(`[renderPrayer] Called with versionId: ${versionId}, phelpsCodeForNav: ${phelpsCodeForNav}, activeLangForNav: ${activeLangForNav}`);
   updateHeaderNavigation([]); // Clear any language-specific header links from other views
 
-  // Pre-fetch minimal prayer data for initial title and active language for picker
-  const preFetchSql = `SELECT language, name, phelps FROM writings WHERE version = '${versionId.replace(/'/g, "''")}' LIMIT 1`;
-  let preFetchedRows;
+  // 1. Fetch FULL prayer data
+  const prayerSql = `SELECT version, text, language, phelps, name, source, link FROM writings WHERE version = \'${versionId.replace(/\'/g, "\'\'")}\' LIMIT 1`;
+  let prayerRows;
   try {
-    preFetchedRows = await executeQuery(preFetchSql);
+    prayerRows = await executeQuery(prayerSql);
   } catch (e) {
-    console.error(`Error pre-fetching prayer ${versionId}:`, e);
+    console.error(`Error fetching prayer ${versionId}:`, e);
     await renderPageLayout({
-        titleKey: "Error",
-        contentRenderer: () => `<div id="prayer-view-error"><p>Error loading prayer data: ${e.message}</p><p>Version ID: ${versionId}</p></div>`,
-        showLanguageSwitcher: false, // No language context if prayer itself fails to load
+        titleKey: "Error Loading Prayer",
+        contentRenderer: () => `<div id=\"prayer-view-error\"><p>Error loading prayer data: ${e.message}</p><p>Version ID: ${versionId}</p><p>Query: ${prayerSql}</p></div>`,
+        showLanguageSwitcher: true, 
         showBackButton: true,
-        activeLangCodeForPicker: null
+        activeLangCodeForPicker: activeLangForNav // Use activeLangForNav if available for picker context
     });
     return;
   }
 
-  if (!preFetchedRows || preFetchedRows.length === 0) {
+  if (!prayerRows || prayerRows.length === 0) {
     await renderPageLayout({
         titleKey: "Prayer Not Found",
-        contentRenderer: () => `<div id="prayer-not-found"><p>Prayer with ID ${versionId} not found.</p></div>`,
-        showLanguageSwitcher: true, // Allow navigation away
+        contentRenderer: () => `<div id=\"prayer-not-found\"><p>Prayer with ID ${versionId} not found.</p><p>Query: ${prayerSql}</p></div>`,
+        showLanguageSwitcher: true, 
         showBackButton: true,
-        activeLangCodeForPicker: null
+        activeLangCodeForPicker: activeLangForNav // Use activeLangForNav if available
     });
     return;
   }
   
-  const initialPrayerData = preFetchedRows[0];
-  const activeLanguageForPicker = activeLangForNav || initialPrayerData.language;
+  const prayerData = prayerRows[0];
+  console.log("[renderPrayer] Fetched prayerData:", JSON.stringify(prayerData));
   
-  // Determine a preliminary title. The full title calculation happens in _renderPrayerContent.
-  let preliminaryTitle = "Loading Prayer...";
-  if (initialPrayerData.name) {
-    preliminaryTitle = initialPrayerData.name;
-  } else if (initialPrayerData.phelps && initialPrayerData.language) {
-    preliminaryTitle = `${initialPrayerData.phelps} - ${await getLanguageDisplayName(initialPrayerData.language)}`;
-  } else {
-    preliminaryTitle = `Prayer ${versionId}`;
-  }
+  // 2. Calculate title using the new helper function
+  const titleInfo = await _calculatePrayerPageTitle(prayerData, collectedMatchesForEmail);
+  console.log("[renderPrayer] titleInfo from _calculatePrayerPageTitle:", JSON.stringify(titleInfo));
+  
+  // Determine the active language for the language picker
+  const activeLanguageForPicker = activeLangForNav || prayerData.language;
 
-
-  await renderPageLayout({
-    titleKey: preliminaryTitle, // This will be updated by _renderPrayerContent
-    contentRenderer: () => _renderPrayerContent(versionId, phelpsCodeForNav, activeLangForNav),
-    showLanguageSwitcher: true, // Prayer view has language context and translations
+  // 3. Call renderPageLayout with the dynamically calculated title and content renderer
+  const viewSpecForPrayer = {
+    titleKey: titleInfo.titleText, // Use the fully calculated title from titleInfo
+    contentRenderer: () => _renderPrayerContent(prayerData, phelpsCodeForNav, activeLangForNav, titleInfo),
+    showLanguageSwitcher: true, 
     showBackButton: true,
     activeLangCodeForPicker: activeLanguageForPicker
-  });
+  };
+  console.log("[renderPrayer] ViewSpec being passed to renderPageLayout:", JSON.stringify(viewSpecForPrayer, (key, value) => typeof value === 'function' ? 'Function' : value));
+  await renderPageLayout(viewSpecForPrayer);
 }
 
 async function _renderPrayersForLanguageContent(langCode, page, showOnlyUnmatched, languageDisplayName) {
@@ -1973,9 +2005,7 @@ async function resolveAndRenderPrayerByPhelpsAndLang(
   phelpsCode,
   targetLanguageCode,
 ) {
-  contentDiv.innerHTML =
-    '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
-  if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
+  // Initial spinner removed - renderPageLayout will handle loading states if needed via its contentRenderer.
 
   const displayTargetLanguage = await getLanguageDisplayName(targetLanguageCode);
 
@@ -1983,39 +2013,36 @@ async function resolveAndRenderPrayerByPhelpsAndLang(
   const prayerVersions = await executeQuery(sql);
 
   if (prayerVersions.length === 0) {
-    contentDiv.innerHTML = `<p>No prayers found for Phelps Code ${phelpsCode} in language ${displayTargetLanguage}.</p>`;
-    const transSql = `SELECT DISTINCT language FROM writings WHERE phelps = \'${phelpsCode.replace(/\'/g, "\'\'")}\' ORDER BY language`;
-    const distinctLangs = await executeQuery(transSql);
-    const navLinkPromises = distinctLangs.map(async (langRow) => ({
-      text: await getLanguageDisplayName(langRow.language),
-      href: `#prayercode/${phelpsCode}/${langRow.language}`,
-      isActive: false,
-    }));
-    const navLinks = await Promise.all(navLinkPromises);
-    updateHeaderNavigation(navLinks);
+    // If no specific version found, still try to set up navigation by phelps code for other languages.
+    const transSql = `SELECT DISTINCT language FROM writings WHERE phelps = \\\'${phelpsCode.replace(/\\\'/g, "\\\'\\\'")}\\\' ORDER BY language`;
+    let navLinks = [];
+    try {
+        const distinctLangs = await executeQuery(transSql);
+        navLinks = await Promise.all(distinctLangs.map(async (langRow) => ({
+            text: await getLanguageDisplayName(langRow.language),
+            href: `#prayercode/${phelpsCode}/${langRow.language}`,
+            isActive: false, // No specific language is "active" if the target one wasn't found
+        })));
+    } catch(e) {
+        console.error("Error fetching languages for Phelps code navigation during not-found scenario:", e);
+    }
+    updateHeaderNavigation(navLinks); // Update header nav with available languages for this Phelps code
+
+    await renderPageLayout({
+        titleKey: `Not Found: ${phelpsCode} in ${displayTargetLanguage}`,
+        contentRenderer: () => `<div id="prayer-not-found"><p>No prayer version found for Phelps Code ${phelpsCode} in ${displayTargetLanguage}.</p><p>You can try other available languages for this Phelps code using the links in the header (if any) or by browsing.</p></div>`,
+        showLanguageSwitcher: true,
+        showBackButton: true,
+        activeLangCodeForPicker: targetLanguageCode // Still show the target language as active context
+    });
     return;
   }
 
   const primaryPrayer = prayerVersions[0];
   await renderPrayer(primaryPrayer.version, phelpsCode, targetLanguageCode);
-
-  if (prayerVersions.length > 1) {
-    const otherVersionsDiv = document.createElement("div");
-    otherVersionsDiv.style.marginTop = "20px";
-    otherVersionsDiv.style.paddingTop = "15px";
-    otherVersionsDiv.style.borderTop = "1px solid #eee";
-    // displayTargetLanguage is available from earlier in this function
-    let listHtml = `<h5>Other versions in ${displayTargetLanguage} for ${phelpsCode}:</h5><ul class="other-versions-in-lang-list">`;
-    prayerVersions.slice(1).forEach((altVersion) => {
-      const displayName = altVersion.name || `Version ${altVersion.version}`;
-      const domain = altVersion.link ? `(${getDomain(altVersion.link)})` : "";
-      listHtml += `<li><a href="#prayer/${altVersion.version}">${displayName} ${domain}</a></li>`;
-    });
-    listHtml += `</ul>`;
-    otherVersionsDiv.innerHTML = listHtml;
-    contentDiv.appendChild(otherVersionsDiv);
-    if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
-  }
+  // The "Other versions in this language for this Phelps code" list, which was previously appended here,
+  // should be integrated into _renderPrayerContent if desired.
+  // For now, its direct DOM manipulation is removed to align with renderPageLayout pattern.
 }
 
 async function populateLanguageSelection(currentActiveLangCode = null) {
