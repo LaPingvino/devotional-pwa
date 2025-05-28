@@ -896,25 +896,43 @@ function cacheLanguageStats(data) {
 }
 
 async function executeQuery(sql) {
+  const fullUrl = DOLTHUB_API_BASE_URL + encodeURIComponent(sql);
+  console.log("[executeQuery] Fetching URL:", fullUrl);
+  console.log("[executeQuery] Original SQL for this request:", sql);
+
   try {
-    const response = await fetch(
-      DOLTHUB_API_BASE_URL + encodeURIComponent(sql),
-    );
+    const response = await fetch(fullUrl);
+
+    console.log("[executeQuery] Response status:", response.status);
+    console.log("[executeQuery] Response ok:", response.ok);
+
+    const responseText = await response.text();
+    console.log("[executeQuery] Raw response text:", responseText);
+
     if (!response.ok) {
-      console.error("Failing SQL query:", sql); 
-      console.error("Encoded Failing SQL query string part:", encodeURIComponent(sql)); 
-      throw new Error(`HTTP error! status: ${response.status}`);
+      // console.error("Failing SQL query:", sql); // Already logged above
+      // console.error("Encoded Failing SQL query string part:", encodeURIComponent(sql)); // Redundant as fullUrl is logged
+      throw new Error(`HTTP error! status: ${response.status}, body: ${responseText}`);
     }
-    const data = await response.json();
+
+    // Attempt to parse the logged text as JSON
+    let data;
+    try {
+      data = JSON.parse(responseText);
+      console.log("[executeQuery] Parsed JSON data:", data);
+    } catch (jsonError) {
+      console.error("[executeQuery] Failed to parse response text as JSON:", jsonError);
+      console.error("[executeQuery] Response text that failed parsing was:", responseText);
+      throw new Error(`Failed to parse API response as JSON. HTTP status: ${response.status}`);
+    }
+    
     return data.rows || [];
   } catch (error) {
-    console.error("Error executing query:", error);
-    // Also log SQL from catch block if it was not logged above (e.g. network error before response.ok check)
-    if (!error.message.startsWith("HTTP error!")) { 
-        console.error("SQL that failed (network or other error before HTTP status check):", sql);
+    console.error("[executeQuery] Error during executeQuery fetch or processing:", error);
+    // Log SQL if not an HTTP error from above (which already includes details)
+    if (!(error.message && error.message.startsWith("HTTP error!"))) {
+        console.error("[executeQuery] SQL that failed (network or other error):", sql);
     }
-    // contentDiv.innerHTML = `<p>Error loading data: ${error.message}. Please try again later.</p>`;
-    // return []; // Let the caller handle UI and return values on error
     throw error; // Re-throw the error so the caller can handle it
   }
 }
@@ -1397,12 +1415,35 @@ async function _renderPrayerContent(versionId, phelpsCodeForNav, activeLangForNa
   const translationsAreaDiv = document.createElement('div');
   translationsAreaDiv.id = 'prayer-translations-switcher-area';
   translationsAreaDiv.className = 'translations-switcher';
+
+  // --- BEGIN TEMPORARY LOGS for TranslationSwitcher ---
+  console.log("[TranslationSwitcher] Input phelpsCodeForNav:", phelpsCodeForNav);
+  console.log("[TranslationSwitcher] Input phelpsToDisplay:", phelpsToDisplay);
+  // --- END TEMPORARY LOGS ---
+
   const phelpsCodeForSwitcher = phelpsCodeForNav || phelpsToDisplay;
+
+  // --- BEGIN TEMPORARY LOGS for TranslationSwitcher ---
+  console.log("[TranslationSwitcher] Determined phelpsCodeForSwitcher:", phelpsCodeForSwitcher);
+  // --- END TEMPORARY LOGS ---
+
   if (phelpsCodeForSwitcher && !phelpsCodeForSwitcher.startsWith("TODO")) {
-    const transSql = `SELECT DISTINCT language FROM writings WHERE phelps = \\'${phelpsCodeForSwitcher.replace(/\\'/g, "''")}\\' AND phelps IS NOT NULL AND phelps != \\'\\' ORDER BY language`;
+    const escapedPhelpsCode = phelpsCodeForSwitcher.replace(/'/g, "''"); // Correctly escape single quotes in the Phelps code
+    const transSql = `SELECT DISTINCT language FROM writings WHERE phelps = '${escapedPhelpsCode}' AND phelps IS NOT NULL AND phelps != '' ORDER BY language`; // Use standard SQL string literals
+    
+    // --- BEGIN TEMPORARY LOGS for TranslationSwitcher ---
+    console.log("[TranslationSwitcher] SQL for distinct languages:", transSql);
+    // --- END TEMPORARY LOGS ---
+
     try {
       const distinctLangs = await executeQuery(transSql);
-      if (distinctLangs.length > 1) {
+
+      // --- BEGIN TEMPORARY LOGS for TranslationSwitcher ---
+      console.log("[TranslationSwitcher] Distinct languages found (raw):", JSON.stringify(distinctLangs));
+      console.log("[TranslationSwitcher] Number of distinct languages:", distinctLangs ? distinctLangs.length : 'null/undefined');
+      // --- END TEMPORARY LOGS ---
+
+      if (distinctLangs && distinctLangs.length > 1) {
         let switcherHtml = `<span class="translations-switcher-label">Translations:</span>`;
         const translationLinkPromises = distinctLangs.map(async (langRow) => {
           const langDisplayName = await getLanguageDisplayName(langRow.language);
@@ -1413,13 +1454,19 @@ async function _renderPrayerContent(versionId, phelpsCodeForNav, activeLangForNa
         switcherHtml += translationLinksHtml.join(' ');
         translationsAreaDiv.innerHTML = switcherHtml;
       } else {
+        // --- BEGIN TEMPORARY LOGS for TranslationSwitcher ---
+        console.log("[TranslationSwitcher] Condition 'distinctLangs && distinctLangs.length > 1' is false. Not enough distinct languages to show switcher.");
+        // --- END TEMPORARY LOGS ---
         translationsAreaDiv.innerHTML = '';
       }
     } catch (error) {
-      console.error("Error fetching translations for switcher:", error);
+      console.error("[TranslationSwitcher] Error fetching translations for switcher:", error);
       translationsAreaDiv.innerHTML = '<span class="translations-switcher-label" style="color:red;">Error loading translations.</span>';
     }
   } else {
+    // --- BEGIN TEMPORARY LOGS for TranslationSwitcher ---
+    console.log("[TranslationSwitcher] Condition 'phelpsCodeForSwitcher && !phelpsCodeForSwitcher.startsWith(\"TODO\")' is false. Phelps code is invalid or TODO, not showing switcher.");
+    // --- END TEMPORARY LOGS ---
     translationsAreaDiv.innerHTML = '';
   }
   contentHtml += translationsAreaDiv.outerHTML;
