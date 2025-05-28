@@ -1609,65 +1609,105 @@ async function renderPrayersForLanguage(
 }
 
 async function renderPrayerCodeView(phelpsCode, page = 1) {
+  console.log("enter function renderPrayerCodeView");
   currentPageByPhelpsCode[phelpsCode] = page;
   const offset = (page - 1) * ITEMS_PER_PAGE;
 
-  contentDiv.innerHTML =
-    '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
-  if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
-
-  const pickerShellHtml = getLanguagePickerShellHtml();
-  // Insert shell + spinner BEFORE fetching other data for this view
+  // 1. Set up the initial shell: Language Picker + Placeholder for prayer code content
+  const pickerShellHtml = getLanguagePickerShellHtml(); // Define it once
   contentDiv.innerHTML = pickerShellHtml +
-    '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block; margin-top: 20px;"></div>';
-  if (typeof componentHandler !== "undefined") componentHandler.upgradeElement(contentDiv.querySelector('.mdl-js-tabs'));
+    '<div id="prayer-code-content-area">' + // Dedicated container for this view's content
+    '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block; margin-top: 20px;"></div>' +
+    '</div>';
 
-  // Asynchronously populate the picker.
-  populateLanguageSelection(null); // No specific active lang for this view. Fire and forget.
+  // Upgrade MDL components in the initially rendered language picker shell
+  if (typeof componentHandler !== "undefined") {
+    const tabsElement = contentDiv.querySelector('.mdl-js-tabs');
+    if (tabsElement) {
+        componentHandler.upgradeElement(tabsElement);
+    } else {
+        componentHandler.upgradeDom(contentDiv); // Fallback
+    }
+  }
 
+  // 2. Asynchronously populate the language picker.
+  // For this view, no specific language is active in the picker itself initially.
+  populateLanguageSelection(null);
+
+  // Fetch data for header navigation (translations of the current Phelps code)
+  // This part doesn't affect the picker shell itself.
   const phelpsLangsSql = `SELECT DISTINCT language FROM writings WHERE phelps = '${phelpsCode.replace(/\'/g, "''")}' ORDER BY language`;
-  const distinctLangs = await executeQuery(phelpsLangsSql);
-  const navLinks = distinctLangs.map((langRow) => ({
-    text: langRow.language.toUpperCase(),
-    href: '#prayercode/' + phelpsCode + '/' + langRow.language,
-    isActive: false,
-  }));
+  let navLinks = []; // Default to empty
+  try {
+    const distinctLangs = await executeQuery(phelpsLangsSql);
+    // Using Promise.all for getLanguageDisplayName as it's async
+    navLinks = await Promise.all(distinctLangs.map(async (langRow) => ({
+        text: await getLanguageDisplayName(langRow.language), // Using display name
+        href: '#prayercode/' + phelpsCode + '/' + langRow.language,
+        isActive: false, // No specific language version is active on the main phelps code page
+    })));
+  } catch (error) {
+      console.error("Error fetching languages for Phelps code navigation:", error);
+  }
   updateHeaderNavigation(navLinks);
   updateDrawerLanguageNavigation(navLinks);
 
-  const metadataSql = `SELECT version, name, language, text, phelps, link FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' AND phelps IS NOT NULL AND phelps != '' ORDER BY language, name LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
-  const prayersMetadata = await executeQuery(metadataSql);
 
-  const countSql = `SELECT COUNT(*) as total FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' AND phelps IS NOT NULL AND phelps != ''`;
+  // Fetch metadata for the prayer list
+  const metadataSql = `SELECT version, name, language, text, phelps, link FROM writings WHERE phelps = '${phelpsCode.replace(/\'/g, "''")}' AND phelps IS NOT NULL AND phelps != '' ORDER BY language, name LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
+  let prayersMetadata;
+  try {
+      prayersMetadata = await executeQuery(metadataSql);
+  } catch (error) {
+      const prayerCodeContentArea = document.getElementById('prayer-code-content-area');
+      const errHtml = `<p>Error loading prayer data for Phelps code ${phelpsCode}: ${error.message}.</p><p>Query used:</p><pre>${metadataSql}</pre>`;
+      if (prayerCodeContentArea) {
+          prayerCodeContentArea.innerHTML = errHtml;
+      } else {
+          contentDiv.innerHTML = pickerShellHtml + `<div id="prayer-code-content-area">${errHtml}</div>`;
+      }
+      if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
+      return;
+  }
+
+  const prayerCodeContentArea = document.getElementById('prayer-code-content-area');
+  if (!prayerCodeContentArea) {
+      console.error("Critical: #prayer-code-content-area is missing.");
+      contentDiv.innerHTML = pickerShellHtml + '<p style="color:red; text-align:center; padding:20px;">Critical error: Prayer code content area could not be rendered.</p>';
+      if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
+      return;
+  }
+
+  const countSql = `SELECT COUNT(*) as total FROM writings WHERE phelps = '${phelpsCode.replace(/\'/g, "''")}' AND phelps IS NOT NULL AND phelps != ''`;
   const countResult = await executeQuery(countSql);
   const totalPrayers = countResult.length > 0 ? countResult[0].total : 0;
   const totalPages = Math.ceil(totalPrayers / ITEMS_PER_PAGE);
 
   if (prayersMetadata.length === 0 && page === 1) {
     const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(metadataSql)}`;
-    contentDiv.innerHTML = `<p>No prayer versions found for Phelps Code: ${phelpsCode}.</p><p>Query used:</p><pre>${metadataSql}</pre><p><a href="${debugQueryUrl}" target="_blank">Debug this query</a></p>`;
+    prayerCodeContentArea.innerHTML = `<p>No prayer versions found for Phelps Code: ${phelpsCode}.</p><p>Query used:</p><pre>${metadataSql}</pre><p><a href="${debugQueryUrl}" target="_blank">Debug this query</a></p>`;
+    if (typeof componentHandler !== "undefined") componentHandler.upgradeDom(prayerCodeContentArea);
     return;
   }
   if (prayersMetadata.length === 0 && page > 1) {
+    // Navigate to a valid page
     renderPrayerCodeView(phelpsCode, Math.max(1, totalPages));
     return;
   }
 
   const prayersForDisplay = prayersMetadata.map((p) => {
     let full_text_for_preview = p.text;
-    if (!getCachedPrayerText(p.version) && p.text) {
-      cachePrayerText({
-        version: p.version,
-        text: p.text,
-        name: p.name,
-        language: p.language,
-        phelps: p.phelps,
-        link: p.link,
-      });
-    } else if (!p.text) {
-      const cached = getCachedPrayerText(p.version);
-      if (cached && cached.text) full_text_for_preview = cached.text;
+    const cachedText = getCachedPrayerText(p.version); // Check cache first
+    if (cachedText && cachedText.text) {
+        full_text_for_preview = cachedText.text;
+        p.name = cachedText.name || p.name; // Update from cache if available
+        p.language = cachedText.language || p.language;
+        p.link = cachedText.link || p.link;
+    } else if (p.text) { // If not in cache but text came with metadata
+        cachePrayerText({ ...p }); // Cache it
     }
+    // If text wasn't in metadata and not in cache, full_text_for_preview remains null
+    // createPrayerCardHtml should handle null preview text gracefully.
     const opening_text_for_card = full_text_for_preview
       ? full_text_for_preview.substring(0, MAX_PREVIEW_LENGTH) +
         (full_text_for_preview.length > MAX_PREVIEW_LENGTH ? "..." : "")
@@ -1677,17 +1717,21 @@ async function renderPrayerCodeView(phelpsCode, page = 1) {
 
   let allPhelpsDetailsForCards = {};
   if (phelpsCode) {
-    const allVersionsSql = `SELECT version, language, phelps, name, link FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}'`;
-    const allVersionRows = await executeQuery(allVersionsSql);
-    if (allVersionRows.length > 0)
-      allPhelpsDetailsForCards[phelpsCode] = allVersionRows.map((r) => ({
-        ...r,
-      }));
+    const allVersionsSql = `SELECT version, language, phelps, name, link FROM writings WHERE phelps = '${phelpsCode.replace(/\'/g, "''")}'`;
+    try {
+        const allVersionRows = await executeQuery(allVersionsSql);
+        if (allVersionRows.length > 0) {
+            allPhelpsDetailsForCards[phelpsCode] = allVersionRows.map((r) => ({ ...r }));
+        }
+    } catch (error) {
+        console.error("Error fetching all versions for Phelps code details:", error);
+    }
   }
 
-  const listCardsHtmlArray = prayersForDisplay.map((pData) =>
+  const listCardPromises = prayersForDisplay.map((pData) =>
     createPrayerCardHtml(pData, allPhelpsDetailsForCards),
   );
+  const listCardsHtmlArray = await Promise.all(listCardPromises);
   const listHtml = `<div class="favorite-prayer-grid">${listCardsHtmlArray.join("")}</div>`;
 
   let paginationHtml = "";
@@ -1701,11 +1745,12 @@ async function renderPrayerCodeView(phelpsCode, page = 1) {
     paginationHtml += "</div>";
   }
 
-  contentDiv.innerHTML = `${languagePickerHtml}<header><h2><span id="category">Prayer Code</span><span id="blocktitle">${phelpsCode} (Page ${page}) - All Languages</span></h2></header>${listHtml}${paginationHtml}`;
-  // componentHandler.upgradeDom() will be called after all content, including picker population, finishes
-  // For now, the shell upgrade is done earlier.
-  // If issues arise with MDL components in listHtml/paginationHtml, a targeted upgrade here might be needed.
-  if (typeof componentHandler !== "undefined") componentHandler.upgradeDom(); // Or more targeted if possible
+  // Update ONLY the prayer-code-content-area
+  prayerCodeContentArea.innerHTML = `<header><h2><span id="category">Prayer Code</span><span id="blocktitle">${phelpsCode} (Page ${page}) - All Languages</span></h2></header>${listHtml}${paginationHtml}`;
+  
+  if (typeof componentHandler !== "undefined") {
+    componentHandler.upgradeDom(prayerCodeContentArea);
+  }
 }
 
 function getLanguagePickerShellHtml() {
