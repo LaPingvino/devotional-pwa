@@ -1116,22 +1116,24 @@ async function renderPrayer(
   phelpsCodeForNav = null, // This is the Phelps code context if navigating from a phelps/lang URL
   activeLangForNav = null,  // This is the language context if navigating from a phelps/lang URL
 ) {
-  console.log("enter function renderPrayer");
+  // Get references to static page header elements and dynamic content area
+  const staticPageHeaderFavoriteButton = document.getElementById('page-header-favorite-button');
+  const staticPageMainTitle = document.getElementById('page-main-title');
+  const dynamicContentArea = document.getElementById('dynamic-content-area');
 
-  // 1. Set up the initial shell: Language Picker + Translations Switcher Placeholder + Prayer Details Placeholder
-  contentDiv.innerHTML = getLanguagePickerShellHtml() +
-    '<div id="prayer-translations-switcher-area" class="translations-switcher"></div>' + // Placeholder for new switcher
-    '<div id="prayer-details-area">' +
-    '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block; margin-top: 20px;"></div>' +
-    '</div>';
-
-  if (typeof componentHandler !== "undefined") {
-    const tabsElement = contentDiv.querySelector('.mdl-tabs');
-    if (tabsElement) componentHandler.upgradeElement(tabsElement);
-    // No need to upgrade other areas yet, they are empty or will be replaced
+  // 1. Clear dynamic area and set initial spinner; hide favorite button
+  if (staticPageHeaderFavoriteButton) staticPageHeaderFavoriteButton.style.display = 'none';
+  if (staticPageMainTitle) staticPageMainTitle.textContent = 'Loading Prayer...'; // Placeholder title
+  if (dynamicContentArea) {
+    dynamicContentArea.innerHTML = '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block; margin-top: 20px;"></div>';
+  } else {
+    console.error("Critical: #dynamic-content-area not found in DOM.");
+    // Fallback: clear contentDiv and show error if dynamic area is missing
+    contentDiv.innerHTML = '<p style="color:red; text-align:center;">Error: Page structure is broken. Cannot load prayer.</p>';
+    return;
   }
-
-  // Clear header/drawer navigation. They will NOT be repopulated with translation lists.
+  
+  // Clear header navigation
   updateHeaderNavigation([]);
 
   // 2. Fetch prayer data
@@ -1140,48 +1142,63 @@ async function renderPrayer(
   try {
     rows = await executeQuery(sql);
   } catch (error) {
-    const prayerDetailsArea = document.getElementById('prayer-details-area');
-    const errHtml = `<p>Error loading prayer data: ${error.message}.</p><p>Query used:</p><pre style="white-space: pre-wrap; word-break: break-all; background: #eee; padding: 10px; border-radius: 4px;">${sql}</pre>`;
-    if (prayerDetailsArea) {
-        prayerDetailsArea.innerHTML = errHtml;
-    } else {
-        contentDiv.querySelector('#prayer-details-area').innerHTML = errHtml; // Try to target if re-fetch needed
+    if (staticPageMainTitle) staticPageMainTitle.textContent = 'Error';
+    if (dynamicContentArea) {
+        dynamicContentArea.innerHTML = `<p>Error loading prayer data: ${error.message}.</p><p>Query used:</p><pre style="white-space: pre-wrap; word-break: break-all; background: #eee; padding: 10px; border-radius: 4px;">${sql}</pre>`;
     }
-    populateLanguageSelection(null); // Populate main picker, no active lang
-    document.getElementById('prayer-translations-switcher-area').innerHTML = ''; // Clear translations area on error
-    if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
+    // Attempt to show language picker even on error for navigation
+    if (dynamicContentArea) dynamicContentArea.insertAdjacentHTML('beforeend', getLanguagePickerShellHtml());
+    populateLanguageSelection(null);
+    const translationsArea = document.getElementById('prayer-translations-switcher-area'); // Might be null if picker failed to add
+    if (translationsArea) translationsArea.innerHTML = '';
+    if (typeof componentHandler !== "undefined") componentHandler.upgradeDom(dynamicContentArea || contentDiv);
     return;
   }
 
-  const prayerDetailsArea = document.getElementById('prayer-details-area');
-  if (!prayerDetailsArea) {
-      console.error("Critical: #prayer-details-area is missing after initial render.");
-      contentDiv.innerHTML = getLanguagePickerShellHtml() + '<div id="prayer-translations-switcher-area" class="translations-switcher"></div>' + '<p style="color:red; text-align:center; padding:20px;">Critical error: Prayer display area could not be rendered.</p>';
-      if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
-      return;
-  }
-
-  if (rows.length === 0) {
+  if (!rows || rows.length === 0) {
+    if (staticPageMainTitle) staticPageMainTitle.textContent = 'Not Found';
     const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(sql)}`;
-    prayerDetailsArea.innerHTML = `<p>Prayer with ID ${versionId} not found.</p><p>Query used:</p><pre style="white-space: pre-wrap; word-break: break-all; background: #eee; padding: 10px; border-radius: 4px;">${sql}</pre><p><a href="${debugQueryUrl}" target="_blank">Debug this query on DoltHub</a></p>`;
-    populateLanguageSelection(null); // Populate main picker
-    document.getElementById('prayer-translations-switcher-area').innerHTML = ''; // Clear translations area
-    if (typeof componentHandler !== "undefined") componentHandler.upgradeDom(prayerDetailsArea);
+    if (dynamicContentArea) {
+        dynamicContentArea.innerHTML = `<p>Prayer with ID ${versionId} not found.</p><p>Query used:</p><pre style="white-space: pre-wrap; word-break: break-all; background: #eee; padding: 10px; border-radius: 4px;">${sql}</pre><p><a href="${debugQueryUrl}" target="_blank">Debug this query on DoltHub</a></p>`;
+    }
+    // Attempt to show language picker even on error for navigation
+    if (dynamicContentArea) dynamicContentArea.insertAdjacentHTML('beforeend', getLanguagePickerShellHtml());
+    populateLanguageSelection(null); 
+    const translationsArea = document.getElementById('prayer-translations-switcher-area');
+    if (translationsArea) translationsArea.innerHTML = ''; 
+    if (typeof componentHandler !== "undefined") componentHandler.upgradeDom(dynamicContentArea || contentDiv);
     return;
   }
 
-  const prayer = rows[0];
+  // If we reach here, rows is valid and has at least one item.
+  const prayer = rows[0]; 
 
-  // 3. Populate Main Language Selection Tabs
-  const languageToHighlightInPicker = activeLangForNav || prayer.language;
-  populateLanguageSelection(languageToHighlightInPicker);
-
-  cachePrayerText({ ...prayer });
+  // Update static page header elements
+  if (staticPageMainTitle) {
+    staticPageMainTitle.innerHTML = ''; // Clear previous content (like "Loading...")
+    staticPageMainTitle.textContent = prayerTitle; // prayerTitle is calculated further down
+    // Suggestion indicator will be added after prayerTitle is fully determined
+  }
+  if (staticPageHeaderFavoriteButton) {
+    const isFav = isPrayerFavorite(prayer.version);
+    staticPageHeaderFavoriteButton.innerHTML = `<i class="material-icons">${isFav ? 'star' : 'star_border'}</i>`;
+    staticPageHeaderFavoriteButton.title = isFav ? 'Remove from Favorites' : 'Add to Favorites';
+    if (isFav) {
+        staticPageHeaderFavoriteButton.classList.add("is-favorite");
+    } else {
+        staticPageHeaderFavoriteButton.classList.remove("is-favorite");
+    }
+    staticPageHeaderFavoriteButton.onclick = () => toggleFavoritePrayer(prayer);
+    staticPageHeaderFavoriteButton.style.display = 'inline-flex';
+    if (typeof componentHandler !== "undefined") componentHandler.upgradeElement(staticPageHeaderFavoriteButton);
+  }
 
   // --- Logic for prayer title and suggested edits (copied from your existing function) ---
+  // This section calculates prayerTitle, phelpsToDisplay, languageToDisplay, nameToDisplay, etc.
+  // It MUST run before we finalize the staticPageMainTitle.
   const authorName = getAuthorFromPhelps(prayer.phelps);
   const initialDisplayPrayerLanguage = await getLanguageDisplayName(prayer.language);
-  let prayerTitle =
+  let prayerTitle = // Default prayerTitle calculation
     prayer.name ||
     (prayer.phelps ? `${prayer.phelps} - ${initialDisplayPrayerLanguage}` : null) ||
     (prayer.text
@@ -1190,7 +1207,7 @@ async function renderPrayer(
 
   let phelpsToDisplay = prayer.phelps;
   let phelpsIsSuggested = false;
-  let languageToDisplay = prayer.language; // This is the language of the currently viewed prayer version
+  let languageToDisplay = prayer.language; 
   let languageIsSuggested = false;
   let nameToDisplay = prayer.name;
   let nameIsSuggested = false;
@@ -1201,8 +1218,6 @@ async function renderPrayer(
         phelpsToDisplay = match.newPhelps;
         phelpsIsSuggested = true;
       } else if (match.type === "change_language") {
-        // This section might need review: if language is changed, does it mean we are viewing a different "version" contextually?
-        // For now, this updates the display language for the *current* versionId.
         languageToDisplay = match.newLanguage;
         languageIsSuggested = true;
       } else if (match.type === "change_name") {
@@ -1210,7 +1225,6 @@ async function renderPrayer(
         nameIsSuggested = true;
       }
     }
-    // Phelps suggestions from match_prayers affecting *this* prayer
     if (match.type === "match_prayers") {
       const updatePhelpsIfNeeded = (targetVersion, suggestedPhelps) => {
         if (targetVersion === prayer.version && !prayer.phelps) {
@@ -1230,11 +1244,32 @@ async function renderPrayer(
       }
     }
   }
-  // Update prayerTitle if name or phelps or language was suggested for display
    const displayLangForTitleAfterSuggestions = await getLanguageDisplayName(languageToDisplay);
     prayerTitle = nameToDisplay ||
                   (phelpsToDisplay ? `${phelpsToDisplay} - ${displayLangForTitleAfterSuggestions}` : `Prayer ${prayer.version}`);
   // --- End of logic for prayer title and suggested edits ---
+
+  // NOW, finalize staticPageMainTitle with the calculated prayerTitle and suggestion indicator
+  if (staticPageMainTitle) {
+      staticPageMainTitle.textContent = prayerTitle;
+      if (nameIsSuggested) {
+          const suggestionIndicator = document.createElement('em');
+          suggestionIndicator.style.color = 'red';
+          suggestionIndicator.style.fontSize = '0.8em';
+          suggestionIndicator.style.marginLeft = '8px';
+          suggestionIndicator.textContent = '(Suggested Name)';
+          staticPageMainTitle.appendChild(suggestionIndicator);
+      }
+  }
+  
+  // 3. Populate Main Language Selection Tabs
+  const languageToHighlightInPicker = activeLangForNav || prayer.language;
+  populateLanguageSelection(languageToHighlightInPicker);
+
+  cachePrayerText({ ...prayer });
+
+  // The prayerTitle variable, used to set staticPageMainTitle.textContent further down,
+  // is calculated in the "Logic for prayer title and suggested edits" block.
 
   const finalDisplayLanguageForPhelpsMeta = await getLanguageDisplayName(languageToDisplay);
   let phelpsDisplayHtml = "Not Assigned";
@@ -1284,9 +1319,9 @@ async function renderPrayer(
     translationsArea.innerHTML = ''; // Clear if no phelps code for switcher
   }
 
-  // 5. Construct HTML for the prayer's core content
+  // 5. Construct HTML for the prayer\'s core content
+  // The main title is now in prayerHeaderDiv. This prayerCoreHtml is for scripture and meta.
   const prayerCoreHtml = `
-    <header><h2><span id="category">Prayer</span><span id="blocktitle">${prayerTitle}${nameIsSuggested ? ' <em style="color:red; font-size:0.8em">(Suggested Name)</em>' : ""}</span></h2></header>
     <div class="scripture">
         <div class="prayer" style="white-space: pre-wrap;">${prayer.text || "No text available."}</div>
         ${authorName ? `<div class="author">${authorName}</div>` : ""}
@@ -1295,27 +1330,14 @@ async function renderPrayer(
         <div style="font-size: 0.7em; margin-left: 2em; margin-top: 0.3em; color: #555;">Version ID: ${prayer.version}</div>
     </div>`;
 
-  // 6. Update the #prayer-details-area
-  prayerDetailsArea.innerHTML = prayerCoreHtml;
+  // 6. Update the #prayer-details-area (which was already added to contentDiv)
+  // The favorite button and main title are static elements, already in the DOM.
+  // Create a temporary div for prayer details to be inserted into dynamicContentArea
+  const prayerDetailsContainer = document.createElement('div');
+  prayerDetailsContainer.id = 'prayer-details-area'; // Keep ID for potential CSS or direct targeting if needed later
+  prayerDetailsContainer.innerHTML = prayerCoreHtml;
 
-  // 7. Create and append favoriteButton to #content (which is contentDiv)
-  const favoriteButton = document.createElement("button");
-  favoriteButton.className = "mdl-button mdl-js-button mdl-button--icon favorite-toggle-button";
-  const favoriteIcon = document.createElement("i");
-  favoriteIcon.className = "material-icons";
-  if (isPrayerFavorite(prayer.version)) {
-    favoriteButton.classList.add("is-favorite");
-    favoriteIcon.textContent = "star";
-    favoriteButton.title = "Remove from Favorites";
-  } else {
-    favoriteIcon.textContent = "star_border";
-    favoriteButton.title = "Add to Favorites";
-  }
-  favoriteButton.appendChild(favoriteIcon);
-  favoriteButton.onclick = () => toggleFavoritePrayer(prayer);
-  contentDiv.appendChild(favoriteButton);
-
-  // 8. Create and append actionsDiv to #prayer-details-area
+  // 8. Create and append actionsDiv to this new prayerDetailsContainer
   const actionsDiv = document.createElement("div");
   actionsDiv.className = "prayer-actions";
   // (Copying the logic for populating actionsDiv from your existing function)
@@ -1410,13 +1432,25 @@ async function renderPrayer(
   actionsDiv.appendChild(addNoteButton);
   // End of populating actionsDiv
 
-  prayerDetailsArea.appendChild(actionsDiv);
+  prayerDetailsContainer.appendChild(actionsDiv);
+
+  // Clear dynamicContentArea (which had a spinner) and add new content
+  if (dynamicContentArea) {
+    dynamicContentArea.innerHTML = ''; // Clear spinner
+    dynamicContentArea.appendChild(prayerDetailsContainer);
+    dynamicContentArea.insertAdjacentHTML('beforeend', getLanguagePickerShellHtml());
+    dynamicContentArea.insertAdjacentHTML('beforeend', '<div id="prayer-translations-switcher-area" class="translations-switcher"></div>');
+  }
+
 
   // 9. Upgrade MDL Components
-  if (typeof componentHandler !== "undefined") {
-    componentHandler.upgradeElement(favoriteButton);
-    componentHandler.upgradeDom(prayerDetailsArea); // Upgrades actionsDiv and its contents too
+  // Static favorite button was already upgraded when its state changed.
+  // Upgrade components within the dynamicContentArea (which now contains details, picker, switcher).
+  if (typeof componentHandler !== "undefined" && dynamicContentArea) {
+    componentHandler.upgradeDom(dynamicContentArea);
   }
+  // populateLanguageSelection and the translations switcher logic will handle their specific upgrades
+  // if they add more MDL components later.
 
   // Logic for "Other versions in this language" if navigated via phelpsCode/Lang
   // This part refers to 'targetLanguageCode' and 'prayerVersions' which are from resolveAndRenderPrayerByPhelpsAndLang
@@ -1439,8 +1473,13 @@ async function renderPrayer(
         });
         otherListHtml += `</ul>`;
         otherVersionsDiv.innerHTML = otherListHtml;
-        prayerDetailsArea.appendChild(otherVersionsDiv);
-        if (typeof componentHandler !== "undefined") componentHandler.upgradeDom(otherVersionsDiv);
+        // prayerDetailsArea was local to this block and has been replaced by prayerDetailsContainer
+        // Append "other versions" to the prayerDetailsContainer which is inside dynamicContentArea
+        const currentPrayerDetailsArea = dynamicContentArea.querySelector('#prayer-details-area');
+        if (currentPrayerDetailsArea) {
+            currentPrayerDetailsArea.appendChild(otherVersionsDiv);
+            if (typeof componentHandler !== "undefined") componentHandler.upgradeDom(otherVersionsDiv);
+        }
     }
   }
 }
@@ -1450,32 +1489,47 @@ async function renderPrayersForLanguage(
   page = 1,
   showOnlyUnmatched = false,
 ) {
-  console.log("enter function renderPrayersForLanguage");
-  addRecentLanguage(langCode); // Track this language as recently viewed
-  currentPageByLanguage[langCode] = { page, showOnlyUnmatched };
-  const offset = (page - 1) * ITEMS_PER_PAGE;
+  const staticPageHeaderFavoriteButton = document.getElementById('page-header-favorite-button');
+  const staticPageMainTitle = document.getElementById('page-main-title');
+  const dynamicContentArea = document.getElementById('dynamic-content-area');
 
-  // 1. Set up the complete shell for the view ONCE.
-  // This includes the language picker and a dedicated area for the prayer list.
-  contentDiv.innerHTML = getLanguagePickerShellHtml() + // Language picker shell
-    '<div id="language-content-area">' +                 // Dedicated container for prayer list
+  if (!dynamicContentArea) {
+    console.error("Critical: #dynamic-content-area not found in DOM for renderPrayersForLanguage.");
+    if (contentDiv) contentDiv.innerHTML = '<p style="color:red; text-align:center;">Error: Page structure is broken.</p>';
+    return;
+  }
+
+  if (staticPageHeaderFavoriteButton) staticPageHeaderFavoriteButton.style.display = 'none';
+  
+  const languageDisplayName = await getLanguageDisplayName(langCode);
+  if (staticPageMainTitle) staticPageMainTitle.textContent = `Prayers in ${languageDisplayName}`;
+  
+  dynamicContentArea.innerHTML = getLanguagePickerShellHtml() + 
+    '<div id="language-content-area">' +
     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block; margin-top: 20px;"></div>' +
     '</div>';
+  
   if (typeof componentHandler !== "undefined") {
-    // Upgrade the MDL tabs component within the language picker shell
-    const tabsElement = contentDiv.querySelector('.mdl-js-tabs');
+    const tabsElement = dynamicContentArea.querySelector('.mdl-js-tabs');
     if (tabsElement) {
         componentHandler.upgradeElement(tabsElement);
+    } else {
+        componentHandler.upgradeDom(dynamicContentArea);
     }
   }
 
-  // 2. Asynchronously populate the language picker into its stable shell.
+  addRecentLanguage(langCode); 
+  currentPageByLanguage[langCode] = { page, showOnlyUnmatched };
+  const offset = (page - 1) * ITEMS_PER_PAGE;
+
+  updateHeaderNavigation([]);
   populateLanguageSelection(langCode);
 
+  // 3. Fetch and display prayers for the language.
   // Clear header/drawer navigation as this view will repopulate them or the picker will.
   updateHeaderNavigation([]);
 
-  const languageDisplayName = await getLanguageDisplayName(langCode);
+  // languageDisplayName is already defined from setting the page title
   let filterCondition = showOnlyUnmatched
     ? " AND (phelps IS NULL OR phelps = '')"
     : "";
@@ -1607,31 +1661,40 @@ async function renderPrayersForLanguage(
 }
 
 async function renderPrayerCodeView(phelpsCode, page = 1) {
-  console.log("enter function renderPrayerCodeView");
-  currentPageByPhelpsCode[phelpsCode] = page;
-  const offset = (page - 1) * ITEMS_PER_PAGE;
+  const staticPageHeaderFavoriteButton = document.getElementById('page-header-favorite-button');
+  const staticPageMainTitle = document.getElementById('page-main-title');
+  const dynamicContentArea = document.getElementById('dynamic-content-area');
 
-  // 1. Set up the initial shell: Language Picker + Placeholder for prayer code content
-  const pickerShellHtml = getLanguagePickerShellHtml(); // Define it once
-  contentDiv.innerHTML = pickerShellHtml +
-    '<div id="prayer-code-content-area">' + // Dedicated container for this view's content
+  if (!dynamicContentArea) {
+    console.error("Critical: #dynamic-content-area not found in DOM for renderPrayerCodeView.");
+    if (contentDiv) contentDiv.innerHTML = '<p style="color:red; text-align:center;">Error: Page structure is broken.</p>';
+    return;
+  }
+
+  if (staticPageHeaderFavoriteButton) staticPageHeaderFavoriteButton.style.display = 'none';
+  if (staticPageMainTitle) staticPageMainTitle.textContent = `Translations for ${phelpsCode}`;
+
+  dynamicContentArea.innerHTML = getLanguagePickerShellHtml() +
+    '<div id="prayer-code-content-area">' + 
     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block; margin-top: 20px;"></div>' +
     '</div>';
 
-  // Upgrade MDL components in the initially rendered language picker shell
   if (typeof componentHandler !== "undefined") {
-    const tabsElement = contentDiv.querySelector('.mdl-js-tabs');
+    const tabsElement = dynamicContentArea.querySelector('.mdl-js-tabs');
     if (tabsElement) {
         componentHandler.upgradeElement(tabsElement);
     } else {
-        componentHandler.upgradeDom(contentDiv); // Fallback
+        componentHandler.upgradeDom(dynamicContentArea);
     }
   }
+  
+  currentPageByPhelpsCode[phelpsCode] = page;
+  const offset = (page - 1) * ITEMS_PER_PAGE;
 
-  // 2. Asynchronously populate the language picker.
-  // For this view, no specific language is active in the picker itself initially.
+  updateHeaderNavigation([]);
   populateLanguageSelection(null);
 
+  // 3. Fetch and display prayers for the Phelps code
   // Fetch data for header navigation (translations of the current Phelps code)
   // This part doesn't affect the picker shell itself.
   const phelpsLangsSql = `SELECT DISTINCT language FROM writings WHERE phelps = '${phelpsCode.replace(/\'/g, "''")}' ORDER BY language`;
@@ -2097,12 +2160,36 @@ if (pickerElement) {
 // This function now manipulates DOM directly, doesn't return HTML for the whole picker.
 
 async function renderLanguageList() {
-// Stage 1: Render the shell immediately
-contentDiv.innerHTML = getLanguagePickerShellHtml() + 
-'<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block; margin-top: 20px;"></div>'; // Spinner for data loading
-if (typeof componentHandler !== "undefined") componentHandler.upgradeElement(contentDiv.querySelector('.mdl-js-tabs')); // Upgrade tabs shell
+  const staticPageHeaderFavoriteButton = document.getElementById('page-header-favorite-button');
+  const staticPageMainTitle = document.getElementById('page-main-title');
+  const dynamicContentArea = document.getElementById('dynamic-content-area');
 
-// Clear main page header/drawer nav as this view controls its own nav via the picker
+  if (!dynamicContentArea) {
+    console.error("Critical: #dynamic-content-area not found in DOM for renderLanguageList.");
+    if (contentDiv) contentDiv.innerHTML = '<p style="color:red; text-align:center;">Error: Page structure is broken.</p>';
+    return;
+  }
+
+  if (staticPageHeaderFavoriteButton) staticPageHeaderFavoriteButton.style.display = 'none';
+  if (staticPageMainTitle) staticPageMainTitle.textContent = "Browse Prayers";
+
+  dynamicContentArea.innerHTML = getLanguagePickerShellHtml() + 
+    '<div id="main-content-area" style="min-height: 100px;">' +
+    '<div id="main-content-area-spinner" class="main-content-spinner">' +
+    '<div class="mdl-spinner mdl-js-spinner is-active"></div>' +
+    '</div>' +
+    '<div class="mdl-tabs__panel" id="language-tab-panel-favorites">' +
+    // Favorites content will be injected here by Stage 2 logic
+    '</div>' +
+    '</div>' +
+    '<p class="text-center" style="font-size:0.9em; color: #555; margin-top:20px;">Counts are (Unique Phelps Codes / Total Unique Prayers). Select a language to browse.</p>';
+  
+  if (typeof componentHandler !== "undefined") {
+    // Upgrade the dynamicContentArea as it now contains the picker and other new elements
+    componentHandler.upgradeDom(dynamicContentArea);
+  }
+
+// Clear main page header nav as this view controls its own nav via the picker
 updateHeaderNavigation([]);
 
 currentPageByLanguage = {};
@@ -2182,25 +2269,17 @@ currentPageBySearchTerm = {};
   const pickerShellHtml = getLanguagePickerShellHtml(); // Get shell
 
   // Stage 1: Render the shell immediately with a main page spinner
-  contentDiv.innerHTML = 
-    `<header><h2><span id="category">Prayers</span><span id="blocktitle">Available Languages</span></h2></header>
-     ${pickerShellHtml}
-     <div id="main-content-area" style="min-height: 100px;"> <!-- Container for spinner or content -->
-        <div id="main-content-area-spinner" class="main-content-spinner">
-            <div class="mdl-spinner mdl-js-spinner is-active"></div>
-        </div>
-        <div class="mdl-tabs__panel" id="language-tab-panel-favorites">
-          <!-- Favorites content will be injected here -->
-        </div>
-     </div>
-     <p class="text-center" style="font-size:0.9em; color: #555; margin-top:20px;">Counts are (Unique Phelps Codes / Total Unique Prayers). Select a language to browse.</p>`;
-  
-  if (typeof componentHandler !== "undefined") {
-    componentHandler.upgradeDom(); // Upgrade shell, including tabs, menu button, textfield in menu
-  }
+  // This section was already modified by a previous edit to use the new title structure.
+  // The previous edit for renderLanguageList should cover this.
+  // This old_text block is likely from before the previous edit to renderLanguageList was applied.
+  // Ensuring the logic from the *correct* previous edit for renderLanguageList is what remains.
+  // The content of contentDiv.innerHTML should already be:
+  // pageTitleHtml + pickerShellHtml + '<div id="main-content-area">...</div>' etc.
+  // The componentHandler.upgradeDom(contentDiv) is also part of that correct previous edit.
 
   // Stage 2: Asynchronously populate the language picker and then the favorites
-  populateLanguageSelection(null)
+  // populateLanguageSelection is called after initial DOM setup
+  populateLanguageSelection(null) 
     .then(async () => { // Proceed only if populateLanguageSelection was successful (didn't throw)
       let localFavoritesDisplayHtml = "";
       // Once picker is populated (or at least population has started), load and display favorites.
@@ -2297,12 +2376,14 @@ currentPageBySearchTerm = {};
 }
 
 async function renderSearchResults(searchTerm, page = 1) {
-  console.log("enter function renderSearchResults");
   currentPageBySearchTerm[searchTerm] = page;
   
   // Initial spinner setup
-  const pickerShellHtml = getLanguagePickerShellHtml(); // Get picker shell for consistent layout
-  contentDiv.innerHTML = pickerShellHtml + // Include picker shell
+  const pageTitleHtml = `<header><h2 id="prayer-main-title">Search Results for "${searchTerm ? searchTerm.replace(/"/g, '&quot;') : ''}"</h2></header>`;
+  const pickerShellHtml = getLanguagePickerShellHtml(); 
+  
+  contentDiv.innerHTML = pageTitleHtml +
+    pickerShellHtml + 
     '<div id="search-results-content-area">' + // Dedicated area for search results
     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block; margin-top:20px;"></div>' +
     '</div>';

@@ -47,7 +47,7 @@ body {
 }
 
 #content {
-    margin: 15px;
+    margin: 15px; 
     background-color: #ffffff;
     padding: 20px;
     border-radius: 4px;
@@ -55,6 +55,7 @@ body {
         0 2px 2px 0 rgba(0, 0, 0, 0.14),
         0 3px 1px -2px rgba(0, 0, 0, 0.2),
         0 1px 5px 0 rgba(0, 0, 0, 0.12);
+    /* position: relative; /* REMOVED - No longer needed for fav button here */
 }
 
 #prayer-matching-tool {
@@ -81,7 +82,7 @@ body {
         0 2px 2px 0 rgba(0, 0, 0, 0.14),
         0 3px 1px -2px rgba(0, 0, 0, 0.2),
         0 1px 5px 0 rgba(0, 0, 0, 0.12);
-    margin-top: 20px;
+    margin: 15px; /* Consistent margin for a top-level block in main content */
 }
 
 /* Responsive Layout Adjustments */
@@ -180,13 +181,26 @@ header, /* Generic header tag style */
 h2 { /* General h2 */
     font-size: 1.2em;
 }
-#category {
-    font-size: 1.2em;
+/* Styles for #category and #blocktitle are removed as they are no longer used 
+   in the primary title structure of renderPrayer. 
+   #prayer-main-title (an h2) is now used. */
+
+/* New style for the main prayer title in single prayer view */
+#prayer-main-title {
+    font-size: 1.5em; /* Prominent title size */
     font-weight: bold;
-    margin-right: 0.5em; /* Space to the right */
+    margin: 0; /* Reset default h2 margin */
+    display: inline; /* To flow with other elements if header is inline-block */
+    vertical-align: middle;
 }
-#blocktitle {
-    color: #777777;
+
+/* Styling for the <header> element that wraps #prayer-main-title in #content */
+#content > header {
+    display: inline-block; /* To sit on the same line as the favorite button */
+    vertical-align: middle; /* Align with the favorite button */
+    margin: 0; /* Reset default header margins */
+    padding: 0; /* Reset default header paddings */
+    /* Spacing after this line will be handled by margin-top on prayer-details-area or a wrapper */
 }
 small { /* General small */
     font-family: "Gentium", "Times New Roman", serif;
@@ -299,19 +313,19 @@ small { /* General small */
     flex-shrink: 0;
 }
 
-/* Favorite Prayer Button & Section */
+/* Favorite Prayer Button & Section - Inline Flow */
 .favorite-toggle-button {
     color: #bdbdbd; 
-    margin: 8px; 
+    margin: 0 8px 0 0; /* 0 top, 8px right (space before title), 0 bottom, 0 left */
     display: inline-flex; 
     align-items: center;
-    vertical-align: middle;
+    vertical-align: middle; /* Align with the <header> containing the title */
 }
 .favorite-toggle-button.is-favorite {
     color: gold;
 }
 .favorite-toggle-button .material-icons {
-    font-size: 28px;
+    font-size: 24px; /* Adjusted for inline flow */
 }
 
 #favorite-prayers-section {
@@ -347,6 +361,7 @@ small { /* General small */
     flex-direction: column;
     justify-content: space-between;
     min-height: 150px;
+    /* position: relative; /* REMOVED - Favorite button here will also be inline or handled differently */
 }
 .favorite-prayer-card-header {
     font-size: 1.1em;

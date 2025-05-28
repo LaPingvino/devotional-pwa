@@ -67,8 +67,17 @@
                 <div id="main-view-container">
                     <div id="content-column">
                         <div id="content">
-                            <!-- Content will be dynamically loaded here -->
-                            <p>Loading content...</p>
+                            <header id="page-header-container" style="margin-bottom: 15px;">
+                                <button id="page-header-favorite-button" class="mdl-button mdl-js-button mdl-button--icon favorite-toggle-button" style="display: none;">
+                                    <i class="material-icons">star_border</i>
+                                </button>
+                                <h2 id="page-main-title" style="display: inline; font-size: 1.5em; font-weight: bold; margin: 0; vertical-align: middle;">
+                                    <!-- Title will be populated by JS -->
+                                </h2>
+                            </header>
+                            <div id="dynamic-content-area">
+                                <p>Loading content...</p>
+                            </div>
                         </div>
                     </div>
                     <div id="prayer-matching-tool">
@@ -125,11 +134,98 @@
                                 </a>
                             </div>
                         </div>
-                        <div id="contribution-section" style="margin-top:20px">
-                             <!-- Contribution content will be dynamically loaded here or defined -->
-                             <p>Further contribution options will appear here. For example, links to submit new prayers or suggest corrections.</p>
-                        </div>
                     </div>
+                </div>
+
+                <div id="contribution-section">
+                    <h3>How to Contribute</h3>
+                    <p>
+                        You can help improve this collection of holy writings by
+                        contributing in the following ways:
+                    </p>
+                    <ul>
+                        <li>
+                            <strong>Find other language versions:</strong> If
+                            you find a prayer in a different language that
+                            matches one on this site, please send the Phelps
+                            code (if available) or the link of the page from
+                            this site, along with the link of the matching
+                            prayer, to
+                            <a href="mailto:ikojba@gmail.com"
+                                >ikojba@gmail.com</a
+                            >. You can also use the "Prayer Matching Helper"
+                            tool above to collect items and submit them.
+                        </li>
+                        <li>
+                            <strong>Contribute directly on DoltHub:</strong> You
+                            can contribute directly to the database on
+                            <a
+                                href="https://www.dolthub.com/repositories/holywritings/bahaiwritings"
+                                target="_blank"
+                                >dolthub.com/holywritings/bahaiwritings</a
+                            >. This is a version-controlled SQL database where
+                            you can propose changes.
+                        </li>
+                        <li>
+                            <strong>Fork the database on DoltHub:</strong> To
+                            make more extensive changes, experiment, or manage
+                            your own version, you can
+                            <a
+                                href="https://www.dolthub.com/repositories/holywritings/bahaiwritings?action=fork"
+                                target="_blank"
+                                >fork the repository on DoltHub</a
+                            >.
+                        </li>
+                        <li>
+                            <strong>Match prayers on TiddlyWiki:</strong> Visit
+                            <a
+                                href="https://tiddly.holywritings.net/workspace"
+                                target="_blank"
+                                >tiddly.holywritings.net/workspace</a
+                            >
+                            to match prayers. Save your results and email the
+                            saved page to
+                            <a href="mailto:ikojba@gmail.com"
+                                >ikojba@gmail.com</a
+                            >.
+                        </li>
+                        <li>
+                            <strong>Assign missing Phelps codes:</strong>
+                            This page uses codes based on the unique codes per
+                            Bahá'í work from the
+                            <a
+                                href="https://afnanlibrary.org/a-partial-inventory/"
+                                target="_blank"
+                                >Partial Inventory</a
+                            >
+                            by Steven Phelps.
+                            <ul>
+                                <li>
+                                    Your task is to identify the prayer in the
+                                    Inventory. If found, use its assigned code.
+                                </li>
+                                <li>
+                                    If the prayer is part of a larger work
+                                    (e.g., a prayer from the Kitáb-i-Aqdas), a
+                                    three-letter suffix (often mnemonic) should
+                                    typically be appended to the main work\'s
+                                    Phelps code (e.g., BH00001 for aqdas plus
+                                    the suffix LOV becomes BH00001LOV).
+                                </li>
+                                <li>
+                                    If a prayer is not in the inventory, please
+                                    contact Steven so it can be included.
+                                </li>
+                                <li>
+                                    You can use the "Add/Suggest Phelps Code"
+                                    button on a prayer\'s page (if it lacks a
+                                    code) to add this information to your item
+                                    list for submission.
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                    <p>Your contributions are greatly appreciated!</p>
                 </div>
             </main>
         </div>
