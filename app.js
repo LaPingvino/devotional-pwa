@@ -302,7 +302,7 @@ function toggleFavoritePrayer(prayerData) {
 }
 
 // --- Prayer Matching Helper Functions ---
-function updatePrayerMatchingToolDisplay() {
+async function updatePrayerMatchingToolDisplay() { // Made async
   const pinnedSection = document.getElementById("pinned-prayer-section");
   const itemsListUl = document.getElementById(
     // Renamed from matchesListUl
@@ -361,7 +361,8 @@ function updatePrayerMatchingToolDisplay() {
       const returnLinkP = document.createElement("p");
       returnLinkP.style.fontSize = "0.9em";
       returnLinkP.style.marginTop = "10px";
-      returnLinkP.innerHTML = `To continue finding items for this language, return to <a href="${returnLinkHref}">${pinnedPrayerDetails.language.toUpperCase()} Prayers</a>.`;
+      const langDisplayNameForLink = await getLanguageDisplayName(pinnedPrayerDetails.language);
+      returnLinkP.innerHTML = `To continue finding items for this language, return to <a href="${returnLinkHref}">${langDisplayNameForLink} Prayers</a>.`;
       pinnedSection.appendChild(returnLinkP);
     }
     if (typeof componentHandler !== "undefined") {
@@ -1539,21 +1540,27 @@ async function _renderPrayerContent(prayerObject, phelpsCodeForNav, activeLangFo
       addMatchButton.className = "mdl-button mdl-js-button mdl-button--raised mdl-button--accent";
       const pinnedNameSnippet = (pinnedPrayerDetails.name || `Version ${pinnedPrayerDetails.version}`).substring(0, 20);
       addMatchButton.innerHTML = `<i class="material-icons">playlist_add_check</i>Match with Pinned: ${pinnedNameSnippet}${pinnedNameSnippet.length === 20 ? "..." : ""}`;
-      addMatchButton.onclick = () => addCurrentPrayerAsMatch(prayer);
+      addMatchButton.addEventListener('click', () => addCurrentPrayerAsMatch(prayer));
       actionsDiv.appendChild(addMatchButton);
+      if (typeof componentHandler !== 'undefined') {
+        componentHandler.upgradeElement(addMatchButton);
+      }
 
       const replacePinButton = document.createElement("button");
       replacePinButton.className = "mdl-button mdl-js-button mdl-button--raised";
       replacePinButton.innerHTML = '<i class="material-icons">swap_horiz</i> Replace Pin';
       replacePinButton.title = "Replaces the currently pinned prayer with this one. Item list preserved.";
-      replacePinButton.onclick = () => {
+      replacePinButton.addEventListener('click', () => {
         pinPrayer(prayer);
         const snackbarContainer = document.querySelector(".mdl-js-snackbar");
         if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
           snackbarContainer.MaterialSnackbar.showSnackbar({ message: "Pinned prayer replaced. Item list preserved." });
         }
-      };
+      });
       actionsDiv.appendChild(replacePinButton);
+      if (typeof componentHandler !== 'undefined') {
+        componentHandler.upgradeElement(replacePinButton);
+      }
     } else {
       const pElement = document.createElement("p");
       pElement.innerHTML = "<em>This prayer is currently pinned. Use the tool on the right to manage items or unpin.</em>";
@@ -1563,65 +1570,81 @@ async function _renderPrayerContent(prayerObject, phelpsCodeForNav, activeLangFo
     const pinButton = document.createElement("button");
     pinButton.className = "mdl-button mdl-js-button mdl-button--raised mdl-button--colored";
     pinButton.innerHTML = '<i class="material-icons">push_pin</i> Pin this Prayer';
-    pinButton.onclick = () => {
+    pinButton.addEventListener('click', () => {
+      console.log("[PinButton Click Listener] Clicked. Prayer object:", JSON.stringify(prayer));
       pinPrayer(prayer);
       const snackbarContainer = document.querySelector(".mdl-js-snackbar");
       if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
         snackbarContainer.MaterialSnackbar.showSnackbar({ message: "Prayer pinned! Navigate to find items or suggestions." });
       }
-    };
+    });
     actionsDiv.appendChild(pinButton);
+    if (typeof componentHandler !== 'undefined') {
+      componentHandler.upgradeElement(pinButton);
+    }
   }
 
   if (!prayer.phelps && !titleCalculationResults.phelpsIsSuggested) {
     const suggestPhelpsButton = document.createElement("button");
     suggestPhelpsButton.className = "mdl-button mdl-js-button mdl-button--raised";
     suggestPhelpsButton.innerHTML = '<i class="material-icons">library_add</i> Add/Suggest Phelps Code';
-    suggestPhelpsButton.onclick = () => {
+    suggestPhelpsButton.addEventListener('click', () => {
       const enteredCode = prompt(`Enter Phelps code for:\\n${prayer.name || "Version " + prayer.version}\\n(${initialDisplayPrayerLanguage})`);
       if (enteredCode && enteredCode.trim() !== "") {
         addPhelpsCodeToMatchList(prayer, enteredCode.trim());
       }
-    };
+    });
     actionsDiv.appendChild(suggestPhelpsButton);
+    if (typeof componentHandler !== 'undefined') {
+      componentHandler.upgradeElement(suggestPhelpsButton);
+    }
   }
 
   const changeLangButton = document.createElement("button");
   changeLangButton.className = "mdl-button mdl-js-button mdl-button--raised";
   changeLangButton.innerHTML = '<i class="material-icons">translate</i> Change Language';
   changeLangButton.title = `Current language: ${finalDisplayLanguageForPhelpsMeta}`;
-  changeLangButton.onclick = () => {
+  changeLangButton.addEventListener('click', () => {
     const newLang = prompt(`Enter new language code for:\\n${nameToDisplay || "Version " + prayer.version}\\n(V: ${prayer.version})\\nCurrent language: ${finalDisplayLanguageForPhelpsMeta}`, languageToDisplay);
     if (newLang && newLang.trim() !== "" && newLang.trim().toLowerCase() !== languageToDisplay.toLowerCase()) {
       addLanguageChangeToMatchList(prayer, newLang.trim());
     } else if (newLang && newLang.trim().toLowerCase() === languageToDisplay.toLowerCase()) {
       alert("New language is the same as the current language.");
     }
-  };
+  });
   actionsDiv.appendChild(changeLangButton);
+  if (typeof componentHandler !== 'undefined') {
+    componentHandler.upgradeElement(changeLangButton);
+  }
 
   const changeNameButton = document.createElement("button");
   changeNameButton.className = "mdl-button mdl-js-button mdl-button--raised";
   changeNameButton.innerHTML = '<i class="material-icons">edit_note</i> Add/Change Name';
   changeNameButton.title = `Current name: ${prayer.name || "Not Set"}`;
-  changeNameButton.onclick = () => {
+  changeNameButton.addEventListener('click', () => {
     const newName = prompt(`Enter name for:\\nVersion ${prayer.version} (Lang: ${finalDisplayLanguageForPhelpsMeta})\\nCurrent name: ${nameToDisplay || "Not Set"}`, nameToDisplay || "");
     if (newName !== null) {
       addNameChangeToMatchList(prayer, newName.trim());
     }
-  };
+  });
   actionsDiv.appendChild(changeNameButton);
+  if (typeof componentHandler !== 'undefined') {
+    componentHandler.upgradeElement(changeNameButton);
+  }
 
   const addNoteButton = document.createElement("button");
   addNoteButton.className = "mdl-button mdl-js-button mdl-button--raised";
   addNoteButton.innerHTML = '<i class="material-icons">speaker_notes</i> Add General Note';
-  addNoteButton.onclick = () => {
+  addNoteButton.addEventListener('click', () => {
     const note = prompt(`Enter a general note for:\\n${nameToDisplay || "Version " + prayer.version} (V: ${prayer.version})`);
     if (note && note.trim() !== "") {
       addNoteToMatchList(prayer, note.trim());
     }
-  };
+  });
   actionsDiv.appendChild(addNoteButton);
+  if (typeof componentHandler !== 'undefined') {
+    componentHandler.upgradeElement(addNoteButton);
+  }
   prayerDetailsContainer.appendChild(actionsDiv);
 
   // 3. "Other versions in this language" (if applicable)
