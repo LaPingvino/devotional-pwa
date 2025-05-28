@@ -3,7 +3,6 @@
                 font-size: 1.5em;
             }
 
-
             body {
                 font-size: 1.3em;
                 background-color: #f4f6f6;
@@ -537,4 +536,52 @@
 
 #language-tab-panel-favorites {
     padding-top: 10px;
+}
+
+/* === Translations Switcher Styles === */
+.translations-switcher {
+  padding: 8px 16px; /* Match MDL tab bar horizontal padding roughly */
+  margin-bottom: 10px; /* Space before prayer details */
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap; /* Allow links to wrap to the next line */
+  background-color: #f5f5f5; /* A slightly different background to distinguish from tabs */
+  border-bottom: 1px solid #e0e0e0; /* Similar to MDL tab bottom border */
+}
+
+.translations-switcher-label {
+  font-weight: 500; /* Medium weight, similar to MDL tab labels */
+  margin-right: 10px;
+  font-size: 0.9em;
+  color: #333; /* Darker text */
+  padding: 8px 0; /* Align vertically with links */
+}
+
+.translations-switcher .translation-link {
+  margin-right: 8px;
+  margin-bottom: 4px; /* For wrapping */
+  margin-top: 4px; /* For wrapping */
+  padding: 6px 12px; /* Slightly smaller padding than main tabs */
+  text-decoration: none;
+  color: rgba(0,0,0,.54); /* MDL tab default color */
+  font-size: 0.875em; /* 14px, typical MDL tab font size */
+  font-weight: 500;
+  border-radius: 2px;
+  transition: background-color 0.2s, color 0.2s;
+  border: 1px solid transparent; /* For consistent height */
+  text-transform: uppercase; /* Match MDL tab style */
+}
+
+.translations-switcher .translation-link:hover {
+  background-color: rgba(0,0,0,0.05); /* Subtle hover */
+  color: rgba(0,0,0,.74);
+  text-decoration: none;
+}
+
+.translations-switcher .translation-link.is-active {
+  color: #3f51b5; /* MDL primary color for active link, or your theme's active tab color */
+  /* border-bottom: 2px solid #3f51b5; /* Underline like an active tab */
+  /* Or, a background fill might be clearer */
+  background-color: #e8eaf6; /* Light indigo for active background */
+  font-weight: 500; /* Ensure active is bold if not already */
 }

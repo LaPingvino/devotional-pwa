@@ -1116,28 +1116,25 @@ async function updateDrawerLanguageNavigation(links = []) {
 
 async function renderPrayer(
   versionId,
-  phelpsCodeForNav = null,
-  activeLangForNav = null,
+  phelpsCodeForNav = null, // This is the Phelps code context if navigating from a phelps/lang URL
+  activeLangForNav = null,  // This is the language context if navigating from a phelps/lang URL
 ) {
   console.log("enter function renderPrayer");
 
-  // 1. Set up the initial shell: Language Picker + Placeholder for prayer details with a spinner
+  // 1. Set up the initial shell: Language Picker + Translations Switcher Placeholder + Prayer Details Placeholder
   contentDiv.innerHTML = getLanguagePickerShellHtml() +
+    '<div id="prayer-translations-switcher-area" class="translations-switcher"></div>' + // Placeholder for new switcher
     '<div id="prayer-details-area">' +
     '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block; margin-top: 20px;"></div>' +
     '</div>';
 
-  // Upgrade MDL components in the initially rendered language picker shell
   if (typeof componentHandler !== "undefined") {
-    const tabsElement = contentDiv.querySelector('.mdl-js-tabs');
-    if (tabsElement) {
-        componentHandler.upgradeElement(tabsElement);
-    } else {
-        componentHandler.upgradeDom(contentDiv); // Fallback if specific element not found
-    }
+    const tabsElement = contentDiv.querySelector('.mdl-tabs');
+    if (tabsElement) componentHandler.upgradeElement(tabsElement);
+    // No need to upgrade other areas yet, they are empty or will be replaced
   }
 
-  // These can be cleared early
+  // Clear header/drawer navigation. They will NOT be repopulated with translation lists.
   updateHeaderNavigation([]);
   updateDrawerLanguageNavigation([]);
 
@@ -1152,41 +1149,40 @@ async function renderPrayer(
     if (prayerDetailsArea) {
         prayerDetailsArea.innerHTML = errHtml;
     } else {
-        // Fallback if prayer-details-area somehow isn't there
-        contentDiv.innerHTML = getLanguagePickerShellHtml() + `<div id="prayer-details-area">${errHtml}</div>`;
+        contentDiv.querySelector('#prayer-details-area').innerHTML = errHtml; // Try to target if re-fetch needed
     }
+    populateLanguageSelection(null); // Populate main picker, no active lang
+    document.getElementById('prayer-translations-switcher-area').innerHTML = ''; // Clear translations area on error
     if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
     return;
   }
 
-
-  const prayerDetailsArea = document.getElementById('prayer-details-area'); // Get this once data is fetched or error handled
+  const prayerDetailsArea = document.getElementById('prayer-details-area');
   if (!prayerDetailsArea) {
-      console.error("Critical: #prayer-details-area is missing after initial render and error check.");
-      // If the area is missing, the initial shell setup might have failed or been overwritten unexpectedly.
-      // Display error in contentDiv as a last resort.
-      contentDiv.innerHTML = '<p style="color:red; text-align:center; padding:20px;">Critical error: Prayer display area could not be rendered.</p>';
+      console.error("Critical: #prayer-details-area is missing after initial render.");
+      contentDiv.innerHTML = getLanguagePickerShellHtml() + '<div id="prayer-translations-switcher-area" class="translations-switcher"></div>' + '<p style="color:red; text-align:center; padding:20px;">Critical error: Prayer display area could not be rendered.</p>';
+      if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
       return;
   }
-
 
   if (rows.length === 0) {
     const debugQueryUrl = `${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(sql)}`;
     prayerDetailsArea.innerHTML = `<p>Prayer with ID ${versionId} not found.</p><p>Query used:</p><pre style="white-space: pre-wrap; word-break: break-all; background: #eee; padding: 10px; border-radius: 4px;">${sql}</pre><p><a href="${debugQueryUrl}" target="_blank">Debug this query on DoltHub</a></p>`;
-    // Populate language selection with no specific language active if prayer not found
-    populateLanguageSelection(null);
+    populateLanguageSelection(null); // Populate main picker
+    document.getElementById('prayer-translations-switcher-area').innerHTML = ''; // Clear translations area
     if (typeof componentHandler !== "undefined") componentHandler.upgradeDom(prayerDetailsArea);
     return;
   }
 
   const prayer = rows[0];
 
-  // 3. Populate Language Selection (now that prayer.language is known)
+  // 3. Populate Main Language Selection Tabs
   const languageToHighlightInPicker = activeLangForNav || prayer.language;
   populateLanguageSelection(languageToHighlightInPicker);
 
   cachePrayerText({ ...prayer });
 
+  // --- Logic for prayer title and suggested edits (copied from your existing function) ---
   const authorName = getAuthorFromPhelps(prayer.phelps);
   const initialDisplayPrayerLanguage = await getLanguageDisplayName(prayer.language);
   let prayerTitle =
@@ -1198,7 +1194,7 @@ async function renderPrayer(
 
   let phelpsToDisplay = prayer.phelps;
   let phelpsIsSuggested = false;
-  let languageToDisplay = prayer.language;
+  let languageToDisplay = prayer.language; // This is the language of the currently viewed prayer version
   let languageIsSuggested = false;
   let nameToDisplay = prayer.name;
   let nameIsSuggested = false;
@@ -1209,64 +1205,90 @@ async function renderPrayer(
         phelpsToDisplay = match.newPhelps;
         phelpsIsSuggested = true;
       } else if (match.type === "change_language") {
+        // This section might need review: if language is changed, does it mean we are viewing a different "version" contextually?
+        // For now, this updates the display language for the *current* versionId.
         languageToDisplay = match.newLanguage;
         languageIsSuggested = true;
       } else if (match.type === "change_name") {
         nameToDisplay = match.newName;
         nameIsSuggested = true;
-        const currentDisplayLanguageForTitle = await getLanguageDisplayName(languageToDisplay);
-        prayerTitle =
-          nameToDisplay ||
-          (phelpsToDisplay
-            ? `${phelpsToDisplay} - ${currentDisplayLanguageForTitle}`
-            : `Prayer ${prayer.version}`);
       }
     }
+    // Phelps suggestions from match_prayers affecting *this* prayer
     if (match.type === "match_prayers") {
-      if (
-        match.current.version === prayer.version &&
-        !prayer.phelps &&
-        match.pinned.phelps
-      ) {
-        phelpsToDisplay = match.pinned.phelps;
-        phelpsIsSuggested = true;
+      const updatePhelpsIfNeeded = (targetVersion, suggestedPhelps) => {
+        if (targetVersion === prayer.version && !prayer.phelps) {
+          phelpsToDisplay = suggestedPhelps;
+          phelpsIsSuggested = true;
+        }
+      };
+      if (match.current.version === prayer.version && match.pinned.phelps) {
+        updatePhelpsIfNeeded(prayer.version, match.pinned.phelps);
       }
-      if (
-        match.pinned.version === prayer.version &&
-        !prayer.phelps &&
-        match.current.phelps
-      ) {
-        phelpsToDisplay = match.current.phelps;
-        phelpsIsSuggested = true;
+      if (match.pinned.version === prayer.version && match.current.phelps) {
+         updatePhelpsIfNeeded(prayer.version, match.current.phelps);
       }
-      if (
-        !prayer.phelps &&
-        (match.pinned.version === prayer.version ||
-          match.current.version === prayer.version) &&
-        !match.pinned.phelps &&
-        !match.current.phelps
-      ) {
+      if (!prayer.phelps && (match.pinned.version === prayer.version || match.current.version === prayer.version) && !match.pinned.phelps && !match.current.phelps) {
         phelpsToDisplay = `TODO${uuidToBase36(match.pinned.version)}`;
         phelpsIsSuggested = true;
       }
     }
   }
+  // Update prayerTitle if name or phelps or language was suggested for display
+   const displayLangForTitleAfterSuggestions = await getLanguageDisplayName(languageToDisplay);
+    prayerTitle = nameToDisplay ||
+                  (phelpsToDisplay ? `${phelpsToDisplay} - ${displayLangForTitleAfterSuggestions}` : `Prayer ${prayer.version}`);
+  // --- End of logic for prayer title and suggested edits ---
 
-  const finalDisplayLanguageToDisplay = await getLanguageDisplayName(languageToDisplay);
+  const finalDisplayLanguageForPhelpsMeta = await getLanguageDisplayName(languageToDisplay);
   let phelpsDisplayHtml = "Not Assigned";
   if (phelpsToDisplay) {
     const textPart = phelpsIsSuggested
       ? `<span style="font-weight: bold; color: red;">${phelpsToDisplay}</span>`
       : `<a href="#prayercode/${phelpsToDisplay}">${phelpsToDisplay}</a>`;
-    phelpsDisplayHtml = `${textPart} (Lang: ${finalDisplayLanguageToDisplay})`;
+    phelpsDisplayHtml = `${textPart} (Lang: ${finalDisplayLanguageForPhelpsMeta})`;
   } else {
-    phelpsDisplayHtml = `Not Assigned (Lang: ${finalDisplayLanguageToDisplay})`;
+    phelpsDisplayHtml = `Not Assigned (Lang: ${finalDisplayLanguageForPhelpsMeta})`;
   }
   if (languageIsSuggested) {
-    phelpsDisplayHtml += ` <span style="font-weight: bold; color: red;">(New Lang: ${finalDisplayLanguageToDisplay})</span>`;
+    phelpsDisplayHtml += ` <span style="font-weight: bold; color: red;">(New Lang: ${finalDisplayLanguageForPhelpsMeta})</span>`;
   }
 
-  // 4. Construct HTML for the prayer's core content
+  // 4. Populate Translations Switcher
+  const translationsArea = document.getElementById('prayer-translations-switcher-area');
+  const phelpsCodeForSwitcher = phelpsCodeForNav || phelpsToDisplay; // Use context from URL if available, else prayer's own phelps
+
+  if (translationsArea && phelpsCodeForSwitcher && !phelpsCodeForSwitcher.startsWith("TODO")) {
+    const transSql = `SELECT DISTINCT language FROM writings WHERE phelps = \'${phelpsCodeForSwitcher.replace(/\'/g, "\'\'")}\' AND phelps IS NOT NULL AND phelps != \'\' ORDER BY language`;
+    try {
+      const distinctLangs = await executeQuery(transSql);
+      if (distinctLangs.length > 1) { // Only show switcher if there's more than one language
+        let switcherHtml = `<span class="translations-switcher-label">Translations:</span>`;
+        const translationLinkPromises = distinctLangs.map(async (langRow) => {
+          const langDisplayName = await getLanguageDisplayName(langRow.language);
+          // activeLangForNav is the language from the URL (e.g., #prayercode/PHELPS/eo -> eo)
+          // prayer.language is the language of the specific versionId being rendered.
+          // languageToDisplay is prayer.language potentially overridden by a local suggestion.
+          // For highlighting, we should compare with the actual language context we are in.
+          const isActive = activeLangForNav ? (langRow.language === activeLangForNav) : (langRow.language === prayer.language);
+          return `<a href="#prayercode/${phelpsCodeForSwitcher}/${langRow.language}" class="translation-link ${isActive ? 'is-active' : ''}">${langDisplayName}</a>`;
+        });
+        const translationLinksHtml = await Promise.all(translationLinkPromises);
+        switcherHtml += translationLinksHtml.join(' ');
+        translationsArea.innerHTML = switcherHtml;
+        if (typeof componentHandler !== "undefined") componentHandler.upgradeDom(translationsArea);
+      } else {
+        translationsArea.innerHTML = ''; // Clear if no other translations
+      }
+    } catch (error) {
+      console.error("Error fetching translations for switcher:", error);
+      translationsArea.innerHTML = '<span class="translations-switcher-label" style="color:red;">Error loading translations.</span>';
+    }
+  } else if (translationsArea) {
+    translationsArea.innerHTML = ''; // Clear if no phelps code for switcher
+  }
+
+  // 5. Construct HTML for the prayer's core content
   const prayerCoreHtml = `
     <header><h2><span id="category">Prayer</span><span id="blocktitle">${prayerTitle}${nameIsSuggested ? ' <em style="color:red; font-size:0.8em">(Suggested Name)</em>' : ""}</span></h2></header>
     <div class="scripture">
@@ -1277,11 +1299,10 @@ async function renderPrayer(
         <div style="font-size: 0.7em; margin-left: 2em; margin-top: 0.3em; color: #555;">Version ID: ${prayer.version}</div>
     </div>`;
 
-  // 5. Update the #prayer-details-area
+  // 6. Update the #prayer-details-area
   prayerDetailsArea.innerHTML = prayerCoreHtml;
 
-  // 6. Create and append favoriteButton to #content (the parent of language picker and prayer-details-area)
-  // #content is contentDiv itself in this context.
+  // 7. Create and append favoriteButton to #content (which is contentDiv)
   const favoriteButton = document.createElement("button");
   favoriteButton.className = "mdl-button mdl-js-button mdl-button--icon favorite-toggle-button";
   const favoriteIcon = document.createElement("i");
@@ -1296,12 +1317,12 @@ async function renderPrayer(
   }
   favoriteButton.appendChild(favoriteIcon);
   favoriteButton.onclick = () => toggleFavoritePrayer(prayer);
-  contentDiv.appendChild(favoriteButton); // Appended to #content for absolute positioning to work based on styles.css
+  contentDiv.appendChild(favoriteButton);
 
-  // 7. Create and append actionsDiv to #prayer-details-area
+  // 8. Create and append actionsDiv to #prayer-details-area
   const actionsDiv = document.createElement("div");
   actionsDiv.className = "prayer-actions";
-  // (Logic for populating actionsDiv as in your original file)
+  // (Copying the logic for populating actionsDiv from your existing function)
   if (pinnedPrayerDetails) {
     if (pinnedPrayerDetails.version !== prayer.version) {
       const addMatchButton = document.createElement("button");
@@ -1358,9 +1379,9 @@ async function renderPrayer(
   const changeLangButton = document.createElement("button");
   changeLangButton.className = "mdl-button mdl-js-button mdl-button--raised";
   changeLangButton.innerHTML = '<i class="material-icons">translate</i> Change Language';
-  changeLangButton.title = `Current language: ${finalDisplayLanguageToDisplay}`;
+  changeLangButton.title = `Current language: ${finalDisplayLanguageForPhelpsMeta}`; // Use languageToDisplay for current language
   changeLangButton.onclick = () => {
-    const newLang = prompt(`Enter new language code for:\\n${nameToDisplay || "Version " + prayer.version}\\n(V: ${prayer.version})\\nCurrent language: ${finalDisplayLanguageToDisplay}`, languageToDisplay);
+    const newLang = prompt(`Enter new language code for:\\n${nameToDisplay || "Version " + prayer.version}\\n(V: ${prayer.version})\\nCurrent language: ${finalDisplayLanguageForPhelpsMeta}`, languageToDisplay);
     if (newLang && newLang.trim() !== "" && newLang.trim().toLowerCase() !== languageToDisplay.toLowerCase()) {
       addLanguageChangeToMatchList(prayer, newLang.trim());
     } else if (newLang && newLang.trim().toLowerCase() === languageToDisplay.toLowerCase()) {
@@ -1374,7 +1395,7 @@ async function renderPrayer(
   changeNameButton.innerHTML = '<i class="material-icons">edit_note</i> Add/Change Name';
   changeNameButton.title = `Current name: ${prayer.name || "Not Set"}`;
   changeNameButton.onclick = () => {
-    const newName = prompt(`Enter name for:\\nVersion ${prayer.version} (Lang: ${finalDisplayLanguageToDisplay})\\nCurrent name: ${nameToDisplay || "Not Set"}`, nameToDisplay || "");
+    const newName = prompt(`Enter name for:\\nVersion ${prayer.version} (Lang: ${finalDisplayLanguageForPhelpsMeta})\\nCurrent name: ${nameToDisplay || "Not Set"}`, nameToDisplay || "");
     if (newName !== null) {
       addNameChangeToMatchList(prayer, newName.trim());
     }
@@ -1395,54 +1416,36 @@ async function renderPrayer(
 
   prayerDetailsArea.appendChild(actionsDiv);
 
-  // 8. Upgrade MDL Components
+  // 9. Upgrade MDL Components
   if (typeof componentHandler !== "undefined") {
-    componentHandler.upgradeElement(favoriteButton); // Favorite button is in contentDiv
-    // Upgrade all elements within prayerDetailsArea (which now includes actionsDiv)
-    componentHandler.upgradeDom(prayerDetailsArea);
+    componentHandler.upgradeElement(favoriteButton);
+    componentHandler.upgradeDom(prayerDetailsArea); // Upgrades actionsDiv and its contents too
   }
 
-  // 9. Update header/drawer navigation based on prayer context
-  const finalPhelpsCode = phelpsCodeForNav || phelpsToDisplay;
-  const finalActiveLangForHeaderNav = activeLangForNav || languageToDisplay;
-
-  if (finalPhelpsCode && !finalPhelpsCode.startsWith("TODO")) {
-    const transSql = `SELECT DISTINCT language FROM writings WHERE phelps = \'${finalPhelpsCode.replace(/\'/g, "\'\'")}\' AND phelps IS NOT NULL AND phelps != \'\' ORDER BY language`;
-    const distinctLangs = await executeQuery(transSql);
-    const navLinkPromises = distinctLangs.map(async (langRow) => ({
-      text: await getLanguageDisplayName(langRow.language),
-      href: `#prayercode/${finalPhelpsCode}/${langRow.language}`,
-      isActive: langRow.language === finalActiveLangForHeaderNav,
-    }));
-    const navLinks = await Promise.all(navLinkPromises);
-    updateHeaderNavigation(navLinks);
-    updateDrawerLanguageNavigation(navLinks);
-  } else {
-    const singleLink = [{
-        text: finalDisplayLanguageToDisplay,
-        href: `#prayer/${prayer.version}`,
-        isActive: true,
-      }];
-    updateHeaderNavigation(singleLink);
-    updateDrawerLanguageNavigation(singleLink);
-  }
-
-  // Display other versions if applicable (from your original logic)
-  if (phelpsCodeForNav && targetLanguageCode && prayerVersions.length > 1) { // Assuming prayerVersions was fetched earlier in your original logic
-    const otherVersionsDiv = document.createElement("div");
-    otherVersionsDiv.style.marginTop = "20px";
-    otherVersionsDiv.style.paddingTop = "15px";
-    otherVersionsDiv.style.borderTop = "1px solid #eee";
-    let otherListHtml = `<h5>Other versions in ${await getLanguageDisplayName(targetLanguageCode)} for ${phelpsCodeForNav}:</h5><ul class="other-versions-in-lang-list">`;
-    prayerVersions.slice(1).forEach((altVersion) => { // This implies prayerVersions was from resolveAndRenderPrayerByPhelpsAndLang
-      const displayName = altVersion.name || `Version ${altVersion.version}`;
-      const domain = altVersion.link ? `(${getDomain(altVersion.link)})` : "";
-      otherListHtml += `<li><a href="#prayer/${altVersion.version}">${displayName} ${domain}</a></li>`;
-    });
-    otherListHtml += `</ul>`;
-    otherVersionsDiv.innerHTML = otherListHtml;
-    prayerDetailsArea.appendChild(otherVersionsDiv); // Append to prayerDetailsArea
-    if (typeof componentHandler !== "undefined") componentHandler.upgradeDom(otherVersionsDiv);
+  // Logic for "Other versions in this language" if navigated via phelpsCode/Lang
+  // This part refers to 'targetLanguageCode' and 'prayerVersions' which are from resolveAndRenderPrayerByPhelpsAndLang
+  // We need to ensure these are available or this logic is adapted.
+  // For now, assuming `renderPrayer` is self-contained and `phelpsCodeForNav` implies we might have multiple versions for the *current prayer's language* under the *same phelps code*.
+  // Let's fetch these if phelpsToDisplay is available and is the same as phelpsCodeForNav (meaning we are on a phelps/lang view).
+  if (phelpsToDisplay && (phelpsCodeForNav === phelpsToDisplay)) {
+    const sameLangVersionsSql = `SELECT version, name, link FROM writings WHERE phelps = '${phelpsToDisplay.replace(/\'/g, "''")}' AND language = '${prayer.language}' AND version != '${prayer.version}' ORDER BY name`;
+    const sameLangVersions = await executeQuery(sameLangVersionsSql);
+    if (sameLangVersions.length > 0) {
+        const otherVersionsDiv = document.createElement("div");
+        otherVersionsDiv.style.marginTop = "20px";
+        otherVersionsDiv.style.paddingTop = "15px";
+        otherVersionsDiv.style.borderTop = "1px solid #eee";
+        let otherListHtml = `<h5>Other versions in ${initialDisplayPrayerLanguage} for ${phelpsToDisplay}:</h5><ul class="other-versions-in-lang-list">`;
+        sameLangVersions.forEach((altVersion) => {
+            const displayName = altVersion.name || `Version ${altVersion.version}`;
+            const domain = altVersion.link ? `(${getDomain(altVersion.link)})` : "";
+            otherListHtml += `<li><a href="#prayer/${altVersion.version}">${displayName} ${domain}</a></li>`;
+        });
+        otherListHtml += `</ul>`;
+        otherVersionsDiv.innerHTML = otherListHtml;
+        prayerDetailsArea.appendChild(otherVersionsDiv);
+        if (typeof componentHandler !== "undefined") componentHandler.upgradeDom(otherVersionsDiv);
+    }
   }
 }
 
