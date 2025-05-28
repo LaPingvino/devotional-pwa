@@ -1444,29 +1444,38 @@ async function renderPrayersForLanguage(
   page = 1,
   showOnlyUnmatched = false,
 ) {
+  console.log("enter function renderPrayersForLanguage");
   addRecentLanguage(langCode); // Track this language as recently viewed
   currentPageByLanguage[langCode] = { page, showOnlyUnmatched };
   const offset = (page - 1) * ITEMS_PER_PAGE;
-  contentDiv.innerHTML =
-    '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
-  if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
+
+  // 1. Set up the complete shell for the view ONCE.
+  // This includes the language picker and a dedicated area for the prayer list.
+  contentDiv.innerHTML = getLanguagePickerShellHtml() + // Language picker shell
+    '<div id="language-content-area">' +                 // Dedicated container for prayer list
+    '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block; margin-top: 20px;"></div>' +
+    '</div>';
+  if (typeof componentHandler !== "undefined") {
+    // Upgrade the MDL tabs component within the language picker shell
+    const tabsElement = contentDiv.querySelector('.mdl-js-tabs');
+    if (tabsElement) {
+        componentHandler.upgradeElement(tabsElement);
+    }
+  }
+
+  // 2. Asynchronously populate the language picker into its stable shell.
+  populateLanguageSelection(langCode);
+
+  // Clear header/drawer navigation as this view will repopulate them or the picker will.
   updateHeaderNavigation([]);
   updateDrawerLanguageNavigation([]);
-
-  const languagePickerHtml = getLanguagePickerShellHtml(); // Get shell first
-  // Insert shell + spinner BEFORE fetching other data for this view
-  contentDiv.innerHTML = languagePickerHtml +
-    '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block; margin-top: 20px;"></div>';
-  if (typeof componentHandler !== "undefined") componentHandler.upgradeElement(contentDiv.querySelector('.mdl-js-tabs'));
-
-  // Asynchronously populate the picker.
-  populateLanguageSelection(langCode); // Fire and forget.
 
   const languageDisplayName = await getLanguageDisplayName(langCode);
   let filterCondition = showOnlyUnmatched
     ? " AND (phelps IS NULL OR phelps = '')"
     : "";
 
+  // Using your existing metadataSql structure (no 'source' field explicitly fetched here for prayersMetadata)
   const metadataSql = `SELECT version, name, language, phelps, link FROM writings WHERE language = '${langCode}'${filterCondition} ORDER BY name, version LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
   const prayersMetadata = await executeQuery(metadataSql);
 
@@ -1475,11 +1484,25 @@ async function renderPrayersForLanguage(
   const totalPrayers = countResult.length > 0 ? countResult[0].total : 0;
   const totalPages = Math.ceil(totalPrayers / ITEMS_PER_PAGE);
 
+  // Target the specific container for the prayer list.
+  const contentArea = document.getElementById('language-content-area');
+  if (!contentArea) {
+      console.error("Critical error: #language-content-area not found after shell render.");
+      // If contentArea is somehow not there, we might need to rewrite contentDiv entirely to show an error.
+      // The languagePickerHtml part is already in contentDiv from the initial setup.
+      // We can show the picker shell with an error message in where the content would go.
+      contentDiv.innerHTML = getLanguagePickerShellHtml() + '<div id="language-content-area" style="color:red; text-align:center; padding:20px;">Error: Prayer content area could not be initialized.</div>';
+      if (typeof componentHandler !== "undefined") componentHandler.upgradeDom(); // Upgrade the picker + error message
+      return;
+  }
+
+  const filterSwitchId = `filter-unmatched-${langCode}`;
+  const filterSwitchHtml = `<div class="filter-switch-container"><label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="${filterSwitchId}"><input type="checkbox" id="${filterSwitchId}" class="mdl-switch__input" onchange="setLanguageView('${langCode}', 1, this.checked)" ${showOnlyUnmatched ? "checked" : ""}><span class="mdl-switch__label">Show only prayers without Phelps code</span></label></div>`;
+
   if (prayersMetadata.length === 0 && page === 1) {
-    const filterSwitchId = `filter-unmatched-${langCode}`;
-    const filterSwitchHtml = `<div class="filter-switch-container"><label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="${filterSwitchId}"><input type="checkbox" id="${filterSwitchId}" class="mdl-switch__input" onchange="setLanguageView('${langCode}', 1, this.checked)" ${showOnlyUnmatched ? "checked" : ""}><span class="mdl-switch__label">Show only prayers without Phelps code</span></label></div>`;
-    contentDiv.innerHTML = `${languagePickerHtml}${filterSwitchHtml}<p>No prayers found for language: ${languageDisplayName}${showOnlyUnmatched ? " (matching filter)" : ""}.</p><p>Query for metadata:</p><pre>${metadataSql}</pre><p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(metadataSql)}" target="_blank">Debug metadata query</a></p><p>Count query:</p><pre>${countSql}</pre><p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(countSql)}" target="_blank">Debug count query</a></p>`;
-    if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
+    // Update only the contentArea
+    contentArea.innerHTML = `${filterSwitchHtml}<p>No prayers found for language: ${languageDisplayName}${showOnlyUnmatched ? " (matching filter)" : ""}.</p><p>Query for metadata:</p><pre>${metadataSql}</pre><p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(metadataSql)}" target="_blank">Debug metadata query</a></p><p>Count query:</p><pre>${countSql}</pre><p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(countSql)}" target="_blank">Debug count query</a></p>`;
+    if (typeof componentHandler !== "undefined") componentHandler.upgradeDom(contentArea);
     return;
   }
   if (prayersMetadata.length === 0 && page > 1) {
@@ -1493,21 +1516,25 @@ async function renderPrayersForLanguage(
     const cached = getCachedPrayerText(pMeta.version);
     if (cached) {
       full_text_for_preview = cached.text;
-      pMeta.name = cached.name || pMeta.name;
-      pMeta.phelps = cached.phelps || pMeta.phelps;
-      pMeta.link = cached.link || pMeta.link;
+      if (cached.name) pMeta.name = cached.name; // Only update if cache has it
+      if (cached.phelps) pMeta.phelps = cached.phelps; // Only update if cache has it
+      if (cached.link) pMeta.link = cached.link; // Only update if cache has it
+      // pMeta.source is not updated from cache here, matching your file structure
     } else {
       const textSql = `SELECT text FROM writings WHERE version = '${pMeta.version}' LIMIT 1`;
       const textRows = await executeQuery(textSql);
       if (textRows.length > 0 && textRows[0].text) {
         full_text_for_preview = textRows[0].text;
+        // Matching your original cachePrayerText call structure from renderPrayersForLanguage
         cachePrayerText({
           version: pMeta.version,
           text: full_text_for_preview,
           name: pMeta.name,
           language: pMeta.language,
           phelps: pMeta.phelps,
-          link: pMeta.link,
+          link: pMeta.link
+          // pMeta.source (if available) would be implicitly part of pMeta spread below
+          // but your original call didn't explicitly pass pMeta.source here
         });
       }
     }
@@ -1516,7 +1543,7 @@ async function renderPrayersForLanguage(
         (full_text_for_preview.length > MAX_PREVIEW_LENGTH ? "..." : "")
       : "No text preview available.";
     prayersForDisplay.push({
-      ...pMeta,
+      ...pMeta, // This includes source if it was fetched in metadataSql and present on pMeta
       opening_text: opening_text_for_card,
     });
   }
@@ -1535,11 +1562,13 @@ async function renderPrayersForLanguage(
       translationRows.forEach((row) => {
         if (!allPhelpsDetailsForCards[row.phelps])
           allPhelpsDetailsForCards[row.phelps] = [];
+        // Matching your original structure for items in allPhelpsDetailsForCards
         allPhelpsDetailsForCards[row.phelps].push({
           version: row.version,
           language: row.language,
           name: row.name,
           link: row.link,
+          // phelps: row.phelps // Not in your original structure for these items
         });
       });
     } catch (e) {
@@ -1553,31 +1582,6 @@ async function renderPrayersForLanguage(
   const listCardsHtmlArray = await Promise.all(listCardPromises);
   const listHtml = `<div class="favorite-prayer-grid">${listCardsHtmlArray.join("")}</div>`;
 
-// This function was originally from renderPrayerCodeView and is being removed as its contentDiv.innerHTML is now set above.
-// async function renderPrayerCodeView_original_content_population() {
-// This is a placeholder comment to ensure the diff tool sees a change if the original function was just setting contentDiv.innerHTML
-// }
-
-// The following was the original content setting logic for renderPrayerCodeView
-/*
-  let paginationHtml = "";
-  if (totalPages > 1) {
-    paginationHtml = '<div class="pagination">';
-    if (page > 1)
-      paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="navigateToPhelpsCodeView('${phelpsCode}', ${page - 1})">Previous</button>`;
-    paginationHtml += ` <span>Page ${page} of ${totalPages}</span> `;
-    if (page < totalPages)
-      paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="navigateToPhelpsCodeView('${phelpsCode}', ${page + 1})">Next</button>`;
-    paginationHtml += "</div>";
-  }
-
-  contentDiv.innerHTML = `<header><h2><span id="category">Prayer Code</span><span id="blocktitle">${phelpsCode} (Page ${page}) - All Languages</span></h2></header>${listHtml}${paginationHtml}`;
-  if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
-*/
-  // The actual paginationHtml building needs to be preserved if it's still used.
-  // For now, assuming the structure above replaces the direct contentDiv.innerHTML assignment.
-  // If paginationHtml variable is needed, it must be constructed before the new contentDiv.innerHTML line.
-
   let paginationHtml = "";
   if (totalPages > 1) {
     paginationHtml = '<div class="pagination">';
@@ -1589,11 +1593,12 @@ async function renderPrayersForLanguage(
     paginationHtml += "</div>";
   }
 
-  const filterSwitchId = `filter-unmatched-${langCode}`;
-  const filterSwitchHtml = `<div class="filter-switch-container"><label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="${filterSwitchId}"><input type="checkbox" id="${filterSwitchId}" class="mdl-switch__input" onchange="setLanguageView('${langCode}', 1, this.checked)" ${showOnlyUnmatched ? "checked" : ""}><span class="mdl-switch__label">Show only prayers without Phelps code</span></label></div>`;
-
-  contentDiv.innerHTML = `${languagePickerHtml}<header><h2><span id="category">Prayers</span><span id="blocktitle">Language: ${languageDisplayName} (Page ${page})${showOnlyUnmatched ? " - Unmatched" : ""}</span></h2></header>${filterSwitchHtml}${listHtml}${paginationHtml}`;
-  if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
+  // 4. Update ONLY the prayer content area, leaving the language picker shell untouched.
+  contentArea.innerHTML = `<header><h2><span id="category">Prayers</span><span id="blocktitle">Language: ${languageDisplayName} (Page ${page})${showOnlyUnmatched ? " - Unmatched" : ""}</span></h2></header>${filterSwitchHtml}${listHtml}${paginationHtml}`;
+  
+  if (typeof componentHandler !== "undefined") {
+    componentHandler.upgradeDom(contentArea); // Upgrade components only within the contentArea
+  }
 }
 
 async function renderPrayerCodeView(phelpsCode, page = 1) {

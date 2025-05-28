@@ -1,0 +1,187 @@
+--- a/app.js
++++ b/app.js
+@@ -1582,120 +1582,120 @@
+ async function renderPrayersForLanguage(
+   langCode,
+   page = 1,
+   showOnlyUnmatched = false,
+ ) {
+   console.log("enter function renderPrayersForLanguage");
+   addRecentLanguage(langCode); // Track this language as recently viewed
+   currentPageByLanguage[langCode] = { page, showOnlyUnmatched };
+   const offset = (page - 1) * ITEMS_PER_PAGE;
+-  contentDiv.innerHTML =
+-    '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block;"></div>';
+-  if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
++
++  // 1. Set up the complete shell for the view ONCE.
++  // This includes the language picker and a dedicated area for the prayer list.
++  contentDiv.innerHTML = getLanguagePickerShellHtml() + // Language picker shell
++    '<div id="language-content-area">' +                 // Dedicated container for prayer list
++    '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block; margin-top: 20px;"></div>' +
++    '</div>';
++  if (typeof componentHandler !== "undefined") {
++    // Upgrade the MDL tabs component within the language picker shell
++    const tabsElement = contentDiv.querySelector('.mdl-js-tabs');
++    if (tabsElement) {
++        componentHandler.upgradeElement(tabsElement);
++    }
++  }
++
++  // 2. Asynchronously populate the language picker into its stable shell.
++  populateLanguageSelection(langCode);
++
++  // Clear header/drawer navigation as this view will repopulate them or the picker will.
+   updateHeaderNavigation([]);
+   updateDrawerLanguageNavigation([]);
+ 
+-  const languagePickerHtml = getLanguagePickerShellHtml(); // Get shell first
+-  // Insert shell + spinner BEFORE fetching other data for this view
+-  contentDiv.innerHTML = languagePickerHtml +
+-    '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block; margin-top: 20px;"></div>';
+-  if (typeof componentHandler !== "undefined") componentHandler.upgradeElement(contentDiv.querySelector('.mdl-js-tabs'));
+-
+-  // Asynchronously populate the picker.
+-  populateLanguageSelection(langCode); // Fire and forget.
+-
+   const languageDisplayName = await getLanguageDisplayName(langCode);
+   let filterCondition = showOnlyUnmatched
+     ? " AND (phelps IS NULL OR phelps = '')"
+     : "";
+ 
++  // Using your existing metadataSql (no 'source' field explicitly fetched here)
+   const metadataSql = `SELECT version, name, language, phelps, link FROM writings WHERE language = '${langCode}'${filterCondition} ORDER BY name, version LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
+   const prayersMetadata = await executeQuery(metadataSql);
+ 
+   const countSql = `SELECT COUNT(*) as total FROM writings WHERE language = '${langCode}'${filterCondition}`;
+   const countResult = await executeQuery(countSql);
+   const totalPrayers = countResult.length > 0 ? countResult[0].total : 0;
+   const totalPages = Math.ceil(totalPrayers / ITEMS_PER_PAGE);
+ 
++  // Target the specific container for the prayer list.
++  const contentArea = document.getElementById('language-content-area');
++  if (!contentArea) {
++      console.error("Critical error: #language-content-area not found after shell render.");
++      // If contentArea is somehow not there, we might need to rewrite contentDiv entirely to show an error.
++      // However, the languagePickerHtml part is already in contentDiv from the initial setup.
++      // So, we could attempt to append an error message or replace the spinner within a conceptual content area.
++      // For simplicity and robustness if #language-content-area is missing:
++      contentDiv.innerHTML = getLanguagePickerShellHtml() + '<p style="color:red; text-align:center; padding:20px;">Error: Prayer content area could not be initialized.</p>';
++      if (typeof componentHandler !== "undefined") componentHandler.upgradeDom(); // Upgrade the picker + error message
++      return;
++  }
++
+   const filterSwitchId = `filter-unmatched-${langCode}`; // Moved up to be available for no results case
+   const filterSwitchHtml = `<div class="filter-switch-container"><label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="${filterSwitchId}"><input type="checkbox" id="${filterSwitchId}" class="mdl-switch__input" onchange="setLanguageView('${langCode}', 1, this.checked)" ${showOnlyUnmatched ? "checked" : ""}><span class="mdl-switch__label">Show only prayers without Phelps code</span></label></div>`;
+ 
+ 
+   if (prayersMetadata.length === 0 && page === 1) {
+-    // const filterSwitchId = `filter-unmatched-${langCode}`; // Already defined above
+-    // const filterSwitchHtml = `<div class="filter-switch-container"><label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="${filterSwitchId}"><input type="checkbox" id="${filterSwitchId}" class="mdl-switch__input" onchange="setLanguageView('${langCode}', 1, this.checked)" ${showOnlyUnmatched ? "checked" : ""}><span class="mdl-switch__label">Show only prayers without Phelps code</span></label></div>`;
+-    contentDiv.innerHTML = `${languagePickerHtml}${filterSwitchHtml}<p>No prayers found for language: ${languageDisplayName}${showOnlyUnmatched ? " (matching filter)" : ""}.</p><p>Query for metadata:</p><pre>${metadataSql}</pre><p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(metadataSql)}" target="_blank">Debug metadata query</a></p><p>Count query:</p><pre>${countSql}</pre><p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(countSql)}" target="_blank">Debug count query</a></p>`;
+-    if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
++    // Update only the contentArea
++    contentArea.innerHTML = `${filterSwitchHtml}<p>No prayers found for language: ${languageDisplayName}${showOnlyUnmatched ? " (matching filter)" : ""}.</p><p>Query for metadata:</p><pre>${metadataSql}</pre><p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(metadataSql)}" target="_blank">Debug metadata query</a></p><p>Count query:</p><pre>${countSql}</pre><p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(countSql)}" target="_blank">Debug count query</a></p>`;
++    if (typeof componentHandler !== "undefined") componentHandler.upgradeDom(contentArea);
+     return;
+   }
+   if (prayersMetadata.length === 0 && page > 1) {
+     setLanguageView(langCode, Math.max(1, totalPages), showOnlyUnmatched);
+     return;
+   }
+ 
+   const prayersForDisplay = [];
+   for (const pMeta of prayersMetadata) {
+     let full_text_for_preview = null;
+     const cached = getCachedPrayerText(pMeta.version);
+     if (cached) { // Check if cached is not null
+       full_text_for_preview = cached.text;
+       // Only update pMeta if cached properties exist, to avoid overwriting with undefined
+       if (cached.name) pMeta.name = cached.name;
+       if (cached.phelps) pMeta.phelps = cached.phelps;
+       if (cached.link) pMeta.link = cached.link;
++      // pMeta.source is not explicitly used from cache here, matching your original loop's handling
+     } else {
+       const textSql = `SELECT text FROM writings WHERE version = '${pMeta.version}' LIMIT 1`;
+       const textRows = await executeQuery(textSql);
+       if (textRows.length > 0 && textRows[0].text) {
+         full_text_for_preview = textRows[0].text;
+-        cachePrayerText({ // Pass all relevant fields from pMeta
++        // Matching your original cachePrayerText call from renderPrayersForLanguage
++        cachePrayerText({
+           version: pMeta.version,
+           text: full_text_for_preview,
+           name: pMeta.name,
+           language: pMeta.language,
+           phelps: pMeta.phelps,
+           link: pMeta.link,
+-          source: pMeta.source // Assuming pMeta might have 'source'
++          // Note: your original cachePrayerText call in renderPrayersForLanguage didn't include pMeta.source
+         });
+       }
+     }
+     const opening_text_for_card = full_text_for_preview
+       ? full_text_for_preview.substring(0, MAX_PREVIEW_LENGTH) +
+         (full_text_for_preview.length > MAX_PREVIEW_LENGTH ? "..." : "")
+       : "No text preview available.";
+     prayersForDisplay.push({
+       ...pMeta,
+       opening_text: opening_text_for_card,
+     });
+   }
+ 
+   let allPhelpsDetailsForCards = {};
+   const phelpsCodesInList = [
+     ...new Set(prayersForDisplay.filter((p) => p.phelps).map((p) => p.phelps)),
+   ];
+   if (phelpsCodesInList.length > 0) {
+     const phelpsInClause = phelpsCodesInList
+       .map((p) => `'${p.replace(/'/g, "''")}'`)
+       .join(",");
+     const translationsSql = `SELECT version, language, phelps, name, link FROM writings WHERE phelps IN (${phelpsInClause})`;
+     try {
+       const translationRows = await executeQuery(translationsSql);
+       translationRows.forEach((row) => {
+         if (!allPhelpsDetailsForCards[row.phelps])
+           allPhelpsDetailsForCards[row.phelps] = [];
+-        allPhelpsDetailsForCards[row.phelps].push({ // Push the whole row
++        // Matching your original structure for allPhelpsDetailsForCards items
++        allPhelpsDetailsForCards[row.phelps].push({
+           version: row.version,
+           language: row.language,
+           name: row.name,
+           link: row.link,
+-          phelps: row.phelps // Explicitly include if needed by createPrayerCardHtml
+         });
+       });
+     } catch (e) {
+       console.error("Failed to fetch details for phelps codes:", e);
+     }
+   }
+ 
+   const listCardPromises = prayersForDisplay.map((pData) =>
+     createPrayerCardHtml(pData, allPhelpsDetailsForCards),
+   );
+   const listCardsHtmlArray = await Promise.all(listCardPromises);
+   const listHtml = `<div class="favorite-prayer-grid">${listCardsHtmlArray.join("")}</div>`;
+ 
+-  // ... (user's original file has some commented out lines here from renderPrayerCodeView, then paginationHtml)
+-
+   let paginationHtml = "";
+   if (totalPages > 1) {
+     paginationHtml = '<div class="pagination">';
+@@ -1707,6 +1719,9 @@
+     paginationHtml += "</div>";
+   }
+ 
+-  // Filter switch HTML is already defined above.
+-
+-  contentDiv.innerHTML = `${languagePickerHtml}<header><h2><span id="category">Prayers</span><span id="blocktitle">Language: ${languageDisplayName} (Page ${page})${showOnlyUnmatched ? " - Unmatched" : ""}</span></h2></header>${filterSwitchHtml}${listHtml}${paginationHtml}`;
+-  if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
++  // 4. Update ONLY the prayer content area, leaving the language picker shell untouched.
++  contentArea.innerHTML = `<header><h2><span id="category">Prayers</span><span id="blocktitle">Language: ${languageDisplayName} (Page ${page})${showOnlyUnmatched ? " - Unmatched" : ""}</span></h2></header>${filterSwitchHtml}${listHtml}${paginationHtml}`;
++  
++  if (typeof componentHandler !== "undefined") {
++    componentHandler.upgradeDom(contentArea); // Upgrade components only within the contentArea
++  }
+ }
