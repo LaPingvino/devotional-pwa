@@ -2091,7 +2091,7 @@ async function populateLanguageSelection(currentActiveLangCode = null) {
       const recentTabsHtml = recentLangDetails.map(lang => {
         // A recent language tab is active only if currentActiveLangCode is present and matches
         const isActive = currentActiveLangCode && (lang.code.toLowerCase() === currentActiveLangCode.toLowerCase());
-        return `<a href="#lang-tab-${lang.code}" 
+        return `<a href="#language-tab-panel-all" 
                    class="mdl-tabs__tab ${isActive ? 'is-active' : ''}" 
                    onclick="event.preventDefault(); setLanguageView('${lang.code}', 1, false);">
                    ${lang.display} <span style="font-size:0.8em; opacity:0.7;">(${lang.phelps}/${lang.total})</span>
