@@ -1173,29 +1173,8 @@ async function renderPrayer(
   // If we reach here, rows is valid and has at least one item.
   const prayer = rows[0]; 
 
-  // Update static page header elements
-  if (staticPageMainTitle) {
-    staticPageMainTitle.innerHTML = ''; // Clear previous content (like "Loading...")
-    staticPageMainTitle.textContent = prayerTitle; // prayerTitle is calculated further down
-    // Suggestion indicator will be added after prayerTitle is fully determined
-  }
-  if (staticPageHeaderFavoriteButton) {
-    const isFav = isPrayerFavorite(prayer.version);
-    staticPageHeaderFavoriteButton.innerHTML = `<i class="material-icons">${isFav ? 'star' : 'star_border'}</i>`;
-    staticPageHeaderFavoriteButton.title = isFav ? 'Remove from Favorites' : 'Add to Favorites';
-    if (isFav) {
-        staticPageHeaderFavoriteButton.classList.add("is-favorite");
-    } else {
-        staticPageHeaderFavoriteButton.classList.remove("is-favorite");
-    }
-    staticPageHeaderFavoriteButton.onclick = () => toggleFavoritePrayer(prayer);
-    staticPageHeaderFavoriteButton.style.display = 'inline-flex';
-    if (typeof componentHandler !== "undefined") componentHandler.upgradeElement(staticPageHeaderFavoriteButton);
-  }
-
   // --- Logic for prayer title and suggested edits (copied from your existing function) ---
   // This section calculates prayerTitle, phelpsToDisplay, languageToDisplay, nameToDisplay, etc.
-  // It MUST run before we finalize the staticPageMainTitle.
   const authorName = getAuthorFromPhelps(prayer.phelps);
   const initialDisplayPrayerLanguage = await getLanguageDisplayName(prayer.language);
   let prayerTitle = // Default prayerTitle calculation
@@ -1249,9 +1228,10 @@ async function renderPrayer(
                   (phelpsToDisplay ? `${phelpsToDisplay} - ${displayLangForTitleAfterSuggestions}` : `Prayer ${prayer.version}`);
   // --- End of logic for prayer title and suggested edits ---
 
-  // NOW, finalize staticPageMainTitle with the calculated prayerTitle and suggestion indicator
+  // Update static page header elements now that prayerTitle is calculated
   if (staticPageMainTitle) {
-      staticPageMainTitle.textContent = prayerTitle;
+      staticPageMainTitle.innerHTML = ''; // Clear "Loading..." or previous content
+      staticPageMainTitle.textContent = prayerTitle; // prayerTitle is now defined
       if (nameIsSuggested) {
           const suggestionIndicator = document.createElement('em');
           suggestionIndicator.style.color = 'red';
@@ -1262,192 +1242,194 @@ async function renderPrayer(
       }
   }
   
-  // 3. Populate Main Language Selection Tabs
-  const languageToHighlightInPicker = activeLangForNav || prayer.language;
-  populateLanguageSelection(languageToHighlightInPicker);
+  cachePrayerText({ ...prayer }); // Cache prayer text early
 
-  cachePrayerText({ ...prayer });
+  // Clear dynamicContentArea (which had a spinner or previous view's content)
+  // And set up the new order: Picker, Switcher, then Details
+  if (dynamicContentArea) {
+    dynamicContentArea.innerHTML = ''; // Clear previous content/spinner
 
-  // The prayerTitle variable, used to set staticPageMainTitle.textContent further down,
-  // is calculated in the "Logic for prayer title and suggested edits" block.
-
-  const finalDisplayLanguageForPhelpsMeta = await getLanguageDisplayName(languageToDisplay);
-  let phelpsDisplayHtml = "Not Assigned";
-  if (phelpsToDisplay) {
-    const textPart = phelpsIsSuggested
-      ? `<span style="font-weight: bold; color: red;">${phelpsToDisplay}</span>`
-      : `<a href="#prayercode/${phelpsToDisplay}">${phelpsToDisplay}</a>`;
-    phelpsDisplayHtml = `${textPart} (Lang: ${finalDisplayLanguageForPhelpsMeta})`;
-  } else {
-    phelpsDisplayHtml = `Not Assigned (Lang: ${finalDisplayLanguageForPhelpsMeta})`;
-  }
-  if (languageIsSuggested) {
-    phelpsDisplayHtml += ` <span style="font-weight: bold; color: red;">(New Lang: ${finalDisplayLanguageForPhelpsMeta})</span>`;
-  }
-
-  // 4. Populate Translations Switcher
-  const translationsArea = document.getElementById('prayer-translations-switcher-area');
-  const phelpsCodeForSwitcher = phelpsCodeForNav || phelpsToDisplay; // Use context from URL if available, else prayer's own phelps
-
-  if (translationsArea && phelpsCodeForSwitcher && !phelpsCodeForSwitcher.startsWith("TODO")) {
-    const transSql = `SELECT DISTINCT language FROM writings WHERE phelps = \'${phelpsCodeForSwitcher.replace(/\'/g, "\'\'")}\' AND phelps IS NOT NULL AND phelps != \'\' ORDER BY language`;
-    try {
-      const distinctLangs = await executeQuery(transSql);
-      if (distinctLangs.length > 1) { // Only show switcher if there's more than one language
-        let switcherHtml = `<span class="translations-switcher-label">Translations:</span>`;
-        const translationLinkPromises = distinctLangs.map(async (langRow) => {
-          const langDisplayName = await getLanguageDisplayName(langRow.language);
-          // activeLangForNav is the language from the URL (e.g., #prayercode/PHELPS/eo -> eo)
-          // prayer.language is the language of the specific versionId being rendered.
-          // languageToDisplay is prayer.language potentially overridden by a local suggestion.
-          // For highlighting, we should compare with the actual language context we are in.
-          const isActive = activeLangForNav ? (langRow.language === activeLangForNav) : (langRow.language === prayer.language);
-          return `<a href="#prayercode/${phelpsCodeForSwitcher}/${langRow.language}" class="translation-link ${isActive ? 'is-active' : ''}">${langDisplayName}</a>`;
-        });
-        const translationLinksHtml = await Promise.all(translationLinkPromises);
-        switcherHtml += translationLinksHtml.join(' ');
-        translationsArea.innerHTML = switcherHtml;
-        if (typeof componentHandler !== "undefined") componentHandler.upgradeDom(translationsArea);
-      } else {
-        translationsArea.innerHTML = ''; // Clear if no other translations
-      }
-    } catch (error) {
-      console.error("Error fetching translations for switcher:", error);
-      translationsArea.innerHTML = '<span class="translations-switcher-label" style="color:red;">Error loading translations.</span>';
+    // 1. Add Language Picker Shell
+    dynamicContentArea.insertAdjacentHTML('beforeend', getLanguagePickerShellHtml());
+    const langPickerMDLTabs = dynamicContentArea.querySelector('.language-picker-tabs .mdl-js-tabs');
+    if (langPickerMDLTabs && typeof componentHandler !== 'undefined') {
+        componentHandler.upgradeElement(langPickerMDLTabs);
+    } else if (typeof componentHandler !== 'undefined') {
+        const pickerRoot = dynamicContentArea.querySelector('.language-picker-tabs');
+        if(pickerRoot) componentHandler.upgradeDom(pickerRoot);
     }
-  } else if (translationsArea) {
-    translationsArea.innerHTML = ''; // Clear if no phelps code for switcher
-  }
 
-  // 5. Construct HTML for the prayer\'s core content
-  // The main title is now in prayerHeaderDiv. This prayerCoreHtml is for scripture and meta.
-  const prayerCoreHtml = `
-    <div class="scripture">
-        <div class="prayer" style="white-space: pre-wrap;">${prayer.text || "No text available."}</div>
-        ${authorName ? `<div class="author">${authorName}</div>` : ""}
-        ${prayer.source ? `<div style="font-size: 0.8em; margin-left: 2em; margin-top: 0.5em; font-style: italic;">Source: ${prayer.source} ${prayer.link ? `(<a href="${prayer.link}" target="_blank">${getDomain(prayer.link) || "link"}</a>)` : ""}</div>` : ""}
-        <div style="font-size: 0.7em; margin-left: 2em; margin-top: 0.3em; color: #555;">Phelps ID: ${phelpsDisplayHtml}</div>
-        <div style="font-size: 0.7em; margin-left: 2em; margin-top: 0.3em; color: #555;">Version ID: ${prayer.version}</div>
-    </div>`;
+    // 2. Add Translations Switcher Placeholder
+    dynamicContentArea.insertAdjacentHTML('beforeend', '<div id="prayer-translations-switcher-area" class="translations-switcher"></div>');
+    
+    // 3. Populate Language Picker (Tabs)
+    const languageToHighlightInPicker = activeLangForNav || prayer.language;
+    populateLanguageSelection(languageToHighlightInPicker);
 
-  // 6. Update the #prayer-details-area (which was already added to contentDiv)
-  // The favorite button and main title are static elements, already in the DOM.
-  // Create a temporary div for prayer details to be inserted into dynamicContentArea
-  const prayerDetailsContainer = document.createElement('div');
-  prayerDetailsContainer.id = 'prayer-details-area'; // Keep ID for potential CSS or direct targeting if needed later
-  prayerDetailsContainer.innerHTML = prayerCoreHtml;
+    // 4. Populate Translations Switcher
+    const translationsArea = document.getElementById('prayer-translations-switcher-area'); // Re-fetch after it's added to DOM
+    const phelpsCodeForSwitcher = phelpsCodeForNav || phelpsToDisplay;
+    if (translationsArea && phelpsCodeForSwitcher && !phelpsCodeForSwitcher.startsWith("TODO")) {
+      const transSql = `SELECT DISTINCT language FROM writings WHERE phelps = \\'${phelpsCodeForSwitcher.replace(/\'/g, "''")}\\' AND phelps IS NOT NULL AND phelps != \\'\\' ORDER BY language`;
+      try {
+        const distinctLangs = await executeQuery(transSql);
+        if (distinctLangs.length > 1) {
+          let switcherHtml = `<span class="translations-switcher-label">Translations:</span>`;
+          const translationLinkPromises = distinctLangs.map(async (langRow) => {
+            const langDisplayName = await getLanguageDisplayName(langRow.language);
+            const isActive = activeLangForNav ? (langRow.language === activeLangForNav) : (langRow.language === prayer.language);
+            return `<a href="#prayercode/${phelpsCodeForSwitcher}/${langRow.language}" class="translation-link ${isActive ? 'is-active' : ''}">${langDisplayName}</a>`;
+          });
+          const translationLinksHtml = await Promise.all(translationLinkPromises);
+          switcherHtml += translationLinksHtml.join(' ');
+          translationsArea.innerHTML = switcherHtml;
+          if (typeof componentHandler !== "undefined") componentHandler.upgradeDom(translationsArea);
+        } else {
+          translationsArea.innerHTML = '';
+        }
+      } catch (error) {
+        console.error("Error fetching translations for switcher:", error);
+        translationsArea.innerHTML = '<span class="translations-switcher-label" style="color:red;">Error loading translations.</span>';
+      }
+    } else if (translationsArea) {
+      translationsArea.innerHTML = '';
+    }
 
-  // 8. Create and append actionsDiv to this new prayerDetailsContainer
-  const actionsDiv = document.createElement("div");
-  actionsDiv.className = "prayer-actions";
-  // (Copying the logic for populating actionsDiv from your existing function)
-  if (pinnedPrayerDetails) {
-    if (pinnedPrayerDetails.version !== prayer.version) {
-      const addMatchButton = document.createElement("button");
-      addMatchButton.className = "mdl-button mdl-js-button mdl-button--raised mdl-button--accent";
-      const pinnedNameSnippet = (pinnedPrayerDetails.name || `Version ${pinnedPrayerDetails.version}`).substring(0, 20);
-      addMatchButton.innerHTML = `<i class="material-icons">playlist_add_check</i>Match with Pinned: ${pinnedNameSnippet}${pinnedNameSnippet.length === 20 ? "..." : ""}`;
-      addMatchButton.onclick = () => addCurrentPrayerAsMatch(prayer);
-      actionsDiv.appendChild(addMatchButton);
+    // 5. Create and add Prayer Details Container
+    const prayerDetailsContainer = document.createElement('div');
+    prayerDetailsContainer.id = 'prayer-details-area';
+    
+    const finalDisplayLanguageForPhelpsMeta = await getLanguageDisplayName(languageToDisplay);
+    let phelpsDisplayHtml = "Not Assigned";
+    if (phelpsToDisplay) {
+      const textPart = phelpsIsSuggested
+        ? `<span style="font-weight: bold; color: red;">${phelpsToDisplay}</span>`
+        : `<a href="#prayercode/${phelpsToDisplay}">${phelpsToDisplay}</a>`;
+      phelpsDisplayHtml = `${textPart} (Lang: ${finalDisplayLanguageForPhelpsMeta})`;
+    } else {
+      phelpsDisplayHtml = `Not Assigned (Lang: ${finalDisplayLanguageForPhelpsMeta})`;
+    }
+    if (languageIsSuggested) {
+      phelpsDisplayHtml += ` <span style="font-weight: bold; color: red;">(New Lang: ${finalDisplayLanguageForPhelpsMeta})</span>`;
+    }
 
-      const replacePinButton = document.createElement("button");
-      replacePinButton.className = "mdl-button mdl-js-button mdl-button--raised";
-      replacePinButton.innerHTML = '<i class="material-icons">swap_horiz</i> Replace Pin';
-      replacePinButton.title = "Replaces the currently pinned prayer with this one. Item list preserved.";
-      replacePinButton.onclick = () => {
+    const prayerCoreHtml = `
+      <div class="scripture">
+          <div class="prayer" style="white-space: pre-wrap;">${prayer.text || "No text available."}</div>
+          ${authorName ? `<div class="author">${authorName}</div>` : ""}
+          ${prayer.source ? `<div style="font-size: 0.8em; margin-left: 2em; margin-top: 0.5em; font-style: italic;">Source: ${prayer.source} ${prayer.link ? `(<a href="${prayer.link}" target="_blank">${getDomain(prayer.link) || "link"}</a>)` : ""}</div>` : ""}
+          <div style="font-size: 0.7em; margin-left: 2em; margin-top: 0.3em; color: #555;">Phelps ID: ${phelpsDisplayHtml}</div>
+          <div style="font-size: 0.7em; margin-left: 2em; margin-top: 0.3em; color: #555;">Version ID: ${prayer.version}</div>
+      </div>`;
+    prayerDetailsContainer.innerHTML = prayerCoreHtml;
+
+    // Create and append actionsDiv to this new prayerDetailsContainer
+    const actionsDiv = document.createElement("div");
+    actionsDiv.className = "prayer-actions";
+    // (Copying the logic for populating actionsDiv from your existing function)
+    if (pinnedPrayerDetails) {
+      if (pinnedPrayerDetails.version !== prayer.version) {
+        const addMatchButton = document.createElement("button");
+        addMatchButton.className = "mdl-button mdl-js-button mdl-button--raised mdl-button--accent";
+        const pinnedNameSnippet = (pinnedPrayerDetails.name || `Version ${pinnedPrayerDetails.version}`).substring(0, 20);
+        addMatchButton.innerHTML = `<i class="material-icons">playlist_add_check</i>Match with Pinned: ${pinnedNameSnippet}${pinnedNameSnippet.length === 20 ? "..." : ""}`;
+        addMatchButton.onclick = () => addCurrentPrayerAsMatch(prayer);
+        actionsDiv.appendChild(addMatchButton);
+
+        const replacePinButton = document.createElement("button");
+        replacePinButton.className = "mdl-button mdl-js-button mdl-button--raised";
+        replacePinButton.innerHTML = '<i class="material-icons">swap_horiz</i> Replace Pin';
+        replacePinButton.title = "Replaces the currently pinned prayer with this one. Item list preserved.";
+        replacePinButton.onclick = () => {
+          pinPrayer(prayer);
+          const snackbarContainer = document.querySelector(".mdl-js-snackbar");
+          if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
+            snackbarContainer.MaterialSnackbar.showSnackbar({ message: "Pinned prayer replaced. Item list preserved." });
+          }
+        };
+        actionsDiv.appendChild(replacePinButton);
+      } else {
+        const p = document.createElement("p");
+        p.innerHTML = "<em>This prayer is currently pinned. Use the tool on the right to manage items or unpin.</em>";
+        actionsDiv.appendChild(p);
+      }
+    } else {
+      const pinButton = document.createElement("button");
+      pinButton.className = "mdl-button mdl-js-button mdl-button--raised mdl-button--colored";
+      pinButton.innerHTML = '<i class="material-icons">push_pin</i> Pin this Prayer';
+      pinButton.onclick = () => {
         pinPrayer(prayer);
         const snackbarContainer = document.querySelector(".mdl-js-snackbar");
         if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
-          snackbarContainer.MaterialSnackbar.showSnackbar({ message: "Pinned prayer replaced. Item list preserved." });
+          snackbarContainer.MaterialSnackbar.showSnackbar({ message: "Prayer pinned! Navigate to find items or suggestions." });
         }
       };
-      actionsDiv.appendChild(replacePinButton);
-    } else {
-      const p = document.createElement("p");
-      p.innerHTML = "<em>This prayer is currently pinned. Use the tool on the right to manage items or unpin.</em>";
-      actionsDiv.appendChild(p);
+      actionsDiv.appendChild(pinButton);
     }
-  } else {
-    const pinButton = document.createElement("button");
-    pinButton.className = "mdl-button mdl-js-button mdl-button--raised mdl-button--colored";
-    pinButton.innerHTML = '<i class="material-icons">push_pin</i> Pin this Prayer';
-    pinButton.onclick = () => {
-      pinPrayer(prayer);
-      const snackbarContainer = document.querySelector(".mdl-js-snackbar");
-      if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
-        snackbarContainer.MaterialSnackbar.showSnackbar({ message: "Prayer pinned! Navigate to find items or suggestions." });
+
+    if (!prayer.phelps && !phelpsIsSuggested) {
+      const suggestPhelpsButton = document.createElement("button");
+      suggestPhelpsButton.className = "mdl-button mdl-js-button mdl-button--raised";
+      suggestPhelpsButton.innerHTML = '<i class="material-icons">library_add</i> Add/Suggest Phelps Code';
+      suggestPhelpsButton.onclick = () => {
+        const enteredCode = prompt(`Enter Phelps code for:\\n${prayer.name || "Version " + prayer.version}\\n(${initialDisplayPrayerLanguage})`);
+        if (enteredCode && enteredCode.trim() !== "") {
+          addPhelpsCodeToMatchList(prayer, enteredCode.trim());
+        }
+      };
+      actionsDiv.appendChild(suggestPhelpsButton);
+    }
+
+    const changeLangButton = document.createElement("button");
+    changeLangButton.className = "mdl-button mdl-js-button mdl-button--raised";
+    changeLangButton.innerHTML = '<i class="material-icons">translate</i> Change Language';
+    changeLangButton.title = `Current language: ${finalDisplayLanguageForPhelpsMeta}`;
+    changeLangButton.onclick = () => {
+      const newLang = prompt(`Enter new language code for:\\n${nameToDisplay || "Version " + prayer.version}\\n(V: ${prayer.version})\\nCurrent language: ${finalDisplayLanguageForPhelpsMeta}`, languageToDisplay);
+      if (newLang && newLang.trim() !== "" && newLang.trim().toLowerCase() !== languageToDisplay.toLowerCase()) {
+        addLanguageChangeToMatchList(prayer, newLang.trim());
+      } else if (newLang && newLang.trim().toLowerCase() === languageToDisplay.toLowerCase()) {
+        alert("New language is the same as the current language.");
       }
     };
-    actionsDiv.appendChild(pinButton);
-  }
+    actionsDiv.appendChild(changeLangButton);
 
-  if (!prayer.phelps && !phelpsIsSuggested) {
-    const suggestPhelpsButton = document.createElement("button");
-    suggestPhelpsButton.className = "mdl-button mdl-js-button mdl-button--raised";
-    suggestPhelpsButton.innerHTML = '<i class="material-icons">library_add</i> Add/Suggest Phelps Code';
-    suggestPhelpsButton.onclick = () => {
-      const enteredCode = prompt(`Enter Phelps code for:\\n${prayer.name || "Version " + prayer.version}\\n(${initialDisplayPrayerLanguage})`);
-      if (enteredCode && enteredCode.trim() !== "") {
-        addPhelpsCodeToMatchList(prayer, enteredCode.trim());
+    const changeNameButton = document.createElement("button");
+    changeNameButton.className = "mdl-button mdl-js-button mdl-button--raised";
+    changeNameButton.innerHTML = '<i class="material-icons">edit_note</i> Add/Change Name';
+    changeNameButton.title = `Current name: ${prayer.name || "Not Set"}`;
+    changeNameButton.onclick = () => {
+      const newName = prompt(`Enter name for:\\nVersion ${prayer.version} (Lang: ${finalDisplayLanguageForPhelpsMeta})\\nCurrent name: ${nameToDisplay || "Not Set"}`, nameToDisplay || "");
+      if (newName !== null) {
+        addNameChangeToMatchList(prayer, newName.trim());
       }
     };
-    actionsDiv.appendChild(suggestPhelpsButton);
-  }
+    actionsDiv.appendChild(changeNameButton);
 
-  const changeLangButton = document.createElement("button");
-  changeLangButton.className = "mdl-button mdl-js-button mdl-button--raised";
-  changeLangButton.innerHTML = '<i class="material-icons">translate</i> Change Language';
-  changeLangButton.title = `Current language: ${finalDisplayLanguageForPhelpsMeta}`; // Use languageToDisplay for current language
-  changeLangButton.onclick = () => {
-    const newLang = prompt(`Enter new language code for:\\n${nameToDisplay || "Version " + prayer.version}\\n(V: ${prayer.version})\\nCurrent language: ${finalDisplayLanguageForPhelpsMeta}`, languageToDisplay);
-    if (newLang && newLang.trim() !== "" && newLang.trim().toLowerCase() !== languageToDisplay.toLowerCase()) {
-      addLanguageChangeToMatchList(prayer, newLang.trim());
-    } else if (newLang && newLang.trim().toLowerCase() === languageToDisplay.toLowerCase()) {
-      alert("New language is the same as the current language.");
-    }
-  };
-  actionsDiv.appendChild(changeLangButton);
+    const addNoteButton = document.createElement("button");
+    addNoteButton.className = "mdl-button mdl-js-button mdl-button--raised";
+    addNoteButton.innerHTML = '<i class="material-icons">speaker_notes</i> Add General Note';
+    addNoteButton.onclick = () => {
+      const note = prompt(`Enter a general note for:\\n${nameToDisplay || "Version " + prayer.version} (V: ${prayer.version})`);
+      if (note && note.trim() !== "") {
+        addNoteToMatchList(prayer, note.trim());
+      }
+    };
+    actionsDiv.appendChild(addNoteButton);
+    // End of populating actionsDiv
+    prayerDetailsContainer.appendChild(actionsDiv);
 
-  const changeNameButton = document.createElement("button");
-  changeNameButton.className = "mdl-button mdl-js-button mdl-button--raised";
-  changeNameButton.innerHTML = '<i class="material-icons">edit_note</i> Add/Change Name';
-  changeNameButton.title = `Current name: ${prayer.name || "Not Set"}`;
-  changeNameButton.onclick = () => {
-    const newName = prompt(`Enter name for:\\nVersion ${prayer.version} (Lang: ${finalDisplayLanguageForPhelpsMeta})\\nCurrent name: ${nameToDisplay || "Not Set"}`, nameToDisplay || "");
-    if (newName !== null) {
-      addNameChangeToMatchList(prayer, newName.trim());
-    }
-  };
-  actionsDiv.appendChild(changeNameButton);
-
-  const addNoteButton = document.createElement("button");
-  addNoteButton.className = "mdl-button mdl-js-button mdl-button--raised";
-  addNoteButton.innerHTML = '<i class="material-icons">speaker_notes</i> Add General Note';
-  addNoteButton.onclick = () => {
-    const note = prompt(`Enter a general note for:\n${nameToDisplay || "Version " + prayer.version} (V: ${prayer.version})`);
-    if (note && note.trim() !== "") {
-      addNoteToMatchList(prayer, note.trim());
-    }
-  };
-  actionsDiv.appendChild(addNoteButton);
-  // End of populating actionsDiv
-
-  prayerDetailsContainer.appendChild(actionsDiv);
-
-  // Clear dynamicContentArea (which had a spinner) and add new content
-  if (dynamicContentArea) {
-    dynamicContentArea.innerHTML = ''; // Clear spinner
-    dynamicContentArea.appendChild(prayerDetailsContainer);
-    dynamicContentArea.insertAdjacentHTML('beforeend', getLanguagePickerShellHtml());
-    dynamicContentArea.insertAdjacentHTML('beforeend', '<div id="prayer-translations-switcher-area" class="translations-switcher"></div>');
+    dynamicContentArea.appendChild(prayerDetailsContainer); // Append prayer details last
   }
 
 
   // 9. Upgrade MDL Components
   // Static favorite button was already upgraded when its state changed.
-  // Upgrade components within the dynamicContentArea (which now contains details, picker, switcher).
+  // MDL components in picker and switcher should be upgraded when they are populated.
+  // Upgrade components within the prayerDetailsContainer.
   if (typeof componentHandler !== "undefined" && dynamicContentArea) {
-    componentHandler.upgradeDom(dynamicContentArea);
+    const detailsAreaForUpgrade = dynamicContentArea.querySelector('#prayer-details-area');
+    if (detailsAreaForUpgrade) componentHandler.upgradeDom(detailsAreaForUpgrade);
   }
   // populateLanguageSelection and the translations switcher logic will handle their specific upgrades
   // if they add more MDL components later.
