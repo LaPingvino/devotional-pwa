@@ -1,4 +1,5 @@
 /* eslint-env browser */
+/* global marked */
 
 // DATABASE STRUCTURE ASSUMPTIONS (holywritings/bahaiwritings):
 // Table: writings
