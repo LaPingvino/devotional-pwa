@@ -11,18 +11,24 @@ const DOLTHUB_REPO_QUERY_URL_BASE =
 const DOLTHUB_REPO_ISSUES_NEW_URL_BASE =
   "https://www.dolthub.com/repositories/holywritings/bahaiwritings/issues/new";
 
+// Request debouncing and caching
+let requestCache = new Map();
+let requestDebounce = new Map();
+const REQUEST_DEBOUNCE_DELAY = 50; // 50ms
+const REQUEST_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
 const MAX_DIRECT_LINKS_IN_HEADER = 4;
 const ITEMS_PER_PAGE = 20;
 const LOCALSTORAGE_PRAYER_CACHE_PREFIX = "hw_prayer_cache_";
 const FAVORITES_STORAGE_KEY = "hw_favorite_prayers";
 const MAX_PREVIEW_LENGTH = 120; // Max length for card preview text
 const LANGUAGE_NAMES_CACHE_KEY = "hw_language_names_cache";
-const LANGUAGE_NAMES_CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 1 day
+const LANGUAGE_NAMES_CACHE_EXPIRY_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const FETCH_LANG_NAMES_TIMEOUT_MS = 5000; // 5 seconds
 
 // --- Language Statistics Cache ---
 const LANGUAGE_STATS_CACHE_KEY = "devotionalPWA_languageStats";
-const LANGUAGE_STATS_CACHE_EXPIRY_MS = 1 * 60 * 60 * 1000; // 1 hour
+const LANGUAGE_STATS_CACHE_EXPIRY_MS = 4 * 60 * 60 * 1000; // 4 hours
 // --- End Language Statistics Cache ---
 
 // --- Recent Language Storage ---
@@ -1017,45 +1023,79 @@ function cacheLanguageStats(data) {
 }
 
 async function executeQuery(sql) {
+  const cacheKey = sql;
+  const now = Date.now();
+  
+  // Check cache first
+  if (requestCache.has(cacheKey)) {
+    const cached = requestCache.get(cacheKey);
+    if (now - cached.timestamp < REQUEST_CACHE_TTL) {
+      console.log("[executeQuery] Returning cached result for:", sql.substring(0, 100));
+      return cached.data;
+    } else {
+      requestCache.delete(cacheKey);
+    }
+  }
+  
+  // Debounce identical requests
+  if (requestDebounce.has(cacheKey)) {
+    console.log("[executeQuery] Waiting for existing request:", sql.substring(0, 100));
+    return requestDebounce.get(cacheKey);
+  }
+  
   const fullUrl = DOLTHUB_API_BASE_URL + encodeURIComponent(sql);
   console.log("[executeQuery] Fetching URL:", fullUrl);
   console.log("[executeQuery] Original SQL for this request:", sql);
 
-  try {
-    const response = await fetch(fullUrl);
-
-    console.log("[executeQuery] Response status:", response.status);
-    console.log("[executeQuery] Response ok:", response.ok);
-
-    const responseText = await response.text();
-    console.log("[executeQuery] Raw response text:", responseText);
-
-    if (!response.ok) {
-      // console.error("Failing SQL query:", sql); // Already logged above
-      // console.error("Encoded Failing SQL query string part:", encodeURIComponent(sql)); // Redundant as fullUrl is logged
-      throw new Error(`HTTP error! status: ${response.status}, body: ${responseText}`);
-    }
-
-    // Attempt to parse the logged text as JSON
-    let data;
+  const requestPromise = (async () => {
     try {
-      data = JSON.parse(responseText);
-      console.log("[executeQuery] Parsed JSON data:", data);
-    } catch (jsonError) {
-      console.error("[executeQuery] Failed to parse response text as JSON:", jsonError);
-      console.error("[executeQuery] Response text that failed parsing was:", responseText);
-      throw new Error(`Failed to parse API response as JSON. HTTP status: ${response.status}`);
+      const response = await fetch(fullUrl);
+
+      console.log("[executeQuery] Response status:", response.status);
+      console.log("[executeQuery] Response ok:", response.ok);
+
+      const responseText = await response.text();
+      console.log("[executeQuery] Raw response text:", responseText);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}, body: ${responseText}`);
+      }
+
+      let data;
+      try {
+        data = JSON.parse(responseText);
+        console.log("[executeQuery] Parsed JSON data:", data);
+      } catch (jsonError) {
+        console.error("[executeQuery] Failed to parse response text as JSON:", jsonError);
+        console.error("[executeQuery] Response text that failed parsing was:", responseText);
+        throw new Error(`Failed to parse API response as JSON. HTTP status: ${response.status}`);
+      }
+      
+      const result = data.rows || [];
+      
+      // Cache the result
+      requestCache.set(cacheKey, {
+        data: result,
+        timestamp: now
+      });
+      
+      return result;
+    } catch (error) {
+      console.error("[executeQuery] Error during executeQuery fetch or processing:", error);
+      if (!(error.message && error.message.startsWith("HTTP error!"))) {
+          console.error("[executeQuery] SQL that failed (network or other error):", sql);
+      }
+      throw error;
+    } finally {
+      // Clean up debounce
+      requestDebounce.delete(cacheKey);
     }
-    
-    return data.rows || [];
-  } catch (error) {
-    console.error("[executeQuery] Error during executeQuery fetch or processing:", error);
-    // Log SQL if not an HTTP error from above (which already includes details)
-    if (!(error.message && error.message.startsWith("HTTP error!"))) {
-        console.error("[executeQuery] SQL that failed (network or other error):", sql);
-    }
-    throw error; // Re-throw the error so the caller can handle it
-  }
+  })();
+  
+  // Store the promise for debouncing
+  requestDebounce.set(cacheKey, requestPromise);
+  
+  return requestPromise;
 }
 
 function getAuthorFromPhelps(phelpsCode) {
@@ -1076,7 +1116,7 @@ function getAuthorFromPhelps(phelpsCode) {
 }
 
 // --- Prayer Card Generation ---
-async function createPrayerCardHtml(prayerData, allPhelpsDetails = {}) {
+async function createPrayerCardHtml(prayerData, allPhelpsDetails = {}, languageDisplayMap = {}) {
   const {
     version,
     name,
@@ -1086,7 +1126,7 @@ async function createPrayerCardHtml(prayerData, allPhelpsDetails = {}) {
     link,
   } = prayerData;
 
-  const displayLanguageForTitle = await getLanguageDisplayName(language);
+  const displayLanguageForTitle = languageDisplayMap[language] || await getLanguageDisplayName(language);
   let displayTitle =
     name || (phelps ? `${phelps} - ${displayLanguageForTitle}` : `${version} - ${displayLanguageForTitle}`);
   const cardLinkHref = phelps
@@ -1864,7 +1904,8 @@ async function _renderPrayersForLanguageContent(langCode, page, showOnlyUnmatche
     ? " AND (phelps IS NULL OR phelps = '')"
     : "";
 
-  const metadataSql = `SELECT version, name, language, phelps, link FROM writings WHERE language = '${langCode}'${filterCondition} ORDER BY name, version LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
+  // Optimized: Get both metadata and text in a single query
+  const metadataSql = `SELECT version, name, language, phelps, link, text FROM writings WHERE language = '${langCode}'${filterCondition} ORDER BY name, version LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
   let prayersMetadata;
   try {
     prayersMetadata = await executeQuery(metadataSql);
@@ -1909,32 +1950,71 @@ async function _renderPrayersForLanguageContent(langCode, page, showOnlyUnmatche
     return '<div id="language-content-area"><p>Redirecting to a valid page...</p></div>'; // Placeholder until redirect happens.
   }
 
-  const prayersForDisplay = [];
-  for (const pMeta of prayersMetadata) {
-    let full_text_for_preview = null;
+  // Separate cached and uncached prayers for efficient batch processing
+  const cachedPrayers = [];
+  const uncachedPrayers = [];
+  
+  prayersMetadata.forEach(pMeta => {
     const cached = getCachedPrayerText(pMeta.version);
     if (cached) {
-      full_text_for_preview = cached.text;
+      // Use cached data
       if (cached.name) pMeta.name = cached.name;
       if (cached.phelps) pMeta.phelps = cached.phelps;
       if (cached.link) pMeta.link = cached.link;
+      const opening_text_for_card = cached.text
+        ? cached.text.substring(0, MAX_PREVIEW_LENGTH) + (cached.text.length > MAX_PREVIEW_LENGTH ? "..." : "")
+        : "No text preview available.";
+      cachedPrayers.push({ ...pMeta, opening_text: opening_text_for_card });
     } else {
-      const textSql = `SELECT text FROM writings WHERE version = '${pMeta.version}' LIMIT 1`;
-      const textRows = await executeQuery(textSql);
-      if (textRows.length > 0 && textRows[0].text) {
-        full_text_for_preview = textRows[0].text;
+      uncachedPrayers.push(pMeta);
+    }
+  });
+
+  // Batch fetch all uncached prayer texts in a single query
+  let uncachedPrayersWithText = [];
+  if (uncachedPrayers.length > 0) {
+    // Limit batch size to avoid URL length issues
+    const maxBatchSize = 50;
+    const batches = [];
+    for (let i = 0; i < uncachedPrayers.length; i += maxBatchSize) {
+      batches.push(uncachedPrayers.slice(i, i + maxBatchSize));
+    }
+    
+    const allTextRows = [];
+    for (const batch of batches) {
+      const versionIds = batch.map(p => `'${p.version.replace(/'/g, "''")}'`).join(',');
+      const batchTextSql = `SELECT version, text FROM writings WHERE version IN (${versionIds})`;
+      try {
+        const textRows = await executeQuery(batchTextSql);
+        allTextRows.push(...textRows);
+      } catch (error) {
+        console.error("Error fetching prayer texts in batch:", error);
+        // Continue with other batches
+      }
+    }
+    
+    const textMap = {};
+    allTextRows.forEach(row => {
+      textMap[row.version] = row.text;
+    });
+    
+    uncachedPrayersWithText = uncachedPrayers.map(pMeta => {
+      const full_text_for_preview = textMap[pMeta.version] || null;
+      if (full_text_for_preview) {
+        // Cache the prayer text
         cachePrayerText({
           version: pMeta.version, text: full_text_for_preview, name: pMeta.name,
           language: pMeta.language, phelps: pMeta.phelps, link: pMeta.link
         });
       }
-    }
-    const opening_text_for_card = full_text_for_preview
-      ? full_text_for_preview.substring(0, MAX_PREVIEW_LENGTH) +
-        (full_text_for_preview.length > MAX_PREVIEW_LENGTH ? "..." : "")
-      : "No text preview available.";
-    prayersForDisplay.push({ ...pMeta, opening_text: opening_text_for_card });
+      const opening_text_for_card = full_text_for_preview
+        ? full_text_for_preview.substring(0, MAX_PREVIEW_LENGTH) + (full_text_for_preview.length > MAX_PREVIEW_LENGTH ? "..." : "")
+        : "No text preview available.";
+      return { ...pMeta, opening_text: opening_text_for_card };
+    });
   }
+  
+  const prayersForDisplay = [...cachedPrayers, ...uncachedPrayersWithText];
 
   let allPhelpsDetailsForCards = {};
   const phelpsCodesInList = [...new Set(prayersForDisplay.filter((p) => p.phelps).map((p) => p.phelps))];
@@ -1954,7 +2034,22 @@ async function _renderPrayersForLanguageContent(langCode, page, showOnlyUnmatche
     }
   }
 
-  const listCardPromises = prayersForDisplay.map((pData) => createPrayerCardHtml(pData, allPhelpsDetailsForCards));
+  // Pre-fetch all language display names for better performance
+  const uniqueLanguages = [...new Set(prayersForDisplay.map(p => p.language))];
+  const languageDisplayMap = {};
+  
+  // Batch fetch language display names in parallel
+  const languageDisplayPromises = uniqueLanguages.map(async langCode => {
+    const displayName = await getLanguageDisplayName(langCode);
+    return [langCode, displayName];
+  });
+  
+  const languageDisplayResults = await Promise.all(languageDisplayPromises);
+  languageDisplayResults.forEach(([langCode, displayName]) => {
+    languageDisplayMap[langCode] = displayName;
+  });
+  
+  const listCardPromises = prayersForDisplay.map((pData) => createPrayerCardHtml(pData, allPhelpsDetailsForCards, languageDisplayMap));
   const listCardsHtmlArray = await Promise.all(listCardPromises);
   const listHtml = `<div class="favorite-prayer-grid">${listCardsHtmlArray.join("")}</div>`;
 
@@ -2218,7 +2313,14 @@ async function populateLanguageSelection(currentActiveLangCode = null) {
     console.warn("generateLanguageSelectionHtml: Failed to pre-load language names. Fallbacks may be used.", error.message);
   }
 
-  const sql = `SELECT w.language, (SELECT COUNT(DISTINCT sub.phelps) FROM writings sub WHERE sub.language = w.language AND sub.phelps IS NOT NULL AND sub.phelps != \'\') AS phelps_covered_count, (SELECT COUNT(DISTINCT CASE WHEN sub.phelps IS NOT NULL AND sub.phelps != \'\' THEN NULL ELSE sub.version END) FROM writings sub WHERE sub.language = w.language) AS versions_without_phelps_count FROM writings w WHERE w.language IS NOT NULL AND w.language != \'\' GROUP BY w.language ORDER BY w.language;`;
+  const sql = `SELECT 
+    language,
+    SUM(CASE WHEN phelps IS NOT NULL AND phelps != '' THEN 1 ELSE 0 END) AS phelps_covered_count,
+    SUM(CASE WHEN phelps IS NULL OR phelps = '' THEN 1 ELSE 0 END) AS versions_without_phelps_count
+  FROM writings 
+  WHERE language IS NOT NULL AND language != '' 
+  GROUP BY language 
+  ORDER BY language`;
   
   let allLangsWithStats = getCachedLanguageStats();
   let fetchedFreshData = false;
@@ -2290,21 +2392,27 @@ async function populateLanguageSelection(currentActiveLangCode = null) {
   // When on a non-#languages page, clicking "Favorites" tab navigates to #languages (where its panel is shown)
 
   if (recentLanguageCodes.length > 0 && allLangsWithStats.length > 0) {
-    for (const langCode of recentLanguageCodes) {
-      const langData = allLangsWithStats.find(l => l.language.toLowerCase() === langCode);
-      if (langData) {
-        const displayName = await getLanguageDisplayName(langData.language);
-        const phelpsCount = parseInt(langData.phelps_covered_count, 10) || 0;
-        const nonPhelpsCount = parseInt(langData.versions_without_phelps_count, 10) || 0;
-        const totalConceptualPrayers = phelpsCount + nonPhelpsCount;
-        recentLangDetails.push({
-          code: langData.language,
-          display: displayName,
-          phelps: phelpsCount,
-          total: totalConceptualPrayers,
-        });
-      }
-    }
+    // Batch fetch all language display names for recent languages
+    const recentLanguagesData = recentLanguageCodes.map(langCode => 
+      allLangsWithStats.find(l => l.language.toLowerCase() === langCode)
+    ).filter(Boolean);
+    
+    const recentLanguageNames = await Promise.all(
+      recentLanguagesData.map(langData => getLanguageDisplayName(langData.language))
+    );
+    
+    recentLanguagesData.forEach((langData, index) => {
+      const displayName = recentLanguageNames[index];
+      const phelpsCount = parseInt(langData.phelps_covered_count, 10) || 0;
+      const nonPhelpsCount = parseInt(langData.versions_without_phelps_count, 10) || 0;
+      const totalConceptualPrayers = phelpsCount + nonPhelpsCount;
+      recentLangDetails.push({
+        code: langData.language,
+        display: displayName,
+        phelps: phelpsCount,
+        total: totalConceptualPrayers,
+      });
+    });
 
     if (recentLangDetails.length > 0) {
       const recentTabsHtml = recentLangDetails.map(lang => {
@@ -3234,3 +3342,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
 window.addEventListener('hashchange', handleRouteChange);
 initializeStaticPrayerActions();
+
+// Clean up old cache entries periodically
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of requestCache.entries()) {
+    if (now - value.timestamp > REQUEST_CACHE_TTL) {
+      requestCache.delete(key);
+    }
+  }
+}, 60000); // Clean up every minute

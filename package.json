@@ -1,0 +1,70 @@
+{
+  "name": "devotional-pwa",
+  "version": "1.0.0",
+  "description": "Holy Writings Reader - A Progressive Web App for reading prayers and religious texts",
+  "main": "app.js",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:debug": "node --inspect-brk node_modules/.bin/jest --runInBand",
+    "serve": "python3 -m http.server 8000",
+    "lint": "eslint app.js tests/ --ext .js"
+  },
+  "keywords": [
+    "pwa",
+    "prayers",
+    "holy-writings",
+    "bahai",
+    "religious-texts"
+  ],
+  "author": "Holy Writings Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@testing-library/dom": "^8.20.1",
+    "@testing-library/jest-dom": "^5.17.0",
+    "eslint": "^8.57.1",
+    "fetch-mock": "^9.11.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
+  },
+  "jest": {
+    "testEnvironment": "jsdom",
+    "setupFilesAfterEnv": [
+      "<rootDir>/tests/setup.js"
+    ],
+    "collectCoverageFrom": [
+      "app.js",
+      "!node_modules/**",
+      "!tests/**"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 70,
+        "functions": 70,
+        "lines": 70,
+        "statements": 70
+      }
+    },
+    "testMatch": [
+      "**/tests/**/*.test.js",
+      "**/tests/**/*.spec.js"
+    ]
+  },
+  "eslintConfig": {
+    "env": {
+      "browser": true,
+      "es2021": true,
+      "jest": true
+    },
+    "extends": "eslint:recommended",
+    "parserOptions": {
+      "ecmaVersion": 12,
+      "sourceType": "module"
+    },
+    "rules": {
+      "no-unused-vars": "warn",
+      "no-console": "off"
+    }
+  }
+}
