@@ -149,7 +149,7 @@ case $COMMAND in
         echo ""
         echo "Test Files:"
         echo "  tests/prayer-functions.test.js  - Core prayer functionality"
-        echo "  tests/ui-components.test.js     - UI components (to be added)"
+        echo "  tests/pinning-interface.test.js - Prayer pinning interface"
         echo ""
         echo "For more information, see README-TESTING.md"
         ;;

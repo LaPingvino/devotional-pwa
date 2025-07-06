@@ -1,4 +1,5 @@
 // Jest setup file for Devotional PWA tests
+/* eslint-env node, jest */
 
 // Import testing utilities
 require('@testing-library/jest-dom');
@@ -97,13 +98,14 @@ global.componentHandler = {
 // Mock TextEncoder/TextDecoder
 global.TextEncoder = global.TextEncoder || class TextEncoder {
   encode(str) {
-    return new Uint8Array(Buffer.from(str, 'utf8'));
+    const buffer = typeof Buffer !== 'undefined' ? Buffer.from(str, 'utf8') : new TextEncoder().encode(str);
+    return new Uint8Array(buffer);
   }
 };
 
 global.TextDecoder = global.TextDecoder || class TextDecoder {
   decode(bytes) {
-    return Buffer.from(bytes).toString('utf8');
+    return typeof Buffer !== 'undefined' ? Buffer.from(bytes).toString('utf8') : new TextDecoder().decode(bytes);
   }
 };
 

@@ -1,0 +1,321 @@
+# Jujutsu (JJ) Usage Guidelines and Pitfalls
+
+## Overview
+
+This document provides essential guidelines for using Jujutsu (JJ) version control system safely and effectively. JJ is a powerful VCS that uses a different model from Git, so understanding its concepts and pitfalls is crucial.
+
+## Core Concepts
+
+### 1. Working Copy vs Commits
+- **Working Copy**: The current state of your files (represented by `@`)
+- **Commits**: Immutable snapshots of your code
+- Unlike Git, JJ automatically creates commits for your working copy changes
+
+### 2. Change IDs vs Commit IDs
+- **Change ID**: Stable identifier that persists across rewrites (e.g., `nsuvqtro`)
+- **Commit ID**: Hash that changes when commit is modified (e.g., `09707ab3`)
+- Always use Change IDs when referencing commits in commands
+
+### 3. Branches
+- JJ branches are just pointers to commits
+- Multiple branches can point to the same commit
+- Branch names are not as central as in Git
+
+## Safe Usage Guidelines
+
+### 1. Always Check Status First
+```bash
+# Check current state before any operation
+jj status
+
+# Get a visual overview
+jj log --oneline -n 10
+```
+
+### 2. Describe Your Changes
+```bash
+# Set description for current working copy
+jj describe -m "Add background caching feature for English prayers"
+
+# Or use editor
+jj describe
+```
+
+### 3. Safe Commit Creation
+```bash
+# Create new commit with current changes
+jj commit -m "Your commit message"
+
+# Or commit and describe in one go
+jj commit -m "Add background caching system
+
+- Automatic English prayers caching after page load
+- Batch processing with 50 prayers per batch
+- Smart duplicate detection
+- Comprehensive test coverage"
+```
+
+### 4. Branch Management
+```bash
+# Create new branch
+jj branch create feature-branch
+
+# Set branch to current commit
+jj branch set feature-branch
+
+# List branches
+jj branch list
+```
+
+### 5. Safe Pushing
+```bash
+# Push specific branch
+jj git push --branch main
+
+# Push all branches
+jj git push --all-branches
+
+# Check what will be pushed first
+jj log --oneline -n 5
+```
+
+## Common Pitfalls and How to Avoid Them
+
+### ❌ Pitfall 1: Forgetting to Describe Changes
+**Problem**: Working copy commits have no description
+**Solution**: Always use `jj describe` before committing
+
+```bash
+# Bad: Creates commit with no description
+jj commit
+
+# Good: Always describe first
+jj describe -m "Fix background caching bug"
+jj commit
+```
+
+### ❌ Pitfall 2: Using Commit IDs Instead of Change IDs
+**Problem**: Commit IDs change when you rewrite history
+**Solution**: Use Change IDs (the short alphanumeric string)
+
+```bash
+# Bad: Using commit hash
+jj rebase -r 09707ab3
+
+# Good: Using change ID
+jj rebase -r nsuvqtro
+```
+
+### ❌ Pitfall 3: Not Checking Status Before Operations
+**Problem**: Operating on wrong commits or branches
+**Solution**: Always check status first
+
+```bash
+# Always do this first
+jj status
+jj log --oneline -n 5
+
+# Then proceed with operations
+jj commit -m "Your changes"
+```
+
+### ❌ Pitfall 4: Pushing Without Verification
+**Problem**: Pushing unwanted changes or wrong branches
+**Solution**: Review what you're pushing
+
+```bash
+# Check what will be pushed
+jj log --oneline -n 10
+
+# Push specific branch only
+jj git push --branch main
+```
+
+### ❌ Pitfall 5: Confusion with Working Copy
+**Problem**: Not understanding that working copy is automatically tracked
+**Solution**: Remember @ is your working copy
+
+```bash
+# Working copy is always @
+jj status  # Shows working copy changes
+
+# Commit working copy changes
+jj commit -m "Save current work"
+```
+
+## Essential Commands Cheat Sheet
+
+### Status and History
+```bash
+jj status                    # Current working copy status
+jj log                       # Full history
+jj log --oneline -n 10      # Compact history (last 10)
+jj show                      # Show current commit details
+jj show <change-id>          # Show specific commit
+```
+
+### Making Changes
+```bash
+jj describe -m "message"     # Describe current working copy
+jj commit -m "message"       # Commit working copy changes
+jj split                     # Split current changes into multiple commits
+jj squash                    # Squash changes into parent
+```
+
+### Branch Operations
+```bash
+jj branch create <name>      # Create new branch
+jj branch set <name>         # Set branch to current commit
+jj branch list               # List all branches
+jj branch delete <name>      # Delete branch
+```
+
+### Navigation
+```bash
+jj checkout <change-id>      # Switch to different commit
+jj checkout main             # Switch to main branch
+jj new                       # Create new empty commit
+jj new <change-id>           # Create new commit on top of specified commit
+```
+
+### Rewriting History
+```bash
+jj rebase -r <change-id>     # Rebase specific commit
+jj rebase -s <change-id>     # Rebase commit and descendants
+jj abandon <change-id>       # Abandon commit (children become orphans)
+```
+
+### Git Interop
+```bash
+jj git push --branch <name>  # Push specific branch
+jj git push --all-branches   # Push all branches
+jj git fetch                 # Fetch from remote
+jj git import               # Import Git refs
+```
+
+## Best Practices for Our Project
+
+### 1. Feature Development Workflow
+```bash
+# 1. Check current state
+jj status
+
+# 2. Create feature branch
+jj branch create feature/background-caching
+
+# 3. Make changes and describe them
+jj describe -m "Add background caching for English prayers"
+
+# 4. Commit when ready
+jj commit -m "Implement background caching system"
+
+# 5. Push to remote
+jj git push --branch feature/background-caching
+```
+
+### 2. Testing Before Push
+```bash
+# Always test before pushing
+npm test
+npm run lint
+
+# Then describe and commit
+jj describe -m "Add background caching feature with tests"
+jj commit
+
+# Push only after tests pass
+jj git push --branch main
+```
+
+### 3. Reviewing Changes
+```bash
+# Review what changed
+jj show
+
+# Review specific files
+jj show --name-only
+jj show app.js
+
+# Compare with previous version
+jj diff -r @-
+```
+
+## Emergency Recovery
+
+### If You Make a Mistake
+```bash
+# Undo last operation (if possible)
+jj op undo
+
+# Restore file from previous commit
+jj restore --from @- <file>
+
+# Abandon problematic commit
+jj abandon <change-id>
+```
+
+### If You're Lost
+```bash
+# Check operation history
+jj op log
+
+# Get detailed status
+jj status
+jj log --oneline -n 20
+
+# Ask for help
+jj help <command>
+```
+
+## Our Project Specific Guidelines
+
+### 1. Commit Message Format
+```
+Add background caching feature for English prayers
+
+- Automatic caching after page load
+- Batch processing with API rate limiting
+- Comprehensive test coverage
+- Updated documentation
+```
+
+### 2. Branch Naming
+- `feature/description` for new features
+- `fix/description` for bug fixes
+- `docs/description` for documentation
+- `test/description` for test improvements
+
+### 3. Testing Requirements
+- All tests must pass before committing
+- Run `npm test` and `npm run lint`
+- Add tests for new features
+- Update documentation
+
+### 4. Push Strategy
+- Always push to feature branches first
+- Use `--branch` flag to push specific branches
+- Never push directly to main without review
+
+## Common JJ vs Git Differences
+
+| Operation | Git | JJ |
+|-----------|-----|-----|
+| Current changes | `git status` | `jj status` |
+| Commit changes | `git commit` | `jj commit` |
+| View history | `git log` | `jj log` |
+| Switch commits | `git checkout` | `jj checkout` |
+| Create branch | `git branch` | `jj branch create` |
+| Push changes | `git push` | `jj git push` |
+
+## Remember
+
+1. **Always check status first**: `jj status`
+2. **Describe your changes**: `jj describe -m "..."`
+3. **Test before committing**: `npm test && npm run lint`
+4. **Use Change IDs, not Commit IDs**: The short alphanumeric string
+5. **Push specific branches**: `jj git push --branch <name>`
+6. **Review before pushing**: `jj show` and `jj log`
+
+---
+
+*Keep this document handy and refer to it often until JJ workflows become second nature!*

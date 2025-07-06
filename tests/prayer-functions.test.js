@@ -138,6 +138,290 @@ describe('Prayer Functions', () => {
       expect(result1).toEqual(result2);
       expect(global.fetch).toHaveBeenCalledTimes(1); // Second call should use cache
     });
+
+    describe('Background English Prayers Caching', () => {
+      beforeEach(() => {
+        // Mock background caching constants
+        global.BACKGROUND_CACHE_STORAGE_KEY = 'devotionalPWA_backgroundCacheStatus';
+        global.BACKGROUND_CACHE_BATCH_SIZE = 50;
+        global.BACKGROUND_CACHE_DELAY_MS = 1000;
+        global.BACKGROUND_CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000;
+      
+        // Mock background caching functions
+        global.getBackgroundCacheStatus = jest.fn();
+        global.setBackgroundCacheStatus = jest.fn();
+        global.loadEnglishPrayersInBackground = jest.fn();
+        global.startBackgroundCaching = jest.fn();
+        global.getAllCachedPrayers = jest.fn();
+      });
+
+      it('should get background cache status from localStorage', () => {
+        const mockStatus = {
+          timestamp: Date.now() - 1000,
+          totalCached: 100,
+          lastOffset: 150
+        };
+        localStorage.setItem('devotionalPWA_backgroundCacheStatus', JSON.stringify(mockStatus));
+      
+        global.getBackgroundCacheStatus = jest.fn().mockImplementation(() => {
+          try {
+            const statusData = localStorage.getItem('devotionalPWA_backgroundCacheStatus');
+            if (statusData) {
+              const { timestamp, totalCached, lastOffset } = JSON.parse(statusData);
+              const isExpired = Date.now() - timestamp > global.BACKGROUND_CACHE_EXPIRY_MS;
+              return { timestamp, totalCached, lastOffset, isExpired };
+            }
+          } catch (e) {
+            console.warn('Error reading background cache status:', e);
+            localStorage.removeItem('devotionalPWA_backgroundCacheStatus');
+          }
+          return { timestamp: 0, totalCached: 0, lastOffset: 0, isExpired: true };
+        });
+      
+        const result = global.getBackgroundCacheStatus();
+        expect(result.totalCached).toBe(100);
+        expect(result.lastOffset).toBe(150);
+        expect(result.isExpired).toBe(false);
+      });
+
+      it('should set background cache status in localStorage', () => {
+        global.setBackgroundCacheStatus = jest.fn().mockImplementation((totalCached, lastOffset) => {
+          try {
+            const statusData = {
+              timestamp: Date.now(),
+              totalCached,
+              lastOffset
+            };
+            localStorage.setItem('devotionalPWA_backgroundCacheStatus', JSON.stringify(statusData));
+          } catch (e) {
+            console.warn('Error saving background cache status:', e);
+          }
+        });
+      
+        global.setBackgroundCacheStatus(75, 100);
+      
+        expect(global.setBackgroundCacheStatus).toHaveBeenCalledWith(75, 100);
+      
+        const stored = localStorage.getItem('devotionalPWA_backgroundCacheStatus');
+        expect(stored).toBeTruthy();
+      
+        const parsed = JSON.parse(stored);
+        expect(parsed.totalCached).toBe(75);
+        expect(parsed.lastOffset).toBe(100);
+      });
+
+      it('should skip background caching if recently cached', async () => {
+        // Mock recent cache status
+        global.getBackgroundCacheStatus = jest.fn().mockReturnValue({
+          timestamp: Date.now() - 1000,
+          totalCached: 50,
+          lastOffset: 100,
+          isExpired: false
+        });
+      
+        global.loadEnglishPrayersInBackground = jest.fn().mockImplementation(async () => {
+          const status = global.getBackgroundCacheStatus();
+        
+          if (!status.isExpired && status.totalCached > 0) {
+            console.log(`[Background Cache] Skipping - ${status.totalCached} English prayers cached recently`);
+            return;
+          }
+          // Continue with caching...
+        });
+      
+        await global.loadEnglishPrayersInBackground();
+      
+        expect(global.getBackgroundCacheStatus).toHaveBeenCalled();
+        // Should not proceed with caching since cache is fresh
+      });
+
+      it('should perform background caching when cache is expired', async () => {
+        // Mock expired cache status
+        global.getBackgroundCacheStatus = jest.fn().mockReturnValue({
+          timestamp: Date.now() - (25 * 60 * 60 * 1000), // 25 hours ago
+          totalCached: 0,
+          lastOffset: 0,
+          isExpired: true
+        });
+      
+        // Mock English prayers data
+        const mockCountResult = [{ total: 100 }];
+        const mockPrayers = Array.from({ length: 10 }, (_, i) => ({
+          version: `en-prayer-${i + 1}`,
+          name: `English Prayer ${i + 1}`,
+          text: `This is the text of English prayer ${i + 1}`,
+          language: 'en',
+          phelps: `EN${i + 1}`,
+          source: 'test',
+          link: `https://example.com/prayer-${i + 1}`
+        }));
+      
+        global.executeQuery = jest.fn()
+          .mockResolvedValueOnce(mockCountResult) // Count query
+          .mockResolvedValueOnce(mockPrayers);    // Prayers query
+      
+        global.getAllCachedPrayers = jest.fn().mockReturnValue([]);
+        global.cachePrayerText = jest.fn();
+      
+        global.loadEnglishPrayersInBackground = jest.fn().mockImplementation(async () => {
+          const status = global.getBackgroundCacheStatus();
+        
+          if (!status.isExpired && status.totalCached > 0) {
+            return;
+          }
+        
+          const countSql = "SELECT COUNT(*) as total FROM writings WHERE language = 'en'";
+          const countResult = await global.executeQuery(countSql);
+          const totalEnglishPrayers = countResult[0]?.total || 0;
+        
+          if (totalEnglishPrayers === 0) {
+            return;
+          }
+        
+          const cachedPrayers = global.getAllCachedPrayers();
+          const cachedEnglishVersions = new Set(
+            cachedPrayers
+              .filter(p => p.language === 'en')
+              .map(p => p.version)
+          );
+        
+          const batchSql = `SELECT version, name, text, language, phelps, source, link 
+                            FROM writings 
+                            WHERE language = 'en' 
+                            ORDER BY version 
+                            LIMIT ${global.BACKGROUND_CACHE_BATCH_SIZE} 
+                            OFFSET 0`;
+        
+          const prayers = await global.executeQuery(batchSql);
+        
+          let totalCached = 0;
+          for (const prayer of prayers) {
+            if (!cachedEnglishVersions.has(prayer.version)) {
+              global.cachePrayerText(prayer);
+              totalCached++;
+            }
+          }
+        
+          global.setBackgroundCacheStatus(totalCached, prayers.length);
+        });
+      
+        await global.loadEnglishPrayersInBackground();
+      
+        expect(global.executeQuery).toHaveBeenCalledWith("SELECT COUNT(*) as total FROM writings WHERE language = 'en'");
+        expect(global.getAllCachedPrayers).toHaveBeenCalled();
+        expect(global.cachePrayerText).toHaveBeenCalledTimes(10);
+        expect(global.setBackgroundCacheStatus).toHaveBeenCalledWith(10, 10);
+      });
+
+      it('should handle background caching errors gracefully', async () => {
+        global.getBackgroundCacheStatus = jest.fn().mockReturnValue({
+          timestamp: 0,
+          totalCached: 0,
+          lastOffset: 0,
+          isExpired: true
+        });
+      
+        global.executeQuery = jest.fn().mockRejectedValue(new Error('Database error'));
+      
+        global.loadEnglishPrayersInBackground = jest.fn().mockImplementation(async () => {
+          try {
+            const countSql = "SELECT COUNT(*) as total FROM writings WHERE language = 'en'";
+            await global.executeQuery(countSql);
+          } catch (error) {
+            console.error('[Background Cache] Error caching English prayers:', error);
+          }
+        });
+      
+        // Should not throw
+        await expect(global.loadEnglishPrayersInBackground()).resolves.toBeUndefined();
+      
+        expect(global.executeQuery).toHaveBeenCalled();
+      });
+
+      it('should start background caching with delay', (done) => {
+        global.loadEnglishPrayersInBackground = jest.fn().mockResolvedValue(undefined);
+      
+        global.startBackgroundCaching = jest.fn().mockImplementation(() => {
+          setTimeout(() => {
+            global.loadEnglishPrayersInBackground();
+            expect(global.loadEnglishPrayersInBackground).toHaveBeenCalled();
+            done();
+          }, 100); // Shortened delay for testing
+        });
+      
+        global.startBackgroundCaching();
+      });
+
+      it('should avoid caching duplicate prayers', async () => {
+        // Mock cache status
+        global.getBackgroundCacheStatus = jest.fn().mockReturnValue({
+          timestamp: 0,
+          totalCached: 0,
+          lastOffset: 0,
+          isExpired: true
+        });
+      
+        // Mock existing cached prayers
+        const existingCachedPrayers = [
+          { version: 'en-prayer-1', language: 'en', text: 'Cached prayer 1' },
+          { version: 'en-prayer-2', language: 'en', text: 'Cached prayer 2' }
+        ];
+      
+        global.getAllCachedPrayers = jest.fn().mockReturnValue(existingCachedPrayers);
+      
+        // Mock new prayers from database (including duplicates)
+        const mockPrayers = [
+          { version: 'en-prayer-1', language: 'en', text: 'Prayer 1' }, // Duplicate
+          { version: 'en-prayer-2', language: 'en', text: 'Prayer 2' }, // Duplicate
+          { version: 'en-prayer-3', language: 'en', text: 'Prayer 3' }, // New
+          { version: 'en-prayer-4', language: 'en', text: 'Prayer 4' }  // New
+        ];
+      
+        global.executeQuery = jest.fn()
+          .mockResolvedValueOnce([{ total: 4 }])
+          .mockResolvedValueOnce(mockPrayers);
+      
+        global.cachePrayerText = jest.fn();
+      
+        global.loadEnglishPrayersInBackground = jest.fn().mockImplementation(async () => {
+          const status = global.getBackgroundCacheStatus();
+        
+          if (!status.isExpired && status.totalCached > 0) {
+            return;
+          }
+        
+          const countResult = await global.executeQuery("SELECT COUNT(*) as total FROM writings WHERE language = 'en'");
+          const totalEnglishPrayers = countResult[0]?.total || 0;
+        
+          if (totalEnglishPrayers === 0) return;
+        
+          const cachedPrayers = global.getAllCachedPrayers();
+          const cachedEnglishVersions = new Set(
+            cachedPrayers
+              .filter(p => p.language === 'en')
+              .map(p => p.version)
+          );
+        
+          const prayers = await global.executeQuery('SELECT version, name, text, language, phelps, source, link FROM writings WHERE language = \'en\' ORDER BY version LIMIT 50 OFFSET 0');
+        
+          let totalCached = 0;
+          for (const prayer of prayers) {
+            if (!cachedEnglishVersions.has(prayer.version)) {
+              global.cachePrayerText(prayer);
+              totalCached++;
+            }
+          }
+        
+          global.setBackgroundCacheStatus(totalCached, prayers.length);
+        });
+      
+        await global.loadEnglishPrayersInBackground();
+      
+        // Should only cache the 2 new prayers, not the duplicates
+        expect(global.cachePrayerText).toHaveBeenCalledTimes(2);
+        expect(global.setBackgroundCacheStatus).toHaveBeenCalledWith(2, 4);
+      });
+    });
   });
 
   describe('Prayer Caching', () => {

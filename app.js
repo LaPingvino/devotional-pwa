@@ -974,7 +974,143 @@ function getAllCachedPrayers() {
   }
   return cachedPrayers;
 }
-// --- End LocalStorage Cache Functions ---
+
+// --- Background English Prayers Caching ---
+const BACKGROUND_CACHE_STORAGE_KEY = "devotionalPWA_backgroundCacheStatus";
+const BACKGROUND_CACHE_BATCH_SIZE = 50; // Number of prayers to cache at once
+const BACKGROUND_CACHE_DELAY_MS = 1000; // Delay between batches to avoid overwhelming the API
+const BACKGROUND_CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+function getBackgroundCacheStatus() {
+  try {
+    const statusData = localStorage.getItem(BACKGROUND_CACHE_STORAGE_KEY);
+    if (statusData) {
+      const { timestamp, totalCached, lastOffset } = JSON.parse(statusData);
+      const isExpired = Date.now() - timestamp > BACKGROUND_CACHE_EXPIRY_MS;
+      return { timestamp, totalCached, lastOffset, isExpired };
+    }
+  } catch (e) {
+    console.warn("Error reading background cache status:", e);
+    localStorage.removeItem(BACKGROUND_CACHE_STORAGE_KEY);
+  }
+  return { timestamp: 0, totalCached: 0, lastOffset: 0, isExpired: true };
+}
+
+function setBackgroundCacheStatus(totalCached, lastOffset) {
+  try {
+    const statusData = {
+      timestamp: Date.now(),
+      totalCached,
+      lastOffset
+    };
+    localStorage.setItem(BACKGROUND_CACHE_STORAGE_KEY, JSON.stringify(statusData));
+  } catch (e) {
+    console.warn("Error saving background cache status:", e);
+  }
+}
+
+async function loadEnglishPrayersInBackground() {
+  const status = getBackgroundCacheStatus();
+  
+  // Skip if we've cached recently and it's not expired
+  if (!status.isExpired && status.totalCached > 0) {
+    console.log(`[Background Cache] Skipping - ${status.totalCached} English prayers cached recently`);
+    return;
+  }
+
+  console.log("[Background Cache] Starting English prayers background caching...");
+  
+  try {
+    // First, get a count of English prayers to cache
+    const countSql = "SELECT COUNT(*) as total FROM writings WHERE language = 'en'";
+    const countResult = await executeQuery(countSql);
+    const totalEnglishPrayers = countResult[0]?.total || 0;
+    
+    if (totalEnglishPrayers === 0) {
+      console.log("[Background Cache] No English prayers found in database");
+      return;
+    }
+
+    console.log(`[Background Cache] Found ${totalEnglishPrayers} English prayers to cache`);
+    
+    // Get already cached English prayers to avoid duplicates
+    const cachedPrayers = getAllCachedPrayers();
+    const cachedEnglishVersions = new Set(
+      cachedPrayers
+        .filter(p => p.language === 'en')
+        .map(p => p.version)
+    );
+    
+    let totalCached = 0;
+    let currentOffset = status.lastOffset;
+    let batchCount = 0;
+    const maxBatches = Math.ceil(totalEnglishPrayers / BACKGROUND_CACHE_BATCH_SIZE);
+    
+    while (currentOffset < totalEnglishPrayers && batchCount < maxBatches) {
+      // Query for a batch of English prayers
+      const batchSql = `SELECT version, name, text, language, phelps, source, link 
+                        FROM writings 
+                        WHERE language = 'en' 
+                        ORDER BY version 
+                        LIMIT ${BACKGROUND_CACHE_BATCH_SIZE} 
+                        OFFSET ${currentOffset}`;
+      
+      const prayers = await executeQuery(batchSql);
+      
+      if (prayers.length === 0) {
+        break; // No more prayers to cache
+      }
+      
+      // Cache each prayer if not already cached
+      let batchCached = 0;
+      for (const prayer of prayers) {
+        if (!cachedEnglishVersions.has(prayer.version)) {
+          cachePrayerText(prayer);
+          cachedEnglishVersions.add(prayer.version);
+          batchCached++;
+        }
+      }
+      
+      totalCached += batchCached;
+      currentOffset += prayers.length;
+      batchCount++;
+      
+      console.log(`[Background Cache] Batch ${batchCount}/${maxBatches}: cached ${batchCached} new prayers (${totalCached} total)`);
+      
+      // Update status periodically
+      setBackgroundCacheStatus(totalCached, currentOffset);
+      
+      // Add delay between batches to avoid overwhelming the API
+      if (currentOffset < totalEnglishPrayers) {
+        await new Promise(resolve => setTimeout(resolve, BACKGROUND_CACHE_DELAY_MS));
+      }
+    }
+    
+    console.log(`[Background Cache] Completed! Cached ${totalCached} English prayers for better search performance`);
+    
+    // Show a subtle notification if we cached a significant number
+    if (totalCached > 10) {
+      const snackbarContainer = document.querySelector(".mdl-js-snackbar");
+      if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
+        snackbarContainer.MaterialSnackbar.showSnackbar({
+          message: `✨ Cached ${totalCached} English prayers for faster search`,
+          timeout: 4000
+        });
+      }
+    }
+    
+  } catch (error) {
+    console.error("[Background Cache] Error caching English prayers:", error);
+  }
+}
+
+function startBackgroundCaching() {
+  // Start background caching after a short delay to let the main page load first
+  setTimeout(() => {
+    loadEnglishPrayersInBackground();
+  }, 3000); // 3 second delay after page load
+}
+// --- End Background English Prayers Caching ---
 
 function getCachedLanguageStats(allowStale = false) {
   try {
@@ -3239,6 +3375,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   updatePrayerMatchingToolDisplay();
   handleRouteChange();
+  
+  // Start background caching of English prayers
+  startBackgroundCaching();
 });
 
 // Helper function to update static prayer action button states

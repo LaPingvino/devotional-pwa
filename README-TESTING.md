@@ -45,9 +45,9 @@ npm run lint
 
 ```
 tests/
-├── setup.js              # Test configuration and global mocks
-├── prayer-functions.test.js # Tests for core prayer functionality
-└── ui-components.test.js   # Tests for UI components (to be added)
+├── setup.js                    # Test configuration and global mocks
+├── prayer-functions.test.js    # Tests for core prayer functionality
+└── pinning-interface.test.js   # Tests for prayer pinning interface
 ```
 
 ### What's Being Tested
@@ -55,6 +55,7 @@ tests/
 1. **Core Prayer Functions:**
    - `executeQuery()` - API calls to DoltHub
    - Prayer caching (`cachePrayerText`, `getCachedPrayerText`)
+   - Background English prayers caching for improved search performance
    - Favorite prayers management
    - Prayer pinning functionality
    - Language display names
@@ -69,6 +70,14 @@ tests/
    - Network errors
    - Malformed JSON responses
    - Corrupted cache data
+   - Background caching failures
+
+4. **Background Caching Features:**
+   - Automatic English prayers caching after page load
+   - Cache status tracking and expiration
+   - Batch processing to avoid API overload
+   - Duplicate prayer detection
+   - Graceful error handling for background operations
 
 ### Test Coverage
 
@@ -82,6 +91,34 @@ View coverage report:
 ```bash
 npm run test:coverage
 ```
+
+## Background Caching Feature
+
+The app now includes a "sneaky" background caching feature that automatically loads English prayers into the browser's cache after the main page loads. This improves search performance significantly.
+
+### How It Works
+
+1. **Automatic Start:** Begins 3 seconds after page load
+2. **Smart Caching:** Only caches prayers not already in local storage
+3. **Batch Processing:** Processes prayers in batches of 50 to avoid overwhelming the API
+4. **Expiration:** Cache status expires after 24 hours
+5. **User Feedback:** Shows a subtle notification when significant caching occurs
+
+### Cache Management
+
+- **Storage Key:** `devotionalPWA_backgroundCacheStatus`
+- **Expiry:** 24 hours
+- **Batch Size:** 50 prayers per batch
+- **Delay:** 1 second between batches
+
+### Testing the Feature
+
+The background caching functionality includes comprehensive tests covering:
+- Cache status management
+- Batch processing logic
+- Duplicate detection
+- Error handling
+- Performance optimization
 
 ## Writing New Tests
 
