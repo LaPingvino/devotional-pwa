@@ -74,7 +74,9 @@
     },
     "overrides": [
       {
-        "files": ["tests/**/*.js"],
+        "files": [
+          "tests/**/*.js"
+        ],
         "env": {
           "jest": true,
           "node": true
@@ -84,5 +86,8 @@
         }
       }
     ]
+  },
+  "dependencies": {
+    "marked": "^16.0.0"
   }
 }

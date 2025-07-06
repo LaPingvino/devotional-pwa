@@ -37,6 +37,56 @@ const LANGUAGE_STATS_CACHE_EXPIRY_MS = 4 * 60 * 60 * 1000; // 4 hours
 const RECENT_LANGUAGES_KEY = "devotionalPWA_recentLanguages";
 const MAX_RECENT_LANGUAGES = 4; // Number of recent languages to store
 
+// --- Markdown Rendering Functions ---
+function renderMarkdown(text) {
+  if (!text) return '';
+  
+  // Check if marked library is available
+  if (typeof marked === 'undefined') {
+    console.warn('Marked library not available, rendering text as-is with basic formatting');
+    return text.replace(/\n/g, '<br>');
+  }
+  
+  // Configure marked for prayer content
+  marked.setOptions({
+    breaks: true,        // Convert line breaks to <br>
+    gfm: true,          // Enable GitHub Flavored Markdown
+    sanitize: false,    // Allow HTML (we trust our prayer content)
+    smartypants: true   // Use smart quotes and dashes
+  });
+  
+  try {
+    return marked.parse(text);
+  } catch (error) {
+    console.error('Error parsing Markdown:', error);
+    // Fallback to basic HTML formatting
+    return text.replace(/\n/g, '<br>');
+  }
+}
+
+function extractPrayerNameFromMarkdown(text) {
+  if (!text) return null;
+  
+  // Look for headers (## Header Name or # Header Name)
+  const headerMatch = text.match(/^#{1,2}\s*(.+?)$/m);
+  if (headerMatch) {
+    let name = headerMatch[1].trim();
+    // Remove markdown formatting from the extracted name
+    name = name.replace(/\*\*(.*?)\*\*/g, '$1'); // Remove bold
+    name = name.replace(/\*(.*?)\*/g, '$1');     // Remove italic
+    name = name.replace(/`(.*?)`/g, '$1');       // Remove code
+    return name;
+  }
+  
+  // Look for italic text at the beginning that might be a title
+  const italicMatch = text.match(/^\*([^*\n]+)\*/m);
+  if (italicMatch) {
+    return italicMatch[1].trim();
+  }
+  
+  return null;
+}
+
 function getRecentLanguages() {
   try {
     const recentLanguagesJSON = localStorage.getItem(RECENT_LANGUAGES_KEY);
@@ -48,10 +98,8 @@ function getRecentLanguages() {
     }
   } catch (error) {
     console.error("Error getting recent languages from localStorage:", error);
-    // Clear potentially corrupted data
-    localStorage.removeItem(RECENT_LANGUAGES_KEY);
   }
-  return []; // Default to empty array if not found or error
+  return [];
 }
 
 function addRecentLanguage(langCode) {
@@ -458,7 +506,7 @@ async function updatePrayerMatchingToolDisplay() { // Made async
     if (pinnedPrayerDetails.text) {
       const prayerTextDiv = document.createElement("div");
       prayerTextDiv.id = "pinned-prayer-text-display";
-      prayerTextDiv.textContent = pinnedPrayerDetails.text;
+      prayerTextDiv.innerHTML = renderMarkdown(pinnedPrayerDetails.text);
       pinnedSection.appendChild(prayerTextDiv);
     }
     if (pinnedPrayerDetails.language) {
@@ -1802,9 +1850,22 @@ async function _renderPrayerContent(prayerObject, phelpsCodeForNav, activeLangFo
     phelpsDisplayHtml += ` <span style="font-weight: bold; color: red;">(New Lang: ${finalDisplayLanguageForPhelpsMeta})</span>`;
   }
 
+  // Render prayer text with Markdown support
+  const renderedPrayerText = renderMarkdown(prayer.text || "No text available.");
+  
+  // Try to extract prayer name from Markdown if not already set
+  let displayName = prayer.name;
+  if (!displayName && prayer.text) {
+    const extractedName = extractPrayerNameFromMarkdown(prayer.text);
+    if (extractedName) {
+      displayName = extractedName;
+      console.log(`[_renderPrayerContent] Extracted prayer name from Markdown: "${extractedName}"`);
+    }
+  }
+
   const prayerCoreHtml = `
     <div class="scripture">
-        <div class="prayer" style="white-space: pre-wrap;">${prayer.text || "No text available."}</div>
+        <div class="prayer markdown-content">${renderedPrayerText}</div>
         ${authorName ? `<div class="author">${authorName}</div>` : ""}
         ${prayer.source ? `<div style="font-size: 0.8em; margin-left: 2em; margin-top: 0.5em; font-style: italic;">Source: ${prayer.source} ${prayer.link ? `(<a href="${prayer.link}" target="_blank">${getDomain(prayer.link) || "link"}</a>)` : ""}</div>` : ""}
         <div style="font-size: 0.7em; margin-left: 2em; margin-top: 0.3em; color: #555;">Phelps ID: ${phelpsDisplayHtml}</div>
@@ -2675,8 +2736,8 @@ async function _fetchAndDisplayRandomPrayer(containerElement) { // Changed param
       <div class="random-prayer-card" style="padding: 15px; margin-bottom: 20px; background-color: #fff; border: 1px solid #e0e0e0; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);">
         <h4 style="margin-top:0; font-size: 1.2em; color: #3f51b5;">Prayer of the Moment</h4>
         <p style="font-size: 0.9em; color: #555; margin-bottom:10px;"><em>${prayer.name || (prayer.phelps ? `${prayer.phelps} - ${langDisplayName}` : `A prayer in ${langDisplayName}`)}</em></p>
-        <div class="scripture" style="white-space: pre-wrap; max-height: 150px; overflow-y: auto; padding: 10px; border: 1px solid #eee; margin-bottom:15px; font-size: 0.95em; line-height:1.5;">
-          ${prayer.text.substring(0, 400)}${prayer.text.length > 400 ? '...' : ''}
+        <div class="scripture markdown-content" style="max-height: 150px; overflow-y: auto; padding: 10px; border: 1px solid #eee; margin-bottom:15px; font-size: 0.95em; line-height:1.5;">
+          ${renderMarkdown(prayer.text.substring(0, 400) + (prayer.text.length > 400 ? '...' : ''))}
         </div>
         <a href="#prayer/${prayer.version}" class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent">
           <i class="material-icons" style="margin-right:4px;">open_in_new</i> Read Full Prayer
