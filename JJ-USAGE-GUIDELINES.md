@@ -313,6 +313,41 @@ Add background caching feature for English prayers
 | Create branch | `git branch` | `jj bookmark create` |
 | Push changes | `git push` | `jj git push` |
 
+## Troubleshooting Common Issues
+
+### Issue: Features Stop Working After Updates
+**Symptoms**: Previously working functionality suddenly breaks
+**Likely Cause**: Conflicting external patches or fixes
+**Solution**: 
+1. Check for `fixes.json` or similar patch files in parent directories
+2. Look for Go programs that apply patches (e.g., `apply_fixes.go`)
+3. Remove outdated patches that conflict with current implementation
+4. Test thoroughly after removing patches
+
+### Issue: Repository Scope Confusion
+**Symptoms**: Some files can't be committed with JJ
+**Likely Cause**: Files are outside the JJ repository scope
+**Solution**:
+1. Use `jj status` to see which files are tracked
+2. Consider moving all project files into the JJ repository
+3. Handle external files separately with appropriate version control
+
+### Issue: Search or Core Features Break
+**Symptoms**: Main application features fail unexpectedly
+**Investigation Steps**:
+1. Check for multiple implementations of the same function
+2. Look for external patch systems overriding your code
+3. Verify that new features don't conflict with existing architecture
+4. Run full test suite to identify integration issues
+
+### Issue: Background Processes Interfere
+**Symptoms**: New background features cause UI problems
+**Prevention**:
+1. Add proper error handling in background processes
+2. Use appropriate delays to avoid race conditions
+3. Test background features with existing functionality
+4. Monitor for memory or performance impacts
+
 ## Remember
 
 1. **Always check status first**: `jj status`
@@ -321,6 +356,8 @@ Add background caching feature for English prayers
 4. **Use Change IDs, not Commit IDs**: The short alphanumeric string
 5. **Push specific bookmarks**: `jj git push --bookmark <name>`
 6. **Review before pushing**: `jj show` and `jj log`
+7. **Check for external patches**: Look for `fixes.json` or similar files
+8. **Test integrations**: Verify new features work with existing code
 
 ---
 
