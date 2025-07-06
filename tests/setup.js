@@ -7,29 +7,45 @@ require('@testing-library/jest-dom');
 global.fetch = jest.fn();
 
 // Mock localStorage
-const localStorageMock = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(() => {
-    localStorageMock.getItem.mockClear();
-    localStorageMock.setItem.mockClear();
-    localStorageMock.removeItem.mockClear();
-  }),
-};
+const localStorageMock = (() => {
+  let store = {};
+  return {
+    getItem: jest.fn((key) => store[key] || null),
+    setItem: jest.fn((key, value) => {
+      store[key] = value.toString();
+    }),
+    removeItem: jest.fn((key) => {
+      delete store[key];
+    }),
+    clear: jest.fn(() => {
+      store = {};
+      localStorageMock.getItem.mockClear();
+      localStorageMock.setItem.mockClear();
+      localStorageMock.removeItem.mockClear();
+    }),
+  };
+})();
 global.localStorage = localStorageMock;
 
 // Mock sessionStorage
-const sessionStorageMock = {
-  getItem: jest.fn(),
-  setItem: jest.fn(),
-  removeItem: jest.fn(),
-  clear: jest.fn(() => {
-    sessionStorageMock.getItem.mockClear();
-    sessionStorageMock.setItem.mockClear();
-    sessionStorageMock.removeItem.mockClear();
-  }),
-};
+const sessionStorageMock = (() => {
+  let store = {};
+  return {
+    getItem: jest.fn((key) => store[key] || null),
+    setItem: jest.fn((key, value) => {
+      store[key] = value.toString();
+    }),
+    removeItem: jest.fn((key) => {
+      delete store[key];
+    }),
+    clear: jest.fn(() => {
+      store = {};
+      sessionStorageMock.getItem.mockClear();
+      sessionStorageMock.setItem.mockClear();
+      sessionStorageMock.removeItem.mockClear();
+    }),
+  };
+})();
 global.sessionStorage = sessionStorageMock;
 
 // Mock window.location

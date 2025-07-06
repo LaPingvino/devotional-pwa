@@ -14,7 +14,7 @@ const DOLTHUB_REPO_ISSUES_NEW_URL_BASE =
 // Request debouncing and caching
 let requestCache = new Map();
 let requestDebounce = new Map();
-const REQUEST_DEBOUNCE_DELAY = 50; // 50ms
+// const REQUEST_DEBOUNCE_DELAY = 50; // 50ms - Currently unused
 const REQUEST_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 const MAX_DIRECT_LINKS_IN_HEADER = 4;
@@ -81,6 +81,7 @@ window.currentPrayerForStaticActions = null; // Holds { prayer, initialDisplayPr
 
 function initializeStaticPrayerActions() {
     console.log("[initializeStaticPrayerActions] Initializing listeners for static prayer action buttons.");
+    // snackbarContainer is used in event handlers within this function
     const snackbarContainer = document.querySelector(".mdl-js-snackbar");
 
     const staticPinBtn = document.getElementById('static-action-pin-this');
@@ -197,7 +198,7 @@ const prayerLanguageNav = document.getElementById("prayer-language-nav");
 let currentPageByLanguage = {};
 let currentPageBySearchTerm = {}; // { searchTerm: page }
 let currentPageByPhelpsCode = {}; // { phelpsCode: page }
-let currentPageByPhelpsLangCode = {}; // { phelps/lang : page } - not used yet for pagination but good for state
+// let currentPageByPhelpsLangCode = {}; // { phelps/lang : page } - Currently unused
 
 let pinnedPrayerDetails = null; // Stores { version, phelps, name, language, text }
 let collectedMatchesForEmail = []; // Array of objects: { type?, pinned?, current?, prayer?, newPhelps?, newLanguage?, newName?, note?, description }
@@ -230,7 +231,7 @@ async function _fetchLanguageNamesInternal() {
   }
 
   // If cache is not available or expired, fetch from API
-  const userLangForQuery = browserLang.replace(/\'/g, "''");
+  const userLangForQuery = browserLang.replace(/'/g, "''");
   const sql = `SELECT langcode, inlang, name FROM languages WHERE inlang = '${userLangForQuery}' OR inlang = 'en'`;
 
   let fetchCompleted = false;
@@ -344,7 +345,7 @@ async function getLanguageDisplayName(langCode) {
   // This can happen if the langCode is not in languageNamesMap or if the map entries don't have user_lang_name or en_name.
   // It might also happen if fetchLanguageNames() failed and languageNamesMap is empty or stale.
   if (!langData || (!langData.user_lang_name && !langData.en_name)) {
-    console.warn(`getLanguageDisplayName: Display name not found for language code \'${langCode}\'. Returning original code.`);
+    console.warn(`getLanguageDisplayName: Display name not found for language code '${langCode}'. Returning original code.`);
   }
   return langCode;
 }
@@ -393,7 +394,7 @@ function isPrayerFavorite(versionId) {
 }
 
 function toggleFavoritePrayer(prayerData) {
-  const snackbarContainer = document.querySelector(".mdl-js-snackbar");
+  const snackbarContainer = document.querySelector('.mdl-js-snackbar');
   const index = favoritePrayers.findIndex(
     (fav) => fav.version === prayerData.version,
   );
@@ -485,8 +486,8 @@ async function updatePrayerMatchingToolDisplay() { // Made async
       returnLinkP.innerHTML = `To continue finding items for this language, return to <a href="${returnLinkHref}">${langDisplayNameForLink} Prayers</a>.`;
       pinnedSection.appendChild(returnLinkP);
     }
-    if (typeof componentHandler !== "undefined") {
-      componentHandler.upgradeElement(unpinButton);
+    if (typeof componentHandler !== 'undefined' && componentHandler) {
+        componentHandler.upgradeElement(unpinButton);
     }
   } else {
     pinnedSection.innerHTML =
@@ -511,8 +512,8 @@ async function updatePrayerMatchingToolDisplay() { // Made async
       removeButton.onclick = () => removeCollectedMatch(index); // "Match" in function name is fine
       li.appendChild(removeButton);
       itemsListUl.appendChild(li); // Renamed from matchesListUl
-      if (typeof componentHandler !== "undefined") {
-        componentHandler.upgradeElement(removeButton);
+      if (typeof componentHandler !== 'undefined' && componentHandler) {
+          componentHandler.upgradeElement(removeButton);
       }
     });
   } else {
@@ -528,15 +529,14 @@ async function updatePrayerMatchingToolDisplay() { // Made async
     clearAllLink.style.display = hasSomethingToClear ? "inline-block" : "none";
   }
 
-  if (typeof componentHandler !== "undefined") {
-    if (
-      reviewAndSendButton &&
-      reviewAndSendButton.classList.contains("mdl-js-button")
-    ) {
-      componentHandler.upgradeElement(reviewAndSendButton);
-    }
-    // clearAllLink is an <a> and not an MDL button, so no upgrade needed unless styled as one
+  if (typeof componentHandler !== 'undefined' && componentHandler) {
+  if (
+    reviewAndSendButton &&
+    reviewAndSendButton.classList.contains("mdl-js-button")
+  ) {
+    componentHandler.upgradeElement(reviewAndSendButton);
   }
+}
 }
 
 function removeCollectedMatch(index) {
@@ -837,7 +837,7 @@ function sendMatchesByEmail() {
 }
 
 function generateDoltHubIssueBody() {
-  const title = "Prayer Data Suggestions from Web Tool";
+  // const title = "Prayer Data Suggestions from Web Tool"; // Currently unused
   const bodyLines = [
     "The following prayer data suggestions have been collected using the holywritings.net web tool:",
     "",
@@ -1240,7 +1240,7 @@ async function updateHeaderNavigation(links = []) {
     });
     prayerLanguageNav.appendChild(menuUl);
 
-    if (typeof componentHandler !== "undefined") {
+    if (typeof componentHandler !== 'undefined' && componentHandler) {
       if (menuButton.MaterialButton)
         componentHandler.upgradeElement(menuButton);
       if (menuUl.MaterialMenu) componentHandler.upgradeElement(menuUl);
@@ -1261,35 +1261,7 @@ async function updateHeaderNavigation(links = []) {
   }
 }
 
-async function updateDrawerLanguageNavigation(links = []) {
-  if (!drawerPrayerLanguageNav) return;
-  drawerPrayerLanguageNav.innerHTML = "";
-
-  if (links.length === 0) {
-    const noLinksMsg = document.createElement("span");
-    noLinksMsg.className = "mdl-navigation__link";
-    noLinksMsg.innerHTML =
-      '<span class="star" style="font-size: 1.2em; color: #757575; display: block; text-align: center; line-height: normal;">&#x1f7d9;</span>';
-    noLinksMsg.style.padding = "16px 0";
-    drawerPrayerLanguageNav.appendChild(noLinksMsg);
-    return;
-  }
-
-  links.forEach((linkInfo) => {
-    const link = document.createElement("a");
-    link.className = "mdl-navigation__link";
-    link.href = linkInfo.href;
-    link.textContent = linkInfo.text;
-    if (linkInfo.isActive) link.style.fontWeight = "bold";
-    link.addEventListener("click", () => {
-      const layout = document.querySelector(".mdl-layout");
-      if (layout && layout.MaterialLayout && layout.MaterialLayout.drawer_) {
-        layout.MaterialLayout.toggleDrawer();
-      }
-    });
-    drawerPrayerLanguageNav.appendChild(link);
-  });
-}
+// Function removed - drawer functionality not currently used
 
 /**
  * @typedef {import('./models/view-spec.js').ViewSpec} ViewSpec
@@ -1381,14 +1353,14 @@ async function renderPageLayout(viewSpec) {
             } else {
                 // Fallback if custom renderer returns nothing or unexpected type
                 // Attempt to use titleKey as a safeguard
-                const titleText = (typeof getLocalizedString === 'function' ? getLocalizedString(titleKey) : titleKey) || titleKey;
+                const titleText = titleKey || 'Untitled';
                 headerTitleSpan.textContent = titleText;
             }
         }
     } else {
         // Default header: Title + optional Back Button
         if (headerTitleSpan) {
-            const titleText = (typeof getLocalizedString === 'function' ? getLocalizedString(titleKey) : titleKey) || titleKey;
+            const titleText = titleKey || 'Untitled';
             console.log("[renderPageLayout] Setting headerTitleSpan.textContent to:", titleText);
             headerTitleSpan.textContent = titleText;
         }
@@ -1398,7 +1370,7 @@ async function renderPageLayout(viewSpec) {
                 const backButton = document.createElement('button');
                 backButton.className = 'mdl-button mdl-js-button mdl-button--icon page-layout-back-button';
                 backButton.innerHTML = '<i class="material-icons">arrow_back</i>';
-                const backButtonTitle = (typeof getLocalizedString === 'function' ? getLocalizedString('goBack') : 'Back') || 'Back';
+                const backButtonTitle = 'Back';
                 backButton.title = backButtonTitle;
                 backButton.onclick = () => window.history.back();
 
@@ -1418,7 +1390,7 @@ async function renderPageLayout(viewSpec) {
                     headerRow.insertBefore(backButton, headerRow.firstChild);
                 }
                 
-                if (typeof componentHandler !== 'undefined') {
+                if (typeof componentHandler !== 'undefined' && componentHandler) {
                     componentHandler.upgradeElement(backButton);
                 }
             }
@@ -1458,7 +1430,7 @@ async function renderPageLayout(viewSpec) {
     tempSpinner.style.marginTop = '20px';
     viewContentContainer.appendChild(tempSpinner);
 
-    if (typeof componentHandler !== 'undefined') {
+    if (typeof componentHandler !== 'undefined' && componentHandler) {
         componentHandler.upgradeElement(tempSpinner); // Upgrade the spinner itself
     }
 
@@ -1481,7 +1453,7 @@ async function renderPageLayout(viewSpec) {
         // It's safer if contentRenderer always returns content to be placed.
 
         // 6. Upgrade MDL components in the newly added view-specific content
-        if (typeof componentHandler !== 'undefined') {
+        if (typeof componentHandler !== 'undefined' && componentHandler) {
             console.log('[renderPageLayout] Upgrading DOM for view-specific content in #view-specific-content-container.');
             componentHandler.upgradeDom(viewContentContainer);
         }
@@ -1492,7 +1464,7 @@ async function renderPageLayout(viewSpec) {
         }
         viewContentContainer.innerHTML = `<p style="color:red; text-align:center; padding: 20px;">Error loading view content: ${error.message}</p>`;
         // Optionally, upgrade this error message if it contains MDL classes (though unlikely here)
-        if (typeof componentHandler !== 'undefined') {
+        if (typeof componentHandler !== 'undefined' && componentHandler) {
             componentHandler.upgradeDom(viewContentContainer);
         }
     }
@@ -1618,7 +1590,7 @@ async function _renderPrayerContent(prayerObject, phelpsCodeForNav, activeLangFo
         ? '<i class="material-icons">star</i> Favorited'
         : '<i class="material-icons">star_border</i> Favorite';
     staticPageHeaderFavoriteButton.onclick = () => toggleFavoritePrayer(prayer, staticPageHeaderFavoriteButton);
-    if (typeof componentHandler !== 'undefined') {
+    if (typeof componentHandler !== 'undefined' && componentHandler) {
         componentHandler.upgradeElement(staticPageHeaderFavoriteButton);
     }
   }
@@ -1720,15 +1692,17 @@ async function _renderPrayerContent(prayerObject, phelpsCodeForNav, activeLangFo
 
   const staticHost = document.getElementById('static-prayer-actions-host');
   console.log("[_renderPrayerContent] staticHost from getElementById:", staticHost); // DEBUG
-  const staticPinBtn = document.getElementById('static-action-pin-this');
-  const staticAddMatchBtn = document.getElementById('static-action-add-match');
-  const staticReplacePinBtn = document.getElementById('static-action-replace-pin');
-  const staticIsPinnedMsg = document.getElementById('static-action-is-pinned-msg');
-  const staticUnpinBtn = document.getElementById('static-action-unpin-this');
-  const staticSuggestPhelpsBtn = document.getElementById('static-action-suggest-phelps');
-  const staticChangeLangBtn = document.getElementById('static-action-change-lang');
-  const staticChangeNameBtn = document.getElementById('static-action-change-name');
-  const staticAddNoteBtn = document.getElementById('static-action-add-note');
+  // These variables are retrieved but not used directly in this function
+  // They're here for future use if needed
+  // const staticPinBtn = document.getElementById('static-action-pin-this');
+  // const staticAddMatchBtn = document.getElementById('static-action-add-match');
+  // const staticReplacePinBtn = document.getElementById('static-action-replace-pin');
+  // const staticIsPinnedMsg = document.getElementById('static-action-is-pinned-msg');
+  // const staticUnpinBtn = document.getElementById('static-action-unpin-this');
+  // const staticSuggestPhelpsBtn = document.getElementById('static-action-suggest-phelps');
+  // const staticChangeLangBtn = document.getElementById('static-action-change-lang');
+  // const staticChangeNameBtn = document.getElementById('static-action-change-name');
+  // const staticAddNoteBtn = document.getElementById('static-action-add-note');
 
   if (staticHost) {
       // Don't move the staticHost - keep it in its original location
@@ -1746,7 +1720,7 @@ async function _renderPrayerContent(prayerObject, phelpsCodeForNav, activeLangFo
 
   // 3. "Other versions in this language" (if applicable)
   if (phelpsToDisplay && (phelpsCodeForNav === phelpsToDisplay) && prayer.language) { // Ensure prayer.language exists
-    const sameLangVersionsSql = `SELECT version, name, link FROM writings WHERE phelps = '${phelpsToDisplay.replace(/\'/g, "''")}' AND language = '${prayer.language.replace(/\'/g, "''")}' AND version != '${prayer.version}' ORDER BY name`;
+    const sameLangVersionsSql = `SELECT version, name, link FROM writings WHERE phelps = '${phelpsToDisplay.replace(/'/g, "''")}' AND language = '${prayer.language.replace(/'/g, "''")}' AND version != '${prayer.version}' ORDER BY name`;
     try {
         const sameLangVersions = await executeQuery(sameLangVersionsSql);
         if (sameLangVersions.length > 0) {
@@ -1782,7 +1756,7 @@ async function renderPrayer(
   updateHeaderNavigation([]); // Clear any language-specific header links from other views
 
   // 1. Fetch FULL prayer data
-  const prayerSql = `SELECT version, text, language, phelps, name, source, link FROM writings WHERE version = \'${versionId.replace(/\'/g, "\'\'")}\' LIMIT 1`;
+  const prayerSql = `SELECT version, text, language, phelps, name, source, link FROM writings WHERE version = '${versionId.replace(/'/g, "''")}'`;
   let prayerRows;
   try {
     prayerRows = await executeQuery(prayerSql);
@@ -2100,7 +2074,7 @@ async function _renderPrayerCodeViewContent(phelpsCode, page) {
 
   let allPhelpsDetailsForCards = {};
   if (phelpsCode) {
-    const allVersionsSql = `SELECT version, language, phelps, name, link FROM writings WHERE phelps = '${phelpsCode.replace(/\'/g, "''")}'`;
+    const allVersionsSql = `SELECT version, language, phelps, name, link FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}'`;
     try {
         const allVersionRows = await executeQuery(allVersionsSql);
         if (allVersionRows.length > 0) {
@@ -2121,10 +2095,10 @@ async function _renderPrayerCodeViewContent(phelpsCode, page) {
   if (totalPages > 1) {
     paginationHtml = '<div class="pagination">';
     if (page > 1)
-      paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="renderPrayerCodeView('${phelpsCode.replace(/'/g, "\\'")}', ${page - 1})">Previous</button>`;
+      paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="renderPrayerCodeView('${phelpsCode.replace(/'/g, "'")}', ${page - 1})">Previous</button>`;
     paginationHtml += ` <span>Page ${page} of ${totalPages}</span> `;
     if (page < totalPages)
-      paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="renderPrayerCodeView('${phelpsCode.replace(/'/g, "\\'")}', ${page + 1})">Next</button>`;
+      paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="renderPrayerCodeView('${phelpsCode.replace(/'/g, "'")}', ${page + 1})">Next</button>`;
     paginationHtml += "</div>";
   }
   
@@ -2184,12 +2158,12 @@ async function resolveAndRenderPrayerByPhelpsAndLang(
 
   const displayTargetLanguage = await getLanguageDisplayName(targetLanguageCode);
 
-  const sql = `SELECT version, text, language, phelps, name, source, link FROM writings WHERE phelps = \'${phelpsCode.replace(/\'/g, "\'\'")}\' AND language = \'${targetLanguageCode.replace(/\'/g, "\'\'")}\' ORDER BY LENGTH(text) DESC, name`;
+  const sql = `SELECT version, name, text, language, phelps, source, link FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' AND language = '${targetLanguageCode.replace(/'/g, "''")}' ORDER BY name`;
   const prayerVersions = await executeQuery(sql);
 
   if (prayerVersions.length === 0) {
     // If no specific version found, still try to set up navigation by phelps code for other languages.
-    const transSql = `SELECT DISTINCT language FROM writings WHERE phelps = \\\'${phelpsCode.replace(/\\\'/g, "\\\'\\\'")}\\\' ORDER BY language`;
+    const transSql = `SELECT DISTINCT language FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' ORDER BY language`;
     let navLinks = [];
     try {
         const distinctLangs = await executeQuery(transSql);
@@ -2486,7 +2460,7 @@ if (tabBarElement) {
 
 // Ensure MDL components in the picker are upgraded if they were dynamically added or modified.
 // This is crucial for tabs, menu, button ripples, textfield in search.
-if (typeof componentHandler !== "undefined") {
+if (typeof componentHandler !== 'undefined' && componentHandler) {
 const pickerElement = tabBarElement.closest('.mdl-tabs');
 if (pickerElement) {
     componentHandler.upgradeElement(pickerElement); // Upgrade tabs
@@ -2516,7 +2490,7 @@ async function _fetchAndDisplayRandomPrayer(containerElement) { // Changed param
     return;
   }
   containerElement.innerHTML = '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block; padding: 20px 0;"></div>';
-  if (typeof componentHandler !== 'undefined') {
+  if (typeof componentHandler !== 'undefined' && componentHandler) {
     componentHandler.upgradeDom(containerElement);
   }
 
@@ -2585,7 +2559,7 @@ async function _fetchAndDisplayRandomPrayer(containerElement) { // Changed param
       </div>
     `;
     containerElement.innerHTML = prayerHtml;
-    if (typeof componentHandler !== 'undefined') {
+    if (typeof componentHandler !== 'undefined' && componentHandler) {
       componentHandler.upgradeDom(containerElement);
     }
 
@@ -2705,10 +2679,11 @@ async function renderLanguageList() {
   updateHeaderNavigation([]);
 
   // Reset page state for various views
+  // Reset pagination state
   currentPageByLanguage = {};
   currentPageBySearchTerm = {};
   currentPageByPhelpsCode = {};
-  currentPageByPhelpsLangCode = {};
+  // currentPageByPhelpsLangCode = {}; // Currently unused
 
   await renderPageLayout({
     titleKey: "Browse Prayers", // Using direct string as getLocalizedString might not be set up
@@ -2850,7 +2825,7 @@ async function _renderSearchResultsContent(searchTerm, page) {
 
   let paginationHtml = "";
   if (totalPages > 1) {
-    const escapedSearchTermForJs = searchTerm.replace(/\'/g, "\\'").replace(/\"/g, '\\"');
+    const escapedSearchTermForJs = searchTerm.replace(/'/g, "\\'").replace(/"/g, '\\"');
     paginationHtml = '<div class="pagination">';
     if (currentPage > 1) {
       paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="renderSearchResults('${escapedSearchTermForJs}', ${currentPage - 1})">Previous</button>`;
@@ -3061,7 +3036,7 @@ document.addEventListener("DOMContentLoaded", () => {
           unpinPrayer(); // unpinPrayer already calls updatePrayerMatchingToolDisplay and may show its own snackbar
           message = "All items cleared and prayer unpinned.";
         } else {
-          if (typeof componentHandler !== 'undefined') {
+          if (typeof componentHandler !== 'undefined' && componentHandler) {
               console.log('[renderPageLayout] Upgrading DOM for MDL components after new content rendering.');
               componentHandler.upgradeDom();
           }
@@ -3270,7 +3245,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  if (typeof componentHandler !== "undefined") componentHandler.upgradeDom();
+  if (typeof componentHandler !== 'undefined' && componentHandler) {
+    componentHandler.upgradeDom();
+  }
   updatePrayerMatchingToolDisplay();
   handleRouteChange();
 });

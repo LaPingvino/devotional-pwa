@@ -161,10 +161,11 @@ describe('Prayer Functions', () => {
       
       global.cachePrayerText(prayer);
       
-      expect(global.localStorage.setItem).toHaveBeenCalledWith(
-        `${global.LOCALSTORAGE_PRAYER_CACHE_PREFIX}${prayer.version}`,
-        expect.stringContaining(prayer.text)
-      );
+      // Verify the data was cached by checking localStorage directly
+      const cacheKey = `${global.LOCALSTORAGE_PRAYER_CACHE_PREFIX}${prayer.version}`;
+      const cachedData = localStorage.getItem(cacheKey);
+      expect(cachedData).toBeTruthy();
+      expect(cachedData).toContain(prayer.text);
     });
 
     it('should retrieve cached prayer text', () => {
@@ -178,7 +179,9 @@ describe('Prayer Functions', () => {
         cached_at: Date.now()
       };
       
-      localStorage.getItem.mockReturnValue(JSON.stringify(cacheData));
+      // Store the data in localStorage first
+      const cacheKey = `${global.LOCALSTORAGE_PRAYER_CACHE_PREFIX}${prayer.version}`;
+      localStorage.setItem(cacheKey, JSON.stringify(cacheData));
       
       global.getCachedPrayerText = jest.fn().mockImplementation((version) => {
         const cacheKey = `${global.LOCALSTORAGE_PRAYER_CACHE_PREFIX}${version}`;
@@ -189,13 +192,12 @@ describe('Prayer Functions', () => {
       const result = global.getCachedPrayerText(prayer.version);
       
       expect(result).toEqual(cacheData);
-      expect(localStorage.getItem).toHaveBeenCalledWith(
-        `${global.LOCALSTORAGE_PRAYER_CACHE_PREFIX}${prayer.version}`
-      );
+      expect(global.getCachedPrayerText).toHaveBeenCalledWith(prayer.version);
     });
 
     it('should handle corrupted cache data gracefully', () => {
-      localStorage.getItem.mockReturnValue('invalid json');
+      const cacheKey = `${global.LOCALSTORAGE_PRAYER_CACHE_PREFIX}test-version`;
+      localStorage.setItem(cacheKey, 'invalid json');
       
       global.getCachedPrayerText = jest.fn().mockImplementation((version) => {
         const cacheKey = `${global.LOCALSTORAGE_PRAYER_CACHE_PREFIX}${version}`;
@@ -217,17 +219,25 @@ describe('Prayer Functions', () => {
   describe('Favorite Prayers', () => {
     it('should load favorite prayers from localStorage', () => {
       const favorites = ['prayer-1', 'prayer-2', 'prayer-3'];
-      localStorage.getItem.mockReturnValue(JSON.stringify(favorites));
-      
+      localStorage.setItem(global.FAVORITES_STORAGE_KEY, JSON.stringify(favorites));
+
       global.loadFavoritePrayers = jest.fn().mockImplementation(() => {
         const stored = localStorage.getItem(global.FAVORITES_STORAGE_KEY);
-        global.favoritePrayers = stored ? JSON.parse(stored) : [];
+        if (stored) {
+          try {
+            global.favoritePrayers = JSON.parse(stored);
+          } catch (e) {
+            global.favoritePrayers = [];
+          }
+        } else {
+          global.favoritePrayers = [];
+        }
       });
-      
+
       global.loadFavoritePrayers();
-      
+
       expect(global.favoritePrayers).toEqual(favorites);
-      expect(localStorage.getItem).toHaveBeenCalledWith(global.FAVORITES_STORAGE_KEY);
+      expect(global.loadFavoritePrayers).toHaveBeenCalled();
     });
 
     it('should save favorite prayers to localStorage', () => {
@@ -236,47 +246,48 @@ describe('Prayer Functions', () => {
       global.saveFavoritePrayers = jest.fn().mockImplementation(() => {
         localStorage.setItem(global.FAVORITES_STORAGE_KEY, JSON.stringify(global.favoritePrayers));
       });
-      
+
       global.saveFavoritePrayers();
-      
-      expect(localStorage.setItem).toHaveBeenCalledWith(
-        global.FAVORITES_STORAGE_KEY,
-        JSON.stringify(['prayer-1', 'prayer-2'])
-      );
+
+      // Verify the data was saved by checking localStorage directly
+      const storedData = localStorage.getItem(global.FAVORITES_STORAGE_KEY);
+      expect(storedData).toBe(JSON.stringify(['prayer-1', 'prayer-2']));
+      expect(global.saveFavoritePrayers).toHaveBeenCalled();
     });
 
     it('should check if prayer is favorite', () => {
       global.favoritePrayers = ['prayer-1', 'prayer-2'];
       
-      global.isPrayerFavorite = jest.fn().mockImplementation((versionId) => {
-        return global.favoritePrayers.includes(versionId);
+      global.isPrayerFavorite = jest.fn().mockImplementation((version) => {
+        return global.favoritePrayers.includes(version);
       });
-      
+
       expect(global.isPrayerFavorite('prayer-1')).toBe(true);
       expect(global.isPrayerFavorite('prayer-3')).toBe(false);
     });
 
     it('should toggle prayer favorite status', () => {
       global.favoritePrayers = ['prayer-1'];
-      const prayer = global.testUtils.createMockPrayer({ version: 'prayer-2' });
       
-      global.toggleFavoritePrayer = jest.fn().mockImplementation((prayerData) => {
-        const index = global.favoritePrayers.indexOf(prayerData.version);
+      global.toggleFavoritePrayer = jest.fn().mockImplementation((prayer) => {
+        const version = prayer.version;
+        const index = global.favoritePrayers.indexOf(version);
         if (index > -1) {
           global.favoritePrayers.splice(index, 1);
         } else {
-          global.favoritePrayers.push(prayerData.version);
+          global.favoritePrayers.push(version);
         }
         localStorage.setItem(global.FAVORITES_STORAGE_KEY, JSON.stringify(global.favoritePrayers));
       });
-      
+
+      const prayer = { version: 'prayer-2', name: 'Test Prayer' };
       global.toggleFavoritePrayer(prayer);
-      
+
       expect(global.favoritePrayers).toContain('prayer-2');
-      expect(localStorage.setItem).toHaveBeenCalledWith(
-        global.FAVORITES_STORAGE_KEY,
-        JSON.stringify(['prayer-1', 'prayer-2'])
-      );
+      expect(global.toggleFavoritePrayer).toHaveBeenCalledWith(prayer);
+      // Verify the data was saved by checking localStorage directly
+      const storedData = localStorage.getItem(global.FAVORITES_STORAGE_KEY);
+      expect(storedData).toBe(JSON.stringify(['prayer-1', 'prayer-2']));
     });
   });
 
@@ -420,7 +431,7 @@ describe('Prayer Functions', () => {
   describe('Recent Languages', () => {
     it('should get recent languages from localStorage', () => {
       const recentLanguages = ['en', 'es', 'fr'];
-      localStorage.getItem.mockReturnValue(JSON.stringify(recentLanguages));
+      localStorage.setItem('devotionalPWA_recentLanguages', JSON.stringify(recentLanguages));
       
       global.getRecentLanguages = jest.fn().mockImplementation(() => {
         try {
@@ -437,10 +448,25 @@ describe('Prayer Functions', () => {
       
       const result = global.getRecentLanguages();
       expect(result).toEqual(recentLanguages);
+      expect(global.getRecentLanguages).toHaveBeenCalled();
     });
 
     it('should add recent language', () => {
-      global.getRecentLanguages = jest.fn().mockReturnValue(['es', 'fr']);
+      // Set up existing languages in localStorage
+      localStorage.setItem('devotionalPWA_recentLanguages', JSON.stringify(['es', 'fr']));
+      
+      global.getRecentLanguages = jest.fn().mockImplementation(() => {
+        try {
+          const stored = localStorage.getItem('devotionalPWA_recentLanguages');
+          if (stored) {
+            const languages = JSON.parse(stored);
+            return Array.isArray(languages) ? languages : [];
+          }
+        } catch (error) {
+          console.error('Error getting recent languages:', error);
+        }
+        return [];
+      });
       
       global.addRecentLanguage = jest.fn().mockImplementation((langCode) => {
         if (!langCode || typeof langCode !== 'string') return;
@@ -454,10 +480,10 @@ describe('Prayer Functions', () => {
       
       global.addRecentLanguage('en');
       
-      expect(localStorage.setItem).toHaveBeenCalledWith(
-        'devotionalPWA_recentLanguages',
-        JSON.stringify(['en', 'es', 'fr'])
-      );
+      expect(global.addRecentLanguage).toHaveBeenCalledWith('en');
+      // Verify the data was saved by checking localStorage directly
+      const storedData = localStorage.getItem('devotionalPWA_recentLanguages');
+      expect(storedData).toBe(JSON.stringify(['en', 'es', 'fr']));
     });
   });
 
