@@ -70,7 +70,7 @@ describe('Pinning Interface DOM Manipulation', () => {
             }
         });
         
-        global._renderPrayerContent = jest.fn().mockImplementation(async (prayerObject, phelpsCodeForNav, activeLangForNav, titleCalculationResults) => {
+        global._renderPrayerContent = jest.fn().mockImplementation(async (prayerObject) => {
             // Mock the fixed version that doesn't move the staticHost
             const staticHost = document.getElementById('static-prayer-actions-host');
             if (staticHost) {

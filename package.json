@@ -55,16 +55,34 @@
     "env": {
       "browser": true,
       "es2021": true,
-      "jest": true
+      "jest": true,
+      "node": true
     },
     "extends": "eslint:recommended",
     "parserOptions": {
       "ecmaVersion": 12,
-      "sourceType": "module"
+      "sourceType": "script"
+    },
+    "globals": {
+      "global": "readonly",
+      "componentHandler": "readonly"
     },
     "rules": {
       "no-unused-vars": "warn",
-      "no-console": "off"
-    }
+      "no-console": "off",
+      "no-useless-escape": "warn"
+    },
+    "overrides": [
+      {
+        "files": ["tests/**/*.js"],
+        "env": {
+          "jest": true,
+          "node": true
+        },
+        "globals": {
+          "global": "writable"
+        }
+      }
+    ]
   }
 }

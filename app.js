@@ -1,3 +1,5 @@
+/* eslint-env browser */
+
 // DATABASE STRUCTURE ASSUMPTIONS (holywritings/bahaiwritings):
 // Table: writings
 // Columns: version, text, language, phelps, name, source, link
@@ -81,7 +83,6 @@ window.currentPrayerForStaticActions = null; // Holds { prayer, initialDisplayPr
 
 function initializeStaticPrayerActions() {
     console.log("[initializeStaticPrayerActions] Initializing listeners for static prayer action buttons.");
-    // snackbarContainer is used in event handlers within this function
     const snackbarContainer = document.querySelector(".mdl-js-snackbar");
 
     const staticPinBtn = document.getElementById('static-action-pin-this');
@@ -285,14 +286,7 @@ async function _fetchLanguageNamesInternal() {
     }, FETCH_LANG_NAMES_TIMEOUT_MS);
   });
 
-  try {
-    return await Promise.race([fetchOperationPromise, timeoutPromise]);
-  } catch (error) {
-    // Do not modify global languageNamesMap here if _fetchLanguageNamesInternal fails.
-    // The caller (fetchLanguageNames wrapper) will handle resetting languageNamesPromise.
-    // console.error("_fetchLanguageNamesInternal: Error during fetch operation (API or timeout):", error);
-    throw error; // Propagate error
-  }
+  return await Promise.race([fetchOperationPromise, timeoutPromise]);
 }
 
 async function fetchLanguageNames() {
@@ -438,8 +432,6 @@ async function updatePrayerMatchingToolDisplay() { // Made async
     "clear-all-items-link",
   );
 
-  const snackbarContainer = document.querySelector(".mdl-js-snackbar");
-
   if (pinnedPrayerDetails) {
     let pinnedName =
       pinnedPrayerDetails.name || `Prayer ${pinnedPrayerDetails.version}`;
@@ -475,10 +467,7 @@ async function updatePrayerMatchingToolDisplay() { // Made async
         ? `?page=${pageState.page || 1}${pageState.showOnlyUnmatched ? "&filter=unmatched" : ""}`
         : `?page=1`;
       const returnLinkHref = `#prayers/${pinnedPrayerDetails.language}${returnUrlParams}`;
-      const pinnedNameSnippet = (
-        pinnedPrayerDetails.name || `Version ${pinnedPrayerDetails.version}`
-      ).substring(0, 30);
-
+      // Remove unused pinnedNameSnippet variable
       const returnLinkP = document.createElement("p");
       returnLinkP.style.fontSize = "0.9em";
       returnLinkP.style.marginTop = "10px";
@@ -1764,7 +1753,7 @@ async function renderPrayer(
     console.error(`Error fetching prayer ${versionId}:`, e);
     await renderPageLayout({
         titleKey: "Error Loading Prayer",
-        contentRenderer: () => `<div id=\"prayer-view-error\"><p>Error loading prayer data: ${e.message}</p><p>Version ID: ${versionId}</p><p>Query: ${prayerSql}</p></div>`,
+        contentRenderer: () => `<div id="prayer-view-error"><p>Error loading prayer data: ${e.message}</p><p>Version ID: ${versionId}</p><p>Query: ${prayerSql}</p></div>`,
         showLanguageSwitcher: true, 
         showBackButton: true,
         activeLangCodeForPicker: activeLangForNav // Use activeLangForNav if available for picker context
@@ -1775,7 +1764,7 @@ async function renderPrayer(
   if (!prayerRows || prayerRows.length === 0) {
     await renderPageLayout({
         titleKey: "Prayer Not Found",
-        contentRenderer: () => `<div id=\"prayer-not-found\"><p>Prayer with ID ${versionId} not found.</p><p>Query: ${prayerSql}</p></div>`,
+        contentRenderer: () => `<div id="prayer-not-found"><p>Prayer with ID ${versionId} not found.</p><p>Query: ${prayerSql}</p></div>`,
         showLanguageSwitcher: true, 
         showBackButton: true,
         activeLangCodeForPicker: activeLangForNav // Use activeLangForNav if available
@@ -1928,7 +1917,7 @@ async function _renderPrayersForLanguageContent(langCode, page, showOnlyUnmatche
   let allPhelpsDetailsForCards = {};
   const phelpsCodesInList = [...new Set(prayersForDisplay.filter((p) => p.phelps).map((p) => p.phelps))];
   if (phelpsCodesInList.length > 0) {
-    const phelpsInClause = phelpsCodesInList.map((p) => `\'${p.replace(/\'/g, "''")}\'`).join(",");
+    const phelpsInClause = phelpsCodesInList.map((p) => `'${p.replace(/'/g, "''")}'`).join(",");
     const translationsSql = `SELECT version, language, phelps, name, link FROM writings WHERE phelps IN (${phelpsInClause})`;
     try {
       const translationRows = await executeQuery(translationsSql);
@@ -2008,7 +1997,7 @@ async function _renderPrayerCodeViewContent(phelpsCode, page) {
   const offset = (page - 1) * ITEMS_PER_PAGE;
 
   // Fetch and set header navigation links for different languages of this Phelps code.
-  const phelpsLangsSql = `SELECT DISTINCT language FROM writings WHERE phelps = '${phelpsCode.replace(/\'/g, "''")}' ORDER BY language`;
+  const phelpsLangsSql = `SELECT DISTINCT language FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' ORDER BY language`;
   let navLinks = [];
   try {
     const distinctLangs = await executeQuery(phelpsLangsSql);
@@ -2024,7 +2013,7 @@ async function _renderPrayerCodeViewContent(phelpsCode, page) {
   updateHeaderNavigation(navLinks); // This is specific to this view.
 
   // Fetch metadata for the prayer list
-  const metadataSql = `SELECT version, name, language, text, phelps, link FROM writings WHERE phelps = '${phelpsCode.replace(/\'/g, "''")}' AND phelps IS NOT NULL AND phelps != '' ORDER BY language, name LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
+  const metadataSql = `SELECT version, name, language, text, phelps, link FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' AND phelps IS NOT NULL AND phelps != '' ORDER BY language, name LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
   let prayersMetadata;
   try {
       prayersMetadata = await executeQuery(metadataSql);
@@ -2033,7 +2022,7 @@ async function _renderPrayerCodeViewContent(phelpsCode, page) {
       return `<div id="prayer-code-content-area"><p style="color:red;text-align:center;">Error loading prayer data: ${error.message}.</p><pre>${metadataSql}</pre></div>`;
   }
 
-  const countSql = `SELECT COUNT(*) as total FROM writings WHERE phelps = '${phelpsCode.replace(/\'/g, "''")}' AND phelps IS NOT NULL AND phelps != ''`;
+  const countSql = `SELECT COUNT(*) as total FROM writings WHERE phelps = '${phelpsCode.replace(/'/g, "''")}' AND phelps IS NOT NULL AND phelps != ''`;
   let countResult;
   try {
       countResult = await executeQuery(countSql);
@@ -2609,7 +2598,7 @@ async function _renderLanguageListContent() {
 
       if (phelpsCodesToFetchForFavs.length > 0) {
         const phelpsInClause = phelpsCodesToFetchForFavs
-          .map((p) => `'${p.replace(/\'/g, "''")}'`)
+          .map((p) => `'${p.replace(/'/g, "''")}'`)
           .join(",");
         const favTranslationsSql = `SELECT version, language, phelps, name, link FROM writings WHERE phelps IN (${phelpsInClause})`;
         try {
@@ -2694,7 +2683,7 @@ async function renderLanguageList() {
 }
 
 async function _renderSearchResultsContent(searchTerm, page) {
-  const saneSearchTermForSql = searchTerm.replace(/\'/g, "''");
+  const saneSearchTermForSql = searchTerm.replace(/'/g, "''");
   const lowerSearchTerm = searchTerm.toLowerCase();
   const localFoundItems = [];
   const allCached = getAllCachedPrayers();
@@ -2806,7 +2795,7 @@ async function _renderSearchResultsContent(searchTerm, page) {
   let allPhelpsDetailsForCards = {};
   const phelpsCodesInList = [...new Set(displayItems.filter((p) => p.phelps).map((p) => p.phelps))];
   if (phelpsCodesInList.length > 0) {
-    const phelpsInClause = phelpsCodesInList.map((p) => `\'${p.replace(/\'/g, "''")}\'`).join(",");
+    const phelpsInClause = phelpsCodesInList.map((p) => `'${p.replace(/'/g, "''")}'`).join(",");
     const translationsSql = `SELECT version, language, phelps, name, link FROM writings WHERE phelps IN (${phelpsInClause})`;
     try {
       const translationRows = await executeQuery(translationsSql);
@@ -2860,7 +2849,7 @@ async function renderSearchResults(searchTerm, page = 1) {
   }
 
   await renderPageLayout({
-    titleKey: `Search Results for \"${searchTerm ? searchTerm.replace(/\"/g, '&quot;') : ''}\"`,
+    titleKey: `Search Results for "${searchTerm ? searchTerm.replace(/"/g, '&quot;') : ''}"`,
     contentRenderer: async () => _renderSearchResultsContent(searchTerm, page),
     showLanguageSwitcher: true, // Original function included the language picker
     showBackButton: true,       // Useful to go back from search results
@@ -3291,7 +3280,8 @@ function updateStaticPrayerActionButtonStates(prayer) {
           console.log("[updateStaticPrayerActionButtonStates] Branch: Different prayer is pinned.");
           if (staticAddMatchBtn) {
               const pinnedNameSnippet = (pinnedPrayerDetails.name || `Version ${pinnedPrayerDetails.version}`).substring(0, 20);
-              staticAddMatchBtn.innerHTML = `<i class="material-icons">playlist_add_check</i>Match with Pinned: ${pinnedNameSnippet}${pinnedNameSnippet.length === 20 ? "..." : ""}`;
+              const truncatedName = pinnedNameSnippet.length === 20 ? pinnedNameSnippet + "..." : pinnedNameSnippet;
+              staticAddMatchBtn.innerHTML = `<i class="material-icons">playlist_add_check</i>Match with Pinned: ${truncatedName}`;
               staticAddMatchBtn.disabled = false;
           }
           if (staticReplacePinBtn) staticReplacePinBtn.disabled = false;

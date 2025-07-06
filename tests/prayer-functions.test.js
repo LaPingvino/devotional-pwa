@@ -1,8 +1,6 @@
 // Tests for core prayer functionality in Devotional PWA
 
 describe('Prayer Functions', () => {
-  let app;
-  
   beforeEach(() => {
     // Create test DOM
     global.testUtils.createTestDOM();
@@ -398,7 +396,7 @@ describe('Prayer Functions', () => {
       const prayer = global.testUtils.createMockPrayer();
       const languageDisplayMap = { 'en': 'English' };
       
-      global.createPrayerCardHtml = jest.fn().mockImplementation(async (prayerData, allPhelpsDetails = {}, langMap = {}) => {
+      global.createPrayerCardHtml = jest.fn().mockImplementation(async (prayerData, langMap = {}) => {
         const displayLanguage = langMap[prayerData.language] || prayerData.language.toUpperCase();
         const displayTitle = prayerData.name || `${prayerData.version} - ${displayLanguage}`;
         const cardHref = prayerData.phelps 
