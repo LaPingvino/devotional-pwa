@@ -43,24 +43,24 @@ jj describe
 
 ### 2. Safe Commit Creation
 ```bash
-# First describe your working copy changes
-jj describe -m "Your commit message"
-
-# Then create new commit with current changes
+# Method 1: Commit with message directly
 jj commit -m "Your commit message"
 
-# Or commit with detailed description
+# Method 2: Commit with detailed description
 jj commit -m "Add background caching system
 
 - Automatic English prayers caching after page load
 - Batch processing with 50 prayers per batch
 - Smart duplicate detection
 - Comprehensive test coverage"
+
+# Note: jj commit automatically creates a commit from working copy changes
+# No need to separately describe unless you want to modify the description
 ```
 
 ### 4. Bookmark Management
 ```bash
-# Create new bookmark
+# Create new bookmark at current commit
 jj bookmark create feature-branch
 
 # Set bookmark to current commit
@@ -69,17 +69,23 @@ jj bookmark set feature-branch
 # Set bookmark to specific commit
 jj bookmark set feature-branch -r <change-id>
 
+# Move bookmark backwards (requires flag)
+jj bookmark set feature-branch -r <change-id> --allow-backwards
+
 # List bookmarks
 jj bookmark list
 ```
 
 ### 5. Safe Pushing
 ```bash
-# Push all bookmarks (default behavior)
+# Push specific bookmark (recommended)
+jj git push --bookmark main
+
+# Push all bookmarks (use with caution)
 jj git push
 
-# Push specific bookmark
-jj git push --bookmark main
+# For new bookmarks, allow creation
+jj git push --bookmark main --allow-new
 
 # Check what will be pushed first
 jj log -n 5
@@ -87,17 +93,16 @@ jj log -n 5
 
 ## Common Pitfalls and How to Avoid Them
 
-### ❌ Pitfall 1: Forgetting to Describe Changes
-**Problem**: Working copy commits have no description
-**Solution**: Always use `jj describe` before committing
+### ❌ Pitfall 1: Not Providing Commit Messages
+**Problem**: Creating commits without descriptive messages
+**Solution**: Always provide a message when committing
 
 ```bash
-# Bad: Creates commit with no description
+# Bad: Creates commit with generic description
 jj commit
 
-# Good: Always describe first
-jj describe -m "Fix background caching bug"
-jj commit
+# Good: Always provide meaningful message
+jj commit -m "Fix background caching bug"
 ```
 
 ### ❌ Pitfall 2: Using Commit IDs Instead of Change IDs
@@ -127,7 +132,7 @@ jj commit -m "Your changes"
 
 ### ❌ Pitfall 4: Pushing Without Verification
 **Problem**: Pushing unwanted changes or wrong branches
-**Solution**: Review what you're pushing
+**Solution**: Review what you're pushing and use specific bookmark flags
 
 ```bash
 # Check what will be pushed first
@@ -135,6 +140,9 @@ jj log -n 10
 
 # Good: Push specific bookmark only
 jj git push --bookmark main
+
+# For new bookmarks, use --allow-new
+jj git push --bookmark main --allow-new
 ```
 
 ### ❌ Pitfall 5: Confusion with Working Copy
@@ -155,7 +163,7 @@ jj commit -m "Save current work"
 ```bash
 jj status                    # Current working copy status
 jj log                       # Full history
-jj log --oneline -n 10      # Compact history (last 10)
+jj log -n 10                # Last 10 commits (no --oneline flag)
 jj show                      # Show current commit details
 jj show <change-id>          # Show specific commit
 ```
@@ -193,10 +201,11 @@ jj abandon <change-id>       # Abandon commit (children become orphans)
 
 ### Git Interop
 ```bash
-jj git push --bookmark <name> # Push specific bookmark
-jj git push                   # Push all bookmarks
-jj git fetch                  # Fetch from remote
-jj git import                 # Import Git refs
+jj git push --bookmark <name>     # Push specific bookmark
+jj git push --bookmark <name> --allow-new  # Push new bookmark
+jj git push                       # Push all bookmarks (use with caution)
+jj git fetch                      # Fetch from remote
+jj git import                     # Import Git refs
 ```
 
 ## Best Practices for Our Project
@@ -225,9 +234,8 @@ jj git push --bookmark feature/background-caching
 npm test
 npm run lint
 
-# Then describe and commit
-jj describe -m "Add background caching feature with tests"
-jj commit
+# Then commit with description
+jj commit -m "Add background caching feature with tests"
 
 # Push only after tests pass
 jj git push --bookmark main
@@ -351,13 +359,15 @@ Add background caching feature for English prayers
 ## Remember
 
 1. **Always check status first**: `jj status`
-2. **Describe your changes**: `jj describe -m "..."`
+2. **Provide meaningful commit messages**: `jj commit -m "..."`
 3. **Test before committing**: `npm test && npm run lint`
 4. **Use Change IDs, not Commit IDs**: The short alphanumeric string
 5. **Push specific bookmarks**: `jj git push --bookmark <name>`
-6. **Review before pushing**: `jj show` and `jj log`
-7. **Check for external patches**: Look for `fixes.json` or similar files
-8. **Test integrations**: Verify new features work with existing code
+6. **Use --allow-new for new bookmarks**: `jj git push --bookmark <name> --allow-new`
+7. **Review before pushing**: `jj show` and `jj log`
+8. **Check for external patches**: Look for `fixes.json` or similar files
+9. **Test integrations**: Verify new features work with existing code
+10. **Use --allow-backwards when moving bookmarks**: Required for moving bookmarks to earlier commits
 
 ---
 
