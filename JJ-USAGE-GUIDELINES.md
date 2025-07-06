@@ -41,12 +41,15 @@ jj describe -m "Add background caching feature for English prayers"
 jj describe
 ```
 
-### 3. Safe Commit Creation
+### 2. Safe Commit Creation
 ```bash
-# Create new commit with current changes
+# First describe your working copy changes
+jj describe -m "Your commit message"
+
+# Then create new commit with current changes
 jj commit -m "Your commit message"
 
-# Or commit and describe in one go
+# Or commit with detailed description
 jj commit -m "Add background caching system
 
 - Automatic English prayers caching after page load
@@ -55,28 +58,31 @@ jj commit -m "Add background caching system
 - Comprehensive test coverage"
 ```
 
-### 4. Branch Management
+### 4. Bookmark Management
 ```bash
-# Create new branch
-jj branch create feature-branch
+# Create new bookmark
+jj bookmark create feature-branch
 
-# Set branch to current commit
-jj branch set feature-branch
+# Set bookmark to current commit
+jj bookmark set feature-branch
 
-# List branches
-jj branch list
+# Set bookmark to specific commit
+jj bookmark set feature-branch -r <change-id>
+
+# List bookmarks
+jj bookmark list
 ```
 
 ### 5. Safe Pushing
 ```bash
-# Push specific branch
-jj git push --branch main
+# Push all bookmarks (default behavior)
+jj git push
 
-# Push all branches
-jj git push --all-branches
+# Push specific bookmark
+jj git push --bookmark main
 
 # Check what will be pushed first
-jj log --oneline -n 5
+jj log -n 5
 ```
 
 ## Common Pitfalls and How to Avoid Them
@@ -124,11 +130,11 @@ jj commit -m "Your changes"
 **Solution**: Review what you're pushing
 
 ```bash
-# Check what will be pushed
-jj log --oneline -n 10
+# Check what will be pushed first
+jj log -n 10
 
-# Push specific branch only
-jj git push --branch main
+# Good: Push specific bookmark only
+jj git push --bookmark main
 ```
 
 ### ❌ Pitfall 5: Confusion with Working Copy
@@ -162,12 +168,12 @@ jj split                     # Split current changes into multiple commits
 jj squash                    # Squash changes into parent
 ```
 
-### Branch Operations
+### Bookmark Operations
 ```bash
-jj branch create <name>      # Create new branch
-jj branch set <name>         # Set branch to current commit
-jj branch list               # List all branches
-jj branch delete <name>      # Delete branch
+jj bookmark create <name>    # Create new bookmark
+jj bookmark set <name>       # Set bookmark to current commit
+jj bookmark list             # List all bookmarks
+jj bookmark delete <name>    # Delete bookmark
 ```
 
 ### Navigation
@@ -187,10 +193,10 @@ jj abandon <change-id>       # Abandon commit (children become orphans)
 
 ### Git Interop
 ```bash
-jj git push --branch <name>  # Push specific branch
-jj git push --all-branches   # Push all branches
-jj git fetch                 # Fetch from remote
-jj git import               # Import Git refs
+jj git push --bookmark <name> # Push specific bookmark
+jj git push                   # Push all bookmarks
+jj git fetch                  # Fetch from remote
+jj git import                 # Import Git refs
 ```
 
 ## Best Practices for Our Project
@@ -200,8 +206,8 @@ jj git import               # Import Git refs
 # 1. Check current state
 jj status
 
-# 2. Create feature branch
-jj branch create feature/background-caching
+# 2. Create feature bookmark
+jj bookmark create feature/background-caching
 
 # 3. Make changes and describe them
 jj describe -m "Add background caching for English prayers"
@@ -210,7 +216,7 @@ jj describe -m "Add background caching for English prayers"
 jj commit -m "Implement background caching system"
 
 # 5. Push to remote
-jj git push --branch feature/background-caching
+jj git push --bookmark feature/background-caching
 ```
 
 ### 2. Testing Before Push
@@ -224,7 +230,7 @@ jj describe -m "Add background caching feature with tests"
 jj commit
 
 # Push only after tests pass
-jj git push --branch main
+jj git push --bookmark main
 ```
 
 ### 3. Reviewing Changes
@@ -279,7 +285,7 @@ Add background caching feature for English prayers
 - Updated documentation
 ```
 
-### 2. Branch Naming
+### 2. Bookmark Naming
 - `feature/description` for new features
 - `fix/description` for bug fixes
 - `docs/description` for documentation
@@ -292,8 +298,8 @@ Add background caching feature for English prayers
 - Update documentation
 
 ### 4. Push Strategy
-- Always push to feature branches first
-- Use `--branch` flag to push specific branches
+- Always push to feature bookmarks first
+- Use `--bookmark` flag to push specific bookmarks
 - Never push directly to main without review
 
 ## Common JJ vs Git Differences
@@ -304,7 +310,7 @@ Add background caching feature for English prayers
 | Commit changes | `git commit` | `jj commit` |
 | View history | `git log` | `jj log` |
 | Switch commits | `git checkout` | `jj checkout` |
-| Create branch | `git branch` | `jj branch create` |
+| Create branch | `git branch` | `jj bookmark create` |
 | Push changes | `git push` | `jj git push` |
 
 ## Remember
@@ -313,7 +319,7 @@ Add background caching feature for English prayers
 2. **Describe your changes**: `jj describe -m "..."`
 3. **Test before committing**: `npm test && npm run lint`
 4. **Use Change IDs, not Commit IDs**: The short alphanumeric string
-5. **Push specific branches**: `jj git push --branch <name>`
+5. **Push specific bookmarks**: `jj git push --bookmark <name>`
 6. **Review before pushing**: `jj show` and `jj log`
 
 ---
