@@ -1396,6 +1396,11 @@ function clearLanguageCaches() {
       // Re-populate the language selection to show fresh data
       populateLanguageSelection();
       console.log("Language picker refreshed.");
+
+      // Apply Safari-specific fixes after refresh
+      setTimeout(() => {
+        applySafariMdlMenuFixes();
+      }, 150);
     }
 
     return true;
@@ -3154,9 +3159,43 @@ async function populateLanguageSelection(currentActiveLangCode = null) {
       const searchTf = pickerElement.querySelector(
         "#language-search-li .mdl-js-textfield",
       );
+
       if (menuButton) componentHandler.upgradeElement(menuButton);
       if (menuUL) componentHandler.upgradeElement(menuUL);
       if (searchTf) componentHandler.upgradeElement(searchTf);
+
+      // Safari-specific fixes for MDL menu rendering issues
+      const isSafari = /^((?!chrome|android).)*safari/i.test(
+        navigator.userAgent,
+      );
+      if (isSafari && menuUL) {
+        // Force Safari to properly initialize the menu
+        setTimeout(() => {
+          try {
+            // Force re-upgrade for Safari
+            componentHandler.upgradeDom(menuUL);
+
+            // Ensure menu has proper background and visibility
+            menuUL.style.backgroundColor = "#fff";
+            menuUL.style.border = "1px solid rgba(0,0,0,0.12)";
+
+            // Force GPU acceleration
+            menuUL.style.webkitTransform = "translateZ(0)";
+            menuUL.style.transform = "translateZ(0)";
+
+            // Fix for Safari menu container positioning
+            const menuContainer = menuUL.closest(".mdl-menu__container");
+            if (menuContainer) {
+              menuContainer.style.webkitTransform = "translateZ(0)";
+              menuContainer.style.transform = "translateZ(0)";
+            }
+
+            console.log("[Safari Fix] Applied MDL menu fixes for Safari");
+          } catch (e) {
+            console.warn("[Safari Fix] Error applying Safari menu fixes:", e);
+          }
+        }, 100);
+      }
 
       // MDL menus might need specific re-initialization if items are added dynamically
       // For simplicity, upgradeDom on the menu might be easiest if specific upgrade isn't clean
@@ -3165,7 +3204,150 @@ async function populateLanguageSelection(currentActiveLangCode = null) {
       componentHandler.upgradeDom(); // Broader upgrade if specific element not found
     }
   }
+
+  // Apply Safari-specific menu fixes if needed
+  applySafariMdlMenuFixes();
 } // Closes populateLanguageSelection
+
+/**
+ * Utility function to fix Safari MDL menu rendering issues
+ * Call this after creating or modifying MDL menus
+ */
+function applySafariMdlMenuFixes() {
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+  if (!isSafari) return;
+
+  try {
+    // Find all MDL menus in language picker
+    const languageMenus = document.querySelectorAll(
+      ".language-picker-tabs .mdl-menu",
+    );
+
+    languageMenus.forEach((menu) => {
+      // Force proper background and visibility
+      menu.style.backgroundColor = "#fff";
+      menu.style.border = "1px solid rgba(0,0,0,0.12)";
+      menu.style.boxShadow =
+        "0 2px 2px 0 rgba(0,0,0,0.14), 0 3px 1px -2px rgba(0,0,0,0.2), 0 1px 5px 0 rgba(0,0,0,0.12)";
+
+      // Force GPU acceleration for smooth rendering
+      menu.style.webkitTransform = "translateZ(0)";
+      menu.style.transform = "translateZ(0)";
+      menu.style.webkitBackfaceVisibility = "hidden";
+      menu.style.backfaceVisibility = "hidden";
+      menu.style.willChange = "transform";
+
+      // Fix menu container positioning
+      const menuContainer = menu.closest(".mdl-menu__container");
+      if (menuContainer) {
+        menuContainer.style.position = "fixed";
+        menuContainer.style.webkitTransform = "translateZ(0)";
+        menuContainer.style.transform = "translateZ(0)";
+        menuContainer.style.zIndex = "10005";
+      }
+
+      // Ensure menu items are properly styled
+      const menuItems = menu.querySelectorAll(".mdl-menu__item");
+      menuItems.forEach((item) => {
+        item.style.backgroundColor = "transparent";
+        item.style.color = "rgba(0,0,0,0.87)";
+        item.style.webkitTransform = "translateZ(0)";
+        item.style.transform = "translateZ(0)";
+      });
+    });
+
+    console.log(
+      `[Safari Fix] Applied MDL menu fixes to ${languageMenus.length} menus`,
+    );
+  } catch (e) {
+    console.warn("[Safari Fix] Error in applySafariMdlMenuFixes:", e);
+  }
+}
+
+/**
+ * Safari-specific manual trigger for menu positioning fixes
+ * Call this when menus appear blank or mispositioned
+ */
+function fixSafariMenuPositioning() {
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+
+  if (!isSafari) return;
+
+  try {
+    const languageMenus = document.querySelectorAll(
+      ".language-picker-tabs .mdl-menu",
+    );
+
+    languageMenus.forEach((menu) => {
+      // Force reflow by temporarily changing display
+      const originalDisplay = menu.style.display;
+      menu.style.display = "none";
+      // Force reflow
+      menu.offsetHeight;
+      menu.style.display = originalDisplay || "";
+
+      // Re-apply positioning
+      const rect = menu.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) {
+        // Menu is not visible, force visibility
+        menu.style.visibility = "visible";
+        menu.style.opacity = "1";
+        menu.style.transform = "translateZ(0) scale(1)";
+        menu.style.webkitTransform = "translateZ(0) scale(1)";
+      }
+    });
+
+    console.log("[Safari Fix] Manual menu positioning fix applied");
+  } catch (e) {
+    console.warn("[Safari Fix] Error in fixSafariMenuPositioning:", e);
+  }
+}
+
+/**
+ * Global debug function for manual Safari menu fixes
+ * Call this from browser console: window.fixSafariMenus()
+ */
+window.fixSafariMenus = function () {
+  console.log("[Debug] Manual Safari menu fix triggered");
+
+  try {
+    // Apply all Safari fixes
+    applySafariMdlMenuFixes();
+    fixSafariMenuPositioning();
+
+    // Force refresh of all MDL components
+    if (typeof componentHandler !== "undefined" && componentHandler) {
+      componentHandler.upgradeDom();
+    }
+
+    // Additional manual fixes
+    const languageMenus = document.querySelectorAll(
+      ".language-picker-tabs .mdl-menu",
+    );
+    languageMenus.forEach((menu, index) => {
+      console.log(
+        `[Debug] Fixing menu ${index + 1}: visible=${menu.offsetWidth > 0}, background=${menu.style.backgroundColor}`,
+      );
+
+      // Force visibility
+      menu.style.display = "block";
+      menu.style.visibility = "visible";
+      menu.style.opacity = "1";
+      menu.style.backgroundColor = "#fff";
+
+      // Check if menu items are visible
+      const items = menu.querySelectorAll(".mdl-menu__item");
+      console.log(`[Debug] Menu ${index + 1} has ${items.length} items`);
+    });
+
+    console.log("[Debug] Safari menu fixes completed successfully");
+    return "Safari menu fixes applied. Check console for details.";
+  } catch (error) {
+    console.error("[Debug] Error applying Safari menu fixes:", error);
+    return "Error applying fixes. Check console for details.";
+  }
+};
 
 // This function now manipulates DOM directly, doesn't return HTML for the whole picker.
 
@@ -4116,6 +4298,26 @@ document.addEventListener("DOMContentLoaded", () => {
       }, 1000);
     });
     console.log("[DEBUG] Refresh language cache button event listener added");
+  }
+
+  // Apply Safari-specific MDL menu fixes on page load
+  setTimeout(() => {
+    applySafariMdlMenuFixes();
+  }, 500);
+
+  // Add Safari menu positioning fix trigger on menu button clicks
+  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+  if (isSafari) {
+    document.addEventListener("click", function (event) {
+      const menuButton = event.target.closest("#all-languages-menu-btn");
+      if (menuButton) {
+        // Delay the fix to allow MDL to process the menu opening
+        setTimeout(() => {
+          fixSafariMenuPositioning();
+        }, 50);
+      }
+    });
+    console.log("[DEBUG] Safari menu positioning fix triggers added");
   }
 
   if (

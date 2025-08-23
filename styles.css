@@ -677,6 +677,138 @@ small {
     z-index: 10005 !important;
 }
 
+/* === Safari-specific fixes for MDL menu rendering === */
+/* Fix for Safari white/blank menu rendering */
+.language-picker-tabs .mdl-menu {
+    background-color: #fff !important;
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    box-shadow:
+        0 2px 2px 0 rgba(0, 0, 0, 0.14),
+        0 3px 1px -2px rgba(0, 0, 0, 0.2),
+        0 1px 5px 0 rgba(0, 0, 0, 0.12) !important;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+}
+
+/* Force proper rendering for menu items in Safari */
+.language-picker-tabs .mdl-menu__item {
+    background-color: transparent !important;
+    color: rgba(0, 0, 0, 0.87) !important;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    position: relative;
+}
+
+/* Safari-specific menu container fixes */
+.language-picker-tabs .mdl-menu__container {
+    position: fixed !important;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-perspective: 1000px;
+    perspective: 1000px;
+}
+
+/* Fix for Safari menu positioning issues */
+.language-picker-tabs .mdl-menu.is-visible {
+    opacity: 1 !important;
+    -webkit-transform: translateZ(0) scale(1);
+    transform: translateZ(0) scale(1);
+    visibility: visible !important;
+}
+
+/* Safari flexbox fallbacks for more-languages-section */
+@supports not (display: flex) {
+    .language-picker-tabs .more-languages-section-wrapper {
+        display: inline-block;
+        float: right;
+    }
+}
+
+/* WebKit-specific fixes for menu animation */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+    .language-picker-tabs .mdl-menu {
+        -webkit-transform: scale(0);
+        transform: scale(0);
+        transition:
+            -webkit-transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+            transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+            opacity 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .language-picker-tabs .mdl-menu.is-visible {
+        -webkit-transform: scale(1);
+        transform: scale(1);
+    }
+
+    .language-picker-tabs .mdl-menu.is-animating {
+        -webkit-transform: scale(1);
+        transform: scale(1);
+    }
+}
+
+/* Force GPU acceleration for Safari */
+.language-picker-tabs .mdl-menu,
+.language-picker-tabs .mdl-menu__container,
+.language-picker-tabs .mdl-menu__item {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    will-change: transform;
+}
+
+/* Additional Safari flexbox and overflow fixes */
+.language-picker-tabs .mdl-tabs__tab-bar {
+    -webkit-box-sizing: border-box;
+    box-sizing: border-box;
+    overflow: visible !important;
+}
+
+/* Safari-specific flexbox fixes */
+@supports (-webkit-appearance: none) {
+    .language-picker-tabs .more-languages-section-wrapper {
+        -webkit-flex-shrink: 0;
+        flex-shrink: 0;
+        -webkit-align-items: center;
+        align-items: center;
+        display: -webkit-flex;
+        display: flex;
+    }
+
+    .language-picker-tabs .mdl-tabs__tab-bar {
+        display: -webkit-flex;
+        display: flex;
+        -webkit-flex-wrap: wrap;
+        flex-wrap: wrap;
+        -webkit-justify-content: flex-start;
+        justify-content: flex-start;
+    }
+}
+
+/* Safari menu overflow and scrolling fixes */
+.language-picker-tabs #all-languages-menu-ul {
+    -webkit-overflow-scrolling: touch;
+    overflow-x: hidden;
+    overflow-y: auto;
+    max-height: 65vh;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+}
+
+/* Safari text field fixes in menu */
+.language-picker-tabs .mdl-textfield {
+    -webkit-appearance: none;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+}
+
+.language-picker-tabs .mdl-textfield__input {
+    -webkit-appearance: none;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+
 .text-center {
     text-align: center;
 }
