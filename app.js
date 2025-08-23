@@ -1372,6 +1372,39 @@ function cacheLanguageStats(data) {
   }
 }
 
+/**
+ * Clears all language-related caches and refreshes the language picker
+ */
+function clearLanguageCaches() {
+  try {
+    // Clear language names cache
+    localStorage.removeItem(LANGUAGE_NAMES_CACHE_KEY);
+    console.log("Language names cache cleared.");
+
+    // Clear language statistics cache
+    localStorage.removeItem(LANGUAGE_STATS_CACHE_KEY);
+    console.log("Language statistics cache cleared.");
+
+    // Reset the global language names map
+    languageNamesMap = {};
+
+    // Refresh the language picker if it exists
+    const languagePickerContainer = document.getElementById(
+      "language-picker-container",
+    );
+    if (languagePickerContainer) {
+      // Re-populate the language selection to show fresh data
+      populateLanguageSelection();
+      console.log("Language picker refreshed.");
+    }
+
+    return true;
+  } catch (e) {
+    console.error("Error clearing language caches:", e);
+    return false;
+  }
+}
+
 async function executeQuery(sql) {
   const cacheKey = sql;
   const now = Date.now();
@@ -2717,6 +2750,10 @@ function getLanguagePickerShellHtml() {
             <button id="${menuId}-btn" class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect">
               More Languages <i class="material-icons" role="presentation">arrow_drop_down</i>
             </button>
+            <button id="refresh-language-cache-btn" class="mdl-button mdl-js-button mdl-button--icon mdl-js-ripple-effect"
+                    title="Refresh language cache" style="margin-left: 4px;">
+              <i class="material-icons">refresh</i>
+            </button>
             <ul class="mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect"
                 for="${menuId}-btn" id="${allLanguagesMenuUlId}">
               <li id="language-search-li" onclick="event.stopPropagation();">
@@ -4036,6 +4073,49 @@ document.addEventListener("DOMContentLoaded", () => {
           });
       } // Closing brace for the 'else' statement
     });
+  }
+
+  // Add event listener for refresh language cache button
+  const refreshLanguageCacheButton = document.getElementById(
+    "refresh-language-cache-btn",
+  );
+  if (refreshLanguageCacheButton) {
+    refreshLanguageCacheButton.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+
+      console.log("[DEBUG] Refresh language cache button clicked");
+
+      // Show loading state
+      refreshLanguageCacheButton.disabled = true;
+      const icon = refreshLanguageCacheButton.querySelector("i");
+      if (icon) {
+        icon.style.animation = "spin 1s linear infinite";
+      }
+
+      // Clear caches and refresh
+      const success = clearLanguageCaches();
+
+      // Show feedback to user
+      const snackbarContainer = document.querySelector(".mdl-js-snackbar");
+      if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
+        const message = success
+          ? "Language cache refreshed!"
+          : "Error refreshing cache. Check console.";
+        snackbarContainer.MaterialSnackbar.showSnackbar({
+          message: message,
+        });
+      }
+
+      // Reset button state after a short delay
+      setTimeout(() => {
+        refreshLanguageCacheButton.disabled = false;
+        if (icon) {
+          icon.style.animation = "";
+        }
+      }, 1000);
+    });
+    console.log("[DEBUG] Refresh language cache button event listener added");
   }
 
   if (

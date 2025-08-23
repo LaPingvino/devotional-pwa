@@ -20,16 +20,15 @@ body {
     font-size: 1.5em;
 }
 
-
 /* Header Adjustments */
 .mdl-layout__header-row .mdl-layout-title {
-    padding-left: 16px; 
-    margin-left: 0; 
-    flex-grow: 0; 
+    padding-left: 16px;
+    margin-left: 0;
+    flex-grow: 0;
 }
 
 .mdl-layout__header-row .mdl-layout-spacer {
-    flex-grow: 1; 
+    flex-grow: 1;
 }
 
 /* Main Content Layout */
@@ -47,7 +46,7 @@ body {
 }
 
 #content {
-    margin: 15px; 
+    margin: 15px;
     background-color: #ffffff;
     padding: 20px;
     border-radius: 4px;
@@ -107,12 +106,12 @@ body {
 
 @media screen and (max-width: 767px) {
     .mdl-layout__header-row {
-        padding-left: 0; 
-        padding-right: 8px; 
+        padding-left: 0;
+        padding-right: 8px;
     }
     .mdl-layout__header-row .mdl-layout-title {
         font-size: 1rem;
-        flex: 0 1 auto; 
+        flex: 0 1 auto;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -120,7 +119,7 @@ body {
         padding-left: 16px;
     }
     .mdl-layout__header-row .mdl-textfield--expandable {
-        flex-shrink: 0; 
+        flex-shrink: 0;
     }
 }
 
@@ -135,12 +134,16 @@ body {
         padding: 15px;
     }
     .language-picker-tabs .mdl-tabs__tab-bar .mdl-tabs__tab {
-        padding: 8px 6px; 
-        font-size: 0.9em; 
-        min-width: 70px;  
+        padding: 8px 6px;
+        font-size: 0.9em;
+        min-width: 70px;
     }
-    .language-picker-tabs .mdl-tabs__tab-bar .mdl-tabs__tab span[style*="font-size"] { /* General targeting for stats span */
-        font-size: 0.7em !important; 
+    .language-picker-tabs
+        .mdl-tabs__tab-bar
+        .mdl-tabs__tab
+        span[style*="font-size"] {
+        /* General targeting for stats span */
+        font-size: 0.7em !important;
         margin-left: 2px;
     }
 }
@@ -178,11 +181,12 @@ header, /* Generic header tag style */
     margin-left: 2em;
     font-weight: bold;
 }
-h2 { /* General h2 */
+h2 {
+    /* General h2 */
     font-size: 1.2em;
 }
-/* Styles for #category and #blocktitle are removed as they are no longer used 
-   in the primary title structure of renderPrayer. 
+/* Styles for #category and #blocktitle are removed as they are no longer used
+   in the primary title structure of renderPrayer.
    #prayer-main-title (an h2) is now used. */
 
 /* New style for the main prayer title in single prayer view */
@@ -202,7 +206,8 @@ h2 { /* General h2 */
     padding: 0; /* Reset default header paddings */
     /* Spacing after this line will be handled by margin-top on prayer-details-area or a wrapper */
 }
-small { /* General small */
+small {
+    /* General small */
     font-family: "Gentium", "Times New Roman", serif;
     font-size: 0.9em;
     display: block;
@@ -302,7 +307,7 @@ small { /* General small */
     flex-grow: 1;
     margin-right: 8px;
     word-break: break-word;
-    overflow-wrap: break-word; 
+    overflow-wrap: break-word;
     min-width: 0;
 }
 #collected-items-list li .mdl-button--icon {
@@ -315,12 +320,17 @@ small { /* General small */
 
 /* Favorite Prayer Button & Section - Inline Flow */
 .favorite-toggle-button {
-    color: #bdbdbd; 
+    color: #bdbdbd;
     margin: 0 8px 0 0; /* 0 top, 8px right (space before title), 0 bottom, 0 left */
-    display: inline-flex; 
+    display: inline-flex;
     align-items: center;
     vertical-align: middle; /* Align with the <header> containing the title */
-    background-color: rgba(255, 255, 255, 0.95); /* Semi-transparent white background */
+    background-color: rgba(
+        255,
+        255,
+        255,
+        0.95
+    ); /* Semi-transparent white background */
     border-radius: 4px;
     padding: 4px 8px;
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
@@ -329,16 +339,26 @@ small { /* General small */
     transition: all 0.3s ease; /* Smooth transition for hover effects */
 }
 .favorite-toggle-button:hover {
-    background-color: rgba(255, 255, 255, 1.0);
+    background-color: rgba(255, 255, 255, 1);
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.25);
     transform: translateY(-1px);
 }
 .favorite-toggle-button.is-favorite {
     color: gold;
-    background-color: rgba(255, 255, 255, 0.98); /* Slightly more opaque when favorited */
+    background-color: rgba(
+        255,
+        255,
+        255,
+        0.98
+    ); /* Slightly more opaque when favorited */
 }
 .favorite-toggle-button.is-favorite:hover {
-    background-color: rgba(255, 248, 220, 1.0); /* Light gold background on hover */
+    background-color: rgba(
+        255,
+        248,
+        220,
+        1
+    ); /* Light gold background on hover */
 }
 .favorite-toggle-button .material-icons {
     font-size: 24px; /* Adjusted for inline flow */
@@ -449,10 +469,7 @@ small { /* General small */
 
 .favorite-prayer-grid {
     display: grid;
-    grid-template-columns: repeat(
-        auto-fill,
-        minmax(300px, 1fr)
-    );
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 15px;
 }
 
@@ -568,20 +585,22 @@ small { /* General small */
 }
 
 /* === Language Picker Styles === (Revised Strategy) */
-.language-picker-tabs { /* Outermost container for the entire language picker */
-    display: block; 
-    width: 100%;    
-    box-sizing: border-box; 
-    margin-bottom: 15px; 
+.language-picker-tabs {
+    /* Outermost container for the entire language picker */
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    margin-bottom: 15px;
     border-bottom: 1px solid #eee; /* The separator line for the whole picker */
     padding-bottom: 8px; /* Space AFTER all content, before this border */
     overflow: auto; /* BFC to correctly calculate height, auto might be gentler with menus */
 }
 
-.language-picker-tabs .mdl-tabs__tab-bar { /* Direct child, containing MDL tabs and "More" button */
-    display: flex; 
-    flex-wrap: wrap; 
-    justify-content: flex-start; 
+.language-picker-tabs .mdl-tabs__tab-bar {
+    /* Direct child, containing MDL tabs and "More" button */
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
     border-bottom: none !important; /* CRITICAL: No border here, let MDL manage active tab underlines */
     align-items: stretch;
     height: auto !important; /* CRITICAL: Override MDL's fixed height */
@@ -601,16 +620,20 @@ small { /* General small */
     margin-bottom: 8px; /* Vertical spacing between rows of tabs AND space below last row */
 }
 
-.language-picker-tabs .mdl-tabs__tab-bar .mdl-tabs__tab span[style*="font-size"] { /* General targeting for stats */
-    display: inline; 
+.language-picker-tabs
+    .mdl-tabs__tab-bar
+    .mdl-tabs__tab
+    span[style*="font-size"] {
+    /* General targeting for stats */
+    display: inline;
     margin-left: 4px;
-    font-size: 0.75em !important; 
-    opacity: 0.85 !important; 
+    font-size: 0.75em !important;
+    opacity: 0.85 !important;
 }
 
 .language-picker-tabs .more-languages-section-wrapper {
-    display: flex; 
-    align-items: center; 
+    display: flex;
+    align-items: center;
     margin-left: auto; /* Pushes to the right */
     padding-left: 15px; /* Space from tabs if on same line */
     margin-bottom: 8px; /* Consistent bottom margin like tabs */
@@ -649,62 +672,65 @@ small { /* General small */
 }
 
 /* Z-index for More Languages menu */
-.language-picker-tabs .mdl-menu__container { /* This is the MDL generated wrapper for the menu */
-    z-index: 10005 !important; 
+.language-picker-tabs .mdl-menu__container {
+    /* This is the MDL generated wrapper for the menu */
+    z-index: 10005 !important;
 }
-
 
 .text-center {
     text-align: center;
 }
 .main-content-spinner {
-    text-align:center;
-    padding:20px;
+    text-align: center;
+    padding: 20px;
 }
-#language-tab-panel-favorites { /* Panel for favorites when "Favorites" tab is active */
+#language-tab-panel-favorites {
+    /* Panel for favorites when "Favorites" tab is active */
     padding-top: 10px;
 }
 
 /* === Translations Switcher Styles === */
 .translations-switcher {
-  padding: 8px 16px;
-  margin-bottom: 10px;
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  background-color: #f5f5f5;
-  border-bottom: 1px solid #e0e0e0;
+    padding: 8px 16px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    background-color: #f5f5f5;
+    border-bottom: 1px solid #e0e0e0;
 }
 .translations-switcher-label {
-  font-weight: 500;
-  margin-right: 10px;
-  font-size: 0.9em;
-  color: #333;
-  padding: 8px 0;
+    font-weight: 500;
+    margin-right: 10px;
+    font-size: 0.9em;
+    color: #333;
+    padding: 8px 0;
 }
 .translations-switcher .translation-link {
-  margin-right: 8px;
-  margin-bottom: 4px;
-  margin-top: 4px;
-  padding: 6px 12px;
-  text-decoration: none;
-  color: rgba(0,0,0,.54);
-  font-size: 0.875em;
-  font-weight: 500;
-  border-radius: 2px;
-  transition: background-color 0.2s, color 0.2s;
-  border: 1px solid transparent;
-  text-transform: uppercase;
+    margin-right: 8px;
+    margin-bottom: 4px;
+    margin-top: 4px;
+    padding: 6px 12px;
+    text-decoration: none;
+    color: rgba(0, 0, 0, 0.54);
+    font-size: 0.875em;
+    font-weight: 500;
+    border-radius: 2px;
+    transition:
+        background-color 0.2s,
+        color 0.2s;
+    border: 1px solid transparent;
+    text-transform: uppercase;
 }
 .translations-switcher .translation-link:hover {
-  background-color: rgba(0,0,0,0.05);
-  color: rgba(0,0,0,.74);
-  text-decoration: none;
+    background-color: rgba(0, 0, 0, 0.05);
+    color: rgba(0, 0, 0, 0.74);
+    text-decoration: none;
 }
 .translations-switcher .translation-link.is-active {
-  color: #3f51b5;
-  background-color: #e8eaf6;
-  font-weight: 500;
+    color: #3f51b5;
+    background-color: #e8eaf6;
+    font-weight: 500;
 }
 
 /* === Fix for Content Overlap & Mobile Viewport Issues === */
@@ -713,8 +739,35 @@ main.mdl-layout__content {
     box-sizing: border-box;
 }
 
-@media screen and (min-width: 1025px) { 
+@media screen and (min-width: 1025px) {
     main.mdl-layout__content {
         padding-top: 10px; /* Drastically reduced */
     }
+}
+
+/* === Refresh Button Animation === */
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* More Languages Section Refresh Button Styles */
+#refresh-language-cache-btn {
+    min-width: 32px !important;
+    width: 32px !important;
+    height: 32px !important;
+    padding: 4px !important;
+}
+
+#refresh-language-cache-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+#refresh-language-cache-btn .material-icons {
+    font-size: 18px;
 }
