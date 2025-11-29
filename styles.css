@@ -188,51 +188,94 @@ body[data-theme="dark"] #translations-menu-btn {
 }
 
 /* Ensure translation menu container works properly */
-#translations-menu {
-    min-width: 200px !important;
-    max-height: 400px !important;
-    overflow-y: auto !important;
+/* Translation switcher container */
+.translation-switcher-container {
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
 }
 
-/* Ensure translation menu has proper z-index and positioning */
-#translations-menu.mdl-menu {
-    margin-top: 16px !important;
-    margin-left: -8px !important;
+/* Language links styling */
+.translation-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    max-width: 60vw;
+    overflow-x: auto;
+    padding: 4px 0;
 }
 
-.mdl-menu__container.is-visible {
-    z-index: 10000 !important;
-    visibility: visible !important;
+/* Mobile responsive styling */
+@media (max-width: 768px) {
+    .translation-links {
+        max-width: 75vw;
+        gap: 4px;
+    }
+
+    .translation-link {
+        font-size: 0.8em;
+        padding: 3px 6px;
+    }
+
+    .translation-switcher-container {
+        gap: 6px;
+    }
 }
 
-.mdl-menu__container.is-visible .mdl-menu {
-    opacity: 1 !important;
-    z-index: 10000 !important;
+@media (max-width: 480px) {
+    .translation-links {
+        max-width: 80vw;
+        gap: 3px;
+    }
+
+    .translation-link {
+        font-size: 0.75em;
+        padding: 2px 5px;
+    }
 }
 
-body[data-theme="dark"] #translations-menu {
-    background-color: #2a2a2a !important;
-    border-color: #404040 !important;
-    z-index: 10000 !important;
+.translation-link {
+    background-color: #f5f5f5;
+    color: #333;
+    text-decoration: none;
+    padding: 4px 8px;
+    border-radius: 12px;
+    font-size: 0.85em;
+    font-weight: 500;
+    border: 1px solid #ddd;
+    transition: all 0.2s ease;
+    white-space: nowrap;
 }
 
-body[data-theme="dark"] #translations-menu .mdl-menu__item {
-    color: #b0b0b0 !important;
-    pointer-events: auto !important;
+.translation-link:hover {
+    background-color: #e0e0e0;
+    border-color: #bbb;
+    transform: translateY(-1px);
 }
 
-body[data-theme="dark"] #translations-menu .mdl-menu__item:active,
-body[data-theme="dark"] #translations-menu .mdl-menu__item:focus {
-    background-color: #3a3a3a !important;
+.translation-link.active {
+    background-color: #3f51b5;
+    color: white;
+    border-color: #3f51b5;
 }
 
-body[data-theme="dark"] #translations-menu .mdl-menu__item:hover {
-    background-color: #404040 !important;
+/* Dark theme language links */
+body[data-theme="dark"] .translation-link {
+    background-color: #2a2a2a;
+    color: #b0b0b0;
+    border-color: #404040;
 }
 
-body[data-theme="dark"] #translations-menu .mdl-menu__item.is-active {
-    background-color: #3f51b5 !important;
-    color: #ffffff !important;
+body[data-theme="dark"] .translation-link:hover {
+    background-color: #404040;
+    border-color: #555;
+}
+
+body[data-theme="dark"] .translation-link.active {
+    background-color: #3f51b5;
+    color: white;
+    border-color: #3f51b5;
 }
 
 body[data-theme="dark"] #content {
@@ -442,29 +485,22 @@ body[data-theme="dark-blue"] #translations-menu-btn {
     color: #4a9eff !important;
 }
 
-body[data-theme="dark-blue"] #translations-menu {
-    background-color: #1b263b !important;
-    border-color: #415a77 !important;
-    z-index: 10000 !important;
+/* Dark-blue theme language links */
+body[data-theme="dark-blue"] .translation-link {
+    background-color: #1b263b;
+    color: #b8c9e0;
+    border-color: #415a77;
 }
 
-body[data-theme="dark-blue"] #translations-menu .mdl-menu__item {
-    color: #b8c9e0 !important;
-    pointer-events: auto !important;
+body[data-theme="dark-blue"] .translation-link:hover {
+    background-color: #2a3a52;
+    border-color: #4a6380;
 }
 
-body[data-theme="dark-blue"] #translations-menu .mdl-menu__item:active,
-body[data-theme="dark-blue"] #translations-menu .mdl-menu__item:focus {
-    background-color: #2a3a52 !important;
-}
-
-body[data-theme="dark-blue"] #translations-menu .mdl-menu__item:hover {
-    background-color: #364a66 !important;
-}
-
-body[data-theme="dark-blue"] #translations-menu .mdl-menu__item.is-active {
-    background-color: #3f51b5 !important;
-    color: #ffffff !important;
+body[data-theme="dark-blue"] .translation-link.active {
+    background-color: #4a9eff;
+    color: white;
+    border-color: #4a9eff;
 }
 
 body[data-theme="dark-blue"] .random-prayer-card {
@@ -625,29 +661,22 @@ body[data-theme="dark-green"] #translations-menu-btn {
     color: #66bb6a !important;
 }
 
-body[data-theme="dark-green"] #translations-menu {
-    background-color: #1a2f1e !important;
-    border-color: #2d5038 !important;
-    z-index: 10000 !important;
+/* Dark-green theme language links */
+body[data-theme="dark-green"] .translation-link {
+    background-color: #1b2e1b;
+    color: #b8d4b8;
+    border-color: #2e5c2e;
 }
 
-body[data-theme="dark-green"] #translations-menu .mdl-menu__item {
-    color: #b8d4bc !important;
-    pointer-events: auto !important;
+body[data-theme="dark-green"] .translation-link:hover {
+    background-color: #2a3f2a;
+    border-color: #3a6b3a;
 }
 
-body[data-theme="dark-green"] #translations-menu .mdl-menu__item:active,
-body[data-theme="dark-green"] #translations-menu .mdl-menu__item:focus {
-    background-color: #253830 !important;
-}
-
-body[data-theme="dark-green"] #translations-menu .mdl-menu__item:hover {
-    background-color: #2d4635 !important;
-}
-
-body[data-theme="dark-green"] #translations-menu .mdl-menu__item.is-active {
-    background-color: #4caf50 !important;
-    color: #ffffff !important;
+body[data-theme="dark-green"] .translation-link.active {
+    background-color: #4caf50;
+    color: white;
+    border-color: #4caf50;
 }
 
 body[data-theme="dark-green"] .random-prayer-card {
@@ -796,32 +825,25 @@ body[data-theme="sepia"] .simple-language-button .language-code {
 }
 
 body[data-theme="sepia"] #translations-menu-btn {
-    color: #d4a574 !important;
+    color: #8b4513 !important;
 }
 
-body[data-theme="sepia"] #translations-menu {
-    background-color: #3e3529 !important;
-    border-color: #5a4a3a !important;
-    z-index: 10000 !important;
+/* Sepia theme language links */
+body[data-theme="sepia"] .translation-link {
+    background-color: #f4f1e8;
+    color: #5d4e37;
+    border-color: #d4c4a8;
 }
 
-body[data-theme="sepia"] #translations-menu .mdl-menu__item {
-    color: #c9bfb5 !important;
-    pointer-events: auto !important;
+body[data-theme="sepia"] .translation-link:hover {
+    background-color: #e8e0d0;
+    border-color: #c4b498;
 }
 
-body[data-theme="sepia"] #translations-menu .mdl-menu__item:active,
-body[data-theme="sepia"] #translations-menu .mdl-menu__item:focus {
-    background-color: #4a3f38 !important;
-}
-
-body[data-theme="sepia"] #translations-menu .mdl-menu__item:hover {
-    background-color: #524739 !important;
-}
-
-body[data-theme="sepia"] #translations-menu .mdl-menu__item.is-active {
-    background-color: #8b4513 !important;
-    color: #ffffff !important;
+body[data-theme="sepia"] .translation-link.active {
+    background-color: #8b4513;
+    color: white;
+    border-color: #8b4513;
 }
 
 body[data-theme="sepia"] .random-prayer-card {

@@ -1375,10 +1375,11 @@ async function _renderPrayerContent(
             distinctLangs.length +
             " languages",
         );
-        let switcherHtml = `<button id="translations-menu-btn" class="mdl-button mdl-js-button mdl-button--icon" title="View translations in other languages" style="margin-right: 8px;">
-          <i class="material-icons">language</i>
-        </button>
-        <div class="mdl-menu mdl-menu--bottom-right mdl-js-menu mdl-js-ripple-effect" for="translations-menu-btn" id="translations-menu">`;
+        let switcherHtml = `<div class="translation-switcher-container" style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
+          <button id="translations-menu-btn" class="mdl-button mdl-js-button mdl-button--icon" title="View translations in other languages">
+            <i class="material-icons">language</i>
+          </button>
+          <div id="translation-links" class="translation-links" style="display: none; flex-wrap: wrap; gap: 6px; align-items: center;">`;
 
         const translationLinkPromises = distinctLangs.map(async (langRow) => {
           const langDisplayName = await getLanguageDisplayName(
@@ -1387,188 +1388,45 @@ async function _renderPrayerContent(
           const isActive = activeLangForNav
             ? langRow.language === activeLangForNav
             : langRow.language === prayer.language;
-          return `<button class="mdl-menu__item ${isActive ? "is-active" : ""}" onclick="window.location.hash='#prayercode/${phelpsCodeForSwitcher}/${langRow.language}'">${langRow.language.toUpperCase()} - ${langDisplayName}</button>`;
+          return `<a href="#prayercode/${phelpsCodeForSwitcher}/${langRow.language}" class="translation-link ${isActive ? "active" : ""}" title="${langDisplayName}">${langRow.language.toUpperCase()}</a>`;
         });
         const translationLinksHtml = await Promise.all(translationLinkPromises);
         switcherHtml += translationLinksHtml.join("");
-        switcherHtml += `</div>`;
+        switcherHtml += `</div></div>`;
         translationsAreaDiv.innerHTML = switcherHtml;
 
-        // Upgrade MDL components
+        // Upgrade MDL components for button only
         if (typeof componentHandler !== "undefined" && componentHandler) {
-          console.log(
-            "[TranslationSwitcher] Upgrading MDL components for translations menu",
-          );
           componentHandler.upgradeDom(translationsAreaDiv);
-          console.log(
-            "[TranslationSwitcher] MDL upgrade completed for translations area",
-          );
+        }
 
-          // Force upgrade of button and menu specifically
-          const menuBtn = translationsAreaDiv.querySelector(
-            "#translations-menu-btn",
-          );
-          const menu = translationsAreaDiv.querySelector("#translations-menu");
+        // Simple show/hide logic for language links
+        const menuBtn = translationsAreaDiv.querySelector(
+          "#translations-menu-btn",
+        );
+        const languageLinks =
+          translationsAreaDiv.querySelector("#translation-links");
 
-          // Manually initialize menu if MDL didn't auto-initialize it
-          setTimeout(() => {
-            if (menu && !menu.MaterialMenu) {
-              console.log(
-                "[TranslationSwitcher] Menu not auto-initialized, upgrading now",
-              );
-              if (typeof componentHandler !== "undefined" && componentHandler) {
-                componentHandler.upgradeElement(menu);
-              }
+        if (menuBtn && languageLinks) {
+          menuBtn.addEventListener("click", function (e) {
+            e.preventDefault();
+            e.stopPropagation();
+
+            const isVisible = languageLinks.style.display !== "none";
+            languageLinks.style.display = isVisible ? "none" : "flex";
+
+            console.log(
+              "[TranslationSwitcher] Language links",
+              isVisible ? "hidden" : "shown",
+            );
+          });
+
+          // Hide links when clicking outside
+          document.addEventListener("click", function (e) {
+            if (!translationsAreaDiv.contains(e.target)) {
+              languageLinks.style.display = "none";
             }
-            if (menu && menu.MaterialMenu) {
-              console.log(
-                "[TranslationSwitcher] Menu MaterialMenu interface ready",
-              );
-            }
-            if (menuBtn && !menuBtn.MaterialButton) {
-              console.log(
-                "[TranslationSwitcher] Button not auto-initialized, upgrading now",
-              );
-              if (typeof componentHandler !== "undefined" && componentHandler) {
-                componentHandler.upgradeElement(menuBtn);
-              }
-            }
-            if (menuBtn && menuBtn.MaterialButton) {
-              console.log(
-                "[TranslationSwitcher] Button MaterialButton interface ready",
-              );
-            }
-          }, 50);
-
-          // Force menu visibility - ensure it's positioned correctly
-          if (menu) {
-            menu.style.position = "absolute";
-            menu.style.zIndex = "10000";
-            menu.style.minWidth = "200px";
-          }
-
-          // Add fallback click handler in case MDL doesn't work
-          if (menuBtn) {
-            menuBtn.addEventListener("click", function (e) {
-              console.log("[TranslationSwitcher] Menu button clicked");
-              if (menu) {
-                console.log(
-                  "[TranslationSwitcher] Menu element found, classes:",
-                  menu.className,
-                );
-                console.log(
-                  "[TranslationSwitcher] Menu element in DOM:",
-                  document.body.contains(menu),
-                );
-                console.log(
-                  "[TranslationSwitcher] Menu children count:",
-                  menu.children.length,
-                );
-
-                // Find the MDL menu container that wraps our menu
-                const menuContainer = menu.parentElement;
-                console.log(
-                  "[TranslationSwitcher] Menu container found:",
-                  menuContainer ? menuContainer.className : "none",
-                );
-
-                // Try to open menu via MDL interface
-                if (
-                  menu.MaterialMenu &&
-                  typeof menu.MaterialMenu.show === "function"
-                ) {
-                  console.log(
-                    "[TranslationSwitcher] Opening menu via MaterialMenu.show()",
-                  );
-                  menu.MaterialMenu.show(e);
-                } else if (
-                  menu.MaterialMenu &&
-                  typeof menu.MaterialMenu.toggle === "function"
-                ) {
-                  console.log(
-                    "[TranslationSwitcher] Opening menu via MaterialMenu.toggle()",
-                  );
-                  menu.MaterialMenu.toggle(e);
-                } else {
-                  // Fallback: manually show menu using MDL's proper structure
-                  console.log(
-                    "[TranslationSwitcher] No MaterialMenu method found, showing menu manually",
-                  );
-
-                  if (
-                    menuContainer &&
-                    menuContainer.classList.contains("mdl-menu__container")
-                  ) {
-                    // Use MDL's proper structure - add is-visible to container
-                    menuContainer.classList.add("is-visible");
-                    menuContainer.style.visibility = "visible";
-                    menuContainer.style.zIndex = "999";
-
-                    // Ensure menu items are visible
-                    menu.style.opacity = "1";
-                    menu.style.zIndex = "999";
-
-                    console.log(
-                      "[TranslationSwitcher] Menu shown using MDL container structure",
-                    );
-                  } else {
-                    // Fallback for non-standard structure
-                    menu.style.display = "block !important";
-                    menu.style.visibility = "visible !important";
-                    menu.style.opacity = "1 !important";
-                    menu.style.pointerEvents = "auto !important";
-                    menu.style.zIndex = "10000 !important";
-                    menu.classList.add("mdl-menu--open");
-                    console.log(
-                      "[TranslationSwitcher] Menu forced visible with direct styles",
-                    );
-                  }
-
-                  // Focus on first item
-                  const firstItem = menu.querySelector(".mdl-menu__item");
-                  if (firstItem) firstItem.focus();
-                }
-              } else {
-                console.warn("[TranslationSwitcher] Menu element not found");
-              }
-            });
-          }
-
-          // Add click-outside handler to close menu
-          document.addEventListener(
-            "click",
-            function closeMenuOnClickOutside(e) {
-              if (
-                menu &&
-                menuBtn &&
-                !menuBtn.contains(e.target) &&
-                !menu.contains(e.target)
-              ) {
-                const menuContainer = menu.parentElement;
-
-                // Close using MDL structure if available
-                if (
-                  menuContainer &&
-                  menuContainer.classList.contains("mdl-menu__container")
-                ) {
-                  menuContainer.classList.remove("is-visible");
-                  menuContainer.style.visibility = "hidden";
-                  menuContainer.style.zIndex = "-1";
-                  menu.style.opacity = "0";
-                } else {
-                  // Fallback close method
-                  menu.style.display = "none";
-                  menu.style.visibility = "hidden";
-                  menu.style.opacity = "0";
-                  menu.classList.remove("mdl-menu--open");
-                }
-              }
-            },
-          );
-        } else {
-          console.warn(
-            "[TranslationSwitcher] componentHandler not available, cannot upgrade MDL",
-          );
+          });
         }
       } else {
         // --- BEGIN TEMPORARY LOGS for TranslationSwitcher ---
