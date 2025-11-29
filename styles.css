@@ -234,6 +234,101 @@ body[data-theme="dark"] .simple-language-button .language-count {
     color: #808080;
 }
 
+body[data-theme="dark"] .random-prayer-card {
+    background-color: #2a2a2a;
+    border: 1px solid #404040;
+}
+
+body[data-theme="dark"] .random-prayer-card h4 {
+    color: #64b5f6;
+}
+
+body[data-theme="dark"] .language-picker-tabs {
+    border-top-color: #404040;
+}
+
+body[data-theme="dark"] .language-picker-tabs::before {
+    color: #64b5f6;
+}
+
+body[data-theme="dark"]
+    .language-picker-tabs
+    .mdl-tabs__tab-bar
+    .mdl-tabs__tab {
+    background-color: transparent;
+    border-color: #404040;
+    color: #b0b0b0;
+}
+
+body[data-theme="dark"]
+    .language-picker-tabs
+    .mdl-tabs__tab-bar
+    .mdl-tabs__tab:hover {
+    background-color: #3a3a3a;
+    border-color: #64b5f6;
+}
+
+body[data-theme="dark"]
+    .language-picker-tabs
+    .mdl-tabs__tab-bar
+    .mdl-tabs__tab.is-active {
+    background-color: #3f51b5;
+    color: #ffffff;
+    border-color: #3f51b5;
+}
+
+body[data-theme="dark"] .language-picker-tabs #all-languages-menu-btn {
+    background-color: transparent;
+    border-color: #404040;
+    color: #b0b0b0;
+}
+
+body[data-theme="dark"] .language-picker-tabs #all-languages-menu-btn:hover {
+    background-color: #3a3a3a;
+    border-color: #64b5f6;
+}
+
+body[data-theme="dark"] .language-picker-tabs #refresh-language-cache-btn {
+    background-color: transparent;
+    border-color: #404040;
+    color: #b0b0b0;
+}
+
+body[data-theme="dark"]
+    .language-picker-tabs
+    #refresh-language-cache-btn:hover {
+    background-color: #3a3a3a;
+    border-color: #64b5f6;
+}
+
+body[data-theme="dark"] .language-picker-tabs .mdl-menu {
+    background-color: #2a2a2a !important;
+    border-color: #404040;
+}
+
+body[data-theme="dark"] .language-picker-tabs .mdl-menu__item {
+    background-color: transparent !important;
+    color: #b0b0b0 !important;
+}
+
+body[data-theme="dark"] .language-picker-tabs .mdl-menu__item:hover {
+    background-color: #3a3a3a !important;
+}
+
+body[data-theme="dark"]
+    .language-picker-tabs
+    #language-search-li
+    .mdl-textfield__input {
+    color: #b0b0b0;
+}
+
+body[data-theme="dark"]
+    .language-picker-tabs
+    #language-search-li
+    .mdl-textfield__label {
+    color: #808080;
+}
+
 /* Midnight Blue theme */
 body[data-theme="dark-blue"] {
     background-color: #0d1b2a;
@@ -288,6 +383,103 @@ body[data-theme="dark-blue"] .simple-language-button .language-name {
 }
 
 body[data-theme="dark-blue"] .simple-language-button .language-count {
+    color: #778da9;
+}
+
+body[data-theme="dark-blue"] .random-prayer-card {
+    background-color: #1b263b;
+    border: 1px solid #415a77;
+}
+
+body[data-theme="dark-blue"] .random-prayer-card h4 {
+    color: #4a9eff;
+}
+
+body[data-theme="dark-blue"] .language-picker-tabs {
+    border-top-color: #415a77;
+}
+
+body[data-theme="dark-blue"] .language-picker-tabs::before {
+    color: #4a9eff;
+}
+
+body[data-theme="dark-blue"]
+    .language-picker-tabs
+    .mdl-tabs__tab-bar
+    .mdl-tabs__tab {
+    background-color: transparent;
+    border-color: #415a77;
+    color: #b8c9e0;
+}
+
+body[data-theme="dark-blue"]
+    .language-picker-tabs
+    .mdl-tabs__tab-bar
+    .mdl-tabs__tab:hover {
+    background-color: #2a3a52;
+    border-color: #4a9eff;
+}
+
+body[data-theme="dark-blue"]
+    .language-picker-tabs
+    .mdl-tabs__tab-bar
+    .mdl-tabs__tab.is-active {
+    background-color: #3f51b5;
+    color: #ffffff;
+    border-color: #3f51b5;
+}
+
+body[data-theme="dark-blue"] .language-picker-tabs #all-languages-menu-btn {
+    background-color: transparent;
+    border-color: #415a77;
+    color: #b8c9e0;
+}
+
+body[data-theme="dark-blue"]
+    .language-picker-tabs
+    #all-languages-menu-btn:hover {
+    background-color: #2a3a52;
+    border-color: #4a9eff;
+}
+
+body[data-theme="dark-blue"] .language-picker-tabs #refresh-language-cache-btn {
+    background-color: transparent;
+    border-color: #415a77;
+    color: #b8c9e0;
+}
+
+body[data-theme="dark-blue"]
+    .language-picker-tabs
+    #refresh-language-cache-btn:hover {
+    background-color: #2a3a52;
+    border-color: #4a9eff;
+}
+
+body[data-theme="dark-blue"] .language-picker-tabs .mdl-menu {
+    background-color: #1b263b !important;
+    border-color: #415a77;
+}
+
+body[data-theme="dark-blue"] .language-picker-tabs .mdl-menu__item {
+    background-color: transparent !important;
+    color: #b8c9e0 !important;
+}
+
+body[data-theme="dark-blue"] .language-picker-tabs .mdl-menu__item:hover {
+    background-color: #2a3a52 !important;
+}
+
+body[data-theme="dark-blue"]
+    .language-picker-tabs
+    #language-search-li
+    .mdl-textfield__input {
+    color: #b8c9e0;
+}
+
+body[data-theme="dark-blue"]
+    .language-picker-tabs
+    #language-search-li
+    .mdl-textfield__label {
     color: #778da9;
 }
 
@@ -348,6 +540,105 @@ body[data-theme="dark-green"] .simple-language-button .language-count {
     color: #5a7a5e;
 }
 
+body[data-theme="dark-green"] .random-prayer-card {
+    background-color: #1a2f1e;
+    border: 1px solid #2d5038;
+}
+
+body[data-theme="dark-green"] .random-prayer-card h4 {
+    color: #66bb6a;
+}
+
+body[data-theme="dark-green"] .language-picker-tabs {
+    border-top-color: #2d5038;
+}
+
+body[data-theme="dark-green"] .language-picker-tabs::before {
+    color: #66bb6a;
+}
+
+body[data-theme="dark-green"]
+    .language-picker-tabs
+    .mdl-tabs__tab-bar
+    .mdl-tabs__tab {
+    background-color: transparent;
+    border-color: #2d5038;
+    color: #b8d4bc;
+}
+
+body[data-theme="dark-green"]
+    .language-picker-tabs
+    .mdl-tabs__tab-bar
+    .mdl-tabs__tab:hover {
+    background-color: #253830;
+    border-color: #66bb6a;
+}
+
+body[data-theme="dark-green"]
+    .language-picker-tabs
+    .mdl-tabs__tab-bar
+    .mdl-tabs__tab.is-active {
+    background-color: #4caf50;
+    color: #ffffff;
+    border-color: #4caf50;
+}
+
+body[data-theme="dark-green"] .language-picker-tabs #all-languages-menu-btn {
+    background-color: transparent;
+    border-color: #2d5038;
+    color: #b8d4bc;
+}
+
+body[data-theme="dark-green"]
+    .language-picker-tabs
+    #all-languages-menu-btn:hover {
+    background-color: #253830;
+    border-color: #66bb6a;
+}
+
+body[data-theme="dark-green"]
+    .language-picker-tabs
+    #refresh-language-cache-btn {
+    background-color: transparent;
+    border-color: #2d5038;
+    color: #b8d4bc;
+}
+
+body[data-theme="dark-green"]
+    .language-picker-tabs
+    #refresh-language-cache-btn:hover {
+    background-color: #253830;
+    border-color: #66bb6a;
+}
+
+body[data-theme="dark-green"] .language-picker-tabs .mdl-menu {
+    background-color: #1a2f1e !important;
+    border-color: #2d5038;
+}
+
+body[data-theme="dark-green"] .language-picker-tabs .mdl-menu__item {
+    background-color: transparent !important;
+    color: #b8d4bc !important;
+}
+
+body[data-theme="dark-green"] .language-picker-tabs .mdl-menu__item:hover {
+    background-color: #253830 !important;
+}
+
+body[data-theme="dark-green"]
+    .language-picker-tabs
+    #language-search-li
+    .mdl-textfield__input {
+    color: #b8d4bc;
+}
+
+body[data-theme="dark-green"]
+    .language-picker-tabs
+    #language-search-li
+    .mdl-textfield__label {
+    color: #5a7a5e;
+}
+
 /* Sepia theme */
 body[data-theme="sepia"] {
     background-color: #f4ecd8;
@@ -383,11 +674,106 @@ body[data-theme="sepia"] .mdl-layout__header {
 }
 
 body[data-theme="sepia"] a {
-    color: #8b6914;
+    color: #8b4513;
 }
 
 body[data-theme="sepia"] .simple-language-button .language-code {
-    color: #8b6914;
+    color: #8b4513;
+}
+
+body[data-theme="sepia"] .random-prayer-card {
+    background-color: #3e3529;
+    border: 1px solid #5a4a3a;
+}
+
+body[data-theme="sepia"] .random-prayer-card h4 {
+    color: #d4a574;
+}
+
+body[data-theme="sepia"] .language-picker-tabs {
+    border-top-color: #5a4a3a;
+}
+
+body[data-theme="sepia"] .language-picker-tabs::before {
+    color: #d4a574;
+}
+
+body[data-theme="sepia"]
+    .language-picker-tabs
+    .mdl-tabs__tab-bar
+    .mdl-tabs__tab {
+    background-color: transparent;
+    border-color: #5a4a3a;
+    color: #c9bfb5;
+}
+
+body[data-theme="sepia"]
+    .language-picker-tabs
+    .mdl-tabs__tab-bar
+    .mdl-tabs__tab:hover {
+    background-color: #4a3f38;
+    border-color: #d4a574;
+}
+
+body[data-theme="sepia"]
+    .language-picker-tabs
+    .mdl-tabs__tab-bar
+    .mdl-tabs__tab.is-active {
+    background-color: #8b4513;
+    color: #ffffff;
+    border-color: #8b4513;
+}
+
+body[data-theme="sepia"] .language-picker-tabs #all-languages-menu-btn {
+    background-color: transparent;
+    border-color: #5a4a3a;
+    color: #c9bfb5;
+}
+
+body[data-theme="sepia"] .language-picker-tabs #all-languages-menu-btn:hover {
+    background-color: #4a3f38;
+    border-color: #d4a574;
+}
+
+body[data-theme="sepia"] .language-picker-tabs #refresh-language-cache-btn {
+    background-color: transparent;
+    border-color: #5a4a3a;
+    color: #c9bfb5;
+}
+
+body[data-theme="sepia"]
+    .language-picker-tabs
+    #refresh-language-cache-btn:hover {
+    background-color: #4a3f38;
+    border-color: #d4a574;
+}
+
+body[data-theme="sepia"] .language-picker-tabs .mdl-menu {
+    background-color: #3e3529 !important;
+    border-color: #5a4a3a;
+}
+
+body[data-theme="sepia"] .language-picker-tabs .mdl-menu__item {
+    background-color: transparent !important;
+    color: #c9bfb5 !important;
+}
+
+body[data-theme="sepia"] .language-picker-tabs .mdl-menu__item:hover {
+    background-color: #4a3f38 !important;
+}
+
+body[data-theme="sepia"]
+    .language-picker-tabs
+    #language-search-li
+    .mdl-textfield__input {
+    color: #c9bfb5;
+}
+
+body[data-theme="sepia"]
+    .language-picker-tabs
+    #language-search-li
+    .mdl-textfield__label {
+    color: #9d8b7d;
 }
 
 .mdl-layout {
@@ -712,6 +1098,22 @@ small {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
     gap: 20px;
+}
+
+.random-prayer-card {
+    background-color: #fafafa;
+    border: 1px solid #eee;
+    border-radius: 4px;
+    box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.12),
+        0 1px 2px rgba(0, 0, 0, 0.24);
+    transition:
+        box-shadow 0.2s,
+        background-color 0.3s ease;
+}
+
+.random-prayer-card h4 {
+    color: #3f51b5;
 }
 
 .favorite-prayer-card .random-prayer-card {

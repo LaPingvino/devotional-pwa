@@ -3432,10 +3432,10 @@ async function _fetchAndDisplayRandomPrayer(containerElement) {
     const langDisplayName = await getLanguageDisplayName(prayer.language);
 
     let prayerHtml = `
-      <div class="random-prayer-card" style="padding: 15px; margin-bottom: 20px; background-color: #fff; border: 1px solid #e0e0e0; border-radius: 4px; box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);">
-        <h4 style="margin-top:0; font-size: 1.2em; color: #3f51b5;">Prayer of the Moment</h4>
-        <p style="font-size: 0.9em; color: #555; margin-bottom:10px;"><em>${prayer.name || (prayer.phelps ? `${prayer.phelps} - ${langDisplayName}` : `A prayer in ${langDisplayName}`)}</em></p>
-        <div class="scripture markdown-content" style="max-height: 150px; overflow-y: auto; padding: 10px; border: 1px solid #eee; margin-bottom:15px; font-size: 0.95em; line-height:1.5;">
+      <div class="random-prayer-card" style="padding: 15px; margin-bottom: 20px; border-radius: 4px;">
+        <h4 style="margin-top:0; margin-bottom:10px; font-size: 1.2em;">Prayer of the Moment</h4>
+        <p style="font-size: 0.9em; margin-bottom:10px; opacity: 0.85;"><em>${prayer.name || (prayer.phelps ? `${prayer.phelps} - ${langDisplayName}` : `A prayer in ${langDisplayName}`)}</em></p>
+        <div class="scripture markdown-content" style="max-height: 150px; overflow-y: auto; padding: 10px; margin-bottom:15px; font-size: 0.95em; line-height:1.5;">
           ${renderMarkdown(prayer.text.substring(0, 400) + (prayer.text.length > 400 ? "..." : ""))}
         </div>
         <a href="#prayer/${prayer.version}" class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent">
