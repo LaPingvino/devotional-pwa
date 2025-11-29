@@ -194,6 +194,20 @@ body[data-theme="dark"] #translations-menu-btn {
     overflow-y: auto !important;
 }
 
+/* Custom positioning for translation menu to prevent it from hitting screen top */
+.mdl-menu__container[data-upgraded*="MaterialMenu"] {
+    position: absolute !important;
+    transform: none !important;
+}
+
+#translations-menu.mdl-menu {
+    position: static !important;
+    transform: none !important;
+    margin: 0 !important;
+    top: auto !important;
+    left: auto !important;
+}
+
 .mdl-menu__container.is-visible {
     z-index: 10000 !important;
     visibility: visible !important;
