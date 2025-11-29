@@ -714,7 +714,7 @@ small {
     gap: 20px;
 }
 
-.favorite-prayer-card {
+.favorite-prayer-card .random-prayer-card {
     background-color: #fafafa;
     border: 1px solid #eee;
     border-radius: 2px;
