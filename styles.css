@@ -187,17 +187,41 @@ body[data-theme="dark"] #translations-menu-btn {
     color: #64b5f6 !important;
 }
 
+/* Ensure translation menu container works properly */
+#translations-menu {
+    min-width: 200px !important;
+    max-height: 400px !important;
+    overflow-y: auto !important;
+}
+
+.mdl-menu__container.is-visible {
+    z-index: 10000 !important;
+    visibility: visible !important;
+}
+
+.mdl-menu__container.is-visible .mdl-menu {
+    opacity: 1 !important;
+    z-index: 10000 !important;
+}
+
 body[data-theme="dark"] #translations-menu {
     background-color: #2a2a2a !important;
-    border-color: #404040;
+    border-color: #404040 !important;
+    z-index: 10000 !important;
 }
 
 body[data-theme="dark"] #translations-menu .mdl-menu__item {
     color: #b0b0b0 !important;
+    pointer-events: auto !important;
+}
+
+body[data-theme="dark"] #translations-menu .mdl-menu__item:active,
+body[data-theme="dark"] #translations-menu .mdl-menu__item:focus {
+    background-color: #3a3a3a !important;
 }
 
 body[data-theme="dark"] #translations-menu .mdl-menu__item:hover {
-    background-color: #3a3a3a !important;
+    background-color: #404040 !important;
 }
 
 body[data-theme="dark"] #translations-menu .mdl-menu__item.is-active {
@@ -414,15 +438,22 @@ body[data-theme="dark-blue"] #translations-menu-btn {
 
 body[data-theme="dark-blue"] #translations-menu {
     background-color: #1b263b !important;
-    border-color: #415a77;
+    border-color: #415a77 !important;
+    z-index: 10000 !important;
 }
 
 body[data-theme="dark-blue"] #translations-menu .mdl-menu__item {
     color: #b8c9e0 !important;
+    pointer-events: auto !important;
+}
+
+body[data-theme="dark-blue"] #translations-menu .mdl-menu__item:active,
+body[data-theme="dark-blue"] #translations-menu .mdl-menu__item:focus {
+    background-color: #2a3a52 !important;
 }
 
 body[data-theme="dark-blue"] #translations-menu .mdl-menu__item:hover {
-    background-color: #2a3a52 !important;
+    background-color: #364a66 !important;
 }
 
 body[data-theme="dark-blue"] #translations-menu .mdl-menu__item.is-active {
@@ -590,15 +621,22 @@ body[data-theme="dark-green"] #translations-menu-btn {
 
 body[data-theme="dark-green"] #translations-menu {
     background-color: #1a2f1e !important;
-    border-color: #2d5038;
+    border-color: #2d5038 !important;
+    z-index: 10000 !important;
 }
 
 body[data-theme="dark-green"] #translations-menu .mdl-menu__item {
     color: #b8d4bc !important;
+    pointer-events: auto !important;
+}
+
+body[data-theme="dark-green"] #translations-menu .mdl-menu__item:active,
+body[data-theme="dark-green"] #translations-menu .mdl-menu__item:focus {
+    background-color: #253830 !important;
 }
 
 body[data-theme="dark-green"] #translations-menu .mdl-menu__item:hover {
-    background-color: #253830 !important;
+    background-color: #2d4635 !important;
 }
 
 body[data-theme="dark-green"] #translations-menu .mdl-menu__item.is-active {
@@ -753,15 +791,22 @@ body[data-theme="sepia"] #translations-menu-btn {
 
 body[data-theme="sepia"] #translations-menu {
     background-color: #3e3529 !important;
-    border-color: #5a4a3a;
+    border-color: #5a4a3a !important;
+    z-index: 10000 !important;
 }
 
 body[data-theme="sepia"] #translations-menu .mdl-menu__item {
     color: #c9bfb5 !important;
+    pointer-events: auto !important;
+}
+
+body[data-theme="sepia"] #translations-menu .mdl-menu__item:active,
+body[data-theme="sepia"] #translations-menu .mdl-menu__item:focus {
+    background-color: #4a3f38 !important;
 }
 
 body[data-theme="sepia"] #translations-menu .mdl-menu__item:hover {
-    background-color: #4a3f38 !important;
+    background-color: #524739 !important;
 }
 
 body[data-theme="sepia"] #translations-menu .mdl-menu__item.is-active {
@@ -1517,36 +1562,56 @@ small {
 
 #translations-menu {
     background-color: #fff !important;
-    border: 1px solid #eee;
+    border: 1px solid #eee !important;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
     max-height: 400px !important;
     overflow-y: auto !important;
-    z-index: 1000 !important;
+    z-index: 10000 !important;
     position: absolute !important;
     display: block !important;
     visibility: visible !important;
+    pointer-events: auto !important;
+    opacity: 1 !important;
+    min-width: 250px !important;
+    padding: 8px 0 !important;
+    margin: 0 !important;
+}
+
+#translations-menu.mdl-menu--open {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
 }
 
 #translations-menu .mdl-menu__item {
     color: #333 !important;
-    padding: 10px 16px !important;
-    font-size: 0.9em;
+    padding: 12px 16px !important;
+    font-size: 0.9em !important;
     display: block !important;
     width: 100% !important;
     text-align: left !important;
-    border: none;
-    background: none;
-    cursor: pointer;
+    border: none !important;
+    background: none !important;
+    cursor: pointer !important;
+    box-sizing: border-box !important;
+    line-height: 1.5 !important;
+    pointer-events: auto !important;
+}
+
+#translations-menu .mdl-menu__item:active,
+#translations-menu .mdl-menu__item:focus {
+    background-color: #f5f5f5 !important;
+    outline: none !important;
 }
 
 #translations-menu .mdl-menu__item:hover {
-    background-color: #f5f5f5 !important;
+    background-color: #ececec !important;
 }
 
 #translations-menu .mdl-menu__item.is-active {
     background-color: #e3f2fd !important;
     color: #3f51b5 !important;
-    font-weight: 500;
+    font-weight: 600 !important;
 }
 
 /* Content positioning */
@@ -1682,18 +1747,18 @@ main.mdl-layout__content {
     background-color: #f5f7ff;
 }
 
-.simple-language-button .language-code {
-    font-size: 1.8em;
+.simple-language-button .language-name {
+    font-size: 1.2em;
     font-weight: bold;
+    color: #333;
+    margin-bottom: 5px;
+}
+
+.simple-language-button .language-code {
+    font-size: 0.85em;
     color: #3f51b5;
     font-family: monospace;
     margin-bottom: 8px;
-}
-
-.simple-language-button .language-name {
-    font-size: 1em;
-    color: #666;
-    margin-bottom: 5px;
 }
 
 .simple-language-button .language-count {
@@ -1723,8 +1788,12 @@ main.mdl-layout__content {
         padding: 15px;
     }
 
+    .simple-language-button .language-name {
+        font-size: 1.1em;
+    }
+
     .simple-language-button .language-code {
-        font-size: 1.5em;
+        font-size: 0.8em;
     }
 }
 

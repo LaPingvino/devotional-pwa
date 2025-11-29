@@ -11,8 +11,6 @@ const DOLTHUB_API_BASE_URL =
   "https://www.dolthub.com/api/v1alpha1/holywritings/bahaiwritings/main?q=";
 const DOLTHUB_REPO_QUERY_URL_BASE =
   "https://www.dolthub.com/repositories/holywritings/bahaiwritings/query/main?q=";
-const DOLTHUB_REPO_ISSUES_NEW_URL_BASE =
-  "https://www.dolthub.com/repositories/holywritings/bahaiwritings/issues/new";
 
 // Request debouncing and caching
 let requestCache = new Map();
@@ -1405,7 +1403,7 @@ async function _renderPrayerContent(
           const isActive = activeLangForNav
             ? langRow.language === activeLangForNav
             : langRow.language === prayer.language;
-          return `<button class="mdl-menu__item ${isActive ? "is-active" : ""}" onclick="window.location.hash='#prayercode/${phelpsCodeForSwitcher}/${langRow.language}'">${langDisplayName}</button>`;
+          return `<button class="mdl-menu__item ${isActive ? "is-active" : ""}" onclick="window.location.hash='#prayercode/${phelpsCodeForSwitcher}/${langRow.language}'">${langRow.language.toUpperCase()} - ${langDisplayName}</button>`;
         });
         const translationLinksHtml = await Promise.all(translationLinkPromises);
         switcherHtml += translationLinksHtml.join("");
@@ -1428,13 +1426,41 @@ async function _renderPrayerContent(
           );
           const menu = translationsAreaDiv.querySelector("#translations-menu");
 
-          if (menuBtn && menuBtn.MaterialButton) {
-            console.log(
-              "[TranslationSwitcher] Button already has MaterialButton",
-            );
-          }
-          if (menu && menu.MaterialMenu) {
-            console.log("[TranslationSwitcher] Menu already has MaterialMenu");
+          // Manually initialize menu if MDL didn't auto-initialize it
+          setTimeout(() => {
+            if (menu && !menu.MaterialMenu) {
+              console.log(
+                "[TranslationSwitcher] Menu not auto-initialized, upgrading now",
+              );
+              if (typeof componentHandler !== "undefined" && componentHandler) {
+                componentHandler.upgradeElement(menu);
+              }
+            }
+            if (menu && menu.MaterialMenu) {
+              console.log(
+                "[TranslationSwitcher] Menu MaterialMenu interface ready",
+              );
+            }
+            if (menuBtn && !menuBtn.MaterialButton) {
+              console.log(
+                "[TranslationSwitcher] Button not auto-initialized, upgrading now",
+              );
+              if (typeof componentHandler !== "undefined" && componentHandler) {
+                componentHandler.upgradeElement(menuBtn);
+              }
+            }
+            if (menuBtn && menuBtn.MaterialButton) {
+              console.log(
+                "[TranslationSwitcher] Button MaterialButton interface ready",
+              );
+            }
+          }, 50);
+
+          // Force menu visibility - ensure it's positioned correctly
+          if (menu) {
+            menu.style.position = "absolute";
+            menu.style.zIndex = "10000";
+            menu.style.minWidth = "200px";
           }
 
           // Add fallback click handler in case MDL doesn't work
@@ -1455,25 +1481,106 @@ async function _renderPrayerContent(
                   menu.children.length,
                 );
 
-                // Force MDL menu to open if it has the MaterialMenu interface
-                if (menu.MaterialMenu) {
+                // Find the MDL menu container that wraps our menu
+                const menuContainer = menu.parentElement;
+                console.log(
+                  "[TranslationSwitcher] Menu container found:",
+                  menuContainer ? menuContainer.className : "none",
+                );
+
+                // Try to open menu via MDL interface
+                if (
+                  menu.MaterialMenu &&
+                  typeof menu.MaterialMenu.show === "function"
+                ) {
                   console.log(
-                    "[TranslationSwitcher] Forcing MDL menu.show() via MaterialMenu",
+                    "[TranslationSwitcher] Opening menu via MaterialMenu.show()",
                   );
                   menu.MaterialMenu.show(e);
-                } else {
-                  // Fallback: manually set display
+                } else if (
+                  menu.MaterialMenu &&
+                  typeof menu.MaterialMenu.toggle === "function"
+                ) {
                   console.log(
-                    "[TranslationSwitcher] No MaterialMenu found, showing menu manually",
+                    "[TranslationSwitcher] Opening menu via MaterialMenu.toggle()",
                   );
-                  menu.style.display = "block";
-                  menu.style.visibility = "visible";
+                  menu.MaterialMenu.toggle(e);
+                } else {
+                  // Fallback: manually show menu using MDL's proper structure
+                  console.log(
+                    "[TranslationSwitcher] No MaterialMenu method found, showing menu manually",
+                  );
+
+                  if (
+                    menuContainer &&
+                    menuContainer.classList.contains("mdl-menu__container")
+                  ) {
+                    // Use MDL's proper structure - add is-visible to container
+                    menuContainer.classList.add("is-visible");
+                    menuContainer.style.visibility = "visible";
+                    menuContainer.style.zIndex = "999";
+
+                    // Ensure menu items are visible
+                    menu.style.opacity = "1";
+                    menu.style.zIndex = "999";
+
+                    console.log(
+                      "[TranslationSwitcher] Menu shown using MDL container structure",
+                    );
+                  } else {
+                    // Fallback for non-standard structure
+                    menu.style.display = "block !important";
+                    menu.style.visibility = "visible !important";
+                    menu.style.opacity = "1 !important";
+                    menu.style.pointerEvents = "auto !important";
+                    menu.style.zIndex = "10000 !important";
+                    menu.classList.add("mdl-menu--open");
+                    console.log(
+                      "[TranslationSwitcher] Menu forced visible with direct styles",
+                    );
+                  }
+
+                  // Focus on first item
+                  const firstItem = menu.querySelector(".mdl-menu__item");
+                  if (firstItem) firstItem.focus();
                 }
               } else {
                 console.warn("[TranslationSwitcher] Menu element not found");
               }
             });
           }
+
+          // Add click-outside handler to close menu
+          document.addEventListener(
+            "click",
+            function closeMenuOnClickOutside(e) {
+              if (
+                menu &&
+                menuBtn &&
+                !menuBtn.contains(e.target) &&
+                !menu.contains(e.target)
+              ) {
+                const menuContainer = menu.parentElement;
+
+                // Close using MDL structure if available
+                if (
+                  menuContainer &&
+                  menuContainer.classList.contains("mdl-menu__container")
+                ) {
+                  menuContainer.classList.remove("is-visible");
+                  menuContainer.style.visibility = "hidden";
+                  menuContainer.style.zIndex = "-1";
+                  menu.style.opacity = "0";
+                } else {
+                  // Fallback close method
+                  menu.style.display = "none";
+                  menu.style.visibility = "hidden";
+                  menu.style.opacity = "0";
+                  menu.classList.remove("mdl-menu--open");
+                }
+              }
+            },
+          );
         } else {
           console.warn(
             "[TranslationSwitcher] componentHandler not available, cannot upgrade MDL",
@@ -2980,8 +3087,8 @@ async function _loadSimpleLanguageButtons(containerElement = null) {
 
       buttonsHtml += `
         <a href="#prayers/${lang.language}" class="simple-language-button ${isBrowserLang ? "suggested" : ""}">
-          <span class="language-code">${lang.language.toUpperCase()}</span>
           <span class="language-name">${displayName}</span>
+          <span class="language-code">${lang.language.toUpperCase()}</span>
           <span class="language-count">${lang.uniquePhelps} prayers</span>
           ${suggestionBadge}
         </a>
@@ -3340,7 +3447,6 @@ window.renderPrayerCodeView = renderPrayerCodeView;
 
 document.addEventListener("DOMContentLoaded", () => {
   loadFavoritePrayers();
-  const snackbarContainer = document.querySelector(".mdl-js-snackbar");
 
   const headerSearchInput = document.getElementById("header-search-field");
   if (headerSearchInput) {
