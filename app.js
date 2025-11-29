@@ -31,6 +31,7 @@ const FETCH_LANG_NAMES_TIMEOUT_MS = 5000; // 5 seconds
 
 // --- Language Statistics Cache ---
 const LANGUAGE_STATS_CACHE_KEY = "devotionalPWA_languageStats";
+const LANGUAGE_STATS_CACHE_KEY_SIMPLE = "devotionalPWA_languageStatsSimple";
 const LANGUAGE_STATS_CACHE_EXPIRY_MS = 4 * 60 * 60 * 1000; // 4 hours
 // --- End Language Statistics Cache ---
 
@@ -618,9 +619,12 @@ function startBackgroundCaching() {
 }
 // --- End Background English Prayers Caching ---
 
-function getCachedLanguageStats(allowStale = false) {
+function getCachedLanguageStats(
+  allowStale = false,
+  cacheKey = LANGUAGE_STATS_CACHE_KEY,
+) {
   try {
-    const cachedData = localStorage.getItem(LANGUAGE_STATS_CACHE_KEY);
+    const cachedData = localStorage.getItem(cacheKey);
     if (cachedData) {
       const { timestamp, data } = JSON.parse(cachedData);
       if (
@@ -631,24 +635,24 @@ function getCachedLanguageStats(allowStale = false) {
         return data;
       } else {
         // console.log("Language stats cache expired.");
-        localStorage.removeItem(LANGUAGE_STATS_CACHE_KEY);
+        localStorage.removeItem(cacheKey);
       }
     }
   } catch (e) {
     console.error("Error reading language stats from cache:", e);
-    localStorage.removeItem(LANGUAGE_STATS_CACHE_KEY); // Clear corrupted cache
+    localStorage.removeItem(cacheKey); // Clear corrupted cache
   }
   return null;
 }
 
-function cacheLanguageStats(data) {
+function cacheLanguageStats(data, cacheKey = LANGUAGE_STATS_CACHE_KEY) {
   if (!data || !Array.isArray(data)) {
     console.error("Attempted to cache invalid language stats data:", data);
     return;
   }
   try {
     localStorage.setItem(
-      LANGUAGE_STATS_CACHE_KEY,
+      cacheKey,
       JSON.stringify({ timestamp: Date.now(), data: data }),
     );
     // console.log("Language stats cached.");
@@ -1401,7 +1405,7 @@ async function _renderPrayerContent(
           const isActive = activeLangForNav
             ? langRow.language === activeLangForNav
             : langRow.language === prayer.language;
-          return `<a href="#prayercode/${phelpsCodeForSwitcher}/${langRow.language}" class="mdl-menu__item ${isActive ? "is-active" : ""}">${langDisplayName}</a>`;
+          return `<button class="mdl-menu__item ${isActive ? "is-active" : ""}" onclick="window.location.hash='#prayercode/${phelpsCodeForSwitcher}/${langRow.language}'">${langDisplayName}</button>`;
         });
         const translationLinksHtml = await Promise.all(translationLinkPromises);
         switcherHtml += translationLinksHtml.join("");
@@ -2207,7 +2211,7 @@ async function populateLanguageSelection(currentActiveLangCode = null) {
     try {
       allLangsWithStats = await executeQuery(sql);
       if (allLangsWithStats && allLangsWithStats.length > 0) {
-        cacheLanguageStats(allLangsWithStats);
+        cacheLanguageStats(allLangsWithStats, LANGUAGE_STATS_CACHE_KEY);
         fetchedFreshData = true;
         // console.log("Fetched and cached fresh language stats.");
       } else {
@@ -2906,14 +2910,17 @@ async function _loadSimpleLanguageButtons(containerElement = null) {
 
   try {
     // Get language statistics - try cached first, then fetch fresh
-    let langStats = getCachedLanguageStats();
+    let langStats = getCachedLanguageStats(
+      false,
+      LANGUAGE_STATS_CACHE_KEY_SIMPLE,
+    );
 
     if (!langStats) {
       // Fetch fresh language stats
       const sql = `SELECT language, COUNT(DISTINCT phelps) as uniquePhelps, COUNT(*) as totalPrayers FROM writings WHERE phelps IS NOT NULL AND phelps != '' GROUP BY language ORDER BY totalPrayers DESC`;
       langStats = await executeQuery(sql);
       if (langStats && langStats.length > 0) {
-        cacheLanguageStats(langStats);
+        cacheLanguageStats(langStats, LANGUAGE_STATS_CACHE_KEY_SIMPLE);
       }
     }
 
@@ -3450,6 +3457,30 @@ function updateStaticPrayerActionButtonStates(prayer) {
   console.log(
     `[updateStaticPrayerActionButtonStates] Inform mistake button visible for prayer: ${prayer?.version}`,
   );
+}
+
+// Clear corrupted/incompatible language stats cache on app initialization
+try {
+  const oldCache = localStorage.getItem(LANGUAGE_STATS_CACHE_KEY);
+  if (oldCache) {
+    try {
+      const parsed = JSON.parse(oldCache);
+      // If the cached data doesn't have uniquePhelps field, it's the old incompatible format
+      if (
+        parsed.data &&
+        parsed.data.length > 0 &&
+        !parsed.data[0].uniquePhelps
+      ) {
+        console.log("[Init] Clearing incompatible language stats cache");
+        localStorage.removeItem(LANGUAGE_STATS_CACHE_KEY);
+      }
+    } catch (e) {
+      // If we can't parse it, remove it
+      localStorage.removeItem(LANGUAGE_STATS_CACHE_KEY);
+    }
+  }
+} catch (e) {
+  console.warn("[Init] Error checking cache compatibility:", e);
 }
 
 window.addEventListener("hashchange", handleRouteChange);
