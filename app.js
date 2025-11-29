@@ -1352,6 +1352,8 @@ async function _renderPrayerContent(
     "[TranslationSwitcher] Determined phelpsCodeForSwitcher:",
     phelpsCodeForSwitcher,
   );
+  console.log("[TranslationSwitcher] activeLangForNav:", activeLangForNav);
+  console.log("[TranslationSwitcher] prayer.language:", prayer.language);
   // --- END TEMPORARY LOGS ---
 
   if (phelpsCodeForSwitcher && !phelpsCodeForSwitcher.startsWith("TODO")) {
@@ -1360,10 +1362,15 @@ async function _renderPrayerContent(
 
     // --- BEGIN TEMPORARY LOGS for TranslationSwitcher ---
     console.log("[TranslationSwitcher] SQL for distinct languages:", transSql);
+    console.log("[TranslationSwitcher] Executing query for translations...");
     // --- END TEMPORARY LOGS ---
 
     try {
       const distinctLangs = await executeQuery(transSql);
+      console.log(
+        "[TranslationSwitcher] Query completed, result:",
+        distinctLangs,
+      );
 
       // --- BEGIN TEMPORARY LOGS for TranslationSwitcher ---
       console.log(
@@ -1410,6 +1417,35 @@ async function _renderPrayerContent(
           console.log(
             "[TranslationSwitcher] MDL upgrade completed for translations area",
           );
+
+          // Add click logging to debug menu issues
+          const menuBtn = translationsAreaDiv.querySelector(
+            "#translations-menu-btn",
+          );
+          if (menuBtn) {
+            const originalOnClick = menuBtn.onclick;
+            menuBtn.addEventListener("click", function (e) {
+              console.log("[TranslationSwitcher] Menu button clicked");
+              const menu =
+                translationsAreaDiv.querySelector("#translations-menu");
+              if (menu) {
+                console.log(
+                  "[TranslationSwitcher] Menu element found, classes:",
+                  menu.className,
+                );
+                console.log(
+                  "[TranslationSwitcher] Menu element in DOM:",
+                  document.body.contains(menu),
+                );
+                console.log(
+                  "[TranslationSwitcher] Menu children count:",
+                  menu.children.length,
+                );
+              } else {
+                console.warn("[TranslationSwitcher] Menu element not found");
+              }
+            });
+          }
         } else {
           console.warn(
             "[TranslationSwitcher] componentHandler not available, cannot upgrade MDL",
@@ -2834,18 +2870,20 @@ async function _renderLanguageListContent() {
       <span class="bahai-star">&#x1f7d9;</span>
       <h3>Browse Prayers by Language</h3>
     </div>
-    <div id="language-buttons-container" class="simple-language-buttons">
+    <div class="simple-language-buttons">
       <div class="bahai-loading-spinner" style="font-size: 2em; margin: 20px auto;">&#x1f7d9;</div>
     </div>
   `;
   overallWrapper.appendChild(languageSelectorSection);
 
   // Load language buttons asynchronously (fire and forget, but with error handling)
-  _loadSimpleLanguageButtons().catch((error) => {
+  const buttonsContainerHome = languageSelectorSection.querySelector(
+    ".simple-language-buttons",
+  );
+  _loadSimpleLanguageButtons(buttonsContainerHome).catch((error) => {
     console.error("Error loading simple language buttons on home page:", error);
-    const container = document.getElementById("language-buttons-container");
-    if (container) {
-      container.innerHTML =
+    if (buttonsContainerHome) {
+      buttonsContainerHome.innerHTML =
         '<p style="text-align: center; color: #999;">Error loading languages</p>';
     }
   });
@@ -2858,8 +2896,12 @@ async function _renderLanguageListContent() {
   return overallWrapper;
 }
 
-async function _loadSimpleLanguageButtons() {
-  const container = document.getElementById("language-buttons-container");
+async function _loadSimpleLanguageButtons(containerElement = null) {
+  // If no container element provided, try to find it by ID (for backward compatibility)
+  let container = containerElement;
+  if (!container) {
+    container = document.getElementById("language-buttons-container");
+  }
   if (!container) return;
 
   try {
@@ -2931,19 +2973,24 @@ async function _renderBottomLanguageSelector() {
       <span class="bahai-star">&#x1f7d9;</span>
       <h3>Browse Prayers by Language</h3>
     </div>
-    <div id="language-buttons-container" class="simple-language-buttons">
+    <div class="simple-language-buttons">
       <div class="bahai-loading-spinner" style="font-size: 2em; margin: 20px auto;">&#x1f7d9;</div>
     </div>
   `;
 
   // Load language buttons asynchronously and wait for completion
   try {
-    await _loadSimpleLanguageButtons();
+    const buttonsContainer = container.querySelector(
+      ".simple-language-buttons",
+    );
+    await _loadSimpleLanguageButtons(buttonsContainer);
   } catch (error) {
     console.error("Error loading simple language buttons:", error);
-    const container2 = document.getElementById("language-buttons-container");
-    if (container2) {
-      container2.innerHTML =
+    const buttonContainerForError = container.querySelector(
+      ".simple-language-buttons",
+    );
+    if (buttonContainerForError) {
+      buttonContainerForError.innerHTML =
         '<p style="text-align: center; color: #999;">Error loading languages</p>';
     }
   }
