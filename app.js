@@ -3457,16 +3457,15 @@ async function _fetchAndDisplayRandomPrayer(containerElement) {
 async function _renderLanguageListContent() {
   const overallWrapper = document.createElement("div");
 
-  // 1. Random Prayer Section (placeholder)
+  // 1. Random Prayer Section (Prayer of the Moment)
   const randomPrayerPlaceholder = document.createElement("div");
-  randomPrayerPlaceholder.id = "random-prayer-module"; // Changed ID for clarity
-  randomPrayerPlaceholder.style.marginBottom = "20px";
-  // Initial placeholder text, spinner will be added by _fetchAndDisplayRandomPrayer
+  randomPrayerPlaceholder.id = "random-prayer-module";
+  randomPrayerPlaceholder.style.marginBottom = "30px";
   randomPrayerPlaceholder.innerHTML =
-    '<p style="text-align:center; padding:10px;"><em>Loading Prayer of the Moment...</em></p>';
+    '<div class="bahai-loading-spinner">&#x1f7d9;</div>';
   overallWrapper.appendChild(randomPrayerPlaceholder);
 
-  // 2. Main area for language list specific content (favorites currently)
+  // 2. Favorites Section
   const langListSpecificContent = document.createElement("div");
   langListSpecificContent.innerHTML = `
       <div id="main-content-area-for-langlist" style="min-height: 100px;">
@@ -3474,9 +3473,6 @@ async function _renderLanguageListContent() {
           <!-- Favorites content will be loaded here -->
         </div>
       </div>
-      <p class="text-center" style="font-size:0.9em; color: #555; margin-top:20px;">
-        Counts are (Unique Phelps Codes / Total Unique Prayers). Select a language to browse.
-      </p>
     `;
   const favoritesPanel = langListSpecificContent.querySelector(
     "#language-tab-panel-favorites",
@@ -3552,12 +3548,84 @@ async function _renderLanguageListContent() {
     favoritesPanel.innerHTML = localFavoritesDisplayHtml;
   }
 
+  // 3. Add Simple Language Selector at bottom
+  const languageSelectorSection = document.createElement("div");
+  languageSelectorSection.className = "simple-language-selector";
+  languageSelectorSection.innerHTML = `
+    <div class="simple-language-selector-header">
+      <span class="bahai-star">&#x1f7d9;</span>
+      <h3>Browse Prayers by Language</h3>
+    </div>
+    <div id="language-buttons-container" class="simple-language-buttons">
+      <div class="bahai-loading-spinner" style="font-size: 2em; margin: 20px auto;">&#x1f7d9;</div>
+    </div>
+  `;
+  overallWrapper.appendChild(languageSelectorSection);
+
+  // Load language buttons asynchronously
+  _loadSimpleLanguageButtons();
+
   // Kick off the async fetch for the random prayer.
   // It will update its placeholder div when ready.
   // No await here, let it load in background.
   _fetchAndDisplayRandomPrayer(randomPrayerPlaceholder);
 
   return overallWrapper;
+}
+
+async function _loadSimpleLanguageButtons() {
+  const container = document.getElementById("language-buttons-container");
+  if (!container) return;
+
+  try {
+    // Get language statistics
+    const langStats = await fetchLanguageStatistics();
+    if (!langStats || langStats.length === 0) {
+      container.innerHTML =
+        '<p style="text-align: center; color: #999;">No languages available</p>';
+      return;
+    }
+
+    // Detect browser language
+    const browserLangCode = (
+      navigator.language ||
+      navigator.userLanguage ||
+      "en"
+    )
+      .split("-")[0]
+      .toLowerCase();
+
+    // Sort: browser language first, then by prayer count
+    langStats.sort((a, b) => {
+      if (a.language.toLowerCase() === browserLangCode) return -1;
+      if (b.language.toLowerCase() === browserLangCode) return 1;
+      return b.totalPrayers - a.totalPrayers;
+    });
+
+    let buttonsHtml = "";
+    for (const lang of langStats) {
+      const displayName = await getLanguageDisplayName(lang.language);
+      const isBrowserLang = lang.language.toLowerCase() === browserLangCode;
+      const suggestionBadge = isBrowserLang
+        ? '<span class="lang-suggestion-badge">Suggested</span>'
+        : "";
+
+      buttonsHtml += `
+        <a href="#prayers/${lang.language}" class="simple-language-button ${isBrowserLang ? "suggested" : ""}">
+          <span class="language-code">${lang.language.toUpperCase()}</span>
+          <span class="language-name">${displayName}</span>
+          <span class="language-count">${lang.uniquePhelps} prayers</span>
+          ${suggestionBadge}
+        </a>
+      `;
+    }
+
+    container.innerHTML = buttonsHtml;
+  } catch (error) {
+    console.error("Error loading language buttons:", error);
+    container.innerHTML =
+      '<p style="text-align: center; color: #999;">Error loading languages</p>';
+  }
 }
 
 async function renderLanguageList() {
@@ -3572,9 +3640,9 @@ async function renderLanguageList() {
   // currentPageByPhelpsLangCode = {}; // Currently unused
 
   await renderPageLayout({
-    titleKey: "Browse Prayers", // Using direct string as getLocalizedString might not be set up
+    titleKey: "Holy Writings Reader", // Updated title
     contentRenderer: _renderLanguageListContent,
-    showLanguageSwitcher: true, // This view uses the language switcher extensively
+    showLanguageSwitcher: false, // No longer using the complex language switcher
     showBackButton: false, // No back button on the main/home view
   });
 }
