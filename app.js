@@ -1184,6 +1184,11 @@ async function renderPageLayout(viewSpec) {
     if (showLanguageSwitcher) {
       const bottomSelector = await _renderBottomLanguageSelector();
       viewContentContainer.appendChild(bottomSelector);
+
+      // Upgrade MDL components in the language selector
+      if (typeof componentHandler !== "undefined" && componentHandler) {
+        componentHandler.upgradeDom(bottomSelector);
+      }
     }
   } catch (error) {
     console.error(
@@ -1372,6 +1377,11 @@ async function _renderPrayerContent(
       // --- END TEMPORARY LOGS ---
 
       if (distinctLangs && distinctLangs.length > 1) {
+        console.log(
+          "[TranslationSwitcher] Creating menu with " +
+            distinctLangs.length +
+            " languages",
+        );
         let switcherHtml = `<button id="translations-menu-btn" class="mdl-button mdl-js-button mdl-button--icon" title="View translations in other languages" style="margin-right: 8px;">
           <i class="material-icons">language</i>
         </button>
@@ -1393,7 +1403,17 @@ async function _renderPrayerContent(
 
         // Upgrade MDL components
         if (typeof componentHandler !== "undefined" && componentHandler) {
+          console.log(
+            "[TranslationSwitcher] Upgrading MDL components for translations menu",
+          );
           componentHandler.upgradeDom(translationsAreaDiv);
+          console.log(
+            "[TranslationSwitcher] MDL upgrade completed for translations area",
+          );
+        } else {
+          console.warn(
+            "[TranslationSwitcher] componentHandler not available, cannot upgrade MDL",
+          );
         }
       } else {
         // --- BEGIN TEMPORARY LOGS for TranslationSwitcher ---
@@ -1540,6 +1560,30 @@ async function _renderPrayerContent(
       // Optionally append an error message to prayerDetailsContainer
     }
   }
+  // Apply Safari fixes to translations menu if present
+  const translationsMenuBtn = fragment.querySelector("#translations-menu-btn");
+  if (translationsMenuBtn) {
+    setTimeout(() => {
+      // Apply Safari-specific fixes for the translations menu
+      const isSafari = /^((?!chrome|android).)*safari/i.test(
+        navigator.userAgent,
+      );
+      if (isSafari) {
+        const translationsMenu = document.getElementById("translations-menu");
+        if (translationsMenu) {
+          // Ensure menu has proper styling
+          translationsMenu.style.backgroundColor = "#fff";
+          translationsMenu.style.border = "1px solid rgba(0,0,0,0.12)";
+          translationsMenu.style.webkitTransform = "translateZ(0)";
+          translationsMenu.style.transform = "translateZ(0)";
+          console.log(
+            "[TranslationSwitcher] Applied Safari fixes to translations menu",
+          );
+        }
+      }
+    }, 50);
+  }
+
   return fragment; // Return the constructed DOM fragment
 }
 
@@ -2796,8 +2840,15 @@ async function _renderLanguageListContent() {
   `;
   overallWrapper.appendChild(languageSelectorSection);
 
-  // Load language buttons asynchronously
-  _loadSimpleLanguageButtons();
+  // Load language buttons asynchronously (fire and forget, but with error handling)
+  _loadSimpleLanguageButtons().catch((error) => {
+    console.error("Error loading simple language buttons on home page:", error);
+    const container = document.getElementById("language-buttons-container");
+    if (container) {
+      container.innerHTML =
+        '<p style="text-align: center; color: #999;">Error loading languages</p>';
+    }
+  });
 
   // Kick off the async fetch for the random prayer.
   // It will update its placeholder div when ready.
@@ -2885,8 +2936,17 @@ async function _renderBottomLanguageSelector() {
     </div>
   `;
 
-  // Load language buttons asynchronously
-  _loadSimpleLanguageButtons();
+  // Load language buttons asynchronously and wait for completion
+  try {
+    await _loadSimpleLanguageButtons();
+  } catch (error) {
+    console.error("Error loading simple language buttons:", error);
+    const container2 = document.getElementById("language-buttons-container");
+    if (container2) {
+      container2.innerHTML =
+        '<p style="text-align: center; color: #999;">Error loading languages</p>';
+    }
+  }
 
   return container;
 }
