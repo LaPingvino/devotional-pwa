@@ -1906,11 +1906,8 @@ async function renderPageLayout(viewSpec) {
 
     // 7. Render Language Switcher AFTER content (at the bottom) if requested
     if (showLanguageSwitcher) {
-      const pickerShellHtml = getLanguagePickerShellHtml();
-      viewContentContainer.insertAdjacentHTML("beforeend", pickerShellHtml);
-      // populateLanguageSelection is async and handles its own MDL upgrades.
-      // Pass activeLangCodeForPicker to highlight the correct language.
-      await populateLanguageSelection(activeLangCodeForPicker);
+      const bottomSelector = await _renderBottomLanguageSelector();
+      viewContentContainer.appendChild(bottomSelector);
     }
   } catch (error) {
     console.error(
@@ -2145,7 +2142,11 @@ async function _renderPrayerContent(
       // --- END TEMPORARY LOGS ---
 
       if (distinctLangs && distinctLangs.length > 1) {
-        let switcherHtml = `<span class="translations-switcher-label">Translations:</span>`;
+        let switcherHtml = `<button id="translations-menu-btn" class="mdl-button mdl-js-button mdl-button--icon" title="View translations in other languages" style="margin-right: 8px;">
+          <i class="material-icons">language</i>
+        </button>
+        <div class="mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="translations-menu-btn" id="translations-menu">`;
+
         const translationLinkPromises = distinctLangs.map(async (langRow) => {
           const langDisplayName = await getLanguageDisplayName(
             langRow.language,
@@ -2153,11 +2154,17 @@ async function _renderPrayerContent(
           const isActive = activeLangForNav
             ? langRow.language === activeLangForNav
             : langRow.language === prayer.language;
-          return `<a href="#prayercode/${phelpsCodeForSwitcher}/${langRow.language}" class="translation-link ${isActive ? "is-active" : ""}">${langDisplayName}</a>`;
+          return `<a href="#prayercode/${phelpsCodeForSwitcher}/${langRow.language}" class="mdl-menu__item ${isActive ? "is-active" : ""}">${langDisplayName}</a>`;
         });
         const translationLinksHtml = await Promise.all(translationLinkPromises);
-        switcherHtml += translationLinksHtml.join(" ");
+        switcherHtml += translationLinksHtml.join("");
+        switcherHtml += `</div>`;
         translationsAreaDiv.innerHTML = switcherHtml;
+
+        // Upgrade MDL components
+        if (typeof componentHandler !== "undefined" && componentHandler) {
+          componentHandler.upgradeDom(translationsAreaDiv);
+        }
       } else {
         // --- BEGIN TEMPORARY LOGS for TranslationSwitcher ---
         console.log(
@@ -3578,8 +3585,18 @@ async function _loadSimpleLanguageButtons() {
   if (!container) return;
 
   try {
-    // Get language statistics
-    const langStats = await fetchLanguageStatistics();
+    // Get language statistics - try cached first, then fetch fresh
+    let langStats = getCachedLanguageStats();
+
+    if (!langStats) {
+      // Fetch fresh language stats
+      const sql = `SELECT language, COUNT(DISTINCT phelps) as uniquePhelps, COUNT(*) as totalPrayers FROM writings WHERE phelps IS NOT NULL AND phelps != '' GROUP BY language ORDER BY totalPrayers DESC`;
+      langStats = await executeQuery(sql);
+      if (langStats && langStats.length > 0) {
+        cacheLanguageStats(langStats);
+      }
+    }
+
     if (!langStats || langStats.length === 0) {
       container.innerHTML =
         '<p style="text-align: center; color: #999;">No languages available</p>';
@@ -3626,6 +3643,25 @@ async function _loadSimpleLanguageButtons() {
     container.innerHTML =
       '<p style="text-align: center; color: #999;">Error loading languages</p>';
   }
+}
+
+async function _renderBottomLanguageSelector() {
+  const container = document.createElement("div");
+  container.className = "simple-language-selector";
+  container.innerHTML = `
+    <div class="simple-language-selector-header">
+      <span class="bahai-star">&#x1f7d9;</span>
+      <h3>Browse Prayers by Language</h3>
+    </div>
+    <div id="language-buttons-container" class="simple-language-buttons">
+      <div class="bahai-loading-spinner" style="font-size: 2em; margin: 20px auto;">&#x1f7d9;</div>
+    </div>
+  `;
+
+  // Load language buttons asynchronously
+  _loadSimpleLanguageButtons();
+
+  return container;
 }
 
 async function renderLanguageList() {
