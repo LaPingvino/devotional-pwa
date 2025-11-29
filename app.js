@@ -134,33 +134,42 @@ window.currentPrayerForStaticActions = null; // Holds { prayer, initialDisplayPr
 
 function initializeStaticPrayerActions() {
   console.log(
-    "[initializeStaticPrayerActions] Initializing listeners for static prayer action buttons.",
+    "[initializeStaticPrayerActions] Initializing listeners for simplified prayer action buttons.",
   );
   const snackbarContainer = document.querySelector(".mdl-js-snackbar");
 
-  const staticPinBtn = document.getElementById("static-action-pin-this");
-  if (staticPinBtn) {
-    staticPinBtn.addEventListener("click", () => {
+  const informMistakeBtn = document.getElementById("inform-mistake-button");
+  if (informMistakeBtn) {
+    informMistakeBtn.addEventListener("click", () => {
       if (
         window.currentPrayerForStaticActions &&
         window.currentPrayerForStaticActions.prayer
       ) {
-        console.log(
-          "[Static Action] Pin this Prayer clicked.",
-          window.currentPrayerForStaticActions.prayer.version,
+        const prayer = window.currentPrayerForStaticActions.prayer;
+        const prayerName = prayer.name || `Prayer ${prayer.version}`;
+        const language =
+          window.currentPrayerForStaticActions.languageToDisplay ||
+          prayer.language;
+
+        const subject = encodeURIComponent(`Mistake Report: ${prayerName}`);
+        const body = encodeURIComponent(
+          `I would like to report a mistake in the following prayer:\n\n` +
+            `Prayer: ${prayerName}\n` +
+            `Version ID: ${prayer.version}\n` +
+            `Language: ${language}\n` +
+            `Phelps Code: ${prayer.phelps || "Not assigned"}\n` +
+            `URL: ${window.location.href}\n\n` +
+            `Description of the mistake:\n\n\n\n` +
+            `Thank you for maintaining this resource!`,
         );
-        pinPrayer(window.currentPrayerForStaticActions.prayer);
-        if (snackbarContainer && snackbarContainer.MaterialSnackbar) {
-          snackbarContainer.MaterialSnackbar.showSnackbar({
-            message: "Prayer pinned!",
-          });
-        }
+
+        window.location.href = `mailto:ikojba@gmail.com?subject=${subject}&body=${body}`;
       } else {
-        console.warn("Static Pin: No context.");
+        console.warn("Inform Mistake: No prayer context available.");
       }
     });
   } else {
-    console.warn("Static button 'static-action-pin-this' not found.");
+    console.warn("Inform mistake button not found.");
   }
 
   const staticAddMatchBtn = document.getElementById("static-action-add-match");
@@ -2420,7 +2429,7 @@ async function _renderPrayersForLanguageContent(
   const totalPages = Math.ceil(totalPrayers / ITEMS_PER_PAGE);
 
   const filterSwitchId = `filter-unmatched-${langCode}`;
-  const filterSwitchHtml = `<div class="filter-switch-container"><label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="${filterSwitchId}"><input type="checkbox" id="${filterSwitchId}" class="mdl-switch__input" onchange="setLanguageView('${langCode}', 1, this.checked)" ${showOnlyUnmatched ? "checked" : ""}><span class="mdl-switch__label">Show only prayers without Phelps code</span></label></div>`;
+  const filterSwitchHtml = `<div class="filter-switch-container"><label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="${filterSwitchId}"><input type="checkbox" id="${filterSwitchId}" class="mdl-switch__input" onchange="setLanguageView('${langCode}', 1, !this.checked)" ${!showOnlyUnmatched ? "checked" : ""}><span class="mdl-switch__label">Show prayers without Phelps code</span></label></div>`;
 
   if (prayersMetadata.length === 0 && page === 1) {
     return `<div id="language-content-area">${filterSwitchHtml}<p>No prayers found for language: ${languageDisplayName}${showOnlyUnmatched ? " (matching filter)" : ""}.</p><p>Query for metadata:</p><pre>${metadataSql}</pre><p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(metadataSql)}" target="_blank">Debug metadata query</a></p><p>Count query:</p><pre>${countSql}</pre><p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(countSql)}" target="_blank">Debug count query</a></p></div>`;
@@ -3795,7 +3804,7 @@ async function handleRouteChange() {
   const hash = window.location.hash;
   const [mainHashPath, queryParamsStr] = hash.split("?");
   let pageParam = 1,
-    showOnlyUnmatchedParam = false;
+    showOnlyUnmatchedParam = true; // Default to hiding prayers without Phelps codes
 
   if (queryParamsStr) {
     const params = new URLSearchParams(queryParamsStr);
@@ -3803,8 +3812,9 @@ async function handleRouteChange() {
       const parsedPage = parseInt(params.get("page"), 10);
       if (!isNaN(parsedPage) && parsedPage > 0) pageParam = parsedPage;
     }
-    if (params.has("filter") && params.get("filter") === "unmatched")
-      showOnlyUnmatchedParam = true;
+    // If filter=show is present, show all prayers including those without Phelps codes
+    if (params.has("filter") && params.get("filter") === "show")
+      showOnlyUnmatchedParam = false;
   }
   const mainHash = mainHashPath || (hash.includes("?") ? "" : hash);
   const prayerCodeLangRegex = /^#prayercode\/([^/]+)\/([^/?]+)/;
@@ -3857,7 +3867,9 @@ async function handleRouteChange() {
 }
 
 function setLanguageView(langCode, page, showOnlyUnmatched) {
-  window.location.hash = `#prayers/${langCode}?page=${page}${showOnlyUnmatched ? "&filter=unmatched" : ""}`;
+  // showOnlyUnmatched = true means hide prayers without Phelps (default)
+  // showOnlyUnmatched = false means show all prayers (when filter=show)
+  window.location.hash = `#prayers/${langCode}?page=${page}${!showOnlyUnmatched ? "&filter=show" : ""}`;
 }
 window.setLanguageView = setLanguageView;
 window.renderPrayersForLanguage = renderPrayersForLanguage;
@@ -4345,122 +4357,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
 // Helper function to update static prayer action button states
 function updateStaticPrayerActionButtonStates(prayer) {
-  const staticPinBtn = document.getElementById("static-action-pin-this");
-  const staticUnpinBtn = document.getElementById("static-action-unpin-this");
-  const staticAddMatchBtn = document.getElementById("static-action-add-match");
-  const staticReplacePinBtn = document.getElementById(
-    "static-action-replace-pin",
-  );
-  const staticIsPinnedMsg = document.getElementById(
-    "static-action-is-pinned-msg",
-  );
-  const staticSuggestPhelpsBtn = document.getElementById(
-    "static-action-suggest-phelps",
-  );
-  const staticChangeLangBtn = document.getElementById(
-    "static-action-change-lang",
-  );
-  const staticChangeNameBtn = document.getElementById(
-    "static-action-change-name",
-  );
-  const staticAddNoteBtn = document.getElementById("static-action-add-note");
+  const informMistakeBtn = document.getElementById("inform-mistake-button");
 
-  // Ensure all static buttons are made visible (overriding display:none from index.html)
-  // and then set their initial disabled state for this render pass.
-  const allStaticButtons = [
-    staticPinBtn,
-    staticUnpinBtn,
-    staticAddMatchBtn,
-    staticReplacePinBtn,
-    staticSuggestPhelpsBtn,
-    staticChangeLangBtn,
-    staticChangeNameBtn,
-    staticAddNoteBtn,
-  ];
-  allStaticButtons.forEach((btn) => {
-    if (btn) {
-      btn.style.display = ""; // Make button visible
-      btn.disabled = true; // Default to disabled, specific logic will enable them
-    }
-  });
-
-  // These buttons are always active (visible and enabled)
-  if (staticChangeLangBtn) staticChangeLangBtn.disabled = false;
-  if (staticChangeNameBtn) staticChangeNameBtn.disabled = false;
-  if (staticAddNoteBtn) staticAddNoteBtn.disabled = false;
-
-  // Hide "is pinned" message initially
-  if (staticIsPinnedMsg) staticIsPinnedMsg.style.display = "none";
+  // Simply show the inform mistake button if we have a prayer
+  if (informMistakeBtn && prayer) {
+    informMistakeBtn.style.display = "inline-block";
+    informMistakeBtn.disabled = false;
+  } else if (informMistakeBtn) {
+    informMistakeBtn.style.display = "none";
+  }
 
   console.log(
-    `[updateStaticPrayerActionButtonStates] Initial states: PinBtn disabled=${staticPinBtn?.disabled}; UnpinBtn disabled=${staticUnpinBtn?.disabled}; AddMatchBtn disabled=${staticAddMatchBtn?.disabled}`,
+    `[updateStaticPrayerActionButtonStates] Inform mistake button visible for prayer: ${prayer?.version}`,
   );
-
-  // Logic to enable/disable buttons and show/hide message based on context
-  console.log(
-    `[updateStaticPrayerActionButtonStates] Context: prayer.version=${prayer?.version}, pinnedPrayerDetails.version=${pinnedPrayerDetails?.version}`,
-  );
-  if (pinnedPrayerDetails) {
-    if (pinnedPrayerDetails.version !== prayer?.version) {
-      // A different prayer is pinned
-      console.log(
-        "[updateStaticPrayerActionButtonStates] Branch: Different prayer is pinned.",
-      );
-      if (staticAddMatchBtn) {
-        const pinnedNameSnippet = (
-          pinnedPrayerDetails.name || `Version ${pinnedPrayerDetails.version}`
-        ).substring(0, 20);
-        const truncatedName =
-          pinnedNameSnippet.length === 20
-            ? pinnedNameSnippet + "..."
-            : pinnedNameSnippet;
-        staticAddMatchBtn.innerHTML = `<i class="material-icons">playlist_add_check</i>Match with Pinned: ${truncatedName}`;
-        staticAddMatchBtn.disabled = false;
-      }
-      if (staticReplacePinBtn) staticReplacePinBtn.disabled = false;
-      // staticPinBtn remains disabled
-      // staticUnpinBtn remains disabled
-    } else {
-      // The current prayer IS the pinned one
-      console.log(
-        "[updateStaticPrayerActionButtonStates] Branch: Current prayer IS pinned.",
-      );
-      if (staticIsPinnedMsg) staticIsPinnedMsg.style.display = "block";
-      if (staticUnpinBtn) staticUnpinBtn.disabled = false;
-      // staticPinBtn, staticAddMatchBtn, staticReplacePinBtn remain disabled
-    }
-  } else {
-    // No prayer is pinned
-    console.log(
-      "[updateStaticPrayerActionButtonStates] Branch: No prayer pinned.",
-    );
-    if (staticPinBtn) staticPinBtn.disabled = false;
-    // staticUnpinBtn, staticAddMatchBtn, staticReplacePinBtn remain disabled
-    if (staticAddMatchBtn) {
-      // Reset text if no prayer is pinned
-      staticAddMatchBtn.innerHTML = `<i class="material-icons">playlist_add_check</i> Match with Pinned`;
-    }
-    if (staticIsPinnedMsg) staticIsPinnedMsg.style.display = "none";
-  }
-
-  // Enable/Disable "Suggest Phelps Code" button
-  if (staticSuggestPhelpsBtn && prayer) {
-    const context = window.currentPrayerForStaticActions;
-    if (!prayer.phelps && !(context && context.phelpsIsSuggested)) {
-      staticSuggestPhelpsBtn.disabled = false;
-    } else {
-      staticSuggestPhelpsBtn.disabled = true; // Already has phelps or is suggested
-    }
-  }
-
-  // Update titles for always-enabled buttons (context should exist)
-  const currentContext = window.currentPrayerForStaticActions;
-  if (staticChangeLangBtn && currentContext) {
-    staticChangeLangBtn.title = `Current effective language: ${currentContext.finalDisplayLanguageForPhelpsMeta}`;
-  }
-  if (staticChangeNameBtn && currentContext) {
-    staticChangeNameBtn.title = `Current effective name: ${currentContext.nameToDisplay || "Not Set"}`;
-  }
 }
 
 // Helper function to update button states without full page re-render

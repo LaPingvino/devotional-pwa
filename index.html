@@ -7,7 +7,7 @@
         />
         <link
             rel="stylesheet"
-            href="https://fonts.googleapis.com/icon?family=Noto+Sans+Symbols+2"
+            href="https://fonts.googleapis.com/css2?family=Noto+Sans+Symbols+2&display=swap"
         />
         <link
             rel="stylesheet"
@@ -34,9 +34,44 @@
                         class="mdl-layout-title"
                         style="color: white; text-decoration: none"
                     >
-                        <span class="star">&#x1f7d9;</span> Holy Writings Reader
+                        <span class="bahai-star">&#x1f7d9;</span> Holy Writings
+                        Reader
                     </a>
                     <div class="mdl-layout-spacer"></div>
+
+                    <!-- Theme picker button -->
+                    <button
+                        id="theme-menu-button"
+                        class="mdl-button mdl-js-button mdl-button--icon"
+                        style="margin-right: 8px"
+                    >
+                        <i class="material-icons">palette</i>
+                    </button>
+                    <ul
+                        class="mdl-menu mdl-menu--bottom-right mdl-js-menu mdl-js-ripple-effect"
+                        for="theme-menu-button"
+                    >
+                        <li class="mdl-menu__item" onclick="setTheme('white')">
+                            <span class="bahai-star">&#x1f7d9;</span> White
+                            (Default)
+                        </li>
+                        <li class="mdl-menu__item" onclick="setTheme('cream')">
+                            <span class="bahai-star">&#x1f7d9;</span> Cream
+                        </li>
+                        <li
+                            class="mdl-menu__item"
+                            onclick="setTheme('light-blue')"
+                        >
+                            <span class="bahai-star">&#x1f7d9;</span> Light Blue
+                        </li>
+                        <li
+                            class="mdl-menu__item"
+                            onclick="setTheme('soft-green')"
+                        >
+                            <span class="bahai-star">&#x1f7d9;</span> Soft Green
+                        </li>
+                    </ul>
+
                     <div
                         class="mdl-textfield mdl-js-textfield mdl-textfield--expandable mdl-textfield--floating-label mdl-textfield--align-right"
                         style="margin-right: 2px"
@@ -60,10 +95,8 @@
                             ></label>
                         </div>
                     </div>
-                    <!-- prayer-language-nav removed from header -->
                 </div>
             </header>
-            <!-- mdl-layout__drawer has been removed -->
             <main class="mdl-layout__content">
                 <div id="main-view-container">
                     <div id="content-column">
@@ -94,10 +127,18 @@
                             </header>
 
                             <div id="dynamic-content-area">
-                                <p>Loading content...</p>
+                                <p style="text-align: center">
+                                    <span
+                                        class="bahai-star"
+                                        style="font-size: 2em; color: #3f51b5"
+                                        >&#x1f7d9;</span
+                                    >
+                                    <br />
+                                    Loading content...
+                                </p>
                             </div>
 
-                            <!-- Statically defined prayer actions container - moved to bottom -->
+                            <!-- Simple "Inform a mistake" button -->
                             <div
                                 id="static-prayer-actions-host"
                                 class="prayer-actions"
@@ -106,256 +147,20 @@
                                     margin-top: 20px;
                                     padding-top: 15px;
                                     border-top: 1px solid #eee;
-                                    display: flex;
-                                    flex-wrap: wrap;
-                                    gap: 10px;
-                                    align-items: center;
+                                    text-align: center;
                                 "
                             >
                                 <button
-                                    id="static-action-pin-this"
-                                    class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored"
-                                    style="display: none"
-                                >
-                                    <i class="material-icons">push_pin</i> Pin
-                                    this Prayer
-                                </button>
-                                <button
-                                    id="static-action-add-match"
-                                    class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent"
-                                    style="display: none"
-                                >
-                                    <i class="material-icons"
-                                        >playlist_add_check</i
-                                    >
-                                    Match with Pinned
-                                </button>
-                                <button
-                                    id="static-action-replace-pin"
-                                    class="mdl-button mdl-js-button mdl-button--raised"
-                                    style="display: none"
-                                    title="Replaces the currently pinned prayer with this one. Item list preserved."
-                                >
-                                    <i class="material-icons">swap_horiz</i>
-                                    Replace Pin
-                                </button>
-                                <button
-                                    id="static-action-unpin-this"
-                                    class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent"
-                                    style="display: none"
-                                >
-                                    <i class="material-icons">highlight_off</i>
-                                    Unpin this Prayer
-                                </button>
-                                <span
-                                    id="static-action-is-pinned-msg"
-                                    style="
-                                        display: none;
-                                        margin: 0 8px;
-                                        font-style: italic;
-                                        color: #666;
-                                        flex-shrink: 0;
-                                    "
-                                    >This prayer is currently pinned.</span
-                                >
-                                <button
-                                    id="static-action-suggest-phelps"
+                                    id="inform-mistake-button"
                                     class="mdl-button mdl-js-button mdl-button--raised"
                                     style="display: none"
                                 >
-                                    <i class="material-icons">library_add</i>
-                                    Add/Suggest Phelps Code
-                                </button>
-                                <button
-                                    id="static-action-change-lang"
-                                    class="mdl-button mdl-js-button mdl-button--raised"
-                                    style="display: none"
-                                >
-                                    <i class="material-icons">translate</i>
-                                    Change Language
-                                </button>
-                                <button
-                                    id="static-action-change-name"
-                                    class="mdl-button mdl-js-button mdl-button--raised"
-                                    style="display: none"
-                                >
-                                    <i class="material-icons">edit_note</i>
-                                    Add/Change Name
-                                </button>
-                                <button
-                                    id="static-action-add-note"
-                                    class="mdl-button mdl-js-button mdl-button--raised"
-                                    style="display: none"
-                                >
-                                    <i class="material-icons">speaker_notes</i>
-                                    Add General Note
+                                    <i class="material-icons">error_outline</i>
+                                    Inform a Mistake
                                 </button>
                             </div>
                         </div>
                     </div>
-                    <div id="prayer-matching-tool">
-                        <h4>Prayer Matching Helper</h4>
-                        <div id="pinned-prayer-section">
-                            <!-- Pinned prayer info and Unpin button will go here -->
-                            <p>No prayer is currently pinned.</p>
-                            <!-- Pinned prayer text will be appended here by JS -->
-                        </div>
-                        <div
-                            id="collected-items-section"
-                            style="margin-top: 15px"
-                        >
-                            <h5>Collected Items:</h5>
-                            <ul
-                                id="collected-items-list"
-                                style="
-                                    list-style-type: none;
-                                    padding-left: 0;
-                                    margin-top: 5px;
-                                "
-                            >
-                                <li>No items collected yet.</li>
-                            </ul>
-                        </div>
-                        <div
-                            style="
-                                display: flex;
-                                flex-direction: column;
-                                gap: 10px;
-                                margin-top: 15px;
-                            "
-                        >
-                            <button
-                                id="review-and-send-button"
-                                class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent"
-                                disabled
-                                style="width: 100%"
-                            >
-                                <i
-                                    class="material-icons"
-                                    style="margin-right: 4px"
-                                    >send</i
-                                >
-                                Review & Send Items
-                            </button>
-                            <div style="text-align: center">
-                                <a
-                                    href="#"
-                                    id="clear-all-items-link"
-                                    style="
-                                        font-size: 0.9em;
-                                        color: #757575;
-                                        text-decoration: none;
-                                        display: none;
-                                        padding: 8px 0;
-                                        line-height: 1.5;
-                                    "
-                                >
-                                    <i
-                                        class="material-icons"
-                                        style="
-                                            font-size: 1.1em;
-                                            vertical-align: text-bottom;
-                                            margin-right: 2px;
-                                        "
-                                        >delete_sweep</i
-                                    >
-                                    Clear All Items & Unpin
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div id="contribution-section">
-                    <h3>How to Contribute</h3>
-                    <p>
-                        You can help improve this collection of holy writings by
-                        contributing in the following ways:
-                    </p>
-                    <ul>
-                        <li>
-                            <strong>Find other language versions:</strong> If
-                            you find a prayer in a different language that
-                            matches one on this site, please send the Phelps
-                            code (if available) or the link to the page from
-                            this site, along with the link to the matching
-                            prayer, to
-                            <a href="mailto:ikojba@gmail.com"
-                                >ikojba@gmail.com</a
-                            >. You can also use the "Prayer Matching Helper"
-                            tool on this page to collect items and submit them.
-                        </li>
-                        <li>
-                            <strong>Contribute directly on DoltHub:</strong> You
-                            can contribute directly to the database at
-                            <a
-                                href="https://www.dolthub.com/repositories/holywritings/bahaiwritings"
-                                target="_blank"
-                                >dolthub.com/holywritings/bahaiwritings</a
-                            >. This is a version-controlled SQL database where
-                            you can propose changes and improvements.
-                        </li>
-                        <li>
-                            <strong>Fork the database on DoltHub:</strong> For
-                            more extensive changes, experimentation, or to
-                            manage your own version, you can
-                            <a
-                                href="https://www.dolthub.com/repositories/holywritings/bahaiwritings?action=fork"
-                                target="_blank"
-                                >fork the repository on DoltHub</a
-                            >.
-                        </li>
-                        <li>
-                            <strong>Match prayers using TiddlyWiki:</strong>
-                            Visit
-                            <a
-                                href="https://tiddly.holywritings.net/workspace"
-                                target="_blank"
-                                >tiddly.holywritings.net/workspace</a
-                            >
-                            to match prayers across languages. Save your results
-                            and email the saved page to
-                            <a href="mailto:ikojba@gmail.com"
-                                >ikojba@gmail.com</a
-                            >.
-                        </li>
-                        <li>
-                            <strong>Assign missing Phelps codes:</strong>
-                            This site uses codes based on the unique identifier
-                            system for Bahá'í works from the
-                            <a
-                                href="https://afnanlibrary.org/a-partial-inventory/"
-                                target="_blank"
-                                >Partial Inventory</a
-                            >
-                            by Steven Phelps.
-                            <ul>
-                                <li>
-                                    Find the prayer in the Inventory and use its
-                                    assigned code.
-                                </li>
-                                <li>
-                                    If the prayer is part of a larger work
-                                    (e.g., a prayer from the Kitáb-i-Aqdas),
-                                    append a three-letter suffix (often
-                                    mnemonic) to the main work's Phelps code
-                                    (e.g., BH00001 for the Aqdas plus the suffix
-                                    LOV becomes BH00001LOV).
-                                </li>
-                                <li>
-                                    If a prayer is not in the inventory, please
-                                    contact Steven Phelps so it can be included.
-                                </li>
-                                <li>
-                                    Use the "Add/Suggest Phelps Code" button on
-                                    a prayer's page (if it lacks a code) to add
-                                    this information to your item list for
-                                    submission.
-                                </li>
-                            </ul>
-                        </li>
-                    </ul>
-                    <p>Your contributions are greatly appreciated!</p>
                 </div>
             </main>
         </div>
@@ -366,98 +171,29 @@
             <button class="mdl-snackbar__action" type="button"></button>
         </div>
 
-        <!-- DoltHub Issue Dialog -->
-        <dialog
-            id="dolthub-issue-dialog"
-            style="
-                width: 80%;
-                max-width: 700px;
-                border-radius: 8px;
-                padding: 20px;
-                border: 1px solid #ccc;
-            "
-        >
-            <h4 style="margin-top: 0; color: #3f51b5">Review & Send Items</h4>
-            <p style="font-size: 0.9em; color: #555">
-                Review and edit the content below. You can then copy it, open a
-                DoltHub issue, or share it via WhatsApp/Telegram.
-            </p>
-            <textarea
-                id="dolthub-issue-textarea"
-                rows="15"
-                style="
-                    width: 100%;
-                    font-family: monospace;
-                    margin-bottom: 15px;
-                    padding: 8px;
-                    border: 1px solid #ddd;
-                    border-radius: 4px;
-                    resize: vertical;
-                "
-            ></textarea>
-            <div style="text-align: right">
-                <button
-                    id="copy-dolthub-issue-textarea-button"
-                    class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored"
-                    style="margin-right: 8px"
-                >
-                    <i class="material-icons" style="margin-right: 4px"
-                        >content_copy</i
-                    >Copy
-                </button>
-                <button
-                    id="open-dolthub-issue-button"
-                    class="mdl-button mdl-js-button mdl-button--raised mdl-button--accent"
-                    style="margin-right: 8px"
-                >
-                    <i class="material-icons" style="margin-right: 4px"
-                        >open_in_new</i
-                    >Open DoltHub Issue
-                </button>
-                <button
-                    id="whatsapp-share-button"
-                    class="mdl-button mdl-js-button mdl-button--raised"
-                    style="
-                        margin-right: 8px;
-                        background-color: #25d366;
-                        color: white;
-                    "
-                >
-                    <i class="material-icons" style="margin-right: 4px">share</i
-                    >WhatsApp
-                </button>
-                <button
-                    id="telegram-share-button"
-                    class="mdl-button mdl-js-button mdl-button--raised"
-                    style="
-                        margin-right: 8px;
-                        background-color: #0088cc;
-                        color: white;
-                    "
-                >
-                    <svg
-                        width="16"
-                        height="16"
-                        viewBox="0 0 24 24"
-                        style="margin-right: 4px; fill: currentColor"
-                    >
-                        <path
-                            d="M9.78 18.65l.28-4.23-7.68-2.62c-.77-.27-.77-1.41 0-1.68l16.19-5.81c.78-.28 1.48.37 1.18 1.15L12.69 18.2c-.26.73-1.23.73-1.49-.02zm1.95-4.29c.2-.25.12-.68-.19-.82L4.75 9.94l11.4-4.12-7.05 10.48.14-.09z"
-                        /></svg
-                    >Telegram
-                </button>
-                <button
-                    id="close-dolthub-issue-dialog-button"
-                    class="mdl-button mdl-js-button"
-                    style="margin-left: 8px"
-                >
-                    Close
-                </button>
-            </div>
-        </dialog>
-
         <script src="app.js" defer></script>
         <script>
+            // Theme management
+            function setTheme(themeName) {
+                document.body.setAttribute("data-theme", themeName);
+                localStorage.setItem("preferred-theme", themeName);
+
+                const snackbar = document.querySelector(".mdl-js-snackbar");
+                if (snackbar && snackbar.MaterialSnackbar) {
+                    snackbar.MaterialSnackbar.showSnackbar({
+                        message:
+                            "Theme changed to " + themeName.replace("-", " "),
+                    });
+                }
+            }
+
+            // Load saved theme on page load
+            window.addEventListener("DOMContentLoaded", function () {
+                const savedTheme =
+                    localStorage.getItem("preferred-theme") || "white";
+                document.body.setAttribute("data-theme", savedTheme);
+            });
+
             function R(r) {
                 var e,
                     t,
@@ -513,11 +249,9 @@
                     );
                 return R(String.fromCharCode.apply(null, new Uint8Array(e)));
             }
-            var fpPromise =
-                Fingerprint(); /* async function sendEvent(r,e){var t={event:r,site:"HolyWritings.net",url:location.href,fp:await fpPromise};if(e)for(var n in e)t[n]=e[n];var o=new XMLHttpRequest;o.open("POST","https://ping.holywritings.net/",!0),o.setRequestHeader("Content-Type","application/json"),o.send(JSON.stringify(t))} */
+            var fpPromise = Fingerprint();
             window.onload = function () {
-                // sendEvent("load");
-                // Header search event listener moved to app.js DOMContentLoaded for consistency
+                // Page loaded
             };
         </script>
     </body>
