@@ -268,12 +268,12 @@ body[data-theme="dark"] a {
     color: #64b5f6;
 }
 
-body[data-theme="dark"] .simple-language-button .language-code {
-    color: #64b5f6;
+body[data-theme="dark"] .simple-language-button .language-name {
+    color: #e0e0e0;
 }
 
-body[data-theme="dark"] .simple-language-button .language-name {
-    color: #b0b0b0;
+body[data-theme="dark"] .simple-language-button .language-code {
+    color: #64b5f6;
 }
 
 body[data-theme="dark"] .simple-language-button .language-count {
@@ -420,12 +420,12 @@ body[data-theme="dark-blue"] a {
     color: #4a9eff;
 }
 
-body[data-theme="dark-blue"] .simple-language-button .language-code {
-    color: #4a9eff;
+body[data-theme="dark-blue"] .simple-language-button .language-name {
+    color: #d9e4f0;
 }
 
-body[data-theme="dark-blue"] .simple-language-button .language-name {
-    color: #b8c9e0;
+body[data-theme="dark-blue"] .simple-language-button .language-code {
+    color: #4a9eff;
 }
 
 body[data-theme="dark-blue"] .simple-language-button .language-count {
@@ -603,12 +603,12 @@ body[data-theme="dark-green"] a {
     color: #66bb6a;
 }
 
-body[data-theme="dark-green"] .simple-language-button .language-code {
-    color: #66bb6a;
+body[data-theme="dark-green"] .simple-language-button .language-name {
+    color: #d8e8dc;
 }
 
-body[data-theme="dark-green"] .simple-language-button .language-name {
-    color: #b8d4bc;
+body[data-theme="dark-green"] .simple-language-button .language-code {
+    color: #66bb6a;
 }
 
 body[data-theme="dark-green"] .simple-language-button .language-count {
@@ -779,6 +779,10 @@ body[data-theme="sepia"] .mdl-layout__header {
 
 body[data-theme="sepia"] a {
     color: #8b4513;
+}
+
+body[data-theme="sepia"] .simple-language-button .language-name {
+    color: #4a3728;
 }
 
 body[data-theme="sepia"] .simple-language-button .language-code {

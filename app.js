@@ -341,22 +341,6 @@ function getDomain(url) {
   }
 }
 
-function uuidToBase36(uuid_string) {
-  if (!uuid_string || typeof uuid_string !== "string")
-    return "INVALID_UUID_INPUT";
-  const hexString = uuid_string.replace(/-/g, "");
-  try {
-    if (!/^[0-9a-fA-F]+$/.test(hexString)) {
-      console.error("Invalid characters in UUID hex string:", hexString);
-      return "INVALID_HEX_IN_UUID";
-    }
-    return BigInt("0x" + hexString).toString(36);
-  } catch (e) {
-    console.error("Error converting UUID to Base36:", uuid_string, e);
-    return "CONV_ERR_" + hexString.substring(0, 8);
-  }
-}
-
 // --- Favorite Prayer Functions ---
 function loadFavoritePrayers() {
   const storedFavorites = localStorage.getItem(FAVORITES_STORAGE_KEY);
@@ -2194,42 +2178,6 @@ async function renderPrayerCodeView(phelpsCode, page = 1) {
     showBackButton: true, // Useful for navigating back from this specific view
     activeLangCodeForPicker: null, // No specific language is active in the picker for this general phelps view
   });
-}
-
-function getLanguagePickerShellHtml() {
-  const menuId = "all-languages-menu"; // For the 'for' attribute
-  const searchInputId = "language-search-input";
-  const allLanguagesMenuUlId = "all-languages-menu-ul";
-
-  return `
-      <div class="mdl-tabs mdl-js-tabs mdl-js-ripple-effect language-picker-tabs">
-        <div class="mdl-tabs__tab-bar" id="language-picker-tab-bar">
-          <!-- Favorites and Recent tabs will be inserted here by populateLanguageSelection -->
-          <div id="more-languages-wrapper" class="more-languages-section-wrapper">
-            <button id="${menuId}-btn" class="mdl-button mdl-js-button mdl-button--raised mdl-js-ripple-effect">
-              More Languages <i class="material-icons" role="presentation">arrow_drop_down</i>
-            </button>
-            <button id="refresh-language-cache-btn" class="mdl-button mdl-js-button mdl-button--icon mdl-js-ripple-effect"
-                    title="Refresh language cache" style="margin-left: 4px;">
-              <i class="material-icons">refresh</i>
-            </button>
-            <ul class="mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect"
-                for="${menuId}-btn" id="${allLanguagesMenuUlId}">
-              <li id="language-search-li" onclick="event.stopPropagation();">
-                <div class="mdl-textfield mdl-js-textfield">
-                  <input class="mdl-textfield__input" type="text" id="${searchInputId}" onkeyup="filterLanguageMenu()" onclick="event.stopPropagation();">
-                  <label class="mdl-textfield__label" for="${searchInputId}">Search languages...</label>
-                 </div>
-              </li>
-              <li class="mdl-menu__divider" style="margin-top:0;"></li>
-              <!-- Dynamic menu items will be inserted here -->
-            </ul>
-            <div id="all-languages-message-placeholder"></div>
-          </div>
-        </div>
-        <!-- Tab panels are handled by specific views, e.g., favorites panel in renderLanguageList -->
-      </div>
-    `;
 }
 
 async function resolveAndRenderPrayerByPhelpsAndLang(
