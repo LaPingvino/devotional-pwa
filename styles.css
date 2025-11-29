@@ -21,7 +21,7 @@ body {
     transition: background-color 0.3s ease;
 }
 
-/* Cream theme */
+/* Warm Cream theme */
 body[data-theme="cream"] {
     background-color: #faf8f3;
 }
@@ -35,7 +35,8 @@ body[data-theme="cream"] .scripture {
 }
 
 body[data-theme="cream"] .favorite-prayer-card,
-body[data-theme="cream"] .prayer-list-item {
+body[data-theme="cream"] .prayer-list-item,
+body[data-theme="cream"] .simple-language-button {
     background-color: #f5f2eb;
 }
 
@@ -44,7 +45,11 @@ body[data-theme="cream"] .translations-switcher {
     background-color: #f5f2eb;
 }
 
-/* Light blue theme */
+body[data-theme="cream"] .mdl-layout__header {
+    background-color: #8b7355 !important;
+}
+
+/* Sky Blue theme */
 body[data-theme="light-blue"] {
     background-color: #f0f7ff;
 }
@@ -58,7 +63,8 @@ body[data-theme="light-blue"] .scripture {
 }
 
 body[data-theme="light-blue"] .favorite-prayer-card,
-body[data-theme="light-blue"] .prayer-list-item {
+body[data-theme="light-blue"] .prayer-list-item,
+body[data-theme="light-blue"] .simple-language-button {
     background-color: #e3f2fd;
 }
 
@@ -71,7 +77,11 @@ body[data-theme="light-blue"] .bahai-star {
     color: #1976d2;
 }
 
-/* Soft green theme */
+body[data-theme="light-blue"] .mdl-layout__header {
+    background-color: #1976d2 !important;
+}
+
+/* Soft Green theme */
 body[data-theme="soft-green"] {
     background-color: #f4f9f4;
 }
@@ -85,7 +95,8 @@ body[data-theme="soft-green"] .scripture {
 }
 
 body[data-theme="soft-green"] .favorite-prayer-card,
-body[data-theme="soft-green"] .prayer-list-item {
+body[data-theme="soft-green"] .prayer-list-item,
+body[data-theme="soft-green"] .simple-language-button {
     background-color: #e8f5e9;
 }
 
@@ -96,6 +107,287 @@ body[data-theme="soft-green"] .translations-switcher {
 
 body[data-theme="soft-green"] .bahai-star {
     color: #2e7d32;
+}
+
+body[data-theme="soft-green"] .mdl-layout__header {
+    background-color: #2e7d32 !important;
+}
+
+/* Rose Garden theme */
+body[data-theme="rose"] {
+    background-color: #fff5f7;
+}
+
+body[data-theme="rose"] #content {
+    background-color: #fff5f7;
+}
+
+body[data-theme="rose"] .scripture {
+    color: #4a1e2c;
+}
+
+body[data-theme="rose"] .favorite-prayer-card,
+body[data-theme="rose"] .prayer-list-item,
+body[data-theme="rose"] .simple-language-button {
+    background-color: #ffe4e9;
+}
+
+body[data-theme="rose"] .filter-switch-container,
+body[data-theme="rose"] .translations-switcher {
+    background-color: #ffe4e9;
+}
+
+body[data-theme="rose"] .bahai-star {
+    color: #c2185b;
+}
+
+body[data-theme="rose"] .mdl-layout__header {
+    background-color: #c2185b !important;
+}
+
+/* Lavender theme */
+body[data-theme="lavender"] {
+    background-color: #f8f5ff;
+}
+
+body[data-theme="lavender"] #content {
+    background-color: #f8f5ff;
+}
+
+body[data-theme="lavender"] .scripture {
+    color: #2d1b4e;
+}
+
+body[data-theme="lavender"] .favorite-prayer-card,
+body[data-theme="lavender"] .prayer-list-item,
+body[data-theme="lavender"] .simple-language-button {
+    background-color: #ede7f6;
+}
+
+body[data-theme="lavender"] .filter-switch-container,
+body[data-theme="lavender"] .translations-switcher {
+    background-color: #ede7f6;
+}
+
+body[data-theme="lavender"] .bahai-star {
+    color: #673ab7;
+}
+
+body[data-theme="lavender"] .mdl-layout__header {
+    background-color: #673ab7 !important;
+}
+
+/* Dark theme */
+body[data-theme="dark"] {
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+}
+
+body[data-theme="dark"] #content {
+    background-color: #1a1a1a;
+}
+
+body[data-theme="dark"] .scripture {
+    color: #e0e0e0;
+}
+
+body[data-theme="dark"] .favorite-prayer-card,
+body[data-theme="dark"] .prayer-list-item,
+body[data-theme="dark"] .simple-language-button {
+    background-color: #2a2a2a;
+    border-color: #404040;
+    color: #e0e0e0;
+}
+
+body[data-theme="dark"] .filter-switch-container,
+body[data-theme="dark"] .translations-switcher {
+    background-color: #2a2a2a;
+}
+
+body[data-theme="dark"] .bahai-star {
+    color: #64b5f6;
+}
+
+body[data-theme="dark"] .mdl-layout__header {
+    background-color: #212121 !important;
+}
+
+body[data-theme="dark"] h2,
+body[data-theme="dark"] h3,
+body[data-theme="dark"] #prayer-main-title {
+    color: #e0e0e0;
+}
+
+body[data-theme="dark"] a {
+    color: #64b5f6;
+}
+
+body[data-theme="dark"] .simple-language-button .language-code {
+    color: #64b5f6;
+}
+
+body[data-theme="dark"] .simple-language-button .language-name {
+    color: #b0b0b0;
+}
+
+body[data-theme="dark"] .simple-language-button .language-count {
+    color: #808080;
+}
+
+/* Midnight Blue theme */
+body[data-theme="dark-blue"] {
+    background-color: #0d1b2a;
+    color: #d9e4f0;
+}
+
+body[data-theme="dark-blue"] #content {
+    background-color: #0d1b2a;
+}
+
+body[data-theme="dark-blue"] .scripture {
+    color: #d9e4f0;
+}
+
+body[data-theme="dark-blue"] .favorite-prayer-card,
+body[data-theme="dark-blue"] .prayer-list-item,
+body[data-theme="dark-blue"] .simple-language-button {
+    background-color: #1b263b;
+    border-color: #415a77;
+    color: #d9e4f0;
+}
+
+body[data-theme="dark-blue"] .filter-switch-container,
+body[data-theme="dark-blue"] .translations-switcher {
+    background-color: #1b263b;
+}
+
+body[data-theme="dark-blue"] .bahai-star {
+    color: #4a9eff;
+}
+
+body[data-theme="dark-blue"] .mdl-layout__header {
+    background-color: #0a1128 !important;
+}
+
+body[data-theme="dark-blue"] h2,
+body[data-theme="dark-blue"] h3,
+body[data-theme="dark-blue"] #prayer-main-title {
+    color: #d9e4f0;
+}
+
+body[data-theme="dark-blue"] a {
+    color: #4a9eff;
+}
+
+body[data-theme="dark-blue"] .simple-language-button .language-code {
+    color: #4a9eff;
+}
+
+body[data-theme="dark-blue"] .simple-language-button .language-name {
+    color: #b8c9e0;
+}
+
+body[data-theme="dark-blue"] .simple-language-button .language-count {
+    color: #778da9;
+}
+
+/* Forest Night theme */
+body[data-theme="dark-green"] {
+    background-color: #0f1e13;
+    color: #d8e8dc;
+}
+
+body[data-theme="dark-green"] #content {
+    background-color: #0f1e13;
+}
+
+body[data-theme="dark-green"] .scripture {
+    color: #d8e8dc;
+}
+
+body[data-theme="dark-green"] .favorite-prayer-card,
+body[data-theme="dark-green"] .prayer-list-item,
+body[data-theme="dark-green"] .simple-language-button {
+    background-color: #1a2f1e;
+    border-color: #2d5038;
+    color: #d8e8dc;
+}
+
+body[data-theme="dark-green"] .filter-switch-container,
+body[data-theme="dark-green"] .translations-switcher {
+    background-color: #1a2f1e;
+}
+
+body[data-theme="dark-green"] .bahai-star {
+    color: #66bb6a;
+}
+
+body[data-theme="dark-green"] .mdl-layout__header {
+    background-color: #0a1510 !important;
+}
+
+body[data-theme="dark-green"] h2,
+body[data-theme="dark-green"] h3,
+body[data-theme="dark-green"] #prayer-main-title {
+    color: #d8e8dc;
+}
+
+body[data-theme="dark-green"] a {
+    color: #66bb6a;
+}
+
+body[data-theme="dark-green"] .simple-language-button .language-code {
+    color: #66bb6a;
+}
+
+body[data-theme="dark-green"] .simple-language-button .language-name {
+    color: #b8d4bc;
+}
+
+body[data-theme="dark-green"] .simple-language-button .language-count {
+    color: #5a7a5e;
+}
+
+/* Sepia theme */
+body[data-theme="sepia"] {
+    background-color: #f4ecd8;
+    color: #3d2817;
+}
+
+body[data-theme="sepia"] #content {
+    background-color: #f4ecd8;
+}
+
+body[data-theme="sepia"] .scripture {
+    color: #3d2817;
+}
+
+body[data-theme="sepia"] .favorite-prayer-card,
+body[data-theme="sepia"] .prayer-list-item,
+body[data-theme="sepia"] .simple-language-button {
+    background-color: #e8dcc4;
+    border-color: #c9b892;
+}
+
+body[data-theme="sepia"] .filter-switch-container,
+body[data-theme="sepia"] .translations-switcher {
+    background-color: #e8dcc4;
+}
+
+body[data-theme="sepia"] .bahai-star {
+    color: #8b6914;
+}
+
+body[data-theme="sepia"] .mdl-layout__header {
+    background-color: #8b6914 !important;
+}
+
+body[data-theme="sepia"] a {
+    color: #8b6914;
+}
+
+body[data-theme="sepia"] .simple-language-button .language-code {
+    color: #8b6914;
 }
 
 .mdl-layout {
