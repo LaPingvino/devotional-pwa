@@ -1378,7 +1378,7 @@ async function _renderPrayerContent(
         let switcherHtml = `<button id="translations-menu-btn" class="mdl-button mdl-js-button mdl-button--icon" title="View translations in other languages" style="margin-right: 8px;">
           <i class="material-icons">language</i>
         </button>
-        <div class="mdl-menu mdl-menu--bottom-left mdl-js-menu mdl-js-ripple-effect" for="translations-menu-btn" id="translations-menu">`;
+        <div class="mdl-menu mdl-menu--bottom-right mdl-js-menu mdl-js-ripple-effect" for="translations-menu-btn" id="translations-menu">`;
 
         const translationLinkPromises = distinctLangs.map(async (langRow) => {
           const langDisplayName = await getLanguageDisplayName(
@@ -1499,51 +1499,6 @@ async function _renderPrayerContent(
                     menuContainer &&
                     menuContainer.classList.contains("mdl-menu__container")
                   ) {
-                    // Custom positioning to ensure menu appears below button
-                    const buttonRect = menuBtn.getBoundingClientRect();
-                    const menuMaxHeight = 400; // max-height from CSS
-                    const viewportHeight = window.innerHeight;
-                    const scrollY =
-                      window.pageYOffset || document.documentElement.scrollTop;
-
-                    // Calculate available space
-                    const spaceBelow =
-                      viewportHeight - (buttonRect.bottom - scrollY);
-
-                    // Position menu below the button with proper offset
-                    const topPosition = buttonRect.bottom + scrollY + 4; // 4px gap below button
-                    menuContainer.style.top = topPosition + "px";
-
-                    // Ensure menu doesn't go beyond right edge of viewport
-                    const menuWidth = 200; // min-width from CSS
-                    const viewportWidth = window.innerWidth;
-                    let leftPosition = buttonRect.left;
-
-                    if (buttonRect.left + menuWidth > viewportWidth) {
-                      // Position menu to align its right edge with viewport edge
-                      leftPosition = viewportWidth - menuWidth - 10; // 10px padding
-                    }
-
-                    menuContainer.style.left = leftPosition + "px";
-                    menuContainer.style.position = "absolute";
-
-                    // Ensure menu doesn't extend beyond viewport height
-                    const availableHeight = Math.min(
-                      menuMaxHeight,
-                      spaceBelow - 20,
-                    ); // 20px padding
-                    if (availableHeight < 150) {
-                      // Minimum usable height
-                      // Position above button if there's more space
-                      if (buttonRect.top > spaceBelow) {
-                        menuContainer.style.top =
-                          buttonRect.top +
-                          scrollY -
-                          Math.min(menuMaxHeight, buttonRect.top - 20) +
-                          "px";
-                      }
-                    }
-
                     // Use MDL's proper structure - add is-visible to container
                     menuContainer.classList.add("is-visible");
                     menuContainer.style.visibility = "visible";
@@ -1554,7 +1509,7 @@ async function _renderPrayerContent(
                     menu.style.zIndex = "999";
 
                     console.log(
-                      "[TranslationSwitcher] Menu shown with smart positioning to avoid screen edges",
+                      "[TranslationSwitcher] Menu shown using MDL container structure",
                     );
                   } else {
                     // Fallback for non-standard structure
