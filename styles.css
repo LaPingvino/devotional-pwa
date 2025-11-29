@@ -1519,12 +1519,24 @@ small {
     background-color: #fff !important;
     border: 1px solid #eee;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+    max-height: 400px !important;
+    overflow-y: auto !important;
+    z-index: 1000 !important;
+    position: absolute !important;
+    display: block !important;
+    visibility: visible !important;
 }
 
 #translations-menu .mdl-menu__item {
     color: #333 !important;
     padding: 10px 16px !important;
     font-size: 0.9em;
+    display: block !important;
+    width: 100% !important;
+    text-align: left !important;
+    border: none;
+    background: none;
+    cursor: pointer;
 }
 
 #translations-menu .mdl-menu__item:hover {

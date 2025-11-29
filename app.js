@@ -1422,16 +1422,25 @@ async function _renderPrayerContent(
             "[TranslationSwitcher] MDL upgrade completed for translations area",
           );
 
-          // Add click logging to debug menu issues
+          // Force upgrade of button and menu specifically
           const menuBtn = translationsAreaDiv.querySelector(
             "#translations-menu-btn",
           );
+          const menu = translationsAreaDiv.querySelector("#translations-menu");
+
+          if (menuBtn && menuBtn.MaterialButton) {
+            console.log(
+              "[TranslationSwitcher] Button already has MaterialButton",
+            );
+          }
+          if (menu && menu.MaterialMenu) {
+            console.log("[TranslationSwitcher] Menu already has MaterialMenu");
+          }
+
+          // Add fallback click handler in case MDL doesn't work
           if (menuBtn) {
-            const originalOnClick = menuBtn.onclick;
             menuBtn.addEventListener("click", function (e) {
               console.log("[TranslationSwitcher] Menu button clicked");
-              const menu =
-                translationsAreaDiv.querySelector("#translations-menu");
               if (menu) {
                 console.log(
                   "[TranslationSwitcher] Menu element found, classes:",
@@ -1445,6 +1454,21 @@ async function _renderPrayerContent(
                   "[TranslationSwitcher] Menu children count:",
                   menu.children.length,
                 );
+
+                // Force MDL menu to open if it has the MaterialMenu interface
+                if (menu.MaterialMenu) {
+                  console.log(
+                    "[TranslationSwitcher] Forcing MDL menu.show() via MaterialMenu",
+                  );
+                  menu.MaterialMenu.show(e);
+                } else {
+                  // Fallback: manually set display
+                  console.log(
+                    "[TranslationSwitcher] No MaterialMenu found, showing menu manually",
+                  );
+                  menu.style.display = "block";
+                  menu.style.visibility = "visible";
+                }
               } else {
                 console.warn("[TranslationSwitcher] Menu element not found");
               }
