@@ -1866,31 +1866,16 @@ async function renderPageLayout(viewSpec) {
   // 2. Clear the specific dynamic content area
   dynamicContentHostElement.innerHTML = "";
 
-  // 3. Render Language Switcher (if requested) into the dynamic area
-  if (showLanguageSwitcher) {
-    const pickerShellHtml = getLanguagePickerShellHtml(); // Assumes app.getLanguagePickerShellHtml or global
-    dynamicContentHostElement.insertAdjacentHTML("beforeend", pickerShellHtml);
-    // populateLanguageSelection is async and handles its own MDL upgrades.
-    // Pass activeLangCodeForPicker to highlight the correct language.
-    await populateLanguageSelection(activeLangCodeForPicker);
-  }
-
-  // 4. Prepare container for view-specific content within the dynamic area
+  // 3. Prepare container for view-specific content within the dynamic area
   const viewContentContainer = document.createElement("div");
   viewContentContainer.id = "view-specific-content-container";
   dynamicContentHostElement.appendChild(viewContentContainer);
 
-  // 5. Render view-specific content with a loading spinner
+  // 5. Render view-specific content with a loading spinner (Bahá'í star)
   const tempSpinner = document.createElement("div");
-  tempSpinner.className = "mdl-spinner mdl-js-spinner is-active";
-  tempSpinner.style.margin = "auto";
-  tempSpinner.style.display = "block";
-  tempSpinner.style.marginTop = "20px";
+  tempSpinner.className = "bahai-loading-spinner";
+  tempSpinner.innerHTML = "&#x1f7d9;"; // Bahá'í star
   viewContentContainer.appendChild(tempSpinner);
-
-  if (typeof componentHandler !== "undefined" && componentHandler) {
-    componentHandler.upgradeElement(tempSpinner); // Upgrade the spinner itself
-  }
 
   try {
     const renderedViewContent = await contentRenderer(); // Call the callback
@@ -1917,6 +1902,15 @@ async function renderPageLayout(viewSpec) {
         "[renderPageLayout] Upgrading DOM for view-specific content in #view-specific-content-container.",
       );
       componentHandler.upgradeDom(viewContentContainer);
+    }
+
+    // 7. Render Language Switcher AFTER content (at the bottom) if requested
+    if (showLanguageSwitcher) {
+      const pickerShellHtml = getLanguagePickerShellHtml();
+      viewContentContainer.insertAdjacentHTML("beforeend", pickerShellHtml);
+      // populateLanguageSelection is async and handles its own MDL upgrades.
+      // Pass activeLangCodeForPicker to highlight the correct language.
+      await populateLanguageSelection(activeLangCodeForPicker);
     }
   } catch (error) {
     console.error(
@@ -3370,10 +3364,7 @@ async function _fetchAndDisplayRandomPrayer(containerElement) {
     return;
   }
   containerElement.innerHTML =
-    '<div class="mdl-spinner mdl-js-spinner is-active" style="margin: auto; display: block; padding: 20px 0;"></div>';
-  if (typeof componentHandler !== "undefined" && componentHandler) {
-    componentHandler.upgradeDom(containerElement);
-  }
+    '<div class="bahai-loading-spinner">&#x1f7d9;</div>';
 
   try {
     // Fetching random prayer in three steps for performance:
