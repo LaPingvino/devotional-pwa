@@ -651,7 +651,7 @@ async function updatePrayerMatchingToolDisplay() {
     if (pinnedPrayerDetails.language) {
       let pageState = currentPageByLanguage[pinnedPrayerDetails.language];
       let returnUrlParams = pageState
-        ? `?page=${pageState.page || 1}${pageState.showOnlyUnmatched ? "&filter=unmatched" : ""}`
+        ? `?page=${pageState.page || 1}${pageState.showUnmatched ? "&filter=showunmatched" : ""}`
         : `?page=1`;
       const returnLinkHref = `#prayers/${pinnedPrayerDetails.language}${returnUrlParams}`;
       // Remove unused pinnedNameSnippet variable
@@ -2389,13 +2389,15 @@ async function renderPrayer(
 async function _renderPrayersForLanguageContent(
   langCode,
   page,
-  showOnlyUnmatched,
+  showUnmatched,
   languageDisplayName,
 ) {
   const offset = (page - 1) * ITEMS_PER_PAGE;
 
-  let filterCondition = showOnlyUnmatched
-    ? " AND (phelps IS NULL OR phelps = '')"
+  // Default: hide prayers without Phelps codes
+  // If showUnmatched is true, show all prayers
+  let filterCondition = !showUnmatched
+    ? " AND phelps IS NOT NULL AND phelps != ''"
     : "";
 
   // Optimized: Get both metadata and text in a single query
@@ -2422,11 +2424,11 @@ async function _renderPrayersForLanguageContent(
   const totalPrayers = countResult.length > 0 ? countResult[0].total : 0;
   const totalPages = Math.ceil(totalPrayers / ITEMS_PER_PAGE);
 
-  const filterSwitchId = `filter-unmatched-${langCode}`;
-  const filterSwitchHtml = `<div class="filter-switch-container"><label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="${filterSwitchId}"><input type="checkbox" id="${filterSwitchId}" class="mdl-switch__input" onchange="setLanguageView('${langCode}', 1, !this.checked)" ${!showOnlyUnmatched ? "checked" : ""}><span class="mdl-switch__label">Show prayers without Phelps code</span></label></div>`;
+  const filterSwitchId = `filter-show-unmatched-${langCode}`;
+  const filterSwitchHtml = `<div class="filter-switch-container"><label class="mdl-switch mdl-js-switch mdl-js-ripple-effect" for="${filterSwitchId}"><input type="checkbox" id="${filterSwitchId}" class="mdl-switch__input" onchange="setLanguageView('${langCode}', 1, this.checked)" ${showUnmatched ? "checked" : ""}><span class="mdl-switch__label">Also show prayers without Phelps code</span></label></div>`;
 
   if (prayersMetadata.length === 0 && page === 1) {
-    return `<div id="language-content-area">${filterSwitchHtml}<p>No prayers found for language: ${languageDisplayName}${showOnlyUnmatched ? " (matching filter)" : ""}.</p><p>Query for metadata:</p><pre>${metadataSql}</pre><p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(metadataSql)}" target="_blank">Debug metadata query</a></p><p>Count query:</p><pre>${countSql}</pre><p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(countSql)}" target="_blank">Debug count query</a></p></div>`;
+    return `<div id="language-content-area">${filterSwitchHtml}<p>No prayers found for language: ${languageDisplayName}${!showUnmatched ? " (only showing prayers with Phelps codes)" : ""}.</p><p>Query for metadata:</p><pre>${metadataSql}</pre><p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(metadataSql)}" target="_blank">Debug metadata query</a></p><p>Count query:</p><pre>${countSql}</pre><p><a href="${DOLTHUB_REPO_QUERY_URL_BASE}${encodeURIComponent(countSql)}" target="_blank">Debug count query</a></p></div>`;
   }
   if (prayersMetadata.length === 0 && page > 1) {
     // This indicates current page is out of bounds, redirect to a valid page.
@@ -2442,7 +2444,7 @@ async function _renderPrayersForLanguageContent(
     console.warn(
       `Attempted to render page ${page} for ${langCode} which is out of bounds (total: ${totalPages}). Navigating to page ${Math.max(1, totalPages)}.`,
     );
-    setLanguageView(langCode, Math.max(1, totalPages), showOnlyUnmatched); // This will re-trigger the whole render.
+    setLanguageView(langCode, Math.max(1, totalPages), showUnmatched); // This will re-trigger the whole render.
     return '<div id="language-content-area"><p>Redirecting to a valid page...</p></div>'; // Placeholder until redirect happens.
   }
 
@@ -2573,24 +2575,24 @@ async function _renderPrayersForLanguageContent(
   if (totalPages > 1) {
     paginationHtml = '<div class="pagination">';
     if (page > 1)
-      paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="setLanguageView('${langCode}', ${page - 1}, ${showOnlyUnmatched})">Previous</button>`;
+      paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="setLanguageView('${langCode}', ${page - 1}, ${showUnmatched})">Previous</button>`;
     paginationHtml += ` <span>Page ${page} of ${totalPages}</span> `;
     if (page < totalPages)
-      paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="setLanguageView('${langCode}', ${page + 1}, ${showOnlyUnmatched})">Next</button>`;
+      paginationHtml += `<button class="mdl-button mdl-js-button mdl-button--raised" onclick="setLanguageView('${langCode}', ${page + 1}, ${showUnmatched})">Next</button>`;
     paginationHtml += "</div>";
   }
 
-  const internalHeaderHtml = `<header><h2><span id="category">Prayers</span><span id="blocktitle">Language: ${languageDisplayName} (Page ${page})${showOnlyUnmatched ? " - Unmatched" : ""}</span></h2></header>`;
+  const internalHeaderHtml = `<header><h2><span id="category">Prayers</span><span id="blocktitle">Language: ${languageDisplayName} (Page ${page})${showUnmatched ? " - Including Unmatched" : ""}</span></h2></header>`;
   return `<div id="language-content-area">${internalHeaderHtml}${filterSwitchHtml}${listHtml}${paginationHtml}</div>`;
 }
 
 async function renderPrayersForLanguage(
   langCode,
   page = 1,
-  showOnlyUnmatched = false,
+  showUnmatched = false,
 ) {
   addRecentLanguage(langCode);
-  currentPageByLanguage[langCode] = { page, showOnlyUnmatched };
+  currentPageByLanguage[langCode] = { page, showUnmatched };
 
   // Clear main page header nav, as this view's primary navigation is via the language picker
   // and its own content (pagination, filters).
@@ -2606,7 +2608,7 @@ async function renderPrayersForLanguage(
       return _renderPrayersForLanguageContent(
         langCode,
         page,
-        showOnlyUnmatched,
+        showUnmatched,
         languageDisplayName,
       );
     },
@@ -3795,7 +3797,7 @@ async function handleRouteChange() {
   const hash = window.location.hash;
   const [mainHashPath, queryParamsStr] = hash.split("?");
   let pageParam = 1,
-    showOnlyUnmatchedParam = true; // Default to hiding prayers without Phelps codes
+    showUnmatchedParam = false; // Default: hide prayers without Phelps codes
 
   if (queryParamsStr) {
     const params = new URLSearchParams(queryParamsStr);
@@ -3803,9 +3805,9 @@ async function handleRouteChange() {
       const parsedPage = parseInt(params.get("page"), 10);
       if (!isNaN(parsedPage) && parsedPage > 0) pageParam = parsedPage;
     }
-    // If filter=show is present, show all prayers including those without Phelps codes
-    if (params.has("filter") && params.get("filter") === "show")
-      showOnlyUnmatchedParam = false;
+    // If filter=showunmatched is present, also show prayers without Phelps codes
+    if (params.has("filter") && params.get("filter") === "showunmatched")
+      showUnmatchedParam = true;
   }
   const mainHash = mainHashPath || (hash.includes("?") ? "" : hash);
   const prayerCodeLangRegex = /^#prayercode\/([^/]+)\/([^/?]+)/;
@@ -3841,7 +3843,7 @@ async function handleRouteChange() {
   } else if (mainHash.startsWith("#prayers/")) {
     const langCode = mainHash.substring("#prayers/".length);
     if (langCode)
-      renderPrayersForLanguage(langCode, pageParam, showOnlyUnmatchedParam);
+      renderPrayersForLanguage(langCode, pageParam, showUnmatchedParam);
     else renderLanguageList();
   } else if (mainHash === "#prayers" || mainHash === "" || mainHash === "#") {
     renderLanguageList();
@@ -3857,10 +3859,10 @@ async function handleRouteChange() {
   }
 }
 
-function setLanguageView(langCode, page, showOnlyUnmatched) {
-  // showOnlyUnmatched = true means hide prayers without Phelps (default)
-  // showOnlyUnmatched = false means show all prayers (when filter=show)
-  window.location.hash = `#prayers/${langCode}?page=${page}${!showOnlyUnmatched ? "&filter=show" : ""}`;
+function setLanguageView(langCode, page, showUnmatched) {
+  // showUnmatched = false means hide prayers without Phelps codes (default)
+  // showUnmatched = true means also show prayers without Phelps codes
+  window.location.hash = `#prayers/${langCode}?page=${page}${showUnmatched ? "&filter=showunmatched" : ""}`;
 }
 window.setLanguageView = setLanguageView;
 window.renderPrayersForLanguage = renderPrayersForLanguage;
