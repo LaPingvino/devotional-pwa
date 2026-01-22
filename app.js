@@ -37,6 +37,30 @@ const LANGUAGE_STATS_CACHE_EXPIRY_MS = 4 * 60 * 60 * 1000; // 4 hours
 const RECENT_LANGUAGES_KEY = "devotionalPWA_recentLanguages";
 const MAX_RECENT_LANGUAGES = 4; // Number of recent languages to store
 
+// --- Helper Functions ---
+/**
+ * Generates a user-friendly error message HTML for connection failures
+ * @returns {string} HTML string with error message and troubleshooting steps
+ */
+function generateConnectionErrorHTML() {
+  return `
+    <div style="text-align: center; padding: 40px 20px;">
+      <div style="font-size: 3em; margin-bottom: 20px;">⚠️</div>
+      <h3 style="color: #e53935; margin-bottom: 10px;">Unable to Connect</h3>
+      <p style="color: #666; margin-bottom: 20px;">
+        The site cannot connect to the prayer database at the moment.<br>
+        This may be due to network restrictions or server unavailability.
+      </p>
+      <p style="color: #999; font-size: 0.9em;">
+        Please try:<br>
+        • Checking your internet connection<br>
+        • Disabling ad blockers or content filters<br>
+        • Trying again later<br>
+      </p>
+    </div>
+  `;
+}
+
 // --- Markdown Rendering Functions ---
 function renderMarkdown(text) {
   if (!text) return "";
@@ -2829,25 +2853,8 @@ async function _renderLanguageListContent() {
   } catch (error) {
     console.error("Error loading simple language buttons on home page:", error);
     if (buttonsContainerHome) {
-      buttonsContainerHome.innerHTML = `
-        <div style="text-align: center; padding: 40px 20px;">
-          <div style="font-size: 3em; margin-bottom: 20px;">⚠️</div>
-          <h3 style="color: #e53935; margin-bottom: 10px;">Unable to Connect</h3>
-          <p style="color: #666; margin-bottom: 20px;">
-            The site cannot connect to the prayer database at the moment.<br>
-            This may be due to network restrictions or server unavailability.
-          </p>
-          <p style="color: #999; font-size: 0.9em;">
-            Please try:<br>
-            • Checking your internet connection<br>
-            • Disabling ad blockers or content filters<br>
-            • Trying again later<br>
-          </p>
-        </div>
-      `;
+      buttonsContainerHome.innerHTML = generateConnectionErrorHTML();
     }
-    // Re-throw the error so renderPageLayout can handle it in its catch block
-    throw error;
   }
 
   // Kick off the async fetch for the random prayer.
@@ -2883,22 +2890,7 @@ async function _loadSimpleLanguageButtons(containerElement = null) {
     }
 
     if (!langStats || langStats.length === 0) {
-      container.innerHTML = `
-        <div style="text-align: center; padding: 40px 20px;">
-          <div style="font-size: 3em; margin-bottom: 20px;">⚠️</div>
-          <h3 style="color: #e53935; margin-bottom: 10px;">Unable to Connect</h3>
-          <p style="color: #666; margin-bottom: 20px;">
-            The site cannot connect to the prayer database at the moment.<br>
-            This may be due to network restrictions or server unavailability.
-          </p>
-          <p style="color: #999; font-size: 0.9em;">
-            Please try:<br>
-            • Checking your internet connection<br>
-            • Disabling ad blockers or content filters<br>
-            • Trying again later<br>
-          </p>
-        </div>
-      `;
+      container.innerHTML = generateConnectionErrorHTML();
       return;
     }
 
@@ -2939,22 +2931,7 @@ async function _loadSimpleLanguageButtons(containerElement = null) {
     container.innerHTML = buttonsHtml;
   } catch (error) {
     console.error("Error loading language buttons:", error);
-    container.innerHTML = `
-      <div style="text-align: center; padding: 40px 20px;">
-        <div style="font-size: 3em; margin-bottom: 20px;">⚠️</div>
-        <h3 style="color: #e53935; margin-bottom: 10px;">Unable to Connect</h3>
-        <p style="color: #666; margin-bottom: 20px;">
-          The site cannot connect to the prayer database at the moment.<br>
-          This may be due to network restrictions or server unavailability.
-        </p>
-        <p style="color: #999; font-size: 0.9em;">
-          Please try:<br>
-          • Checking your internet connection<br>
-          • Disabling ad blockers or content filters<br>
-          • Trying again later<br>
-        </p>
-      </div>
-    `;
+    container.innerHTML = generateConnectionErrorHTML();
   }
 }
 
@@ -2983,22 +2960,7 @@ async function _renderBottomLanguageSelector() {
       ".simple-language-buttons",
     );
     if (buttonContainerForError) {
-      buttonContainerForError.innerHTML = `
-        <div style="text-align: center; padding: 40px 20px;">
-          <div style="font-size: 3em; margin-bottom: 20px;">⚠️</div>
-          <h3 style="color: #e53935; margin-bottom: 10px;">Unable to Connect</h3>
-          <p style="color: #666; margin-bottom: 20px;">
-            The site cannot connect to the prayer database at the moment.<br>
-            This may be due to network restrictions or server unavailability.
-          </p>
-          <p style="color: #999; font-size: 0.9em;">
-            Please try:<br>
-            • Checking your internet connection<br>
-            • Disabling ad blockers or content filters<br>
-            • Trying again later<br>
-          </p>
-        </div>
-      `;
+      buttonContainerForError.innerHTML = generateConnectionErrorHTML();
     }
   }
 
