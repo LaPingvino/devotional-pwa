@@ -1,0 +1,26 @@
+{
+  "id": "noto-sans-symbols-2",
+  "family": "Noto Sans Symbols 2",
+  "subsets": [
+    "braille",
+    "latin",
+    "latin-ext",
+    "math",
+    "mayan-numerals",
+    "symbols"
+  ],
+  "weights": [400],
+  "styles": ["normal"],
+  "defSubset": "latin",
+  "variable": false,
+  "lastModified": "2025-09-05",
+  "version": "v25",
+  "category": "sans-serif",
+  "license": {
+    "type": "OFL-1.1",
+    "url": "https://openfontlicense.org",
+    "attribution": "Copyright 2022 The Noto Project Authors (https://github.com/notofonts/symbols)"
+  },
+  "source": "https://github.com/google/fonts",
+  "type": "google"
+}
