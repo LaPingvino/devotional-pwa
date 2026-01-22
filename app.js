@@ -3175,7 +3175,12 @@ async function renderSearchResults(searchTerm, page = 1) {
 }
 
 async function handleRouteChange() {
-  await fetchLanguageNames(); // Ensure names are loaded/attempted
+  try {
+    await fetchLanguageNames(); // Ensure names are loaded/attempted
+  } catch (error) {
+    // Continue even if language names can't be loaded
+    console.warn("Could not load language names, continuing with routing:", error.message);
+  }
   const hash = window.location.hash;
   const [mainHashPath, queryParamsStr] = hash.split("?");
   let pageParam = 1,
