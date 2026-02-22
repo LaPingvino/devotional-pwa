@@ -53,8 +53,6 @@ function renderMarkdown(text) {
   marked.setOptions({
     breaks: true, // Convert line breaks to <br>
     gfm: true, // Enable GitHub Flavored Markdown
-    sanitize: false, // Allow HTML (we trust our prayer content)
-    smartypants: true, // Use smart quotes and dashes
   });
 
   try {
