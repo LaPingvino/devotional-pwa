@@ -15,7 +15,6 @@ const DOLTHUB_REPO_QUERY_URL_BASE =
 // Request debouncing and caching
 let requestCache = new Map();
 let requestDebounce = new Map();
-// const REQUEST_DEBOUNCE_DELAY = 50; // 50ms - Currently unused
 const REQUEST_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 const MAX_DIRECT_LINKS_IN_HEADER = 4;
@@ -38,28 +37,24 @@ const RECENT_LANGUAGES_KEY = "devotionalPWA_recentLanguages";
 const MAX_RECENT_LANGUAGES = 4; // Number of recent languages to store
 
 // --- Markdown Rendering Functions ---
+
+// Configure marked once at load time
+if (typeof marked !== "undefined") {
+  marked.setOptions({ breaks: true, gfm: true });
+}
+
 function renderMarkdown(text) {
   if (!text) return "";
 
-  // Check if marked library is available
   if (typeof marked === "undefined") {
-    console.warn(
-      "Marked library not available, rendering text as-is with basic formatting",
-    );
+    console.warn("Marked library not available, falling back to basic formatting");
     return text.replace(/\n/g, "<br>");
   }
-
-  // Configure marked for prayer content
-  marked.setOptions({
-    breaks: true, // Convert line breaks to <br>
-    gfm: true, // Enable GitHub Flavored Markdown
-  });
 
   try {
     return marked.parse(text);
   } catch (error) {
     console.error("Error parsing Markdown:", error);
-    // Fallback to basic HTML formatting
     return text.replace(/\n/g, "<br>");
   }
 }
@@ -130,9 +125,6 @@ function addRecentLanguage(langCode) {
 window.currentPrayerForStaticActions = null; // Holds { prayer, initialDisplayPrayerLanguage, nameToDisplay, languageToDisplay, finalDisplayLanguageForPhelpsMeta, phelpsIsSuggested }
 
 function initializeStaticPrayerActions() {
-  console.log(
-    "[initializeStaticPrayerActions] Initializing listeners for prayer action buttons.",
-  );
 
   const informMistakeBtn = document.getElementById("inform-mistake-button");
   if (informMistakeBtn) {
@@ -247,7 +239,7 @@ async function _fetchLanguageNamesInternal() {
     }
   })();
 
-  const timeoutPromise = new Promise((resolve, reject) => {
+  const timeoutPromise = new Promise((_, reject) => {
     setTimeout(() => {
       if (!fetchCompleted) {
         console.warn(
@@ -255,13 +247,11 @@ async function _fetchLanguageNamesInternal() {
         );
         reject(new Error("Language names fetch timed out"));
       }
-      // If fetchOperationPromise already completed, this timeout is a no-op for Promise.race
-      // It will resolve/reject based on fetchOperationPromise.
-      // To prevent an unhandled rejection if timeoutPromise is slower than a successful fetch,
-      // we can resolve it harmlessly if fetch is already completed.
-      // However, Promise.race handles this: it settles as soon as one promise settles.
     }, FETCH_LANG_NAMES_TIMEOUT_MS);
   });
+  // Suppress unhandled rejection on the loser of the race
+  timeoutPromise.catch(() => {});
+  fetchOperationPromise.catch(() => {});
 
   return await Promise.race([fetchOperationPromise, timeoutPromise]);
 }
@@ -489,15 +479,8 @@ async function loadEnglishPrayersInBackground() {
 
   // Skip if we've cached recently and it's not expired
   if (!status.isExpired && status.totalCached > 0) {
-    console.log(
-      `[Background Cache] Skipping - ${status.totalCached} English prayers cached recently`,
-    );
     return;
   }
-
-  console.log(
-    "[Background Cache] Starting English prayers background caching...",
-  );
 
   try {
     // First, get a count of English prayers to cache
@@ -507,13 +490,8 @@ async function loadEnglishPrayersInBackground() {
     const totalEnglishPrayers = countResult[0]?.total || 0;
 
     if (totalEnglishPrayers === 0) {
-      console.log("[Background Cache] No English prayers found in database");
       return;
     }
-
-    console.log(
-      `[Background Cache] Found ${totalEnglishPrayers} English prayers to cache`,
-    );
 
     // Get already cached English prayers to avoid duplicates
     const cachedPrayers = getAllCachedPrayers();
@@ -557,10 +535,6 @@ async function loadEnglishPrayersInBackground() {
       currentOffset += prayers.length;
       batchCount++;
 
-      console.log(
-        `[Background Cache] Batch ${batchCount}/${maxBatches}: cached ${batchCached} new prayers (${totalCached} total)`,
-      );
-
       // Update status periodically
       setBackgroundCacheStatus(totalCached, currentOffset);
 
@@ -571,10 +545,6 @@ async function loadEnglishPrayersInBackground() {
         );
       }
     }
-
-    console.log(
-      `[Background Cache] Completed! Cached ${totalCached} English prayers for better search performance`,
-    );
 
     // Show a subtle notification if we cached a significant number
     if (totalCached > 10) {
@@ -648,11 +618,9 @@ function clearLanguageCaches() {
   try {
     // Clear language names cache
     localStorage.removeItem(LANGUAGE_NAMES_CACHE_KEY);
-    console.log("Language names cache cleared.");
 
     // Clear language statistics cache
     localStorage.removeItem(LANGUAGE_STATS_CACHE_KEY);
-    console.log("Language statistics cache cleared.");
 
     // Reset the global language names map
     languageNamesMap = {};
@@ -664,7 +632,6 @@ function clearLanguageCaches() {
     if (languagePickerContainer) {
       // Re-populate the language selection to show fresh data
       populateLanguageSelection();
-      console.log("Language picker refreshed.");
 
       // Apply Safari-specific fixes after refresh
       setTimeout(() => {
@@ -687,10 +654,6 @@ async function executeQuery(sql) {
   if (requestCache.has(cacheKey)) {
     const cached = requestCache.get(cacheKey);
     if (now - cached.timestamp < REQUEST_CACHE_TTL) {
-      console.log(
-        "[executeQuery] Returning cached result for:",
-        sql.substring(0, 100),
-      );
       return cached.data;
     } else {
       requestCache.delete(cacheKey);
@@ -699,26 +662,18 @@ async function executeQuery(sql) {
 
   // Debounce identical requests
   if (requestDebounce.has(cacheKey)) {
-    console.log(
-      "[executeQuery] Waiting for existing request:",
-      sql.substring(0, 100),
-    );
     return requestDebounce.get(cacheKey);
   }
 
   const fullUrl = DOLTHUB_API_BASE_URL + encodeURIComponent(sql);
-  console.log("[executeQuery] Fetching URL:", fullUrl);
-  console.log("[executeQuery] Original SQL for this request:", sql);
 
   const requestPromise = (async () => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000);
     try {
-      const response = await fetch(fullUrl);
-
-      console.log("[executeQuery] Response status:", response.status);
-      console.log("[executeQuery] Response ok:", response.ok);
+      const response = await fetch(fullUrl, { signal: controller.signal });
 
       const responseText = await response.text();
-      console.log("[executeQuery] Raw response text:", responseText);
 
       if (!response.ok) {
         throw new Error(
@@ -729,7 +684,6 @@ async function executeQuery(sql) {
       let data;
       try {
         data = JSON.parse(responseText);
-        console.log("[executeQuery] Parsed JSON data:", data);
       } catch (jsonError) {
         console.error(
           "[executeQuery] Failed to parse response text as JSON:",
@@ -754,19 +708,13 @@ async function executeQuery(sql) {
 
       return result;
     } catch (error) {
-      console.error(
-        "[executeQuery] Error during executeQuery fetch or processing:",
-        error,
-      );
-      if (!(error.message && error.message.startsWith("HTTP error!"))) {
-        console.error(
-          "[executeQuery] SQL that failed (network or other error):",
-          sql,
-        );
+      if (error.name === "AbortError") {
+        throw new Error("Request timed out after 15 seconds");
       }
+      console.error("executeQuery error:", error.message);
       throw error;
     } finally {
-      // Clean up debounce
+      clearTimeout(timeoutId);
       requestDebounce.delete(cacheKey);
     }
   })();
@@ -972,16 +920,6 @@ async function renderPageLayout(viewSpec) {
     activeLangCodeForPicker = null, // New parameter from ViewSpec
     isPrayerPage = false, // New flag to identify prayer pages
   } = viewSpec;
-  console.log(
-    "[renderPageLayout] Received viewSpec.titleKey:",
-    titleKey,
-    "isPrayerPage:",
-    isPrayerPage,
-  );
-  console.log(
-    "[renderPageLayout] Received viewSpec.activeLangCodeForPicker:",
-    activeLangCodeForPicker,
-  );
 
   // Hide static prayer actions host if not on a prayer page
   const staticActionsHostGlobal = document.getElementById(
@@ -990,15 +928,9 @@ async function renderPageLayout(viewSpec) {
   if (staticActionsHostGlobal) {
     if (!isPrayerPage) {
       staticActionsHostGlobal.style.display = "none";
-      console.log(
-        "[renderPageLayout] Hiding static-prayer-actions-host as not on a prayer page.",
-      );
     } else {
       // Show it on prayer pages - it will be properly configured by _renderPrayerContent
       staticActionsHostGlobal.style.display = "flex";
-      console.log(
-        "[renderPageLayout] Showing static-prayer-actions-host on prayer page.",
-      );
     }
   }
 
@@ -1053,7 +985,6 @@ async function renderPageLayout(viewSpec) {
   if (customHeaderContentRenderer) {
     if (headerTitleSpan) {
       // customHeaderContentRenderer is responsible for the content of the title area
-      console.log("[renderPageLayout] Using customHeaderContentRenderer.");
       const customContent = customHeaderContentRenderer(); // Assuming this is synchronous for now
       if (typeof customContent === "string") {
         headerTitleSpan.innerHTML = customContent;
@@ -1071,10 +1002,6 @@ async function renderPageLayout(viewSpec) {
     // Default header: Title + optional Back Button
     if (headerTitleSpan) {
       const titleText = titleKey || "Untitled";
-      console.log(
-        "[renderPageLayout] Setting headerTitleSpan.textContent to:",
-        titleText,
-      );
       headerTitleSpan.textContent = titleText;
     }
 
@@ -1158,9 +1085,6 @@ async function renderPageLayout(viewSpec) {
 
     // 6. Upgrade MDL components in the newly added view-specific content
     if (typeof componentHandler !== "undefined" && componentHandler) {
-      console.log(
-        "[renderPageLayout] Upgrading DOM for view-specific content in #view-specific-content-container.",
-      );
       componentHandler.upgradeDom(viewContentContainer);
     }
 
@@ -1199,14 +1123,7 @@ async function renderPageLayout(viewSpec) {
  * @returns {Promise<object>} An object containing titleText, and suggestion details.
  */
 async function _calculatePrayerPageTitle(prayer) {
-  console.log(
-    "[_calculatePrayerPageTitle] Input prayer:",
-    JSON.stringify(prayer),
-  );
   if (!prayer) {
-    console.log(
-      "[_calculatePrayerPageTitle] Prayer object is null/undefined, returning default title info.",
-    );
     return {
       titleText: "Prayer not found",
       nameIsSuggested: false,
@@ -1243,11 +1160,6 @@ async function _calculatePrayerPageTitle(prayer) {
     (phelpsToDisplay
       ? `${phelpsToDisplay} - ${displayLangForTitleAfterSuggestions}`
       : `Prayer ${prayer.version}`);
-
-  console.log(
-    "[_calculatePrayerPageTitle] Calculated prayerTitleText:",
-    prayerTitleText,
-  );
   return {
     titleText: prayerTitleText,
     nameIsSuggested,
@@ -1322,22 +1234,11 @@ async function _renderPrayerContent(
   translationsAreaDiv.className = "translations-switcher";
 
   // --- BEGIN TEMPORARY LOGS for TranslationSwitcher ---
-  console.log(
-    "[TranslationSwitcher] Input phelpsCodeForNav:",
-    phelpsCodeForNav,
-  );
-  console.log("[TranslationSwitcher] Input phelpsToDisplay:", phelpsToDisplay);
   // --- END TEMPORARY LOGS ---
 
   const phelpsCodeForSwitcher = phelpsCodeForNav || phelpsToDisplay;
 
   // --- BEGIN TEMPORARY LOGS for TranslationSwitcher ---
-  console.log(
-    "[TranslationSwitcher] Determined phelpsCodeForSwitcher:",
-    phelpsCodeForSwitcher,
-  );
-  console.log("[TranslationSwitcher] activeLangForNav:", activeLangForNav);
-  console.log("[TranslationSwitcher] prayer.language:", prayer.language);
   // --- END TEMPORARY LOGS ---
 
   if (phelpsCodeForSwitcher && !phelpsCodeForSwitcher.startsWith("TODO")) {
@@ -1345,34 +1246,15 @@ async function _renderPrayerContent(
     const transSql = `SELECT DISTINCT language FROM writings WHERE phelps = '${escapedPhelpsCode}' AND phelps IS NOT NULL AND phelps != '' ORDER BY language`; // Use standard SQL string literals
 
     // --- BEGIN TEMPORARY LOGS for TranslationSwitcher ---
-    console.log("[TranslationSwitcher] SQL for distinct languages:", transSql);
-    console.log("[TranslationSwitcher] Executing query for translations...");
     // --- END TEMPORARY LOGS ---
 
     try {
       const distinctLangs = await executeQuery(transSql);
-      console.log(
-        "[TranslationSwitcher] Query completed, result:",
-        distinctLangs,
-      );
 
       // --- BEGIN TEMPORARY LOGS for TranslationSwitcher ---
-      console.log(
-        "[TranslationSwitcher] Distinct languages found (raw):",
-        JSON.stringify(distinctLangs),
-      );
-      console.log(
-        "[TranslationSwitcher] Number of distinct languages:",
-        distinctLangs ? distinctLangs.length : "null/undefined",
-      );
       // --- END TEMPORARY LOGS ---
 
       if (distinctLangs && distinctLangs.length > 1) {
-        console.log(
-          "[TranslationSwitcher] Creating menu with " +
-            distinctLangs.length +
-            " languages",
-        );
         let switcherHtml = `<div class="translation-switcher-container" style="display: flex; align-items: center; flex-wrap: wrap; gap: 8px;">
           <button id="translations-menu-btn" class="mdl-button mdl-js-button mdl-button--icon" title="View translations in other languages">
             <i class="material-icons">language</i>
@@ -1412,11 +1294,6 @@ async function _renderPrayerContent(
 
             const isVisible = languageLinks.style.display !== "none";
             languageLinks.style.display = isVisible ? "none" : "flex";
-
-            console.log(
-              "[TranslationSwitcher] Language links",
-              isVisible ? "hidden" : "shown",
-            );
           });
 
           // Hide links when clicking outside
@@ -1428,9 +1305,6 @@ async function _renderPrayerContent(
         }
       } else {
         // --- BEGIN TEMPORARY LOGS for TranslationSwitcher ---
-        console.log(
-          "[TranslationSwitcher] Condition 'distinctLangs && distinctLangs.length > 1' is false. Not enough distinct languages to show switcher.",
-        );
         // --- END TEMPORARY LOGS ---
         translationsAreaDiv.innerHTML = "";
       }
@@ -1444,9 +1318,6 @@ async function _renderPrayerContent(
     }
   } else {
     // --- BEGIN TEMPORARY LOGS for TranslationSwitcher ---
-    console.log(
-      "[TranslationSwitcher] Condition 'phelpsCodeForSwitcher && !phelpsCodeForSwitcher.startsWith(\"TODO\")' is false. Phelps code is invalid or TODO, not showing switcher.",
-    );
     // --- END TEMPORARY LOGS ---
     translationsAreaDiv.innerHTML = "";
   }
@@ -1482,9 +1353,6 @@ async function _renderPrayerContent(
     const extractedName = extractPrayerNameFromMarkdown(prayer.text);
     if (extractedName) {
       displayName = extractedName;
-      console.log(
-        `[_renderPrayerContent] Extracted prayer name from Markdown: "${extractedName}"`,
-      );
     }
   }
 
@@ -1502,10 +1370,6 @@ async function _renderPrayerContent(
   // window.currentPrayerForStaticActions is now an object, set earlier.
 
   const staticHost = document.getElementById("static-prayer-actions-host");
-  console.log(
-    "[_renderPrayerContent] staticHost from getElementById:",
-    staticHost,
-  ); // DEBUG
   // These variables are retrieved but not used directly in this function
   // They're here for future use if needed
   // const staticPinBtn = document.getElementById('static-action-pin-this');
@@ -1523,10 +1387,6 @@ async function _renderPrayerContent(
     // Just ensure it's visible and update button states
     staticHost.style.display = "flex"; // Ensure the host container is visible
 
-    console.log(
-      "[_renderPrayerContent] staticHost processed. Display:",
-      staticHost.style.display,
-    ); // DEBUG
 
     // Update button states
     updateStaticPrayerActionButtonStates(prayer);
@@ -1587,9 +1447,6 @@ async function _renderPrayerContent(
           translationsMenu.style.border = "1px solid rgba(0,0,0,0.12)";
           translationsMenu.style.webkitTransform = "translateZ(0)";
           translationsMenu.style.transform = "translateZ(0)";
-          console.log(
-            "[TranslationSwitcher] Applied Safari fixes to translations menu",
-          );
         }
       }
     }, 50);
@@ -1603,9 +1460,6 @@ async function renderPrayer(
   phelpsCodeForNav = null,
   activeLangForNav = null,
 ) {
-  console.log(
-    `[renderPrayer] Called with versionId: ${versionId}, phelpsCodeForNav: ${phelpsCodeForNav}, activeLangForNav: ${activeLangForNav}`,
-  );
   updateHeaderNavigation([]); // Clear any language-specific header links from other views
 
   // 1. Fetch FULL prayer data
@@ -1639,14 +1493,9 @@ async function renderPrayer(
   }
 
   const prayerData = prayerRows[0];
-  console.log("[renderPrayer] Fetched prayerData:", JSON.stringify(prayerData));
 
   // 2. Calculate title using the new helper function
   const titleInfo = await _calculatePrayerPageTitle(prayerData);
-  console.log(
-    "[renderPrayer] titleInfo from _calculatePrayerPageTitle:",
-    JSON.stringify(titleInfo),
-  );
 
   // Determine the active language for the language picker
   const activeLanguageForPicker = activeLangForNav || prayerData.language;
@@ -1666,12 +1515,6 @@ async function renderPrayer(
     activeLangCodeForPicker: activeLanguageForPicker,
     isPrayerPage: true, // Indicate this is a prayer page
   };
-  console.log(
-    "[renderPrayer] ViewSpec being passed to renderPageLayout:",
-    JSON.stringify(viewSpecForPrayer, (key, value) =>
-      typeof value === "function" ? "Function" : value,
-    ),
-  );
   await renderPageLayout(viewSpecForPrayer);
 }
 
@@ -2319,30 +2162,30 @@ async function populateLanguageSelection(currentActiveLangCode = null) {
     // Attaching to window is a way to make it available for inline onkeyup
     // Ensure it's only defined once per app lifecycle or managed appropriately if this function is called multiple times.
     if (typeof window.filterLanguageMenu !== "function") {
-      // Define only if not already defined
+      let _filterDebounceTimer = null;
       window.filterLanguageMenu = function () {
-        const input = document.getElementById(searchInputId);
-        if (!input) return;
-        const filter = input.value.toLowerCase();
-        const ul = document.getElementById(allLanguagesMenuUlId);
-        if (!ul) return;
-        const items = ul.getElementsByTagName("li");
-        for (let i = 0; i < items.length; i++) {
-          if (
-            items[i].querySelector(`#${searchInputId}`) ||
-            items[i].classList.contains("mdl-menu__divider")
-          ) {
-            continue;
+        clearTimeout(_filterDebounceTimer);
+        _filterDebounceTimer = setTimeout(function () {
+          const input = document.getElementById(searchInputId);
+          if (!input) return;
+          const filter = input.value.toLowerCase();
+          const ul = document.getElementById(allLanguagesMenuUlId);
+          if (!ul) return;
+          const items = ul.getElementsByTagName("li");
+          for (let i = 0; i < items.length; i++) {
+            if (
+              items[i].querySelector(`#${searchInputId}`) ||
+              items[i].classList.contains("mdl-menu__divider")
+            ) {
+              continue;
+            }
+            const txtValue = items[i].textContent || items[i].innerText;
+            items[i].style.display =
+              txtValue.toLowerCase().indexOf(filter) > -1 ? "" : "none";
           }
-          const txtValue = items[i].textContent || items[i].innerText;
-          if (txtValue.toLowerCase().indexOf(filter) > -1) {
-            items[i].style.display = "";
-          } else {
-            items[i].style.display = "none";
-          }
-        }
-      }; // Closes function body, semicolon for assignment
-    } // Closes 'if (typeof window.filterLanguageMenu !== 'function')'
+        }, 150);
+      };
+    }
 
     // Append new menu items
     // The menuItemsHtml (string of LIs) has already been used to rebuild menuUlElement.innerHTML
@@ -2447,8 +2290,6 @@ async function populateLanguageSelection(currentActiveLangCode = null) {
               menuContainer.style.webkitTransform = "translateZ(0)";
               menuContainer.style.transform = "translateZ(0)";
             }
-
-            console.log("[Safari Fix] Applied MDL menu fixes for Safari");
           } catch (e) {
             console.warn("[Safari Fix] Error applying Safari menu fixes:", e);
           }
@@ -2514,10 +2355,6 @@ function applySafariMdlMenuFixes() {
         item.style.transform = "translateZ(0)";
       });
     });
-
-    console.log(
-      `[Safari Fix] Applied MDL menu fixes to ${languageMenus.length} menus`,
-    );
   } catch (e) {
     console.warn("[Safari Fix] Error in applySafariMdlMenuFixes:", e);
   }
@@ -2555,8 +2392,6 @@ function fixSafariMenuPositioning() {
         menu.style.webkitTransform = "translateZ(0) scale(1)";
       }
     });
-
-    console.log("[Safari Fix] Manual menu positioning fix applied");
   } catch (e) {
     console.warn("[Safari Fix] Error in fixSafariMenuPositioning:", e);
   }
@@ -2567,7 +2402,6 @@ function fixSafariMenuPositioning() {
  * Call this from browser console: window.fixSafariMenus()
  */
 window.fixSafariMenus = function () {
-  console.log("[Debug] Manual Safari menu fix triggered");
 
   try {
     // Apply all Safari fixes
@@ -2584,9 +2418,6 @@ window.fixSafariMenus = function () {
       ".language-picker-tabs .mdl-menu",
     );
     languageMenus.forEach((menu, index) => {
-      console.log(
-        `[Debug] Fixing menu ${index + 1}: visible=${menu.offsetWidth > 0}, background=${menu.style.backgroundColor}`,
-      );
 
       // Force visibility
       menu.style.display = "block";
@@ -2596,10 +2427,7 @@ window.fixSafariMenus = function () {
 
       // Check if menu items are visible
       const items = menu.querySelectorAll(".mdl-menu__item");
-      console.log(`[Debug] Menu ${index + 1} has ${items.length} items`);
     });
-
-    console.log("[Debug] Safari menu fixes completed successfully");
     return "Safari menu fixes applied. Check console for details.";
   } catch (error) {
     console.error("[Debug] Error applying Safari menu fixes:", error);
@@ -3233,7 +3061,6 @@ async function handleRouteChange() {
     if (phelpsMatch && phelpsMatch[1]) {
       window.location.hash = `#prayercode/${phelpsMatch[1].toUpperCase()}${pageParam > 1 ? `?page=${pageParam}` : ""}`;
     } else {
-      console.log("Unhandled hash:", mainHash, "defaulting to language list.");
       renderLanguageList();
     }
   }
@@ -3312,8 +3139,6 @@ document.addEventListener("DOMContentLoaded", () => {
       event.preventDefault();
       event.stopPropagation();
 
-      console.log("[DEBUG] Refresh language cache button clicked");
-
       // Show loading state
       refreshLanguageCacheButton.disabled = true;
       const icon = refreshLanguageCacheButton.querySelector("i");
@@ -3343,7 +3168,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       }, 1000);
     });
-    console.log("[DEBUG] Refresh language cache button event listener added");
   }
 
   // Apply Safari-specific MDL menu fixes on page load
@@ -3363,7 +3187,6 @@ document.addEventListener("DOMContentLoaded", () => {
         }, 50);
       }
     });
-    console.log("[DEBUG] Safari menu positioning fix triggers added");
   }
 
   // Prayer matcher dialogs have been removed
@@ -3387,10 +3210,6 @@ function updateStaticPrayerActionButtonStates(prayer) {
   } else if (informMistakeBtn) {
     informMistakeBtn.style.display = "none";
   }
-
-  console.log(
-    `[updateStaticPrayerActionButtonStates] Inform mistake button visible for prayer: ${prayer?.version}`,
-  );
 }
 
 // Clear corrupted/incompatible language stats cache on app initialization
@@ -3405,7 +3224,6 @@ try {
         parsed.data.length > 0 &&
         !parsed.data[0].uniquePhelps
       ) {
-        console.log("[Init] Clearing incompatible language stats cache");
         localStorage.removeItem(LANGUAGE_STATS_CACHE_KEY);
       }
     } catch (e) {
