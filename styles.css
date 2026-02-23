@@ -1708,6 +1708,8 @@ main.mdl-layout__content {
 }
 
 /* Bahá'í star loading spinner */
+/* U+1F7D9 in Noto Sans Symbols 2: glyph visual center at y=360 above baseline,
+   line box = 1699 units (ascent 1069 + descent 630). Center = 709/1699 = 41.73% from top. */
 .bahai-loading-spinner {
     display: inline-block;
     text-align: center;
@@ -1716,7 +1718,7 @@ main.mdl-layout__content {
     animation: spin 2s linear infinite;
     font-family: "Noto Sans Symbols 2", sans-serif;
     margin: 40px auto;
-    transform-origin: center;
+    transform-origin: 50% 41.73%;
 }
 
 /* Simple Language Selector */
