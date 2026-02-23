@@ -1708,17 +1708,22 @@ main.mdl-layout__content {
 }
 
 /* Bahá'í star loading spinner */
-/* U+1F7D9 in Noto Sans Symbols 2: glyph visual center at y=360 above baseline,
-   line box = 1699 units (ascent 1069 + descent 630). Center = 709/1699 = 41.73% from top. */
+/* U+1F7D9 in Noto Sans Symbols 2: UPM=1000, ascent=1069, descent=630,
+   glyph visual center y=360 above baseline, advance-width=1000 (square glyph).
+   line-height:1 makes the line box 1000 units (= advance-width → near-square element).
+   With line-height:1, glyph center lands at 359.5/1000 = 35.95% from line box top.
+   padding-top:0.281em adds 281 units, shifting center to 640.5/1281 = 50% → transform-origin:center works. */
 .bahai-loading-spinner {
     display: inline-block;
     text-align: center;
     font-size: 3em;
+    line-height: 1;
     color: #3f51b5;
     animation: spin 2s linear infinite;
     font-family: "Noto Sans Symbols 2", sans-serif;
     margin: 40px auto;
-    transform-origin: 50% 41.73%;
+    padding-top: 0.281em;
+    transform-origin: center;
 }
 
 /* Simple Language Selector */
