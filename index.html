@@ -128,6 +128,18 @@
                 </div>
             </header>
             <main class="mdl-layout__content">
+                <div id="app-layout">
+                <nav id="category-sidebar">
+                    <div id="sidebar-header">
+                        <span id="sidebar-lang-label">&#x1f7d9; Categories</span>
+                        <button id="sidebar-toggle-btn" class="mdl-button mdl-js-button mdl-button--icon" title="Toggle sidebar" aria-label="Toggle categories">
+                            <i class="material-icons">menu</i>
+                        </button>
+                    </div>
+                    <div id="category-list">
+                        <a class="category-item" href="#">All Prayers</a>
+                    </div>
+                </nav>
                 <div id="main-view-container">
                     <div id="content-column">
                         <div id="content">
@@ -191,13 +203,17 @@
                             </div>
                         </div>
                     </div>
-                </div>
+                </div><!-- /#main-view-container -->
+                </div><!-- /#app-layout -->
+                <footer class="mdl-mini-footer" id="site-footer">
+                    <div class="mdl-mini-footer__left-section">
+                        <p>The Bahá'í Star <span class="bahai-star">&#x1f7d9;</span> on this page is not a picture! Learn how to use it on your computer via the <a href="https://bahaipedia.org/Nine_Pointed_Star" target="_blank" rel="noopener">Bahaipedia page</a>!</p>
+                    </div>
+                    <button id="footer-close-btn" class="mdl-button mdl-js-button mdl-button--icon" title="Dismiss" aria-label="Dismiss footer">
+                        <i class="material-icons">close</i>
+                    </button>
+                </footer>
             </main>
-            <footer class="mdl-mini-footer" id="site-footer">
-                <div class="mdl-mini-footer__left-section">
-                    <p>The Bahá'í Star <span class="bahai-star">&#x1f7d9;</span> on this page is not a picture! Learn how to use it on your computer via the <a href="https://bahaipedia.org/Nine_Pointed_Star" target="_blank" rel="noopener">Bahaipedia page</a>!</p>
-                </div>
-            </footer>
         </div>
 
         <!-- Snackbar for notifications -->
@@ -227,6 +243,17 @@
                 const savedTheme =
                     localStorage.getItem("preferred-theme") || "white";
                 document.body.setAttribute("data-theme", savedTheme);
+
+                // Footer dismiss logic
+                const footer = document.getElementById("site-footer");
+                const closeBtn = document.getElementById("footer-close-btn");
+                if (localStorage.getItem("footer-dismissed") === "1") {
+                    footer.classList.add("dismissed");
+                }
+                closeBtn.addEventListener("click", function () {
+                    footer.classList.add("dismissed");
+                    localStorage.setItem("footer-dismissed", "1");
+                });
             });
 
             window.onload = function () {

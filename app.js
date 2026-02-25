@@ -164,6 +164,155 @@ function initializeStaticPrayerActions() {
 const contentDiv = document.getElementById("content");
 const prayerLanguageNav = document.getElementById("prayer-language-nav");
 
+// --- Category Sidebar ---
+const CATEGORY_CACHE_KEY = "hw_categories_en_cache";
+const CATEGORY_CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
+let categoriesCache = null; // [{name, order}]
+let currentSidebarLang = null;
+
+async function loadCategories() {
+  if (categoriesCache) return categoriesCache;
+  try {
+    const cached = localStorage.getItem(CATEGORY_CACHE_KEY);
+    if (cached) {
+      const { timestamp, data } = JSON.parse(cached);
+      if (Date.now() - timestamp < CATEGORY_CACHE_EXPIRY_MS) {
+        categoriesCache = data;
+        return categoriesCache;
+      }
+    }
+  } catch (e) { /* ignore */ }
+
+  const sql = "SELECT DISTINCT category_name, MIN(category_order) as cat_ord FROM prayer_book_structure WHERE source_language='en' GROUP BY category_name ORDER BY cat_ord";
+  try {
+    const rows = await executeQuery(sql);
+    categoriesCache = rows.map(r => ({ name: r.category_name, order: parseInt(r.cat_ord, 10) }));
+    localStorage.setItem(CATEGORY_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: categoriesCache }));
+    return categoriesCache;
+  } catch (e) {
+    console.warn("Could not load categories:", e);
+    return [];
+  }
+}
+
+async function renderSidebar(activeLang, activeCategory) {
+  const sidebar = document.getElementById("category-sidebar");
+  const listEl = document.getElementById("category-list");
+  const labelEl = document.getElementById("sidebar-lang-label");
+  if (!sidebar || !listEl) return;
+
+  // Update label
+  if (labelEl) {
+    if (activeLang) {
+      const displayName = await getLanguageDisplayName(activeLang);
+      labelEl.textContent = "📖 " + displayName;
+    } else {
+      labelEl.innerHTML = "&#x1f7d9; Categories";
+    }
+  }
+
+  const categories = await loadCategories();
+  if (!categories || categories.length === 0) {
+    listEl.innerHTML = '<span class="category-item" style="color:#999;font-style:italic">No categories</span>';
+    return;
+  }
+
+  const langSuffix = activeLang ? `/${encodeURIComponent(activeLang)}` : "";
+  let html = `<a class="category-item${!activeCategory ? ' active' : ''}" href="#prayers/${activeLang || ''}">All Prayers</a>`;
+  html += '<hr class="category-divider">';
+  for (const cat of categories) {
+    const isActive = activeCategory && cat.name === activeCategory;
+    const href = activeLang
+      ? `#category/${encodeURIComponent(cat.name)}/${encodeURIComponent(activeLang)}`
+      : `#category/${encodeURIComponent(cat.name)}`;
+    html += `<a class="category-item${isActive ? ' active' : ''}" href="${href}" title="${cat.name}">${cat.name}</a>`;
+  }
+  listEl.innerHTML = html;
+}
+
+function initSidebarToggle() {
+  const btn = document.getElementById("sidebar-toggle-btn");
+  const sidebar = document.getElementById("category-sidebar");
+  if (!btn || !sidebar) return;
+
+  btn.addEventListener("click", () => {
+    const isMobile = window.innerWidth <= 767;
+    if (isMobile) {
+      sidebar.classList.toggle("mobile-expanded");
+    } else {
+      sidebar.classList.toggle("collapsed");
+    }
+  });
+}
+
+// Close sidebar on mobile when a category is clicked
+document.addEventListener("click", (e) => {
+  const link = e.target.closest(".category-item");
+  if (link && window.innerWidth <= 767) {
+    const sidebar = document.getElementById("category-sidebar");
+    if (sidebar) sidebar.classList.remove("mobile-expanded");
+  }
+});
+
+async function renderPrayersForCategory(categoryName, langCode, page = 1) {
+  addRecentLanguage(langCode);
+  const categoryDisplayName = categoryName;
+  const langDisplayName = langCode ? await getLanguageDisplayName(langCode) : "All";
+  const pageTitleForLayout = `${categoryDisplayName}${langCode ? " – " + langDisplayName : ""}`;
+
+  updateHeaderNavigation([]);
+
+  await renderPageLayout({
+    titleKey: pageTitleForLayout,
+    contentRenderer: async () => {
+      const offset = (page - 1) * ITEMS_PER_PAGE;
+      const escapedCat = categoryName.replace(/'/g, "''");
+      const langFilter = langCode ? ` AND w.language='${langCode.replace(/'/g, "''")}'` : "";
+      const sql = `SELECT w.version, w.name, LEFT(w.text, 200) as text, w.language, w.phelps FROM writings w JOIN prayer_book_structure pbs ON w.phelps = pbs.phelps_code WHERE pbs.source_language='en' AND pbs.category_name='${escapedCat}'${langFilter} ORDER BY pbs.order_in_category, w.language LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
+      const countSql = `SELECT COUNT(*) as total FROM writings w JOIN prayer_book_structure pbs ON w.phelps = pbs.phelps_code WHERE pbs.source_language='en' AND pbs.category_name='${escapedCat}'${langFilter}`;
+
+      let prayers = [], totalCount = 0;
+      try {
+        [prayers, [{ total: totalCount }]] = await Promise.all([
+          executeQuery(sql),
+          executeQuery(countSql),
+        ]);
+      } catch (e) {
+        return `<p style="color:red">Error loading category: ${e.message}</p>`;
+      }
+
+      if (prayers.length === 0) {
+        return `<p style="text-align:center;color:#888;">No prayers found in "${categoryDisplayName}"${langCode ? " for " + langDisplayName : ""}.</p>
+          <p style="text-align:center;"><a href="#prayers/${langCode || ''}">Browse all ${langDisplayName} prayers</a></p>`;
+      }
+
+      const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+      let cardsHtml = prayers.map(p => {
+        const preview = (p.text || "").replace(/^##[^\n]*\n+/, "").replace(/\n/g, " ").substring(0, MAX_PREVIEW_LENGTH);
+        const href = p.phelps ? `#prayercode/${p.phelps}/${p.language}` : `#prayer/${p.version}`;
+        const langLabel = !langCode ? ` <span style="font-size:0.75em;color:#888">[${p.language}]</span>` : "";
+        return `<div class="prayer-list-item"><a href="${href}"><strong>${p.name || p.phelps || "Prayer"}</strong>${langLabel}</a><p class="prayer-preview">${preview}…</p></div>`;
+      }).join("");
+
+      let paginationHtml = "";
+      if (totalPages > 1) {
+        if (page > 1) paginationHtml += `<a class="mdl-button mdl-js-button" href="#category/${encodeURIComponent(categoryName)}${langCode ? "/" + encodeURIComponent(langCode) : ""}?page=${page-1}">◀ Previous</a> `;
+        paginationHtml += `<span>Page ${page}/${totalPages}</span>`;
+        if (page < totalPages) paginationHtml += ` <a class="mdl-button mdl-js-button" href="#category/${encodeURIComponent(categoryName)}${langCode ? "/" + encodeURIComponent(langCode) : ""}?page=${page+1}">Next ▶</a>`;
+        paginationHtml = `<div style="text-align:center;margin-top:20px">${paginationHtml}</div>`;
+      }
+
+      return cardsHtml + paginationHtml;
+    },
+    showLanguageSwitcher: !!langCode,
+    showBackButton: true,
+    activeLangCodeForPicker: langCode,
+  });
+
+  await renderSidebar(langCode, categoryName);
+}
+// --- End Category Sidebar ---
+
 let currentPageByLanguage = {};
 let currentPageBySearchTerm = {}; // { searchTerm: page }
 let currentPageByPhelpsCode = {}; // { phelpsCode: page }
@@ -1725,6 +1874,7 @@ async function renderPrayersForLanguage(
 ) {
   addRecentLanguage(langCode);
   currentPageByLanguage[langCode] = { page, showUnmatched };
+  renderSidebar(langCode, null); // update sidebar with this language, no category active
 
   // Clear main page header nav, as this view's primary navigation is via the language picker
   // and its own content (pagination, filters).
@@ -2771,6 +2921,7 @@ async function _renderBottomLanguageSelector() {
 async function renderLanguageList() {
   // Clear header navigation specific to other views
   updateHeaderNavigation([]);
+  renderSidebar(null, null); // reset sidebar to show no active category/language
 
   // Reset page state for various views
   // Reset pagination state
@@ -3021,7 +3172,13 @@ async function handleRouteChange() {
   const prayerCodeLangRegex = /^#prayercode\/([^/]+)\/([^/?]+)/;
   const prayerCodeLangMatch = mainHash.match(prayerCodeLangRegex);
 
-  if (mainHash.startsWith("#search/prayers/")) {
+  if (mainHash.startsWith("#category/")) {
+    const categoryPath = mainHash.substring("#category/".length);
+    const categoryParts = categoryPath.split("/");
+    const categoryName = decodeURIComponent(categoryParts[0]);
+    const categoryLang = categoryParts[1] ? decodeURIComponent(categoryParts[1]) : null;
+    renderPrayersForCategory(categoryName, categoryLang, pageParam);
+  } else if (mainHash.startsWith("#search/prayers/")) {
     const searchTerm = decodeURIComponent(
       mainHash.substring("#search/prayers/".length),
     );
@@ -3078,6 +3235,9 @@ window.renderPrayerCodeView = renderPrayerCodeView;
 
 document.addEventListener("DOMContentLoaded", () => {
   loadFavoritePrayers();
+  initSidebarToggle();
+  // Pre-load categories in background for faster sidebar rendering
+  loadCategories().then(() => renderSidebar(null, null)).catch(() => {});
 
   const headerSearchInput = document.getElementById("header-search-field");
   if (headerSearchInput) {
