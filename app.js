@@ -217,9 +217,30 @@ async function renderSidebar(activeLang, activeCategory) {
     return;
   }
 
-  const langSuffix = activeLang ? `/${encodeURIComponent(activeLang)}` : "";
-  let html = `<a class="category-item${!activeCategory ? ' active' : ''}" href="#prayers/${activeLang || ''}">All Prayers</a>`;
+  let html = "";
+
+  // Language switcher at the top of the sidebar
+  if (activeLang) {
+    html += `<div class="sidebar-lang-switcher">
+      <a href="#" class="sidebar-lang-switch-link" id="sidebar-switch-lang-link" title="Switch language">
+        <i class="material-icons" style="font-size:16px;vertical-align:middle">translate</i>
+        Switch language
+      </a>
+    </div>`;
+  } else {
+    html += `<div class="sidebar-lang-switcher">
+      <a href="#" class="sidebar-lang-switch-link" title="Select a language">
+        <i class="material-icons" style="font-size:16px;vertical-align:middle">language</i>
+        Select language
+      </a>
+    </div>`;
+  }
   html += '<hr class="category-divider">';
+
+  const allHref = activeLang ? `#prayers/${activeLang}` : "#";
+  html += `<a class="category-item${!activeCategory ? ' active' : ''}" href="${allHref}">All Prayers</a>`;
+  html += '<hr class="category-divider">';
+
   for (const cat of categories) {
     const isActive = activeCategory && cat.name === activeCategory;
     const href = activeLang
@@ -228,6 +249,26 @@ async function renderSidebar(activeLang, activeCategory) {
     html += `<a class="category-item${isActive ? ' active' : ''}" href="${href}" title="${cat.name}">${cat.name}</a>`;
   }
   listEl.innerHTML = html;
+
+  // Hook up the "switch language" link to scroll to the bottom language selector
+  const switchLink = listEl.querySelector("#sidebar-switch-lang-link");
+  if (switchLink) {
+    switchLink.addEventListener("click", (e) => {
+      e.preventDefault();
+      const sel = document.querySelector(".simple-language-selector");
+      if (sel) {
+        sel.scrollIntoView({ behavior: "smooth", block: "start" });
+        // On mobile, close sidebar
+        if (window.innerWidth <= 767) {
+          const sidebar = document.getElementById("category-sidebar");
+          if (sidebar) sidebar.classList.remove("mobile-expanded");
+        }
+      } else {
+        // No language selector visible — navigate to home
+        window.location.hash = "#";
+      }
+    });
+  }
 }
 
 function initSidebarToggle() {
@@ -264,6 +305,7 @@ async function renderPrayersForCategory(categoryName, langCode, page = 1) {
 
   await renderPageLayout({
     titleKey: pageTitleForLayout,
+    categoryContext: categoryName,
     contentRenderer: async () => {
       const offset = (page - 1) * ITEMS_PER_PAGE;
       const escapedCat = categoryName.replace(/'/g, "''");
@@ -1066,8 +1108,9 @@ async function renderPageLayout(viewSpec) {
     showLanguageSwitcher = true,
     showBackButton = false,
     customHeaderContentRenderer = null,
-    activeLangCodeForPicker = null, // New parameter from ViewSpec
-    isPrayerPage = false, // New flag to identify prayer pages
+    activeLangCodeForPicker = null,
+    isPrayerPage = false,
+    categoryContext = null, // category name to preserve in language switcher links
   } = viewSpec;
 
   // Hide static prayer actions host if not on a prayer page
@@ -1239,7 +1282,7 @@ async function renderPageLayout(viewSpec) {
 
     // 7. Render Language Switcher AFTER content (at the bottom) if requested
     if (showLanguageSwitcher) {
-      const bottomSelector = await _renderBottomLanguageSelector();
+      const bottomSelector = await _renderBottomLanguageSelector(categoryContext);
       viewContentContainer.appendChild(bottomSelector);
 
       // Upgrade MDL components in the language selector
@@ -2813,7 +2856,7 @@ async function _renderLanguageListContent() {
   return overallWrapper;
 }
 
-async function _loadSimpleLanguageButtons(containerElement = null) {
+async function _loadSimpleLanguageButtons(containerElement = null, categoryContext = null) {
   // If no container element provided, try to find it by ID (for backward compatibility)
   let container = containerElement;
   if (!container) {
@@ -2867,8 +2910,11 @@ async function _loadSimpleLanguageButtons(containerElement = null) {
         ? '<span class="lang-suggestion-badge">Suggested</span>'
         : "";
 
+      const langHref = categoryContext
+        ? `#category/${encodeURIComponent(categoryContext)}/${encodeURIComponent(lang.language)}`
+        : `#prayers/${lang.language}`;
       buttonsHtml += `
-        <a href="#prayers/${lang.language}" class="simple-language-button ${isBrowserLang ? "suggested" : ""}">
+        <a href="${langHref}" class="simple-language-button ${isBrowserLang ? "suggested" : ""}">
           <span class="language-name">${displayName}</span>
           <span class="language-code">${lang.language.toUpperCase()}</span>
           <span class="language-count">${lang.uniquePhelps} prayers</span>
@@ -2885,13 +2931,16 @@ async function _loadSimpleLanguageButtons(containerElement = null) {
   }
 }
 
-async function _renderBottomLanguageSelector() {
+async function _renderBottomLanguageSelector(categoryContext = null) {
   const container = document.createElement("div");
   container.className = "simple-language-selector";
+  const headerText = categoryContext
+    ? `Browse "<strong>${categoryContext}</strong>" in another language`
+    : "Browse Prayers by Language";
   container.innerHTML = `
     <div class="simple-language-selector-header">
       <span class="bahai-star">&#x1f7d9;</span>
-      <h3>Browse Prayers by Language</h3>
+      <h3>${headerText}</h3>
     </div>
     <div class="simple-language-buttons">
       <div class="bahai-loading-spinner" style="font-size: 2em; margin: 20px auto;">&#x1f7d9;</div>
@@ -2903,7 +2952,7 @@ async function _renderBottomLanguageSelector() {
     const buttonsContainer = container.querySelector(
       ".simple-language-buttons",
     );
-    await _loadSimpleLanguageButtons(buttonsContainer);
+    await _loadSimpleLanguageButtons(buttonsContainer, categoryContext);
   } catch (error) {
     console.error("Error loading simple language buttons:", error);
     const buttonContainerForError = container.querySelector(
