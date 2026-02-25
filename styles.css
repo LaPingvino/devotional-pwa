@@ -2071,3 +2071,223 @@ body[data-theme="dark-blue"] #site-footer,
 body[data-theme="dark-green"] #site-footer {
     border-top-color: rgba(255,255,255,0.12);
 }
+
+/* ============================================================
+   INVENTORY SOURCE VIEW (#source/{phelps})
+   ============================================================ */
+
+.source-view {
+    max-width: 780px;
+}
+
+.source-header {
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+
+.source-title {
+    font-size: 1.4em;
+    margin: 0 0 10px 0;
+    font-weight: 600;
+}
+
+.source-meta-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.source-chip {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.78em;
+    background: rgba(0,0,0,0.07);
+    color: inherit;
+}
+
+.source-chip-pin {
+    background: rgba(63,81,181,0.12);
+    color: #3f51b5;
+    font-weight: 600;
+    font-family: monospace;
+    letter-spacing: 0.03em;
+}
+
+.source-chip-green {
+    background: rgba(76,175,80,0.12);
+    color: #388e3c;
+}
+
+.source-first-line {
+    font-size: 0.95em;
+    opacity: 0.75;
+    margin-top: 6px;
+    font-style: italic;
+}
+
+.source-subjects {
+    font-size: 0.85em;
+    margin-top: 6px;
+    opacity: 0.7;
+}
+
+/* Full text section */
+.source-fulltext-section {
+    margin-bottom: 24px;
+}
+
+.source-fulltext-section h3,
+.source-section h3 {
+    font-size: 1em;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    opacity: 0.55;
+    margin: 0 0 10px 0;
+}
+
+.source-lang-tabs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.source-lang-tab {
+    padding: 4px 12px;
+    border: 1px solid rgba(0,0,0,0.15);
+    border-radius: 4px;
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.8em;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: inherit;
+    opacity: 0.6;
+    transition: all 0.15s;
+}
+
+.source-lang-tab:hover {
+    opacity: 0.9;
+    background: rgba(0,0,0,0.06);
+}
+
+.source-lang-tab.active {
+    background: #ff7954;
+    border-color: #ff7954;
+    color: white;
+    opacity: 1;
+}
+
+.source-text-panel {
+    display: none;
+}
+
+.source-text-panel.active {
+    display: block;
+}
+
+.source-text-panel .scripture {
+    margin: 0;
+}
+
+.source-text-source {
+    display: block;
+    margin-top: 8px;
+    opacity: 0.5;
+    font-size: 0.8em;
+}
+
+.source-no-fulltext {
+    opacity: 0.7;
+    margin-bottom: 20px;
+}
+
+/* Sections below full text */
+.source-section {
+    margin-bottom: 20px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(0,0,0,0.07);
+}
+
+.source-ref-list {
+    margin: 0;
+    padding-left: 18px;
+    font-size: 0.9em;
+}
+
+.source-ref-list li {
+    margin-bottom: 4px;
+}
+
+/* Languages grid for "Prayers in Database" */
+.source-lang-links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.source-lang-link {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 4px;
+    font-size: 0.8em;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    border: 1px solid rgba(255,121,84,0.4);
+    color: #d45e35;
+    text-decoration: none;
+    transition: background 0.15s;
+}
+
+.source-lang-link:hover {
+    background: rgba(255,121,84,0.1);
+    text-decoration: none;
+}
+
+/* "source" link next to phelps code */
+.source-view-link {
+    font-size: 0.85em;
+    opacity: 0.6;
+    margin-left: 2px;
+    text-decoration: none;
+    border-bottom: 1px dashed currentColor;
+}
+
+.source-view-link:hover {
+    opacity: 1;
+}
+
+/* Dark theme adjustments */
+body[data-theme="dark"] .source-chip-pin,
+body[data-theme="dark-blue"] .source-chip-pin,
+body[data-theme="dark-green"] .source-chip-pin {
+    color: #9fa8da;
+    background: rgba(159,168,218,0.15);
+}
+
+body[data-theme="dark"] .source-chip-green,
+body[data-theme="dark-blue"] .source-chip-green,
+body[data-theme="dark-green"] .source-chip-green {
+    color: #a5d6a7;
+    background: rgba(165,214,167,0.15);
+}
+
+body[data-theme="dark"] .source-lang-link,
+body[data-theme="dark-blue"] .source-lang-link,
+body[data-theme="dark-green"] .source-lang-link {
+    color: #ffab8f;
+    border-color: rgba(255,171,143,0.4);
+}
+
+body[data-theme="dark"] .source-section,
+body[data-theme="dark-blue"] .source-section,
+body[data-theme="dark-green"] .source-section,
+body[data-theme="dark"] .source-header,
+body[data-theme="dark-blue"] .source-header,
+body[data-theme="dark-green"] .source-header {
+    border-color: rgba(255,255,255,0.1);
+}

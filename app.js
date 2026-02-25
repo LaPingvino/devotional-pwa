@@ -1526,7 +1526,8 @@ async function _renderPrayerContent(
     const textPart = titleCalculationResults.phelpsIsSuggested
       ? `<span style="font-weight: bold; color: red;">${phelpsToDisplay}</span>`
       : `<a href="#prayercode/${phelpsToDisplay}">${phelpsToDisplay}</a>`;
-    phelpsDisplayHtml = `${textPart} (Lang: ${finalDisplayLanguageForPhelpsMeta})`;
+    const sourceLink = `<a href="#source/${phelpsToDisplay}" class="source-view-link" title="View inventory source">source</a>`;
+    phelpsDisplayHtml = `${textPart} ${sourceLink} (Lang: ${finalDisplayLanguageForPhelpsMeta})`;
   } else {
     phelpsDisplayHtml = `Not Assigned (Lang: ${finalDisplayLanguageForPhelpsMeta})`;
   }
@@ -3200,6 +3201,187 @@ async function renderSearchResults(searchTerm, page = 1) {
   });
 }
 
+// ============================================================
+// INVENTORY SOURCE TEXT VIEW (#source/{phelps})
+// ============================================================
+
+async function renderSourceView(phelps) {
+  const escapedPin = phelps.replace(/'/g, "''");
+
+  await renderPageLayout({
+    titleKey: `Source: ${phelps}`,
+    showBackButton: true,
+    showLanguageSwitcher: false,
+    contentRenderer: async () => {
+      // Run all queries in parallel
+      const [invRows, fulltextRows, pubRows, transRows, subjRows, prayerRows] =
+        await Promise.all([
+          executeQuery(`SELECT * FROM inventory WHERE PIN='${escapedPin}'`),
+          executeQuery(
+            `SELECT language, part, text, source FROM inventory_fulltext WHERE phelps='${escapedPin}' ORDER BY language, part`
+          ),
+          executeQuery(
+            `SELECT publication_ref, url, display_text FROM inventory_publications WHERE PIN='${escapedPin}' ORDER BY id`
+          ),
+          executeQuery(
+            `SELECT translation_ref, url, display_text FROM inventory_translations WHERE PIN='${escapedPin}' ORDER BY id`
+          ),
+          executeQuery(
+            `SELECT subject FROM inventory_subjects WHERE PIN='${escapedPin}'`
+          ),
+          executeQuery(
+            `SELECT language, name, version FROM writings WHERE phelps='${escapedPin}' ORDER BY language`
+          ),
+        ]);
+
+      const inv = invRows && invRows.length > 0 ? invRows[0] : null;
+      const title = inv ? (inv["Title"] || inv["First line (translated)"] || phelps) : phelps;
+      const firstLineOrig = inv ? inv["First line (original)"] : null;
+      const firstLineTrans = inv ? inv["First line (translated)"] : null;
+      const langOrig = inv ? inv["Language"] : null;
+      const wordCount = inv ? inv["Word count"] : null;
+      const notes = inv ? inv["Notes"] : null;
+      const abstracts = inv ? inv["Abstracts"] : null;
+
+      // Build full text by language
+      const textByLang = {};
+      (fulltextRows || []).forEach(row => {
+        if (!textByLang[row.language]) textByLang[row.language] = [];
+        textByLang[row.language].push(row);
+      });
+
+      // Prefer English for main display, then other languages
+      const langOrder = ["en", "ar", "fa", ...Object.keys(textByLang).filter(l => l !== "en" && l !== "ar" && l !== "fa")];
+      const availableLangs = langOrder.filter(l => textByLang[l]);
+
+      // --- Header ---
+      let html = `<div class="source-view">`;
+      html += `<div class="source-header">`;
+      html += `<h2 class="source-title">${title}</h2>`;
+      html += `<div class="source-meta-chips">`;
+      html += `<span class="source-chip source-chip-pin">&#x1f7d9; ${phelps}</span>`;
+      if (langOrig) html += `<span class="source-chip">Lang: ${langOrig}</span>`;
+      if (wordCount) html += `<span class="source-chip">${wordCount} words</span>`;
+      if (availableLangs.length > 0) html += `<span class="source-chip source-chip-green">Full text available</span>`;
+      html += `</div>`;
+
+      if (firstLineOrig && firstLineTrans && firstLineOrig !== firstLineTrans) {
+        html += `<div class="source-first-line">
+          <span class="source-first-line-orig">${firstLineOrig}</span>
+          <span class="source-first-line-sep"> — </span>
+          <span class="source-first-line-trans">${firstLineTrans}</span>
+        </div>`;
+      } else if (firstLineTrans) {
+        html += `<div class="source-first-line">${firstLineTrans}</div>`;
+      }
+
+      // Subjects
+      if (subjRows && subjRows.length > 0) {
+        const subjects = subjRows.map(r => r.subject).join("; ");
+        html += `<div class="source-subjects"><em>Subjects:</em> ${subjects}</div>`;
+      }
+      html += `</div>`; // end source-header
+
+      // --- Full text section ---
+      if (availableLangs.length > 0) {
+        // Language tabs for full text
+        html += `<div class="source-fulltext-section">`;
+        html += `<h3>Full Text</h3>`;
+
+        // Build tab buttons
+        html += `<div class="source-lang-tabs" id="source-lang-tabs">`;
+        availableLangs.forEach((lang, i) => {
+          html += `<button class="source-lang-tab${i === 0 ? " active" : ""}" data-lang="${lang}" onclick="showSourceLang('${lang}')">${lang.toUpperCase()}</button>`;
+        });
+        html += `</div>`;
+
+        // Build text panels
+        availableLangs.forEach((lang, i) => {
+          const parts = textByLang[lang];
+          const fullText = parts.map(p => p.text).join("\n\n");
+          const sourceNote = parts[0] && parts[0].source ? `<small class="source-text-source">Source: ${parts[0].source}</small>` : "";
+          const isRTL = ["ar", "fa", "he", "ur"].includes(lang) ? ' dir="rtl"' : '';
+          html += `<div class="source-text-panel${i === 0 ? " active" : ""}" id="source-panel-${lang}"${isRTL}>
+            <div class="scripture">${fullText.replace(/\n\n/g, "</p><p>").replace(/\n/g, "<br>")}</div>
+            ${sourceNote}
+          </div>`;
+        });
+
+        html += `</div>`; // end source-fulltext-section
+      } else {
+        html += `<div class="source-no-fulltext"><p><em>No full text in the database yet for this passage.</em></p>
+          <p style="font-size:0.9em;color:#888">First lines: ${firstLineTrans || firstLineOrig || "(not available)"}</p></div>`;
+      }
+
+      // --- Prayers in database section ---
+      if (prayerRows && prayerRows.length > 0) {
+        const grouped = {};
+        prayerRows.forEach(r => {
+          if (!grouped[r.language]) grouped[r.language] = [];
+          grouped[r.language].push(r);
+        });
+
+        html += `<div class="source-section">`;
+        html += `<h3>Prayers in Database (${prayerRows.length} versions)</h3>`;
+        html += `<div class="source-lang-links">`;
+        for (const [lang, prayers] of Object.entries(grouped)) {
+          const name = prayers[0].name || phelps;
+          const href = `#prayercode/${phelps}/${lang}`;
+          html += `<a href="${href}" class="source-lang-link">${lang.toUpperCase()}</a>`;
+        }
+        html += `</div></div>`;
+      }
+
+      // --- Publications ---
+      if (pubRows && pubRows.length > 0) {
+        html += `<div class="source-section"><h3>Publications</h3><ul class="source-ref-list">`;
+        pubRows.forEach(r => {
+          const text = r.display_text || r.publication_ref;
+          if (r.url) {
+            html += `<li><a href="${r.url}" target="_blank" rel="noopener">${text}</a></li>`;
+          } else {
+            html += `<li>${text}</li>`;
+          }
+        });
+        html += `</ul></div>`;
+      }
+
+      // --- Translations ---
+      if (transRows && transRows.length > 0) {
+        html += `<div class="source-section"><h3>Translations</h3><ul class="source-ref-list">`;
+        transRows.forEach(r => {
+          const text = r.display_text || r.translation_ref;
+          if (r.url) {
+            html += `<li><a href="${r.url}" target="_blank" rel="noopener">${text}</a></li>`;
+          } else {
+            html += `<li>${text}</li>`;
+          }
+        });
+        html += `</ul></div>`;
+      }
+
+      // --- Notes / Abstracts ---
+      if (notes) {
+        html += `<div class="source-section"><h3>Notes</h3><p>${notes}</p></div>`;
+      }
+      if (abstracts) {
+        html += `<div class="source-section"><h3>Abstracts</h3><p>${abstracts}</p></div>`;
+      }
+
+      html += `</div>`; // end source-view
+      return html;
+    },
+  });
+}
+
+// Called by onclick in source view language tabs
+window.showSourceLang = function(lang) {
+  document.querySelectorAll(".source-lang-tab").forEach(btn => btn.classList.toggle("active", btn.dataset.lang === lang));
+  document.querySelectorAll(".source-text-panel").forEach(panel => panel.classList.toggle("active", panel.id === `source-panel-${lang}`));
+};
+
+// ============================================================
+
 async function handleRouteChange() {
   await fetchLanguageNames(); // Ensure names are loaded/attempted
   const hash = window.location.hash;
@@ -3227,6 +3409,10 @@ async function handleRouteChange() {
     const categoryName = decodeURIComponent(categoryParts[0]);
     const categoryLang = categoryParts[1] ? decodeURIComponent(categoryParts[1]) : null;
     renderPrayersForCategory(categoryName, categoryLang, pageParam);
+  } else if (mainHash.startsWith("#source/")) {
+    const phelps = decodeURIComponent(mainHash.substring("#source/".length));
+    if (phelps) renderSourceView(phelps);
+    else renderLanguageList();
   } else if (mainHash.startsWith("#search/prayers/")) {
     const searchTerm = decodeURIComponent(
       mainHash.substring("#search/prayers/".length),
