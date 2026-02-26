@@ -309,8 +309,8 @@ async function renderSidebar(activeLang, activeCategory, forcedStructureLang = n
   for (const cat of categories) {
     const isActive = activeCategory && cat.name === activeCategory;
     const href = activeLang
-      ? `#category/${encodeURIComponent(cat.name)}/${encodeURIComponent(activeLang)}`
-      : `#category/${encodeURIComponent(cat.name)}`;
+      ? `#category/${encodeURIComponent(structureLang)}/${encodeURIComponent(cat.name)}/${encodeURIComponent(activeLang)}`
+      : `#category/${encodeURIComponent(structureLang)}/${encodeURIComponent(cat.name)}`;
     const count = activeLang ? (countMap[cat.name] ?? -1) : -1; // -1 = unknown
     const isEmpty = count === 0;
     const countBadge = count >= 0
@@ -376,13 +376,11 @@ async function renderPrayersForCategory(categoryName, langCode, page = 1, forced
   // Use forced structure lang if provided, else the viewing language's own (falls back to 'en')
   const cats = await loadCategories(forcedStructureLang || langCode);
   const structureLang = (cats[0] && cats[0].structureLang) || forcedStructureLang || "en";
-  const structureParam = (forcedStructureLang && forcedStructureLang !== langCode)
-    ? `&structure=${encodeURIComponent(forcedStructureLang)}`
-    : "";
+  // structureParam no longer needed in pagination — structure is encoded in the path
 
   await renderPageLayout({
     titleKey: pageTitleForLayout,
-    categoryContext: categoryName,
+    categoryContext: { name: categoryName, structureLang },
     contentRenderer: async () => {
       const offset = (page - 1) * ITEMS_PER_PAGE;
       const escapedCat = categoryName.replace(/'/g, "''");
@@ -414,12 +412,12 @@ async function renderPrayersForCategory(categoryName, langCode, page = 1, forced
         return `<div class="prayer-list-item"><a href="${href}"><strong>${p.name || p.phelps || "Prayer"}</strong>${langLabel}</a><p class="prayer-preview">${preview}…</p></div>`;
       }).join("");
 
-      const catBase = `#category/${encodeURIComponent(categoryName)}${langCode ? "/" + encodeURIComponent(langCode) : ""}`;
+      const catBase = `#category/${encodeURIComponent(structureLang)}/${encodeURIComponent(categoryName)}${langCode ? "/" + encodeURIComponent(langCode) : ""}`;
       let paginationHtml = "";
       if (totalPages > 1) {
-        if (page > 1) paginationHtml += `<a class="mdl-button mdl-js-button" href="${catBase}?page=${page-1}${structureParam}">◀ Previous</a> `;
+        if (page > 1) paginationHtml += `<a class="mdl-button mdl-js-button" href="${catBase}?page=${page-1}">◀ Previous</a> `;
         paginationHtml += `<span>Page ${page}/${totalPages}</span>`;
-        if (page < totalPages) paginationHtml += ` <a class="mdl-button mdl-js-button" href="${catBase}?page=${page+1}${structureParam}">Next ▶</a>`;
+        if (page < totalPages) paginationHtml += ` <a class="mdl-button mdl-js-button" href="${catBase}?page=${page+1}">Next ▶</a>`;
         paginationHtml = `<div style="text-align:center;margin-top:20px">${paginationHtml}</div>`;
       }
 
@@ -2991,8 +2989,11 @@ async function _loadSimpleLanguageButtons(containerElement = null, categoryConte
         ? '<span class="lang-suggestion-badge">Suggested</span>'
         : "";
 
-      const langHref = categoryContext
-        ? `#category/${encodeURIComponent(categoryContext)}/${encodeURIComponent(lang.language)}`
+      // categoryContext may be a string (legacy) or {name, structureLang} object
+      const catName = categoryContext && (categoryContext.name || categoryContext);
+      const catSL = categoryContext && (categoryContext.structureLang || "en");
+      const langHref = catName
+        ? `#category/${encodeURIComponent(catSL)}/${encodeURIComponent(catName)}/${encodeURIComponent(lang.language)}`
         : `#prayers/${lang.language}`;
       buttonsHtml += `
         <a href="${langHref}" class="simple-language-button ${isBrowserLang ? "suggested" : ""}">
@@ -3015,8 +3016,9 @@ async function _loadSimpleLanguageButtons(containerElement = null, categoryConte
 async function _renderBottomLanguageSelector(categoryContext = null) {
   const container = document.createElement("div");
   container.className = "simple-language-selector";
-  const headerText = categoryContext
-    ? `Browse "<strong>${categoryContext}</strong>" in another language`
+  const catDisplayName = categoryContext && (categoryContext.name || categoryContext);
+  const headerText = catDisplayName
+    ? `Browse "<strong>${catDisplayName}</strong>" in another language`
     : "Browse Prayers by Language";
   container.innerHTML = `
     <div class="simple-language-selector-header">
@@ -3489,10 +3491,18 @@ async function handleRouteChange() {
 
   if (mainHash.startsWith("#category/")) {
     const categoryPath = mainHash.substring("#category/".length);
-    const categoryParts = categoryPath.split("/");
-    const categoryName = decodeURIComponent(categoryParts[0]);
-    const categoryLang = categoryParts[1] ? decodeURIComponent(categoryParts[1]) : null;
-    renderPrayersForCategory(categoryName, categoryLang, pageParam, structureParam);
+    const categoryParts = categoryPath.split("/").map(decodeURIComponent);
+    // Format: #category/{structureLang}/{categoryName}/{prayerLang}
+    // Legacy:  #category/{categoryName}/{prayerLang}  (detected by part count < 3)
+    let structureLang, categoryName, categoryLang;
+    if (categoryParts.length >= 3) {
+      [structureLang, categoryName, categoryLang] = categoryParts;
+    } else {
+      categoryName = categoryParts[0];
+      categoryLang = categoryParts[1] || null;
+      structureLang = structureParam || null; // fall back to ?structure= or auto-detect
+    }
+    renderPrayersForCategory(categoryName, categoryLang, pageParam, structureLang);
   } else if (mainHash.startsWith("#source/")) {
     const phelps = decodeURIComponent(mainHash.substring("#source/".length));
     if (phelps) renderSourceView(phelps);
