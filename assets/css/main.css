@@ -192,6 +192,21 @@ body {
   color: #fff;
 }
 
+/* Author / metadata badges */
+.author-badge, .meta-badge {
+  display: inline-block;
+  padding: .15rem .5rem;
+  background: #f0f0f0;
+  border-radius: 3px;
+  font-size: .78rem;
+  color: var(--text-secondary);
+}
+.author-badge { font-style: italic; }
+
+/* Translated-only toggle button */
+.prefix-btn.translated-only { margin-left: .5rem; background: #f0f0f0; }
+.prefix-btn.translated-only.active { background: var(--accent); color: #fff; }
+
 /* Language chips on phelps pages */
 .lang-chip {
   display: inline-flex;

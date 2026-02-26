@@ -1,0 +1,152 @@
+{{ partial "head.html" (dict "Title" "Prayer Inventory" "Lang" "en") }}
+<div class="main-content">
+  <h1>Prayer Inventory</h1>
+  <p style="color:var(--text-secondary); margin-bottom:1rem;">
+    29,000+ Bahá'í prayer codes (Phelps index) with first lines and translations.
+  </p>
+
+  <div class="inventory-controls">
+    <button class="prefix-btn active" data-prefix="">All</button>
+    <button class="prefix-btn" data-prefix="BH" title="Bahá'u'lláh">BH</button>
+    <button class="prefix-btn" data-prefix="AB" title="ʻAbdu'l-Bahá">AB</button>
+    <button class="prefix-btn" data-prefix="BB" title="The Báb">BB</button>
+    <button class="prefix-btn" data-prefix="BHU">BHU</button>
+    <button class="prefix-btn" data-prefix="ABU">ABU</button>
+    <button class="prefix-btn" data-prefix="BBU">BBU</button>
+    <button class="prefix-btn" data-prefix="TMP">TMP</button>
+    <button class="prefix-btn translated-only" data-translated="1" title="Only entries with translations">✓ Translated</button>
+    <input type="search" class="search-box" id="inv-search" placeholder="Search PIN, first line, title, subjects…">
+  </div>
+
+  <div id="inv-status" style="font-size:.8rem; color:var(--text-secondary); margin-bottom:.5rem;"></div>
+
+  <table class="inventory-table" id="inv-table">
+    <thead>
+      <tr>
+        <th>PIN</th>
+        <th>Author</th>
+        <th>First line (English)</th>
+        <th style="text-align:center">Trans.</th>
+      </tr>
+    </thead>
+    <tbody id="inv-body">
+      <tr><td colspan="4" style="padding:1rem; color:var(--text-secondary)">Loading…</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+const AUTHORS = {
+  BH: "Bahá'u'lláh", BHU: "Bahá'u'lláh",
+  AB: "ʻAbdu'l-Bahá", ABU: "ʻAbdu'l-Bahá",
+  BB: "The Báb", BBU: "The Báb",
+};
+
+function authorFromPin(pin) {
+  const m = pin.match(/^([A-Z]+)/);
+  return m ? (AUTHORS[m[1]] || '') : '';
+}
+
+function phelpsUrl(pin) {
+  const n = pin.length;
+  const suffix = pin.slice(n - 3);
+  if (/^[A-Z]{3}$/.test(suffix) && /\d/.test(pin[n - 4])) {
+    return `/phelps/${pin.slice(0, n - 3).toLowerCase()}/#${suffix.toLowerCase()}`;
+  }
+  return `/phelps/${pin.toLowerCase()}/`;
+}
+
+let allEntries = [];
+let filtered = [];
+let activePrefix = '';
+let translatedOnly = false;
+let searchTerm = '';
+
+async function loadInventory() {
+  const res = await fetch('/data/inventory.json');
+  allEntries = await res.json();
+  applyFilters();
+}
+
+function applyFilters() {
+  filtered = allEntries.filter(e => {
+    if (translatedOnly && !e.translations) return false;
+    if (activePrefix && e.prefix !== activePrefix) return false;
+    if (searchTerm) {
+      const q = searchTerm.toLowerCase();
+      return e.pin.toLowerCase().includes(q)
+          || (e.first_line || '').toLowerCase().includes(q)
+          || (e.title || '').toLowerCase().includes(q)
+          || (e.subjects || '').toLowerCase().includes(q);
+    }
+    return true;
+  });
+  renderTable();
+}
+
+function renderTable() {
+  const tbody = document.getElementById('inv-body');
+  const status = document.getElementById('inv-status');
+  status.textContent = `${filtered.length.toLocaleString()} entries`;
+
+  const rows = filtered.slice(0, 500);
+  tbody.innerHTML = rows.map(e => {
+    const hasTranslations = e.translations > 0;
+    const pinCell = hasTranslations
+      ? `<a href="${phelpsUrl(e.pin)}">${e.pin}</a>`
+      : e.pin;
+    const countCell = hasTranslations
+      ? `<span style="color:var(--accent); font-weight:600">${e.translations}</span>`
+      : `<span style="opacity:.3">—</span>`;
+    return `<tr${hasTranslations ? '' : ' style="opacity:.6"'}>
+      <td class="pin-cell">${pinCell}</td>
+      <td style="font-size:.8rem; color:var(--text-secondary)">${authorFromPin(e.pin)}</td>
+      <td>${e.first_line || ''}</td>
+      <td style="text-align:center; font-size:.85rem">${countCell}</td>
+    </tr>`;
+  }).join('');
+  if (filtered.length > 500) {
+    tbody.innerHTML += `<tr><td colspan="4" style="color:var(--text-secondary); padding:.5rem">
+      … ${(filtered.length - 500).toLocaleString()} more. Refine your search.
+    </td></tr>`;
+  }
+}
+
+// Prefix buttons
+document.querySelectorAll('.prefix-btn:not(.translated-only)').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.prefix-btn:not(.translated-only)').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activePrefix = btn.dataset.prefix;
+    applyFilters();
+  });
+});
+
+// Translated-only toggle
+document.querySelector('.translated-only').addEventListener('click', function() {
+  translatedOnly = !translatedOnly;
+  this.classList.toggle('active', translatedOnly);
+  applyFilters();
+});
+
+// Search
+let searchTimer;
+document.getElementById('inv-search').addEventListener('input', e => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    searchTerm = e.target.value.trim();
+    applyFilters();
+  }, 200);
+});
+
+// Pre-fill from ?pin= URL param (linked from phelps pages and prayer cards)
+const urlParams = new URLSearchParams(window.location.search);
+const pinParam = urlParams.get('pin');
+if (pinParam) {
+  document.getElementById('inv-search').value = pinParam;
+  searchTerm = pinParam;
+}
+
+loadInventory();
+</script>
+{{ partial "foot.html" . }}

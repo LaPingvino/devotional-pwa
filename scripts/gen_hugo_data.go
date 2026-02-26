@@ -5,9 +5,11 @@
 //
 // Outputs (relative to out-dir):
 //   data/languages.json           — [{code, name, prayer_count, rtl}, ...]
-//   data/prayers/{lang}.json      — [{phelps, text, name, category, category_order, order_in_cat}, ...]
-//   data/phelps/{code}.json       — [{phelps, language, lang_name, text, name}, ...]
-//   data/inventory.json           — [{pin, first_line, prefix}, ...]
+//   assets/prayers/{lang}.json    — [{phelps, text, name, category, cat_order, order_in_cat, translations}, ...]
+//   assets/phelps/{base}.json     — {pin, subcodes:[{code, anchor, title, first_line, first_line_orig,
+//                                     language, word_count, subjects, notes, translations:[{language,lang_name}]}]}
+//   static/data/inventory.json    — [{pin, title, first_line, first_line_orig, language, word_count,
+//                                     subjects, notes, prefix, translations}, ...]
 
 package main
 
@@ -37,7 +39,7 @@ type Language struct {
 	RTL         bool   `json:"rtl"`
 }
 
-// LangRef is a compact language reference used in translation lists (no text)
+// LangRef is a compact language reference (no text) used in translation lists
 type LangRef struct {
 	Language string `json:"language"`
 	LangName string `json:"lang_name"`
@@ -51,25 +53,23 @@ type Prayer struct {
 	Category      string    `json:"category,omitempty"`
 	CategoryOrder int       `json:"cat_order,omitempty"`
 	OrderInCat    int       `json:"order_in_cat,omitempty"`
-	Translations  []LangRef `json:"translations,omitempty"` // other languages that have this phelps
-}
-
-// Translation for per-phelps cross-language data files
-type Translation struct {
-	Language string `json:"language"`
-	LangName string `json:"lang_name"`
-	Text     string `json:"text"`
-	Name     string `json:"name,omitempty"`
+	Translations  []LangRef `json:"translations,omitempty"` // other languages with this phelps code
 }
 
 // SubCode is one passage within a base PIN (e.g. BH01313NAM within BH01313).
-// The Anchor field is the lowercase mnemonic suffix used as the HTML id (e.g. "nam").
+// Translations contains only language refs — prayer text lives in the per-language files.
 type SubCode struct {
-	Code         string        `json:"code"`
-	Anchor       string        `json:"anchor"`                // lowercase suffix, or "" for base codes
-	Title        string        `json:"title,omitempty"`
-	FirstLine    string        `json:"first_line,omitempty"`
-	Translations []Translation `json:"translations"`
+	Code          string    `json:"code"`
+	Anchor        string    `json:"anchor"`                    // lowercase mnemonic suffix (e.g. "nam"), "" for base codes
+	Title         string    `json:"title,omitempty"`
+	FirstLine     string    `json:"first_line,omitempty"`      // English first line
+	FirstLineOrig string    `json:"first_line_orig,omitempty"` // original-language first line
+	Language      string    `json:"language,omitempty"`        // original language (Ara, Per, Eng, …)
+	WordCount     string    `json:"word_count,omitempty"`
+	Subjects      string    `json:"subjects,omitempty"`
+	Notes         string    `json:"notes,omitempty"`
+	FullTextParts []string  `json:"full_text_parts,omitempty"` // English full text chunks from inventory_fulltext
+	Translations  []LangRef `json:"translations"` // languages that have this code; no text here
 }
 
 // PhelpsFile is written to assets/phelps/{base_pin}.json; groups all sub-codes.
@@ -78,12 +78,18 @@ type PhelpsFile struct {
 	SubCodes []SubCode `json:"subcodes"`
 }
 
-// InventoryEntry for concordance
+// InventoryEntry for the concordance JSON served to the client
 type InventoryEntry struct {
-	PIN       string `json:"pin"`
-	Title     string `json:"title,omitempty"`
-	FirstLine string `json:"first_line"`
-	Prefix    string `json:"prefix"`
+	PIN              string `json:"pin"`
+	Title            string `json:"title,omitempty"`
+	FirstLine        string `json:"first_line"`
+	FirstLineOrig    string `json:"first_line_orig,omitempty"`
+	Language         string `json:"language,omitempty"`
+	WordCount        string `json:"word_count,omitempty"`
+	Subjects         string `json:"subjects,omitempty"`
+	Notes            string `json:"notes,omitempty"`
+	Prefix           string `json:"prefix"`
+	TranslationCount int    `json:"translations,omitempty"` // number of translated versions
 }
 
 var rtlLangs = map[string]bool{
@@ -113,18 +119,11 @@ func main() {
 	writeJSON(filepath.Join(dataDir, "languages.json"), langs)
 	log.Printf("  %d languages", len(langs))
 
-	// Build a name lookup for translations
-	langNames := map[string]string{}
-	for _, l := range langs {
-		langNames[l.Code] = l.Name
-	}
-
-	// 2a. First pass: query all prayers and build phelps index
+	// 2a. First pass: collect all prayers and build deduped phelps→language index
 	log.Println("→ prayers by language (pass 1: collecting)...")
-	allPrayers := map[string][]Prayer{}     // langCode → prayers
-	phelpsMap := map[string][]Translation{} // phelps → full translations (for phelps pages)
-	phelpsLangs := map[string][]LangRef{}   // phelps → compact lang refs (for inline lists)
-	phelpsSeenLang := map[string]map[string]bool{} // phelps → seen lang codes (dedup)
+	allPrayers := map[string][]Prayer{} // langCode → prayers
+	phelpsLangs := map[string][]LangRef{} // phelps full code → deduped lang refs
+	phelpsLangsSeen := map[string]map[string]bool{} // dedup tracker
 
 	for _, lang := range langs {
 		prayers := queryPrayersForLang(lang.Code)
@@ -133,19 +132,13 @@ func main() {
 			if p.Phelps == "" {
 				continue
 			}
-			if phelpsSeenLang[p.Phelps] == nil {
-				phelpsSeenLang[p.Phelps] = map[string]bool{}
+			if phelpsLangsSeen[p.Phelps] == nil {
+				phelpsLangsSeen[p.Phelps] = map[string]bool{}
 			}
-			if phelpsSeenLang[p.Phelps][lang.Code] {
-				continue // deduplicate: one translation per language per phelps code
+			if phelpsLangsSeen[p.Phelps][lang.Code] {
+				continue // one entry per language per phelps code
 			}
-			phelpsSeenLang[p.Phelps][lang.Code] = true
-			phelpsMap[p.Phelps] = append(phelpsMap[p.Phelps], Translation{
-				Language: lang.Code,
-				LangName: lang.Name,
-				Text:     p.Text,
-				Name:     p.Name,
-			})
+			phelpsLangsSeen[p.Phelps][lang.Code] = true
 			phelpsLangs[p.Phelps] = append(phelpsLangs[p.Phelps], LangRef{
 				Language: lang.Code,
 				LangName: lang.Name,
@@ -154,13 +147,13 @@ func main() {
 		log.Printf("  %s: %d prayers", lang.Code, len(prayers))
 	}
 
-	// 2b. Second pass: write per-language JSON with translations populated
+	// 2b. Second pass: write per-language JSON with "Also in:" translation lists
 	log.Println("→ prayers by language (pass 2: writing with translation lists)...")
 	for _, lang := range langs {
 		prayers := allPrayers[lang.Code]
 		for i, p := range prayers {
 			if refs, ok := phelpsLangs[p.Phelps]; ok {
-				// Exclude this language from its own translation list
+				// Exclude current language from its own translation list
 				others := make([]LangRef, 0, len(refs)-1)
 				for _, r := range refs {
 					if r.Language != lang.Code {
@@ -176,16 +169,16 @@ func main() {
 	// 3. Group phelps codes by base PIN (strips trailing 3-char alpha mnemonic suffix)
 	log.Println("→ grouping phelps codes by base PIN...")
 	basePINMap := map[string][]string{} // basePin → sorted list of full codes
-	for pin := range phelpsMap {
+	for pin := range phelpsLangs {
 		base := basePINKey(pin)
 		basePINMap[base] = append(basePINMap[base], pin)
 	}
 	for base := range basePINMap {
 		sort.Strings(basePINMap[base])
 	}
-	log.Printf("  %d base PINs from %d full codes", len(basePINMap), len(phelpsMap))
+	log.Printf("  %d base PINs from %d full codes", len(basePINMap), len(phelpsLangs))
 
-	// Clear stale phelps files (now keyed by base PIN)
+	// Clear stale phelps files (keyed by base PIN)
 	phelpsDir := filepath.Join(assetsDir, "phelps")
 	if entries, err := os.ReadDir(phelpsDir); err == nil {
 		for _, e := range entries {
@@ -196,19 +189,24 @@ func main() {
 		}
 	}
 
-	// 4. Inventory → static/ (served to client for JS search) + in-memory map for phelps enrichment
+	// 4. Inventory → static/data/ (JS search) + in-memory map
 	log.Println("→ inventory...")
 	inventory := queryInventory()
-	writeJSON(filepath.Join(staticDir, "inventory.json"), inventory)
 	log.Printf("  %d inventory entries", len(inventory))
 
-	// Build inventory lookup map (PIN → entry) for enriching phelps files
+	// Enrich inventory with translation counts and build lookup map
 	invMap := map[string]InventoryEntry{}
-	for _, e := range inventory {
-		invMap[e.PIN] = e
+	for i, e := range inventory {
+		inventory[i].TranslationCount = len(phelpsLangs[e.PIN])
+		invMap[e.PIN] = inventory[i]
 	}
+	writeJSON(filepath.Join(staticDir, "inventory.json"), inventory)
 
-	// 5. Write phelps files grouped by base PIN
+	// 5. Write phelps files grouped by base PIN (lang refs only, no prayer text)
+	log.Println("→ loading inventory fulltext (English reference text chunks)...")
+	fullTexts := queryFullText()
+	log.Printf("  %d fulltext entries", len(fullTexts))
+
 	log.Println("→ writing phelps files grouped by base PIN...")
 	for base, codes := range basePINMap {
 		var subcodes []SubCode
@@ -216,11 +214,17 @@ func main() {
 			inv := invMap[code]
 			anchor := strings.ToLower(strings.TrimPrefix(code, base))
 			subcodes = append(subcodes, SubCode{
-				Code:         code,
-				Anchor:       anchor,
-				Title:        inv.Title,
-				FirstLine:    inv.FirstLine,
-				Translations: phelpsMap[code],
+				Code:          code,
+				Anchor:        anchor,
+				Title:         inv.Title,
+				FirstLine:     inv.FirstLine,
+				FirstLineOrig: inv.FirstLineOrig,
+				Language:      inv.Language,
+				WordCount:     inv.WordCount,
+				Subjects:      inv.Subjects,
+				Notes:         inv.Notes,
+				FullTextParts: fullTexts[code],
+				Translations:  phelpsLangs[code],
 			})
 		}
 		pf := PhelpsFile{
@@ -319,17 +323,31 @@ func queryPrayersForLang(lang string) []Prayer {
 }
 
 func queryInventory() []InventoryEntry {
-	rows := doltQuery("SELECT PIN, COALESCE(Title,''), `First line (translated)`, COALESCE(prefix,'') FROM inventory ORDER BY PIN")
+	rows := doltQuery(`SELECT PIN,
+		COALESCE(Title,''),
+		COALESCE(` + "`First line (translated)`" + `,''),
+		COALESCE(` + "`First line (original)`" + `,''),
+		COALESCE(Language,''),
+		COALESCE(` + "`Word count`" + `,''),
+		COALESCE(Subjects,''),
+		COALESCE(Notes,''),
+		COALESCE(prefix,'')
+		FROM inventory ORDER BY PIN`)
 	var out []InventoryEntry
 	for _, row := range rows[1:] {
-		if len(row) < 4 {
+		if len(row) < 9 {
 			continue
 		}
 		out = append(out, InventoryEntry{
-			PIN:       row[0],
-			Title:     row[1],
-			FirstLine: row[2],
-			Prefix:    row[3],
+			PIN:           row[0],
+			Title:         row[1],
+			FirstLine:     row[2],
+			FirstLineOrig: row[3],
+			Language:      row[4],
+			WordCount:     row[5],
+			Subjects:      row[6],
+			Notes:         row[7],
+			Prefix:        row[8],
 		})
 	}
 	return out
@@ -349,6 +367,40 @@ func must(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+// queryFullText returns a map of phelps code → ordered text chunks (English)
+// from the inventory_fulltext table, kept as separate parts for paginated display.
+func queryFullText() map[string][]string {
+	rows := doltQuery(`
+		SELECT phelps, part, text
+		FROM inventory_fulltext
+		WHERE language = 'en'
+		ORDER BY phelps, part
+	`)
+	type chunk struct {
+		part int
+		text string
+	}
+	chunks := map[string][]chunk{}
+	for _, row := range rows[1:] {
+		if len(row) < 3 {
+			continue
+		}
+		var p int
+		fmt.Sscanf(row[1], "%d", &p)
+		chunks[row[0]] = append(chunks[row[0]], chunk{p, row[2]})
+	}
+	out := map[string][]string{}
+	for pin, cs := range chunks {
+		sort.Slice(cs, func(i, j int) bool { return cs[i].part < cs[j].part })
+		parts := make([]string, len(cs))
+		for i, c := range cs {
+			parts[i] = c.text
+		}
+		out[pin] = parts
+	}
+	return out
 }
 
 // basePINKey strips a trailing 3-char alpha mnemonic suffix from a Phelps code.

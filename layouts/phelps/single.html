@@ -1,16 +1,26 @@
 {{ $pin := .Params.pin }}
 {{ $subcodes := .Params.subcodes }}
-{{ $rtlLangs := slice "ar" "fa" "ur" "he" "ug" }}
 {{ $multi := gt (len $subcodes) 1 }}
+
+{{/* Derive author from PIN prefix */}}
+{{ $prefix := replaceRE "[0-9].*" "" $pin }}
+{{ $author := "" }}
+{{ if or (eq $prefix "BH") (eq $prefix "BHU") }}{{ $author = "Bahá'u'lláh" }}{{ end }}
+{{ if or (eq $prefix "AB") (eq $prefix "ABU") }}{{ $author = "ʻAbdu'l-Bahá" }}{{ end }}
+{{ if or (eq $prefix "BB") (eq $prefix "BBU") }}{{ $author = "The Báb" }}{{ end }}
+
 {{ partial "head.html" (dict "Title" $pin "Lang" "en") }}
 <div class="main-content">
 
   {{/* ── Page header ── */}}
   <div style="margin-bottom:1.5rem;">
-    <div style="font-family:monospace; font-size:1.4rem; font-weight:700; color:var(--accent)">{{ $pin }}</div>
+    <div style="display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap;">
+      <span style="font-family:monospace; font-size:1.4rem; font-weight:700; color:var(--accent)">{{ $pin }}</span>
+      {{ with $author }}<span class="author-badge">{{ . }}</span>{{ end }}
+    </div>
     <div style="margin-top:.4rem; font-size:.85rem; color:var(--text-secondary)">
       {{ if $multi }}{{ len $subcodes }} passages · {{ end }}
-      <a href="/inventory/?pin={{ $pin }}" style="color:var(--accent)">Inventory: {{ $pin }}</a>
+      <a href="/phelps/" style="color:var(--accent)">← Inventory</a>
     </div>
   </div>
 
@@ -19,44 +29,63 @@
   {{ $sc := . }}
   {{ $anchor := $sc.anchor }}
 
-  <div class="subcode-section"{{ if $anchor }} id="{{ $anchor }}"{{ end }} style="margin-bottom:2.5rem;">
+  <div class="subcode-section"{{ if $anchor }} id="{{ $anchor }}"{{ end }} style="margin-bottom:2.5rem; border:1px solid var(--border); border-radius:8px; padding:1rem;">
 
-    {{/* Sub-code header (only shown when multiple sub-codes exist) */}}
+    {{/* Sub-code header */}}
     {{ if $multi }}
-    <h2 style="font-family:monospace; font-size:1.1rem; color:var(--accent); border-bottom:1px solid var(--border); padding-bottom:.4rem; margin-bottom:.6rem;">
+    <div style="font-family:monospace; font-size:1rem; font-weight:700; color:var(--accent); margin-bottom:.6rem;">
       {{ $sc.code }}{{ if $anchor }} <a href="#{{ $anchor }}" style="font-size:.75rem; opacity:.5; font-weight:400">#{{ $anchor }}</a>{{ end }}
-    </h2>
+    </div>
     {{ end }}
 
-    {{ with $sc.title }}<div style="font-size:1rem; font-weight:600; margin:.2rem 0">{{ . }}</div>{{ end }}
-    {{ with $sc.first_line }}<div style="color:var(--text-secondary); font-style:italic; font-size:.9rem; margin-bottom:.4rem">"{{ . }}"</div>{{ end }}
-    <div style="font-size:.8rem; color:var(--text-secondary); margin-bottom:.8rem;">
-      {{ len $sc.translations }} translation{{ if gt (len $sc.translations) 1 }}s{{ end }}
+    {{/* Inventory metadata */}}
+    {{ with $sc.title }}<div style="font-size:1rem; font-weight:600; margin-bottom:.3rem">{{ . }}</div>{{ end }}
+    {{ with $sc.first_line }}<div style="color:var(--text-secondary); font-style:italic; font-size:.9rem; margin-bottom:.3rem">"{{ . }}"</div>{{ end }}
+    {{ with $sc.first_line_orig }}<div style="font-size:.85rem; color:var(--text-secondary); margin-bottom:.3rem">{{ . }}</div>{{ end }}
+
+    <div style="display:flex; flex-wrap:wrap; gap:.5rem; font-size:.8rem; color:var(--text-secondary); margin-bottom:.8rem;">
+      {{ with $sc.language }}<span class="meta-badge">{{ . }}</span>{{ end }}
+      {{ with $sc.word_count }}<span class="meta-badge">{{ . }} words</span>{{ end }}
+      {{ with $sc.subjects }}<span class="meta-badge" title="Subjects">{{ . }}</span>{{ end }}
     </div>
 
-    {{/* Language jump list */}}
-    <div class="phelps-langs" style="margin-bottom:1rem; display:flex; flex-wrap:wrap; gap:.4rem;">
+    {{ with $sc.notes }}<div style="font-size:.8rem; color:var(--text-secondary); background:var(--surface); border-radius:4px; padding:.5rem; margin-bottom:.8rem;">{{ . }}</div>{{ end }}
+
+    {{/* Paginated full text (English, from inventory_fulltext) */}}
+    {{ if $sc.full_text_parts }}
+    {{ $parts := $sc.full_text_parts }}
+    {{ $partCount := len $parts }}
+    <div class="fulltext-reader" id="reader-{{ $sc.code }}" data-parts="{{ $partCount }}" style="margin:.6rem 0 .8rem; border:1px solid var(--border); border-radius:6px; overflow:hidden;">
+      <div class="fulltext-header" style="display:flex; align-items:center; justify-content:space-between; padding:.5rem .75rem; background:var(--surface); border-bottom:1px solid var(--border); font-size:.82rem; color:var(--text-secondary);">
+        <span>English reference text</span>
+        <span class="ft-page-indicator">{{ if gt $partCount 1 }}Part 1 of {{ $partCount }}{{ end }}</span>
+      </div>
+      <div class="fulltext-pages" style="position:relative; min-height:6rem;">
+        {{ range $i, $part := $parts }}
+        <div class="ft-page" data-page="{{ $i }}" style="{{ if gt $i 0 }}display:none; {{ end }}padding:.75rem; font-size:.88rem; line-height:1.8; white-space:pre-wrap;">{{ $part }}</div>
+        {{ end }}
+      </div>
+      {{ if gt $partCount 1 }}
+      <div style="display:flex; align-items:center; justify-content:space-between; padding:.4rem .75rem; background:var(--surface); border-top:1px solid var(--border);">
+        <button class="ft-prev" style="font-size:.8rem; padding:.2rem .6rem; cursor:pointer; border:1px solid var(--border); border-radius:4px; background:none; color:var(--text);">← Prev</button>
+        <button class="ft-next" style="font-size:.8rem; padding:.2rem .6rem; cursor:pointer; border:1px solid var(--border); border-radius:4px; background:none; color:var(--text);">Next →</button>
+      </div>
+      {{ end }}
+    </div>
+    {{ end }}
+
+    {{/* Translation count + language chips */}}
+    <div style="font-size:.8rem; color:var(--text-secondary); margin-bottom:.5rem;">
+      {{ len $sc.translations }} translation{{ if gt (len $sc.translations) 1 }}s{{ end }} — click to read:
+    </div>
+    <div class="phelps-langs" style="display:flex; flex-wrap:wrap; gap:.4rem;">
       {{ range $sc.translations }}
       {{ $lang := . }}
-      <a href="#trans-{{ $sc.code }}-{{ $lang.language }}" class="lang-chip">
+      <a href="/prayers/{{ $lang.language }}/#{{ $sc.code }}" class="lang-chip">
         {{ $lang.language }}<span class="lang-chip-name">{{ $lang.lang_name }}</span>
       </a>
       {{ end }}
     </div>
-
-    {{/* Full translations */}}
-    {{ range $sc.translations }}
-    {{ $trans := . }}
-    {{ $rtl := false }}
-    {{ range $rtlLangs }}{{ if eq . $trans.language }}{{ $rtl = true }}{{ end }}{{ end }}
-    <div class="translation-card" id="trans-{{ $sc.code }}-{{ $trans.language }}" style="margin-bottom:1rem;">
-      <div class="translation-lang">
-        <a href="/prayers/{{ $trans.language }}/#{{ $sc.code }}">{{ $trans.lang_name }}</a>
-        <span style="opacity:.7; font-size:.75rem">{{ $trans.language }}</span>
-      </div>
-      <div class="translation-text"{{ if $rtl }} dir="rtl"{{ end }}>{{ $trans.text }}</div>
-    </div>
-    {{ end }}
 
   </div>
   {{ end }}
@@ -65,4 +94,28 @@
     <a href="/">← All languages</a>
   </p>
 </div>
+<script>
+// Paginated fulltext readers
+document.querySelectorAll('.fulltext-reader').forEach(reader => {
+  const pages = reader.querySelectorAll('.ft-page');
+  if (pages.length <= 1) return;
+  let cur = 0;
+  const indicator = reader.querySelector('.ft-page-indicator');
+  const prev = reader.querySelector('.ft-prev');
+  const next = reader.querySelector('.ft-next');
+
+  function show(n) {
+    pages[cur].style.display = 'none';
+    cur = Math.max(0, Math.min(n, pages.length - 1));
+    pages[cur].style.display = '';
+    indicator.textContent = `Part ${cur + 1} of ${pages.length}`;
+    prev.disabled = cur === 0;
+    next.disabled = cur === pages.length - 1;
+  }
+
+  prev.addEventListener('click', () => show(cur - 1));
+  next.addEventListener('click', () => show(cur + 1));
+  show(0);
+});
+</script>
 {{ partial "foot.html" . }}
