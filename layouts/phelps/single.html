@@ -58,11 +58,11 @@
     <div class="fulltext-reader" id="reader-{{ $sc.code }}" data-parts="{{ $partCount }}" style="margin:.6rem 0 .8rem; border:1px solid var(--border); border-radius:6px; overflow:hidden;">
       <div class="fulltext-header" style="display:flex; align-items:center; justify-content:space-between; padding:.5rem .75rem; background:var(--surface); border-bottom:1px solid var(--border); font-size:.82rem; color:var(--text-secondary);">
         <span>English reference text</span>
-        <span class="ft-page-indicator">{{ if gt $partCount 1 }}Part 1 of {{ $partCount }}{{ end }}</span>
+        <span class="ft-page-indicator"></span>
       </div>
       <div class="fulltext-pages" style="position:relative; min-height:6rem;">
         {{ range $i, $part := $parts }}
-        <div class="ft-page" data-page="{{ $i }}" style="{{ if gt $i 0 }}display:none; {{ end }}padding:.75rem; font-size:.88rem; line-height:1.8; white-space:pre-wrap;">{{ $part }}</div>
+        <div class="ft-page" style="padding:.75rem; font-size:.88rem; line-height:1.8; white-space:pre-wrap;">{{ $part }}</div>
         {{ end }}
       </div>
       {{ if gt $partCount 1 }}
@@ -95,27 +95,31 @@
   </p>
 </div>
 <script>
-// Paginated fulltext readers
+// Paginated fulltext readers — 5 chunks per page
 document.querySelectorAll('.fulltext-reader').forEach(reader => {
-  const pages = reader.querySelectorAll('.ft-page');
-  if (pages.length <= 1) return;
+  const chunks = reader.querySelectorAll('.ft-page');
+  const CHUNKS_PER_PAGE = 5;
+  const pageCount = Math.ceil(chunks.length / CHUNKS_PER_PAGE);
+  if (pageCount <= 1) return; // short text — leave all chunks visible
+
   let cur = 0;
   const indicator = reader.querySelector('.ft-page-indicator');
   const prev = reader.querySelector('.ft-prev');
   const next = reader.querySelector('.ft-next');
 
   function show(n) {
-    pages[cur].style.display = 'none';
-    cur = Math.max(0, Math.min(n, pages.length - 1));
-    pages[cur].style.display = '';
-    indicator.textContent = `Part ${cur + 1} of ${pages.length}`;
+    cur = Math.max(0, Math.min(n, pageCount - 1));
+    const start = cur * CHUNKS_PER_PAGE;
+    const end = start + CHUNKS_PER_PAGE;
+    chunks.forEach((c, i) => { c.style.display = (i >= start && i < end) ? '' : 'none'; });
+    indicator.textContent = `Page ${cur + 1} of ${pageCount}`;
     prev.disabled = cur === 0;
-    next.disabled = cur === pages.length - 1;
+    next.disabled = cur === pageCount - 1;
   }
 
   prev.addEventListener('click', () => show(cur - 1));
   next.addEventListener('click', () => show(cur + 1));
-  show(0);
+  show(0); // initial render
 });
 </script>
 {{ partial "foot.html" . }}
