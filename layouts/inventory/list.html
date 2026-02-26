@@ -95,6 +95,14 @@ document.getElementById('inv-search').addEventListener('input', e => {
   }, 200);
 });
 
+// Pre-fill search from ?pin= URL param (used by phelps pages linking to inventory)
+const urlParams = new URLSearchParams(window.location.search);
+const pinParam = urlParams.get('pin');
+if (pinParam) {
+  document.getElementById('inv-search').value = pinParam;
+  searchTerm = pinParam;
+}
+
 loadInventory();
 </script>
 {{ partial "foot.html" . }}

@@ -1,17 +1,22 @@
 {{ $pin := .Params.pin }}
 {{ $translations := .Params.translations }}
 {{ $rtlLangs := slice "ar" "fa" "ur" "he" "ug" }}
+{{/* Strip trailing 3-char alpha mnemonic suffix to get base inventory PIN */}}
+{{ $basePin := replaceRE "[A-Z]{3}$" "" $pin }}
 {{ partial "head.html" (dict "Title" $pin "Lang" "en") }}
 <div class="main-content">
 
   {{/* ── Header: inventory metadata ── */}}
   <div style="margin-bottom:1.5rem;">
-    <div style="font-family:monospace; font-size:1.4rem; font-weight:700; color:var(--accent)">{{ $pin }}</div>
+    <div style="font-family:monospace; font-size:1.4rem; font-weight:700; color:var(--accent)">
+      {{ $pin }}
+      {{ if ne $basePin $pin }}<span style="font-size:.9rem; font-weight:400; color:var(--text-secondary)"> (base: {{ $basePin }})</span>{{ end }}
+    </div>
     {{ with .Params.title }}<div style="font-size:1rem; font-weight:600; margin:.2rem 0">{{ . }}</div>{{ end }}
     {{ with .Params.firstLine }}<div style="color:var(--text-secondary); font-style:italic; font-size:.9rem">"{{ . }}"</div>{{ end }}
     <div style="margin-top:.5rem; font-size:.85rem; color:var(--text-secondary)">
       {{ len $translations }} translation{{ if gt (len $translations) 1 }}s{{ end }}
-      · <a href="/inventory/" style="color:var(--accent)">Phelps inventory</a>
+      · <a href="/inventory/?pin={{ $basePin }}" style="color:var(--accent)">Inventory: {{ $basePin }}</a>
     </div>
   </div>
 
