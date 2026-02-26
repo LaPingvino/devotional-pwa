@@ -197,52 +197,43 @@ func main() {
 	}
 	writeJSON(filepath.Join(staticDir, "inventory.json"), inventory)
 
-	// Merge all base PINs: from prayers and from inventory
-	allBasePINs := map[string]bool{}
-	for base := range basePINMap {
-		allBasePINs[base] = true
-	}
-	for base := range invBasePINMap {
-		allBasePINs[base] = true
-	}
-	log.Printf("  %d total base PINs (%d prayer-based + %d inventory-only)",
-		len(allBasePINs), len(basePINMap),
-		len(allBasePINs)-len(basePINMap))
-
-	// Clear stale phelps files (keyed by base PIN)
+	// Clear stale phelps files (keyed by base PIN, prayer-based only)
 	phelpsDir := filepath.Join(assetsDir, "phelps")
 	if entries, err := os.ReadDir(phelpsDir); err == nil {
 		for _, e := range entries {
 			base := strings.ToUpper(strings.TrimSuffix(e.Name(), ".json"))
-			if !allBasePINs[base] {
+			if _, ok := basePINMap[base]; !ok {
 				os.Remove(filepath.Join(phelpsDir, e.Name()))
 			}
 		}
 	}
 
 	// 5. Write phelps files grouped by base PIN (lang refs only, no prayer text)
+	// Only generate static pages for PINs that have at least one matching prayer.
+	// Cloudflare Pages has a 20K file limit; inventory-only PINs are served via
+	// the inventory search (/phelps/?pin=XX) instead of individual static pages.
 	log.Println("→ loading inventory fulltext (English reference text chunks)...")
 	fullTexts := queryFullText()
 	log.Printf("  %d fulltext entries", len(fullTexts))
 
 	log.Println("→ writing phelps files grouped by base PIN...")
-	for base := range allBasePINs {
-		// Merge codes from prayer index and inventory, deduplicated
+	for base, codes := range basePINMap {
+		// Also include any inventory-only sub-codes under this same base PIN
 		codeSet := map[string]bool{}
-		for _, c := range basePINMap[base] {
+		for _, c := range codes {
 			codeSet[c] = true
 		}
 		for _, c := range invBasePINMap[base] {
 			codeSet[c] = true
 		}
-		codes := make([]string, 0, len(codeSet))
+		allCodes := make([]string, 0, len(codeSet))
 		for c := range codeSet {
-			codes = append(codes, c)
+			allCodes = append(allCodes, c)
 		}
-		sort.Strings(codes)
+		sort.Strings(allCodes)
 
 		var subcodes []SubCode
-		for _, code := range codes {
+		for _, code := range allCodes {
 			inv := invMap[code]
 			anchor := strings.ToLower(strings.TrimPrefix(code, base))
 			trans := phelpsLangs[code]

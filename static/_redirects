@@ -1,0 +1,4 @@
+# Cloudflare Pages: rewrite unknown /phelps/:slug/ requests to the JS fallback page.
+# Static phelps pages (for codes with prayer translations) take priority over this rule.
+/phelps/:slug   /phelps/detail/  200
+/phelps/:slug/  /phelps/detail/  200

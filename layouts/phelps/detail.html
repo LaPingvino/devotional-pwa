@@ -1,0 +1,124 @@
+{{ partial "head.html" (dict "Title" "Phelps Entry" "Lang" "en") }}
+<div class="main-content" id="detail-root">
+  <p style="color:var(--text-secondary)">Loading…</p>
+</div>
+
+<script>
+(async function () {
+  // When served via Cloudflare 200 rewrite, location.pathname is the ORIGINAL URL,
+  // e.g. /phelps/bh01313/ even though we're rendering this page.
+  const parts = location.pathname.replace(/\/$/, '').split('/').filter(Boolean);
+  // parts[0] = 'phelps', parts[1] = slug like 'bh01313'
+  const slug = (parts[1] || '').toUpperCase();
+  if (!slug || slug === 'DETAIL') {
+    // Direct navigation to /phelps/detail/ — redirect to inventory list
+    location.replace('/phelps/');
+    return;
+  }
+
+  // Hash may hold a sub-code suffix, e.g. #nam → NAM
+  const hashSuffix = location.hash.replace('#', '').toUpperCase();
+
+  document.title = slug + ' — Bahá\'í Prayers';
+
+  const AUTHORS = {
+    BH: "Bahá'u'lláh", BHU: "Bahá'u'lláh",
+    AB: "ʻAbdu'l-Bahá",  ABU: "ʻAbdu'l-Bahá",
+    BB: "The Báb",       BBU: "The Báb",
+  };
+  function authorFromPin(pin) {
+    const m = pin.match(/^([A-Z]+)/);
+    return m ? (AUTHORS[m[1]] || '') : '';
+  }
+
+  // basePIN: strip trailing 3-char alpha mnemonic suffix
+  function basePIN(p) {
+    const n = p.length;
+    if (n < 4) return p;
+    const suf = p.slice(n - 3);
+    if (/^[A-Z]{3}$/.test(suf) && /\d/.test(p[n - 4])) return p.slice(0, n - 3);
+    return p;
+  }
+
+  let allEntries = null;
+  async function loadEntries() {
+    if (allEntries) return allEntries;
+    const res = await fetch('/data/inventory.json');
+    allEntries = await res.json();
+    return allEntries;
+  }
+
+  function renderEntry(e) {
+    const author = authorFromPin(e.pin);
+    const parts = [];
+    if (author) parts.push(`<span class="author-badge">${author}</span>`);
+    if (e.language) parts.push(`<span class="meta-badge">${e.language}</span>`);
+    if (e.word_count) parts.push(`<span class="meta-badge">${e.word_count} words</span>`);
+
+    return `
+      <div class="subcode-section" id="${e.pin.slice(-3).toLowerCase()}"
+           style="margin-bottom:2rem; border:1px solid var(--border); border-radius:8px; padding:1rem;">
+        <div style="font-family:monospace; font-size:1rem; font-weight:700; color:var(--accent); margin-bottom:.5rem;">
+          ${e.pin}
+        </div>
+        ${e.title ? `<div style="font-size:1rem; font-weight:600; margin-bottom:.3rem">${e.title}</div>` : ''}
+        ${e.first_line ? `<div style="color:var(--text-secondary); font-style:italic; font-size:.9rem; margin-bottom:.3rem">"${e.first_line}"</div>` : ''}
+        ${e.first_line_orig ? `<div style="font-size:.85rem; color:var(--text-secondary); margin-bottom:.3rem">${e.first_line_orig}</div>` : ''}
+        <div style="display:flex; flex-wrap:wrap; gap:.4rem; font-size:.8rem; margin-bottom:.6rem;">${parts.join('')}</div>
+        ${e.subjects ? `<div class="meta-badge" style="display:block; margin-bottom:.6rem; font-size:.75rem">${e.subjects}</div>` : ''}
+        ${e.notes ? `<div style="font-size:.8rem; color:var(--text-secondary); background:var(--surface); border-radius:4px; padding:.5rem; margin-bottom:.6rem;">${e.notes}</div>` : ''}
+        <div style="font-size:.8rem; color:var(--text-secondary);">
+          ${e.translations ? `${e.translations} translation${e.translations === 1 ? '' : 's'} — ` : 'No translations yet — '}
+          <a href="/phelps/?pin=${basePIN(e.pin)}" style="color:var(--accent)">Search inventory</a>
+        </div>
+      </div>`;
+  }
+
+  try {
+    const entries = await loadEntries();
+
+    // Find all entries whose base PIN matches slug
+    const matching = entries.filter(e => basePIN(e.pin) === slug);
+
+    const root = document.getElementById('detail-root');
+
+    if (matching.length === 0) {
+      root.innerHTML = `
+        <h1 style="font-family:monospace; color:var(--accent)">${slug}</h1>
+        <p style="color:var(--text-secondary); margin-bottom:1rem;">
+          This code was not found in the Phelps inventory.
+        </p>
+        <p><a href="/phelps/" style="color:var(--accent)">← Inventory</a> &nbsp;
+           <a href="/" style="color:var(--accent)">← All languages</a></p>`;
+      return;
+    }
+
+    const author = authorFromPin(slug);
+    root.innerHTML = `
+      <div style="margin-bottom:1.5rem;">
+        <div style="display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap;">
+          <span style="font-family:monospace; font-size:1.4rem; font-weight:700; color:var(--accent)">${slug}</span>
+          ${author ? `<span class="author-badge">${author}</span>` : ''}
+        </div>
+        <div style="margin-top:.4rem; font-size:.85rem; color:var(--text-secondary)">
+          ${matching.length > 1 ? matching.length + ' passages · ' : ''}
+          <a href="/phelps/" style="color:var(--accent)">← Inventory</a>
+        </div>
+      </div>
+      ${matching.map(renderEntry).join('')}
+      <p style="margin-top:1.5rem; font-size:.85rem; color:var(--text-secondary)">
+        <a href="/">← All languages</a>
+      </p>`;
+
+    // Scroll to hash anchor if present
+    if (hashSuffix) {
+      const target = document.getElementById(hashSuffix.toLowerCase());
+      if (target) target.scrollIntoView({ behavior: 'smooth' });
+    }
+  } catch (err) {
+    document.getElementById('detail-root').innerHTML =
+      `<p style="color:var(--text-secondary)">Error loading inventory data. <a href="/phelps/">← Back</a></p>`;
+  }
+})();
+</script>
+{{ partial "foot.html" . }}
