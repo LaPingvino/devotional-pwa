@@ -165,30 +165,49 @@ const contentDiv = document.getElementById("content");
 const prayerLanguageNav = document.getElementById("prayer-language-nav");
 
 // --- Category Sidebar ---
-const CATEGORY_CACHE_KEY = "hw_categories_en_cache";
+const CATEGORY_CACHE_PREFIX = "hw_categories_cache_";
 const CATEGORY_CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
-let categoriesCache = null; // [{name, order}]
+let categoriesByLang = {}; // {lang: [{name, order}]}
 let currentSidebarLang = null;
 
-async function loadCategories() {
-  if (categoriesCache) return categoriesCache;
+// Load category structure for a given language, falling back to 'en'.
+// Returns [{name, order, structureLang}] — structureLang indicates which structure was used.
+async function loadCategories(lang) {
+  const targetLang = lang || "en";
+
+  // Check in-memory cache
+  if (categoriesByLang[targetLang]) return categoriesByLang[targetLang];
+
+  // Check localStorage
+  const cacheKey = CATEGORY_CACHE_PREFIX + targetLang;
   try {
-    const cached = localStorage.getItem(CATEGORY_CACHE_KEY);
+    const cached = localStorage.getItem(cacheKey);
     if (cached) {
       const { timestamp, data } = JSON.parse(cached);
       if (Date.now() - timestamp < CATEGORY_CACHE_EXPIRY_MS) {
-        categoriesCache = data;
-        return categoriesCache;
+        categoriesByLang[targetLang] = data;
+        return data;
       }
     }
   } catch (e) { /* ignore */ }
 
-  const sql = "SELECT DISTINCT category_name, MIN(category_order) as cat_ord FROM prayer_book_structure WHERE source_language='en' GROUP BY category_name ORDER BY cat_ord";
-  try {
+  const fetchForLang = async (l) => {
+    const sql = `SELECT DISTINCT category_name, MIN(category_order) as cat_ord FROM prayer_book_structure WHERE source_language='${l.replace(/'/g, "''")}' GROUP BY category_name ORDER BY cat_ord`;
     const rows = await executeQuery(sql);
-    categoriesCache = rows.map(r => ({ name: r.category_name, order: parseInt(r.cat_ord, 10) }));
-    localStorage.setItem(CATEGORY_CACHE_KEY, JSON.stringify({ timestamp: Date.now(), data: categoriesCache }));
-    return categoriesCache;
+    return rows.map(r => ({ name: r.category_name, order: parseInt(r.cat_ord, 10), structureLang: l }));
+  };
+
+  try {
+    let cats = await fetchForLang(targetLang);
+    // Fall back to English if no categories for this language
+    if (cats.length === 0 && targetLang !== "en") {
+      cats = await fetchForLang("en");
+    }
+    categoriesByLang[targetLang] = cats;
+    try {
+      localStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data: cats }));
+    } catch (e) { /* storage full */ }
+    return cats;
   } catch (e) {
     console.warn("Could not load categories:", e);
     return [];
@@ -211,11 +230,16 @@ async function renderSidebar(activeLang, activeCategory) {
     }
   }
 
-  const categories = await loadCategories();
+  // Load categories using the viewing language's own structure (falls back to 'en')
+  const categories = await loadCategories(activeLang);
   if (!categories || categories.length === 0) {
     listEl.innerHTML = '<span class="category-item" style="color:#999;font-style:italic">No categories</span>';
     return;
   }
+
+  // Show which structure is being used (if it's a fallback)
+  const structureLang = categories[0] && categories[0].structureLang;
+  const isUsingFallback = structureLang && activeLang && structureLang !== activeLang;
 
   let html = "";
 
@@ -227,6 +251,9 @@ async function renderSidebar(activeLang, activeCategory) {
         Switch language
       </a>
     </div>`;
+    if (isUsingFallback) {
+      html += `<div style="font-size:0.75em;padding:4px 12px;opacity:0.6">Using ${structureLang.toUpperCase()} structure</div>`;
+    }
   } else {
     html += `<div class="sidebar-lang-switcher">
       <a href="#" class="sidebar-lang-switch-link" title="Select a language">
@@ -303,15 +330,20 @@ async function renderPrayersForCategory(categoryName, langCode, page = 1) {
 
   updateHeaderNavigation([]);
 
+  // Use the viewing language's own category structure (falls back to 'en')
+  const cats = await loadCategories(langCode);
+  const structureLang = (cats[0] && cats[0].structureLang) || "en";
+
   await renderPageLayout({
     titleKey: pageTitleForLayout,
     categoryContext: categoryName,
     contentRenderer: async () => {
       const offset = (page - 1) * ITEMS_PER_PAGE;
       const escapedCat = categoryName.replace(/'/g, "''");
+      const escapedStructLang = structureLang.replace(/'/g, "''");
       const langFilter = langCode ? ` AND w.language='${langCode.replace(/'/g, "''")}'` : "";
-      const sql = `SELECT w.version, w.name, LEFT(w.text, 200) as text, w.language, w.phelps FROM writings w JOIN prayer_book_structure pbs ON w.phelps = pbs.phelps_code WHERE pbs.source_language='en' AND pbs.category_name='${escapedCat}'${langFilter} ORDER BY pbs.order_in_category, w.language LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
-      const countSql = `SELECT COUNT(*) as total FROM writings w JOIN prayer_book_structure pbs ON w.phelps = pbs.phelps_code WHERE pbs.source_language='en' AND pbs.category_name='${escapedCat}'${langFilter}`;
+      const sql = `SELECT w.version, w.name, LEFT(w.text, 200) as text, w.language, w.phelps FROM writings w JOIN prayer_book_structure pbs ON w.phelps = pbs.phelps_code WHERE pbs.source_language='${escapedStructLang}' AND pbs.category_name='${escapedCat}'${langFilter} ORDER BY pbs.category_order, w.language LIMIT ${ITEMS_PER_PAGE} OFFSET ${offset}`;
+      const countSql = `SELECT COUNT(*) as total FROM writings w JOIN prayer_book_structure pbs ON w.phelps = pbs.phelps_code WHERE pbs.source_language='${escapedStructLang}' AND pbs.category_name='${escapedCat}'${langFilter}`;
 
       let prayers = [], totalCount = 0;
       try {
@@ -3471,8 +3503,8 @@ window.renderPrayerCodeView = renderPrayerCodeView;
 document.addEventListener("DOMContentLoaded", () => {
   loadFavoritePrayers();
   initSidebarToggle();
-  // Pre-load categories in background for faster sidebar rendering
-  loadCategories().then(() => renderSidebar(null, null)).catch(() => {});
+  // Pre-load English categories in background for faster sidebar rendering
+  loadCategories("en").then(() => renderSidebar(null, null)).catch(() => {});
 
   const headerSearchInput = document.getElementById("header-search-field");
   if (headerSearchInput) {
