@@ -169,6 +169,25 @@ const CATEGORY_CACHE_PREFIX = "hw_categories_cache_";
 const CATEGORY_CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
 let categoriesByLang = {}; // {lang: [{name, order}]}
 let currentSidebarLang = null;
+let structureLangsCache = null; // [iso, ...]
+
+async function loadStructureLangs() {
+  if (structureLangsCache) return structureLangsCache;
+  try {
+    const rows = await executeQuery("SELECT DISTINCT source_language FROM prayer_book_structure ORDER BY source_language");
+    structureLangsCache = rows.map(r => r.source_language);
+  } catch (e) {
+    structureLangsCache = ["en"];
+  }
+  return structureLangsCache;
+}
+
+// Switch the category structure language while keeping the same prayer language.
+// Drops back to "all prayers" since category names differ between structures.
+window.switchCategoryStructure = function(prayerLang, newStructureLang) {
+  const base = prayerLang ? `#prayers/${encodeURIComponent(prayerLang)}` : "#";
+  window.location.hash = base + (newStructureLang ? `?structure=${encodeURIComponent(newStructureLang)}` : "");
+};
 
 // Load category structure for a given language, falling back to 'en'.
 // Returns [{name, order, structureLang}] — structureLang indicates which structure was used.
@@ -214,7 +233,7 @@ async function loadCategories(lang) {
   }
 }
 
-async function renderSidebar(activeLang, activeCategory) {
+async function renderSidebar(activeLang, activeCategory, forcedStructureLang = null) {
   const sidebar = document.getElementById("category-sidebar");
   const listEl = document.getElementById("category-list");
   const labelEl = document.getElementById("sidebar-lang-label");
@@ -230,16 +249,14 @@ async function renderSidebar(activeLang, activeCategory) {
     }
   }
 
-  // Load categories using the viewing language's own structure (falls back to 'en')
-  const categories = await loadCategories(activeLang);
+  // Load categories: use forcedStructureLang if provided, else the viewing language's own (with 'en' fallback)
+  const categories = await loadCategories(forcedStructureLang || activeLang);
   if (!categories || categories.length === 0) {
     listEl.innerHTML = '<span class="category-item" style="color:#999;font-style:italic">No categories</span>';
     return;
   }
 
-  // Show which structure is being used (if it's a fallback)
-  const structureLang = categories[0] && categories[0].structureLang;
-  const isUsingFallback = structureLang && activeLang && structureLang !== activeLang;
+  const structureLang = (categories[0] && categories[0].structureLang) || forcedStructureLang || "en";
 
   // Fetch per-category prayer counts for the viewing language
   let countMap = {}; // {categoryName: count}
@@ -253,6 +270,9 @@ async function renderSidebar(activeLang, activeCategory) {
     } catch (e) { /* ignore — counts are optional */ }
   }
 
+  // Load available structure languages for the picker (background, best-effort)
+  const structureLangs = await loadStructureLangs();
+
   let html = "";
 
   // Language switcher at the top of the sidebar
@@ -263,9 +283,15 @@ async function renderSidebar(activeLang, activeCategory) {
         Switch language
       </a>
     </div>`;
-    if (isUsingFallback) {
-      html += `<div style="font-size:0.75em;padding:4px 12px;opacity:0.6">Using ${structureLang.toUpperCase()} structure</div>`;
-    }
+    // Structure language picker
+    const safePrayerLang = activeLang.replace(/'/g, "\\'");
+    const options = structureLangs.map(sl =>
+      `<option value="${sl}"${sl === structureLang ? " selected" : ""}>${sl.toUpperCase()}</option>`
+    ).join("");
+    html += `<div class="sidebar-structure-picker">
+      <label class="sidebar-structure-label">Structure:</label>
+      <select class="sidebar-structure-select" onchange="window.switchCategoryStructure('${safePrayerLang}', this.value)">${options}</select>
+    </div>`;
   } else {
     html += `<div class="sidebar-lang-switcher">
       <a href="#" class="sidebar-lang-switch-link" title="Select a language">
@@ -339,7 +365,7 @@ document.addEventListener("click", (e) => {
   }
 });
 
-async function renderPrayersForCategory(categoryName, langCode, page = 1) {
+async function renderPrayersForCategory(categoryName, langCode, page = 1, forcedStructureLang = null) {
   addRecentLanguage(langCode);
   const categoryDisplayName = categoryName;
   const langDisplayName = langCode ? await getLanguageDisplayName(langCode) : "All";
@@ -347,9 +373,12 @@ async function renderPrayersForCategory(categoryName, langCode, page = 1) {
 
   updateHeaderNavigation([]);
 
-  // Use the viewing language's own category structure (falls back to 'en')
-  const cats = await loadCategories(langCode);
-  const structureLang = (cats[0] && cats[0].structureLang) || "en";
+  // Use forced structure lang if provided, else the viewing language's own (falls back to 'en')
+  const cats = await loadCategories(forcedStructureLang || langCode);
+  const structureLang = (cats[0] && cats[0].structureLang) || forcedStructureLang || "en";
+  const structureParam = (forcedStructureLang && forcedStructureLang !== langCode)
+    ? `&structure=${encodeURIComponent(forcedStructureLang)}`
+    : "";
 
   await renderPageLayout({
     titleKey: pageTitleForLayout,
@@ -385,11 +414,12 @@ async function renderPrayersForCategory(categoryName, langCode, page = 1) {
         return `<div class="prayer-list-item"><a href="${href}"><strong>${p.name || p.phelps || "Prayer"}</strong>${langLabel}</a><p class="prayer-preview">${preview}…</p></div>`;
       }).join("");
 
+      const catBase = `#category/${encodeURIComponent(categoryName)}${langCode ? "/" + encodeURIComponent(langCode) : ""}`;
       let paginationHtml = "";
       if (totalPages > 1) {
-        if (page > 1) paginationHtml += `<a class="mdl-button mdl-js-button" href="#category/${encodeURIComponent(categoryName)}${langCode ? "/" + encodeURIComponent(langCode) : ""}?page=${page-1}">◀ Previous</a> `;
+        if (page > 1) paginationHtml += `<a class="mdl-button mdl-js-button" href="${catBase}?page=${page-1}${structureParam}">◀ Previous</a> `;
         paginationHtml += `<span>Page ${page}/${totalPages}</span>`;
-        if (page < totalPages) paginationHtml += ` <a class="mdl-button mdl-js-button" href="#category/${encodeURIComponent(categoryName)}${langCode ? "/" + encodeURIComponent(langCode) : ""}?page=${page+1}">Next ▶</a>`;
+        if (page < totalPages) paginationHtml += ` <a class="mdl-button mdl-js-button" href="${catBase}?page=${page+1}${structureParam}">Next ▶</a>`;
         paginationHtml = `<div style="text-align:center;margin-top:20px">${paginationHtml}</div>`;
       }
 
@@ -400,7 +430,7 @@ async function renderPrayersForCategory(categoryName, langCode, page = 1) {
     activeLangCodeForPicker: langCode,
   });
 
-  await renderSidebar(langCode, categoryName);
+  await renderSidebar(langCode, categoryName, forcedStructureLang);
 }
 // --- End Category Sidebar ---
 
@@ -1964,10 +1994,11 @@ async function renderPrayersForLanguage(
   langCode,
   page = 1,
   showUnmatched = false,
+  structureLang = null,
 ) {
   addRecentLanguage(langCode);
   currentPageByLanguage[langCode] = { page, showUnmatched };
-  renderSidebar(langCode, null); // update sidebar with this language, no category active
+  renderSidebar(langCode, null, structureLang); // update sidebar with this language, no category active
 
   // Clear main page header nav, as this view's primary navigation is via the language picker
   // and its own content (pagination, filters).
@@ -3438,6 +3469,7 @@ async function handleRouteChange() {
   let pageParam = 1,
     showUnmatchedParam = false; // Default: hide prayers without Phelps codes
 
+  let structureParam = null;
   if (queryParamsStr) {
     const params = new URLSearchParams(queryParamsStr);
     if (params.has("page")) {
@@ -3447,6 +3479,9 @@ async function handleRouteChange() {
     // If filter=showunmatched is present, also show prayers without Phelps codes
     if (params.has("filter") && params.get("filter") === "showunmatched")
       showUnmatchedParam = true;
+    // Optional structure language override for category sidebar
+    if (params.has("structure"))
+      structureParam = params.get("structure");
   }
   const mainHash = mainHashPath || (hash.includes("?") ? "" : hash);
   const prayerCodeLangRegex = /^#prayercode\/([^/]+)\/([^/?]+)/;
@@ -3457,7 +3492,7 @@ async function handleRouteChange() {
     const categoryParts = categoryPath.split("/");
     const categoryName = decodeURIComponent(categoryParts[0]);
     const categoryLang = categoryParts[1] ? decodeURIComponent(categoryParts[1]) : null;
-    renderPrayersForCategory(categoryName, categoryLang, pageParam);
+    renderPrayersForCategory(categoryName, categoryLang, pageParam, structureParam);
   } else if (mainHash.startsWith("#source/")) {
     const phelps = decodeURIComponent(mainHash.substring("#source/".length));
     if (phelps) renderSourceView(phelps);
@@ -3492,7 +3527,7 @@ async function handleRouteChange() {
   } else if (mainHash.startsWith("#prayers/")) {
     const langCode = mainHash.substring("#prayers/".length);
     if (langCode)
-      renderPrayersForLanguage(langCode, pageParam, showUnmatchedParam);
+      renderPrayersForLanguage(langCode, pageParam, showUnmatchedParam, structureParam);
     else renderLanguageList();
   } else if (mainHash === "#prayers" || mainHash === "" || mainHash === "#") {
     renderLanguageList();
