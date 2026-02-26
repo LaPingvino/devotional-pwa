@@ -164,6 +164,13 @@ function initializeStaticPrayerActions() {
 const contentDiv = document.getElementById("content");
 const prayerLanguageNav = document.getElementById("prayer-language-nav");
 
+// Strip 3-letter mnemonic suffix from a phelps code: AB03461MAR -> AB03461
+function getBasePin(phelps) {
+  if (!phelps) return phelps;
+  const match = phelps.match(/^([A-Z]{2,3}\d{4,5})[A-Z]{3}$/);
+  return match ? match[1] : phelps;
+}
+
 // --- Overflow menu context ---
 window.currentContextPhelps = null;
 
@@ -1616,7 +1623,7 @@ async function _renderPrayerContent(
     const textPart = titleCalculationResults.phelpsIsSuggested
       ? `<span style="font-weight: bold; color: red;">${phelpsToDisplay}</span>`
       : `<a href="#prayercode/${phelpsToDisplay}">${phelpsToDisplay}</a>`;
-    const sourceLink = `<a href="#source/${phelpsToDisplay}" class="source-view-link" title="View inventory source">source</a>`;
+    const sourceLink = `<a href="#source/${getBasePin(phelpsToDisplay)}" class="source-view-link" title="View inventory source">source</a>`;
     phelpsDisplayHtml = `${textPart} ${sourceLink} (Lang: ${finalDisplayLanguageForPhelpsMeta})`;
   } else {
     phelpsDisplayHtml = `Not Assigned (Lang: ${finalDisplayLanguageForPhelpsMeta})`;
@@ -2148,7 +2155,7 @@ async function _renderPrayerCodeViewContent(phelpsCode, page) {
     paginationHtml += "</div>";
   }
 
-  const internalHeaderHtml = `<header><h2><span id="category">Prayer Code</span><span id="blocktitle">${phelpsCode} – All Languages</span></h2><a href="#source/${encodeURIComponent(phelpsCode)}" class="source-view-link" style="font-size:0.9em">&#x1f7d9; View source / inventory</a></header>`;
+  const internalHeaderHtml = `<header><h2><span id="category">Prayer Code</span><span id="blocktitle">${phelpsCode} – All Languages</span></h2><a href="#source/${encodeURIComponent(getBasePin(phelpsCode))}" class="source-view-link" style="font-size:0.9em">&#x1f7d9; View source / inventory</a></header>`;
   return `<div id="prayer-code-content-area">${internalHeaderHtml}${listHtml}${paginationHtml}</div>`;
 }
 
@@ -3303,11 +3310,13 @@ async function renderSearchResults(searchTerm, page = 1) {
 // ============================================================
 
 async function renderSourceView(phelps) {
-  setContextPhelps(phelps);
-  const escapedPin = phelps.replace(/'/g, "''");
+  // Strip mnemonic suffix so we always look up the base PIN in inventory
+  const basePin = getBasePin(phelps);
+  setContextPhelps(basePin);
+  const escapedPin = basePin.replace(/'/g, "''");
 
   await renderPageLayout({
-    titleKey: `Source: ${phelps}`,
+    titleKey: `Source: ${basePin}`,
     showBackButton: true,
     showLanguageSwitcher: false,
     contentRenderer: async () => {
@@ -3327,8 +3336,9 @@ async function renderSourceView(phelps) {
           executeQuery(
             `SELECT subject FROM inventory_subjects WHERE PIN='${escapedPin}'`
           ),
+          // Fetch all prayers matching base PIN or any sub-passage (base PIN + 3-letter mnemonic)
           executeQuery(
-            `SELECT language, name, version FROM writings WHERE phelps='${escapedPin}' ORDER BY language`
+            `SELECT language, name, phelps, version FROM writings WHERE phelps LIKE '${escapedPin}%' ORDER BY phelps, language`
           ),
         ]);
 
@@ -3412,22 +3422,30 @@ async function renderSourceView(phelps) {
       }
 
       // --- Prayers in database section ---
+      // Group by phelps code first (base + sub-passages), then by language within each
       if (prayerRows && prayerRows.length > 0) {
-        const grouped = {};
+        const byCode = {};
         prayerRows.forEach(r => {
-          if (!grouped[r.language]) grouped[r.language] = [];
-          grouped[r.language].push(r);
+          if (!byCode[r.phelps]) byCode[r.phelps] = [];
+          byCode[r.phelps].push(r);
         });
+        const codes = Object.keys(byCode).sort();
 
         html += `<div class="source-section">`;
-        html += `<h3>Prayers in Database (${prayerRows.length} versions)</h3>`;
-        html += `<div class="source-lang-links">`;
-        for (const [lang, prayers] of Object.entries(grouped)) {
-          const name = prayers[0].name || phelps;
-          const href = `#prayercode/${phelps}/${lang}`;
-          html += `<a href="${href}" class="source-lang-link">${lang.toUpperCase()}</a>`;
+        html += `<h3>Prayers in Database (${prayerRows.length} version${prayerRows.length !== 1 ? "s" : ""})</h3>`;
+        for (const code of codes) {
+          const isSubCode = code !== basePin;
+          html += `<div class="source-subcode-group">`;
+          if (isSubCode) {
+            html += `<span class="source-subcode-label"><a href="#prayercode/${encodeURIComponent(code)}">${code}</a></span>`;
+          }
+          html += `<div class="source-lang-links">`;
+          byCode[code].forEach(r => {
+            html += `<a href="#prayercode/${encodeURIComponent(r.phelps)}/${encodeURIComponent(r.language)}" class="source-lang-link" title="${r.name || r.phelps}">${r.language.toUpperCase()}</a>`;
+          });
+          html += `</div></div>`;
         }
-        html += `</div></div>`;
+        html += `</div>`;
       }
 
       // --- Publications ---
@@ -3471,6 +3489,99 @@ async function renderSourceView(phelps) {
     },
   });
 }
+
+// ============================================================
+// INVENTORY INDEX (#inventory, #inventory/search/{query})
+// ============================================================
+
+const INVENTORY_PAGE_SIZE = 30;
+
+async function renderInventoryIndex(query = "", page = 1) {
+  setContextPhelps(null);
+  updateHeaderNavigation([]);
+
+  await renderPageLayout({
+    titleKey: "Inventory",
+    showBackButton: false,
+    showLanguageSwitcher: false,
+    contentRenderer: async () => {
+      const offset = (page - 1) * INVENTORY_PAGE_SIZE;
+      const escapedQ = query.replace(/'/g, "''");
+      const whereClause = query
+        ? `WHERE PIN LIKE '%${escapedQ}%' OR Title LIKE '%${escapedQ}%' OR \`First line (translated)\` LIKE '%${escapedQ}%' OR \`First line (original)\` LIKE '%${escapedQ}%'`
+        : "";
+      const sql = `SELECT PIN, Title, \`First line (translated)\` as first_trans, Language FROM inventory ${whereClause} ORDER BY PIN LIMIT ${INVENTORY_PAGE_SIZE} OFFSET ${offset}`;
+      const countSql = `SELECT COUNT(*) as total FROM inventory ${whereClause}`;
+
+      let rows = [], totalCount = 0;
+      try {
+        [rows, [{ total: totalCount }]] = await Promise.all([
+          executeQuery(sql),
+          executeQuery(countSql),
+        ]);
+      } catch (e) {
+        return `<p style="color:red">Error loading inventory: ${e.message}</p>`;
+      }
+
+      const totalPages = Math.ceil(totalCount / INVENTORY_PAGE_SIZE);
+      const qEncoded = encodeURIComponent(query);
+      const pageBase = query ? `#inventory/search/${qEncoded}` : "#inventory";
+
+      let html = `<div class="inventory-index">`;
+
+      // Search bar
+      html += `<div class="inventory-search-bar">
+        <input type="text" id="inventory-search-input" class="inventory-search-input"
+          value="${query.replace(/"/g, "&quot;")}"
+          placeholder="Search by PIN, title, or first line…"
+          onkeydown="if(event.key==='Enter') window.doInventorySearch()">
+        <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored"
+          onclick="window.doInventorySearch()">Search</button>
+        ${query ? `<a href="#inventory" class="mdl-button mdl-js-button">Clear</a>` : ""}
+      </div>`;
+
+      html += `<p class="inventory-result-count">${totalCount.toLocaleString()} entries${query ? ` matching "${query}"` : ""}</p>`;
+
+      // Table
+      if (rows.length === 0) {
+        html += `<p style="color:#888;text-align:center">No results found.</p>`;
+      } else {
+        html += `<div class="inventory-list">`;
+        rows.forEach(r => {
+          const title = r.Title || r.first_trans || r.PIN;
+          const sub = r.first_trans && r.Title && r.first_trans !== r.Title ? r.first_trans : "";
+          const lang = r.Language || "";
+          html += `<a href="#source/${encodeURIComponent(r.PIN)}" class="inventory-list-item">
+            <span class="inventory-pin">${r.PIN}</span>
+            <span class="inventory-title">${title}${sub ? `<span class="inventory-firstline"> — ${sub}</span>` : ""}</span>
+            ${lang ? `<span class="inventory-lang">${lang}</span>` : ""}
+          </a>`;
+        });
+        html += `</div>`;
+      }
+
+      // Pagination
+      if (totalPages > 1) {
+        let pagination = `<div class="inventory-pagination">`;
+        if (page > 1) pagination += `<a class="mdl-button mdl-js-button" href="${pageBase}?page=${page - 1}">◀ Previous</a>`;
+        pagination += `<span>Page ${page} of ${totalPages}</span>`;
+        if (page < totalPages) pagination += `<a class="mdl-button mdl-js-button" href="${pageBase}?page=${page + 1}">Next ▶</a>`;
+        pagination += `</div>`;
+        html += pagination;
+      }
+
+      html += `</div>`;
+      return html;
+    },
+  });
+}
+
+window.doInventorySearch = function() {
+  const q = document.getElementById("inventory-search-input");
+  if (!q) return;
+  const val = q.value.trim();
+  window.location.hash = val ? `#inventory/search/${encodeURIComponent(val)}` : "#inventory";
+};
 
 // Called by onclick in source view language tabs
 window.showSourceLang = function(lang) {
@@ -3523,6 +3634,11 @@ async function handleRouteChange() {
     const phelps = decodeURIComponent(mainHash.substring("#source/".length));
     if (phelps) renderSourceView(phelps);
     else renderLanguageList();
+  } else if (mainHash.startsWith("#inventory/search/")) {
+    const query = decodeURIComponent(mainHash.substring("#inventory/search/".length));
+    renderInventoryIndex(query, pageParam);
+  } else if (mainHash === "#inventory") {
+    renderInventoryIndex("", pageParam);
   } else if (mainHash.startsWith("#search/prayers/")) {
     const searchTerm = decodeURIComponent(
       mainHash.substring("#search/prayers/".length),
