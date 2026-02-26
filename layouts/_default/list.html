@@ -1,0 +1,9 @@
+{{ partial "head.html" (dict "Title" .Title "Lang" "en") }}
+<div class="main-content">
+  <h1>{{ .Title }}</h1>
+  {{ .Content }}
+  {{ range .Pages }}
+  <p><a href="{{ .RelPermalink }}">{{ .Title }}</a></p>
+  {{ end }}
+</div>
+{{ partial "foot.html" . }}

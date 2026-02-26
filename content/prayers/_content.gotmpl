@@ -1,0 +1,21 @@
+{{/* Generate one page per language from data/languages.json + assets/prayers/{lang}.json */}}
+{{ range site.Data.languages }}
+  {{ $langInfo := . }}
+  {{ $lang := .code }}
+  {{ $prayerFile := printf "prayers/%s.json" $lang }}
+  {{ with resources.Get $prayerFile }}
+    {{ $prayers := . | transform.Unmarshal }}
+    {{ $.AddPage (dict
+      "path"    $lang
+      "title"   $langInfo.name
+      "kind"    "page"
+      "params"  (dict
+        "langCode"    $lang
+        "langName"    $langInfo.name
+        "rtl"         $langInfo.rtl
+        "prayerCount" $langInfo.prayer_count
+        "prayers"     $prayers
+      )
+    ) }}
+  {{ end }}
+{{ end }}

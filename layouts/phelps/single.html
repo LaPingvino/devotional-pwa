@@ -1,0 +1,30 @@
+{{ $pin := .Params.pin }}
+{{ $translations := .Params.translations }}
+{{ $rtlLangs := slice "ar" "fa" "ur" "he" "ug" }}
+{{ partial "head.html" (dict "Title" $pin "Lang" "en") }}
+<div class="main-content">
+  <h1 style="font-family:monospace">{{ $pin }}</h1>
+  <p style="color:var(--text-secondary); margin-bottom:1.5rem;">
+    {{ len $translations }} translation{{ if gt (len $translations) 1 }}s{{ end }}
+  </p>
+
+  <div class="translations-grid">
+    {{ range $translations }}
+    {{ $trans := . }}
+    {{ $rtl := false }}
+    {{ range $rtlLangs }}{{ if eq . $trans.language }}{{ $rtl = true }}{{ end }}{{ end }}
+    <div class="translation-card">
+      <div class="translation-lang">
+        <a href="/prayers/{{ $trans.language }}/#{{ $pin }}">{{ $trans.lang_name }}</a>
+        <span style="opacity:.7; font-size:.75rem">{{ $trans.language }}</span>
+      </div>
+      <div class="translation-text"{{ if $rtl }} dir="rtl"{{ end }}>{{ $trans.text }}</div>
+    </div>
+    {{ end }}
+  </div>
+
+  <p style="margin-top:1.5rem; font-size:.85rem; color:var(--text-secondary)">
+    <a href="/">← All languages</a>
+  </p>
+</div>
+{{ partial "foot.html" . }}

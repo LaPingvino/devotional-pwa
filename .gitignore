@@ -12,6 +12,13 @@ coverage/
 # Production build
 dist/
 build/
+public/
+
+# Hugo resources cache
+resources/
+
+# Dolt database clone (generated at build time by cloudflare-build.sh)
+bahaiwritings/
 
 # Environment variables
 .env

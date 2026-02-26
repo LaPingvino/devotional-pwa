@@ -1,0 +1,16 @@
+{{ partial "head.html" (dict "Title" "All Languages" "Lang" "en") }}
+<div class="main-content">
+  <h1>Bahá'í Prayers</h1>
+  <p style="color:var(--text-secondary); margin-bottom:1.5rem;">
+    {{ len site.Data.languages }} languages · {{ site.Params.description }}
+  </p>
+  <div class="lang-grid">
+    {{ range site.Data.languages }}
+    <a class="lang-card" href="/prayers/{{ .code }}/">
+      <span>{{ .name }}</span>
+      <span class="count">{{ .prayer_count }}</span>
+    </a>
+    {{ end }}
+  </div>
+</div>
+{{ partial "foot.html" . }}

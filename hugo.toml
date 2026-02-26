@@ -1,0 +1,11 @@
+baseURL = "https://holywritings.net/"
+title = "Bahá'í Prayers"
+enableRobotsTXT = true
+disableKinds = ["taxonomy", "term"]
+
+[markup.goldmark.renderer]
+  unsafe = true
+
+[params]
+  description = "Bahá'í prayers in 130+ languages"
+  rtlLanguages = ["ar", "fa", "ur", "he", "ug", "ar-translit", "fa-translit"]

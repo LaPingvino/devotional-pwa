@@ -1,0 +1,84 @@
+{{ $lang := .Params.langCode }}
+{{ $rtl := .Params.rtl }}
+{{ $prayers := .Params.prayers }}
+
+{{/* Build deduplicated category list (preserve order by cat_order) */}}
+{{ $cats := slice }}
+{{ $seenCats := dict }}
+{{ range $prayers }}
+  {{ if and .category (not (index $seenCats .category)) }}
+    {{ $cats = $cats | append .category }}
+    {{ $seenCats = merge $seenCats (dict .category true) }}
+  {{ end }}
+{{ end }}
+
+{{ partial "head.html" (dict "Title" .Params.langName "Lang" $lang "Params" (dict "rtl" $rtl)) }}
+<div class="page-body">
+
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-heading">Categories</div>
+      <a href="#" class="active" id="cat-all" data-cat="">All prayers ({{ len $prayers }})</a>
+      {{ range $cats }}
+      <a href="#" data-cat="{{ . }}">{{ . }}</a>
+      {{ end }}
+    </div>
+    <div class="sidebar-section" style="margin-top:1rem">
+      <a href="/" style="padding:.4rem 1rem; display:block; font-size:.85rem; color:var(--text-secondary)">← All languages</a>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <h1>{{ .Params.langName }}</h1>
+    <p style="color:var(--text-secondary); margin-bottom:1rem;">{{ len $prayers }} prayers{{ if $rtl }} · RTL{{ end }}</p>
+
+    <div class="prayer-list" id="prayer-list"{{ if $rtl }} dir="rtl"{{ end }}>
+      {{ range $prayers }}
+      <article class="prayer-card" id="{{ .phelps }}" data-cat="{{ .category }}">
+        <div class="prayer-card-header">
+          {{ with .name }}<span class="prayer-name">{{ . }}</span>{{ end }}
+          <span class="prayer-phelps">
+            <a href="/phelps/{{ .phelps }}/" title="See all {{ len $.Params.prayers }} translations">{{ .phelps }}</a>
+          </span>
+          <button class="fav-btn" data-phelps="{{ .phelps }}" aria-label="Toggle favourite">☆</button>
+        </div>
+        <div class="prayer-text">{{ .text }}</div>
+      </article>
+      {{ end }}
+    </div>
+  </main>
+</div>
+
+<script>
+// Category filter
+document.querySelectorAll('.sidebar a[data-cat]').forEach(link => {
+  link.addEventListener('click', e => {
+    e.preventDefault();
+    const cat = link.dataset.cat;
+    document.querySelectorAll('.sidebar a[data-cat]').forEach(l => l.classList.remove('active'));
+    link.classList.add('active');
+    document.querySelectorAll('.prayer-card').forEach(card => {
+      card.classList.toggle('hidden', !(!cat || card.dataset.cat === cat));
+    });
+  });
+});
+
+// Favourites
+const FAVS_KEY = 'hw_favorites';
+const favs = new Set(JSON.parse(localStorage.getItem(FAVS_KEY) || '[]'));
+function renderFavs() {
+  document.querySelectorAll('.fav-btn').forEach(btn => {
+    btn.textContent = favs.has(btn.dataset.phelps) ? '★' : '☆';
+  });
+}
+renderFavs();
+document.querySelectorAll('.fav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const p = btn.dataset.phelps;
+    favs.has(p) ? favs.delete(p) : favs.add(p);
+    localStorage.setItem(FAVS_KEY, JSON.stringify([...favs]));
+    renderFavs();
+  });
+});
+</script>
+{{ partial "foot.html" . }}
