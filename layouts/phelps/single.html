@@ -1,45 +1,63 @@
 {{ $pin := .Params.pin }}
-{{ $translations := .Params.translations }}
+{{ $subcodes := .Params.subcodes }}
 {{ $rtlLangs := slice "ar" "fa" "ur" "he" "ug" }}
-{{/* Strip trailing 3-char alpha mnemonic suffix to get base inventory PIN */}}
-{{ $basePin := replaceRE "[A-Z]{3}$" "" $pin }}
+{{ $multi := gt (len $subcodes) 1 }}
 {{ partial "head.html" (dict "Title" $pin "Lang" "en") }}
 <div class="main-content">
 
-  {{/* ── Header: inventory metadata ── */}}
+  {{/* ── Page header ── */}}
   <div style="margin-bottom:1.5rem;">
-    <div style="font-family:monospace; font-size:1.4rem; font-weight:700; color:var(--accent)">
-      {{ $pin }}
-      {{ if ne $basePin $pin }}<span style="font-size:.9rem; font-weight:400; color:var(--text-secondary)"> (base: {{ $basePin }})</span>{{ end }}
-    </div>
-    {{ with .Params.title }}<div style="font-size:1rem; font-weight:600; margin:.2rem 0">{{ . }}</div>{{ end }}
-    {{ with .Params.firstLine }}<div style="color:var(--text-secondary); font-style:italic; font-size:.9rem">"{{ . }}"</div>{{ end }}
-    <div style="margin-top:.5rem; font-size:.85rem; color:var(--text-secondary)">
-      {{ len $translations }} translation{{ if gt (len $translations) 1 }}s{{ end }}
-      · <a href="/inventory/?pin={{ $basePin }}" style="color:var(--accent)">Inventory: {{ $basePin }}</a>
+    <div style="font-family:monospace; font-size:1.4rem; font-weight:700; color:var(--accent)">{{ $pin }}</div>
+    <div style="margin-top:.4rem; font-size:.85rem; color:var(--text-secondary)">
+      {{ if $multi }}{{ len $subcodes }} passages · {{ end }}
+      <a href="/inventory/?pin={{ $pin }}" style="color:var(--accent)">Inventory: {{ $pin }}</a>
     </div>
   </div>
 
-  {{/* ── Language jump list ── */}}
-  <div class="phelps-langs" style="margin-bottom:1.5rem; display:flex; flex-wrap:wrap; gap:.4rem;">
-    {{ range $translations }}
-    <a href="#trans-{{ .language }}" class="lang-chip">
-      {{ .language }}<span class="lang-chip-name">{{ .lang_name }}</span>
-    </a>
+  {{/* ── Sub-code sections ── */}}
+  {{ range $subcodes }}
+  {{ $sc := . }}
+  {{ $anchor := $sc.anchor }}
+
+  <div class="subcode-section"{{ if $anchor }} id="{{ $anchor }}"{{ end }} style="margin-bottom:2.5rem;">
+
+    {{/* Sub-code header (only shown when multiple sub-codes exist) */}}
+    {{ if $multi }}
+    <h2 style="font-family:monospace; font-size:1.1rem; color:var(--accent); border-bottom:1px solid var(--border); padding-bottom:.4rem; margin-bottom:.6rem;">
+      {{ $sc.code }}{{ if $anchor }} <a href="#{{ $anchor }}" style="font-size:.75rem; opacity:.5; font-weight:400">#{{ $anchor }}</a>{{ end }}
+    </h2>
     {{ end }}
-  </div>
 
-  {{/* ── Full translations ── */}}
-  {{ range $translations }}
-  {{ $trans := . }}
-  {{ $rtl := false }}
-  {{ range $rtlLangs }}{{ if eq . $trans.language }}{{ $rtl = true }}{{ end }}{{ end }}
-  <div class="translation-card" id="trans-{{ $trans.language }}" style="margin-bottom:1rem;">
-    <div class="translation-lang">
-      <a href="/prayers/{{ $trans.language }}/#{{ $pin }}">{{ $trans.lang_name }}</a>
-      <span style="opacity:.7; font-size:.75rem">{{ $trans.language }}</span>
+    {{ with $sc.title }}<div style="font-size:1rem; font-weight:600; margin:.2rem 0">{{ . }}</div>{{ end }}
+    {{ with $sc.first_line }}<div style="color:var(--text-secondary); font-style:italic; font-size:.9rem; margin-bottom:.4rem">"{{ . }}"</div>{{ end }}
+    <div style="font-size:.8rem; color:var(--text-secondary); margin-bottom:.8rem;">
+      {{ len $sc.translations }} translation{{ if gt (len $sc.translations) 1 }}s{{ end }}
     </div>
-    <div class="translation-text"{{ if $rtl }} dir="rtl"{{ end }}>{{ $trans.text }}</div>
+
+    {{/* Language jump list */}}
+    <div class="phelps-langs" style="margin-bottom:1rem; display:flex; flex-wrap:wrap; gap:.4rem;">
+      {{ range $sc.translations }}
+      {{ $lang := . }}
+      <a href="#trans-{{ $sc.code }}-{{ $lang.language }}" class="lang-chip">
+        {{ $lang.language }}<span class="lang-chip-name">{{ $lang.lang_name }}</span>
+      </a>
+      {{ end }}
+    </div>
+
+    {{/* Full translations */}}
+    {{ range $sc.translations }}
+    {{ $trans := . }}
+    {{ $rtl := false }}
+    {{ range $rtlLangs }}{{ if eq . $trans.language }}{{ $rtl = true }}{{ end }}{{ end }}
+    <div class="translation-card" id="trans-{{ $sc.code }}-{{ $trans.language }}" style="margin-bottom:1rem;">
+      <div class="translation-lang">
+        <a href="/prayers/{{ $trans.language }}/#{{ $sc.code }}">{{ $trans.lang_name }}</a>
+        <span style="opacity:.7; font-size:.75rem">{{ $trans.language }}</span>
+      </div>
+      <div class="translation-text"{{ if $rtl }} dir="rtl"{{ end }}>{{ $trans.text }}</div>
+    </div>
+    {{ end }}
+
   </div>
   {{ end }}
 

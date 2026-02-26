@@ -1,20 +1,17 @@
-{{/* Generate one cross-language page per phelps code by listing assets/phelps/ */}}
+{{/* Generate one cross-language page per base PIN by listing assets/phelps/ */}}
 {{ range readDir "assets/phelps" }}
   {{ $filename := .Name }}
   {{ $transFile := printf "phelps/%s" $filename }}
   {{ with resources.Get $transFile }}
     {{ $pf := . | transform.Unmarshal }}
-    {{ if $pf.translations }}
+    {{ if $pf.subcodes }}
       {{ $pin := $pf.pin | upper }}
       {{ $.AddPage (dict
         "path"   $pin
-        "title"  $pf.first_line
         "kind"   "page"
         "params" (dict
-          "pin"          $pin
-          "title"        $pf.title
-          "firstLine"    $pf.first_line
-          "translations" $pf.translations
+          "pin"      $pin
+          "subcodes" $pf.subcodes
         )
       ) }}
     {{ end }}

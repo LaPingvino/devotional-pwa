@@ -20,6 +20,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -61,12 +62,20 @@ type Translation struct {
 	Name     string `json:"name,omitempty"`
 }
 
-// PhelpsFile is the structure written to assets/phelps/{code}.json
-type PhelpsFile struct {
-	PIN          string        `json:"pin"`
+// SubCode is one passage within a base PIN (e.g. BH01313NAM within BH01313).
+// The Anchor field is the lowercase mnemonic suffix used as the HTML id (e.g. "nam").
+type SubCode struct {
+	Code         string        `json:"code"`
+	Anchor       string        `json:"anchor"`                // lowercase suffix, or "" for base codes
 	Title        string        `json:"title,omitempty"`
-	FirstLine    string        `json:"first_line,omitempty"`  // English first line from Phelps inventory
+	FirstLine    string        `json:"first_line,omitempty"`
 	Translations []Translation `json:"translations"`
+}
+
+// PhelpsFile is written to assets/phelps/{base_pin}.json; groups all sub-codes.
+type PhelpsFile struct {
+	PIN      string    `json:"pin"`
+	SubCodes []SubCode `json:"subcodes"`
 }
 
 // InventoryEntry for concordance
@@ -112,9 +121,10 @@ func main() {
 
 	// 2a. First pass: query all prayers and build phelps index
 	log.Println("→ prayers by language (pass 1: collecting)...")
-	allPrayers := map[string][]Prayer{}   // langCode → prayers
+	allPrayers := map[string][]Prayer{}     // langCode → prayers
 	phelpsMap := map[string][]Translation{} // phelps → full translations (for phelps pages)
 	phelpsLangs := map[string][]LangRef{}   // phelps → compact lang refs (for inline lists)
+	phelpsSeenLang := map[string]map[string]bool{} // phelps → seen lang codes (dedup)
 
 	for _, lang := range langs {
 		prayers := queryPrayersForLang(lang.Code)
@@ -123,6 +133,13 @@ func main() {
 			if p.Phelps == "" {
 				continue
 			}
+			if phelpsSeenLang[p.Phelps] == nil {
+				phelpsSeenLang[p.Phelps] = map[string]bool{}
+			}
+			if phelpsSeenLang[p.Phelps][lang.Code] {
+				continue // deduplicate: one translation per language per phelps code
+			}
+			phelpsSeenLang[p.Phelps][lang.Code] = true
 			phelpsMap[p.Phelps] = append(phelpsMap[p.Phelps], Translation{
 				Language: lang.Code,
 				LangName: lang.Name,
@@ -156,12 +173,24 @@ func main() {
 		writeJSON(filepath.Join(assetsDir, "prayers", lang.Code+".json"), prayers)
 	}
 
-	// 3. Clear stale phelps files from previous runs before writing fresh ones
+	// 3. Group phelps codes by base PIN (strips trailing 3-char alpha mnemonic suffix)
+	log.Println("→ grouping phelps codes by base PIN...")
+	basePINMap := map[string][]string{} // basePin → sorted list of full codes
+	for pin := range phelpsMap {
+		base := basePINKey(pin)
+		basePINMap[base] = append(basePINMap[base], pin)
+	}
+	for base := range basePINMap {
+		sort.Strings(basePINMap[base])
+	}
+	log.Printf("  %d base PINs from %d full codes", len(basePINMap), len(phelpsMap))
+
+	// Clear stale phelps files (now keyed by base PIN)
 	phelpsDir := filepath.Join(assetsDir, "phelps")
 	if entries, err := os.ReadDir(phelpsDir); err == nil {
 		for _, e := range entries {
-			pin := strings.ToUpper(strings.TrimSuffix(e.Name(), ".json"))
-			if _, ok := phelpsMap[pin]; !ok {
+			base := strings.ToUpper(strings.TrimSuffix(e.Name(), ".json"))
+			if _, ok := basePINMap[base]; !ok {
 				os.Remove(filepath.Join(phelpsDir, e.Name()))
 			}
 		}
@@ -179,17 +208,26 @@ func main() {
 		invMap[e.PIN] = e
 	}
 
-	// Rewrite phelps files as PhelpsFile (with inventory metadata)
-	log.Println("→ enriching phelps files with inventory metadata...")
-	for pin, translations := range phelpsMap {
-		inv := invMap[pin]
-		pf := PhelpsFile{
-			PIN:          pin,
-			Title:        inv.Title,
-			FirstLine:    inv.FirstLine,
-			Translations: translations,
+	// 5. Write phelps files grouped by base PIN
+	log.Println("→ writing phelps files grouped by base PIN...")
+	for base, codes := range basePINMap {
+		var subcodes []SubCode
+		for _, code := range codes {
+			inv := invMap[code]
+			anchor := strings.ToLower(strings.TrimPrefix(code, base))
+			subcodes = append(subcodes, SubCode{
+				Code:         code,
+				Anchor:       anchor,
+				Title:        inv.Title,
+				FirstLine:    inv.FirstLine,
+				Translations: phelpsMap[code],
+			})
 		}
-		safe := strings.ToLower(pin)
+		pf := PhelpsFile{
+			PIN:      base,
+			SubCodes: subcodes,
+		}
+		safe := strings.ToLower(base)
 		writeJSON(filepath.Join(assetsDir, "phelps", safe+".json"), pf)
 	}
 
@@ -311,4 +349,24 @@ func must(err error) {
 	if err != nil {
 		log.Fatal(err)
 	}
+}
+
+// basePINKey strips a trailing 3-char alpha mnemonic suffix from a Phelps code.
+// BH01313NAM → BH01313, AB04427GUI → AB04427, BH05849 → BH05849 (unchanged).
+func basePINKey(pin string) string {
+	n := len(pin)
+	if n < 4 {
+		return pin
+	}
+	suffix := pin[n-3:]
+	for _, c := range suffix {
+		if c < 'A' || c > 'Z' {
+			return pin
+		}
+	}
+	// Confirm char before suffix is a digit (part of the numeric ID, not a prefix letter)
+	if pin[n-4] >= '0' && pin[n-4] <= '9' {
+		return pin[:n-3]
+	}
+	return pin
 }

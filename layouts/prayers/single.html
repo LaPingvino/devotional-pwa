@@ -35,13 +35,15 @@
     <div class="prayer-list" id="prayer-list"{{ if $rtl }} dir="rtl"{{ end }}>
       {{ range $prayers }}
       {{ $pin := .phelps }}
-      {{ $basePin := replaceRE "[A-Z]{3}$" "" $pin }}
+      {{ $pinL := $pin | lower }}
+      {{ $baseL := replaceRE "[a-z]{3}$" "" $pinL }}
+      {{ $suffix := strings.TrimPrefix $baseL $pinL }}
       <article class="prayer-card" id="{{ $pin }}" data-cat="{{ .category }}">
         <div class="prayer-card-header">
           {{ with .name }}<span class="prayer-name">{{ . }}</span>{{ end }}
           <span class="prayer-phelps">
-            <a href="/phelps/{{ $pin | lower }}/" title="All translations">{{ $pin }}</a>
-            <a href="/inventory/?pin={{ $basePin }}" title="Inventory entry" style="opacity:.6; font-size:.8em; margin-left:.3em">↗</a>
+            <a href="/phelps/{{ $baseL }}/{{ if $suffix }}#{{ $suffix }}{{ end }}" title="All translations">{{ $pin }}</a>
+            <a href="/inventory/?pin={{ $baseL | upper }}" title="Inventory entry" style="opacity:.6; font-size:.8em; margin-left:.3em">↗</a>
           </span>
           <button class="fav-btn" data-phelps="{{ $pin }}" aria-label="Toggle favourite">☆</button>
         </div>
