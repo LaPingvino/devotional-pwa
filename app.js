@@ -3495,8 +3495,25 @@ async function renderSourceView(phelps) {
 // ============================================================
 
 const INVENTORY_PAGE_SIZE = 30;
+const INVENTORY_PREFIXES = ["AB", "ABU", "BH", "BHU", "BB", "BBU"];
 
-async function renderInventoryIndex(query = "", page = 1) {
+// Build the PIN-prefix SQL condition, disambiguating overlapping prefixes
+function prefixSqlCondition(prefix) {
+  if (!prefix) return null;
+  const p = prefix.toUpperCase();
+  if (p === "AB") return "(PIN LIKE 'AB%' AND PIN NOT LIKE 'ABU%')";
+  if (p === "BH") return "(PIN LIKE 'BH%' AND PIN NOT LIKE 'BHU%')";
+  if (p === "BB") return "(PIN LIKE 'BB%' AND PIN NOT LIKE 'BBU%')";
+  return `PIN LIKE '${p}%'`;
+}
+
+// Build inventory page base URL (hash path, no page param)
+function inventoryPageBase(query, prefix) {
+  const qPart = query ? `#inventory/search/${encodeURIComponent(query)}` : "#inventory";
+  return qPart + (prefix ? `?prefix=${encodeURIComponent(prefix)}` : "");
+}
+
+async function renderInventoryIndex(query = "", page = 1, prefix = "") {
   setContextPhelps(null);
   updateHeaderNavigation([]);
 
@@ -3507,9 +3524,14 @@ async function renderInventoryIndex(query = "", page = 1) {
     contentRenderer: async () => {
       const offset = (page - 1) * INVENTORY_PAGE_SIZE;
       const escapedQ = query.replace(/'/g, "''");
-      const whereClause = query
-        ? `WHERE PIN LIKE '%${escapedQ}%' OR Title LIKE '%${escapedQ}%' OR \`First line (translated)\` LIKE '%${escapedQ}%' OR \`First line (original)\` LIKE '%${escapedQ}%'`
-        : "";
+
+      // Build WHERE clauses
+      const conditions = [];
+      const prefixCond = prefixSqlCondition(prefix);
+      if (prefixCond) conditions.push(prefixCond);
+      if (query) conditions.push(`(PIN LIKE '%${escapedQ}%' OR Title LIKE '%${escapedQ}%' OR \`First line (translated)\` LIKE '%${escapedQ}%' OR \`First line (original)\` LIKE '%${escapedQ}%')`);
+      const whereClause = conditions.length ? `WHERE ${conditions.join(" AND ")}` : "";
+
       const sql = `SELECT PIN, Title, \`First line (translated)\` as first_trans, Language FROM inventory ${whereClause} ORDER BY PIN LIMIT ${INVENTORY_PAGE_SIZE} OFFSET ${offset}`;
       const countSql = `SELECT COUNT(*) as total FROM inventory ${whereClause}`;
 
@@ -3524,10 +3546,17 @@ async function renderInventoryIndex(query = "", page = 1) {
       }
 
       const totalPages = Math.ceil(totalCount / INVENTORY_PAGE_SIZE);
-      const qEncoded = encodeURIComponent(query);
-      const pageBase = query ? `#inventory/search/${qEncoded}` : "#inventory";
+      const pageBase = inventoryPageBase(query, prefix);
 
       let html = `<div class="inventory-index">`;
+
+      // Prefix switcher
+      html += `<div class="inventory-prefix-switcher">`;
+      html += `<a class="inventory-prefix-btn${!prefix ? " active" : ""}" href="${inventoryPageBase(query, "")}">All</a>`;
+      INVENTORY_PREFIXES.forEach(p => {
+        html += `<a class="inventory-prefix-btn${prefix === p ? " active" : ""}" href="${inventoryPageBase(query, p)}">${p}</a>`;
+      });
+      html += `</div>`;
 
       // Search bar
       html += `<div class="inventory-search-bar">
@@ -3537,12 +3566,14 @@ async function renderInventoryIndex(query = "", page = 1) {
           onkeydown="if(event.key==='Enter') window.doInventorySearch()">
         <button class="mdl-button mdl-js-button mdl-button--raised mdl-button--colored"
           onclick="window.doInventorySearch()">Search</button>
-        ${query ? `<a href="#inventory" class="mdl-button mdl-js-button">Clear</a>` : ""}
+        ${query ? `<a href="${inventoryPageBase("", prefix)}" class="mdl-button mdl-js-button">Clear</a>` : ""}
       </div>`;
 
-      html += `<p class="inventory-result-count">${totalCount.toLocaleString()} entries${query ? ` matching "${query}"` : ""}</p>`;
+      const prefixLabel = prefix ? ` in <strong>${prefix}</strong>` : "";
+      const queryLabel = query ? ` matching "${query}"` : "";
+      html += `<p class="inventory-result-count">${totalCount.toLocaleString()} entries${prefixLabel}${queryLabel}</p>`;
 
-      // Table
+      // List
       if (rows.length === 0) {
         html += `<p style="color:#888;text-align:center">No results found.</p>`;
       } else {
@@ -3560,12 +3591,13 @@ async function renderInventoryIndex(query = "", page = 1) {
         html += `</div>`;
       }
 
-      // Pagination
+      // Pagination — pageBase may or may not already have '?', so use sep accordingly
       if (totalPages > 1) {
+        const pageSep = pageBase.includes("?") ? "&" : "?";
         let pagination = `<div class="inventory-pagination">`;
-        if (page > 1) pagination += `<a class="mdl-button mdl-js-button" href="${pageBase}?page=${page - 1}">◀ Previous</a>`;
+        if (page > 1) pagination += `<a class="mdl-button mdl-js-button" href="${pageBase}${pageSep}page=${page - 1}">◀ Previous</a>`;
         pagination += `<span>Page ${page} of ${totalPages}</span>`;
-        if (page < totalPages) pagination += `<a class="mdl-button mdl-js-button" href="${pageBase}?page=${page + 1}">Next ▶</a>`;
+        if (page < totalPages) pagination += `<a class="mdl-button mdl-js-button" href="${pageBase}${pageSep}page=${page + 1}">Next ▶</a>`;
         pagination += `</div>`;
         html += pagination;
       }
@@ -3580,7 +3612,10 @@ window.doInventorySearch = function() {
   const q = document.getElementById("inventory-search-input");
   if (!q) return;
   const val = q.value.trim();
-  window.location.hash = val ? `#inventory/search/${encodeURIComponent(val)}` : "#inventory";
+  // Preserve current prefix from URL
+  const params = new URLSearchParams(window.location.hash.split("?")[1] || "");
+  const prefix = params.get("prefix") || "";
+  window.location.hash = inventoryPageBase(val, prefix);
 };
 
 // Called by onclick in source view language tabs
@@ -3599,6 +3634,7 @@ async function handleRouteChange() {
     showUnmatchedParam = false; // Default: hide prayers without Phelps codes
 
   let structureParam = null;
+  let prefixParam = "";
   if (queryParamsStr) {
     const params = new URLSearchParams(queryParamsStr);
     if (params.has("page")) {
@@ -3611,6 +3647,8 @@ async function handleRouteChange() {
     // Optional structure language override for category sidebar
     if (params.has("structure"))
       structureParam = params.get("structure");
+    if (params.has("prefix"))
+      prefixParam = params.get("prefix");
   }
   const mainHash = mainHashPath || (hash.includes("?") ? "" : hash);
   const prayerCodeLangRegex = /^#prayercode\/([^/]+)\/([^/?]+)/;
@@ -3636,9 +3674,9 @@ async function handleRouteChange() {
     else renderLanguageList();
   } else if (mainHash.startsWith("#inventory/search/")) {
     const query = decodeURIComponent(mainHash.substring("#inventory/search/".length));
-    renderInventoryIndex(query, pageParam);
+    renderInventoryIndex(query, pageParam, prefixParam);
   } else if (mainHash === "#inventory") {
-    renderInventoryIndex("", pageParam);
+    renderInventoryIndex("", pageParam, prefixParam);
   } else if (mainHash.startsWith("#search/prayers/")) {
     const searchTerm = decodeURIComponent(
       mainHash.substring("#search/prayers/".length),
