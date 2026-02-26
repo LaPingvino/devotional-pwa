@@ -7,5 +7,5 @@ disableKinds = ["taxonomy", "term"]
   unsafe = true
 
 [params]
-  description = "Bahá'í prayers in 130+ languages"
+  description = "Share prayers with people in their own language"
   rtlLanguages = ["ar", "fa", "ur", "he", "ug", "ar-translit", "fa-translit"]

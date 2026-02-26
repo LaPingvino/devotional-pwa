@@ -47,7 +47,7 @@
           </span>
           <button class="fav-btn" data-phelps="{{ $pin }}" aria-label="Toggle favourite">☆</button>
         </div>
-        <div class="prayer-text">{{ .text }}</div>
+        <div class="prayer-text">{{ .text | markdownify }}</div>
         {{ with .translations }}
         <div class="prayer-translations">
           <span class="trans-label">Also in:</span>

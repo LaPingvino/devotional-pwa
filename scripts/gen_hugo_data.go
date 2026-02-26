@@ -168,7 +168,7 @@ func main() {
 
 	// 3. Group phelps codes by base PIN (strips trailing 3-char alpha mnemonic suffix)
 	log.Println("→ grouping phelps codes by base PIN...")
-	basePINMap := map[string][]string{} // basePin → sorted list of full codes
+	basePINMap := map[string][]string{} // basePin → sorted list of full codes (from prayers)
 	for pin := range phelpsLangs {
 		base := basePINKey(pin)
 		basePINMap[base] = append(basePINMap[base], pin)
@@ -178,17 +178,6 @@ func main() {
 	}
 	log.Printf("  %d base PINs from %d full codes", len(basePINMap), len(phelpsLangs))
 
-	// Clear stale phelps files (keyed by base PIN)
-	phelpsDir := filepath.Join(assetsDir, "phelps")
-	if entries, err := os.ReadDir(phelpsDir); err == nil {
-		for _, e := range entries {
-			base := strings.ToUpper(strings.TrimSuffix(e.Name(), ".json"))
-			if _, ok := basePINMap[base]; !ok {
-				os.Remove(filepath.Join(phelpsDir, e.Name()))
-			}
-		}
-	}
-
 	// 4. Inventory → static/data/ (JS search) + in-memory map
 	log.Println("→ inventory...")
 	inventory := queryInventory()
@@ -196,11 +185,40 @@ func main() {
 
 	// Enrich inventory with translation counts and build lookup map
 	invMap := map[string]InventoryEntry{}
+	invBasePINMap := map[string][]string{} // basePin → sorted list of full inventory codes
 	for i, e := range inventory {
 		inventory[i].TranslationCount = len(phelpsLangs[e.PIN])
 		invMap[e.PIN] = inventory[i]
+		base := basePINKey(e.PIN)
+		invBasePINMap[base] = append(invBasePINMap[base], e.PIN)
+	}
+	for base := range invBasePINMap {
+		sort.Strings(invBasePINMap[base])
 	}
 	writeJSON(filepath.Join(staticDir, "inventory.json"), inventory)
+
+	// Merge all base PINs: from prayers and from inventory
+	allBasePINs := map[string]bool{}
+	for base := range basePINMap {
+		allBasePINs[base] = true
+	}
+	for base := range invBasePINMap {
+		allBasePINs[base] = true
+	}
+	log.Printf("  %d total base PINs (%d prayer-based + %d inventory-only)",
+		len(allBasePINs), len(basePINMap),
+		len(allBasePINs)-len(basePINMap))
+
+	// Clear stale phelps files (keyed by base PIN)
+	phelpsDir := filepath.Join(assetsDir, "phelps")
+	if entries, err := os.ReadDir(phelpsDir); err == nil {
+		for _, e := range entries {
+			base := strings.ToUpper(strings.TrimSuffix(e.Name(), ".json"))
+			if !allBasePINs[base] {
+				os.Remove(filepath.Join(phelpsDir, e.Name()))
+			}
+		}
+	}
 
 	// 5. Write phelps files grouped by base PIN (lang refs only, no prayer text)
 	log.Println("→ loading inventory fulltext (English reference text chunks)...")
@@ -208,11 +226,29 @@ func main() {
 	log.Printf("  %d fulltext entries", len(fullTexts))
 
 	log.Println("→ writing phelps files grouped by base PIN...")
-	for base, codes := range basePINMap {
+	for base := range allBasePINs {
+		// Merge codes from prayer index and inventory, deduplicated
+		codeSet := map[string]bool{}
+		for _, c := range basePINMap[base] {
+			codeSet[c] = true
+		}
+		for _, c := range invBasePINMap[base] {
+			codeSet[c] = true
+		}
+		codes := make([]string, 0, len(codeSet))
+		for c := range codeSet {
+			codes = append(codes, c)
+		}
+		sort.Strings(codes)
+
 		var subcodes []SubCode
 		for _, code := range codes {
 			inv := invMap[code]
 			anchor := strings.ToLower(strings.TrimPrefix(code, base))
+			trans := phelpsLangs[code]
+			if trans == nil {
+				trans = []LangRef{}
+			}
 			subcodes = append(subcodes, SubCode{
 				Code:          code,
 				Anchor:        anchor,
@@ -224,7 +260,7 @@ func main() {
 				Subjects:      inv.Subjects,
 				Notes:         inv.Notes,
 				FullTextParts: fullTexts[code],
-				Translations:  phelpsLangs[code],
+				Translations:  trans,
 			})
 		}
 		pf := PhelpsFile{

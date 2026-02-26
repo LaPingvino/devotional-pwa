@@ -49,7 +49,7 @@
       {{ with $sc.subjects }}<span class="meta-badge" title="Subjects">{{ . }}</span>{{ end }}
     </div>
 
-    {{ with $sc.notes }}<div style="font-size:.8rem; color:var(--text-secondary); background:var(--surface); border-radius:4px; padding:.5rem; margin-bottom:.8rem;">{{ . }}</div>{{ end }}
+    {{ with $sc.notes }}<div style="font-size:.8rem; color:var(--text-secondary); background:var(--surface); border-radius:4px; padding:.5rem; margin-bottom:.8rem;">{{ . | markdownify }}</div>{{ end }}
 
     {{/* Paginated full text (English, from inventory_fulltext) */}}
     {{ if $sc.full_text_parts }}
@@ -62,7 +62,7 @@
       </div>
       <div class="fulltext-pages" style="position:relative; min-height:6rem;">
         {{ range $i, $part := $parts }}
-        <div class="ft-page" style="padding:.75rem; font-size:.88rem; line-height:1.8; white-space:pre-wrap;">{{ $part }}</div>
+        <div class="ft-page" style="padding:.75rem; font-size:.88rem; line-height:1.8;">{{ $part | markdownify }}</div>
         {{ end }}
       </div>
       {{ if gt $partCount 1 }}

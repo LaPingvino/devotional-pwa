@@ -92,13 +92,11 @@ function renderTable() {
   const rows = filtered.slice(0, 500);
   tbody.innerHTML = rows.map(e => {
     const hasTranslations = e.translations > 0;
-    const pinCell = hasTranslations
-      ? `<a href="${phelpsUrl(e.pin)}">${e.pin}</a>`
-      : e.pin;
+    const pinCell = `<a href="${phelpsUrl(e.pin)}">${e.pin}</a>`;
     const countCell = hasTranslations
       ? `<span style="color:var(--accent); font-weight:600">${e.translations}</span>`
       : `<span style="opacity:.3">—</span>`;
-    return `<tr${hasTranslations ? '' : ' style="opacity:.6"'}>
+    return `<tr${hasTranslations ? '' : ' style="opacity:.5"'}>
       <td class="pin-cell">${pinCell}</td>
       <td style="font-size:.8rem; color:var(--text-secondary)">${authorFromPin(e.pin)}</td>
       <td>${e.first_line || ''}</td>
