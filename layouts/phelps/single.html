@@ -3,25 +3,40 @@
 {{ $rtlLangs := slice "ar" "fa" "ur" "he" "ug" }}
 {{ partial "head.html" (dict "Title" $pin "Lang" "en") }}
 <div class="main-content">
-  <h1 style="font-family:monospace">{{ $pin }}</h1>
-  <p style="color:var(--text-secondary); margin-bottom:1.5rem;">
-    {{ len $translations }} translation{{ if gt (len $translations) 1 }}s{{ end }}
-  </p>
 
-  <div class="translations-grid">
-    {{ range $translations }}
-    {{ $trans := . }}
-    {{ $rtl := false }}
-    {{ range $rtlLangs }}{{ if eq . $trans.language }}{{ $rtl = true }}{{ end }}{{ end }}
-    <div class="translation-card">
-      <div class="translation-lang">
-        <a href="/prayers/{{ $trans.language }}/#{{ $pin }}">{{ $trans.lang_name }}</a>
-        <span style="opacity:.7; font-size:.75rem">{{ $trans.language }}</span>
-      </div>
-      <div class="translation-text"{{ if $rtl }} dir="rtl"{{ end }}>{{ $trans.text }}</div>
+  {{/* ── Header: inventory metadata ── */}}
+  <div style="margin-bottom:1.5rem;">
+    <div style="font-family:monospace; font-size:1.4rem; font-weight:700; color:var(--accent)">{{ $pin }}</div>
+    {{ with .Params.title }}<div style="font-size:1rem; font-weight:600; margin:.2rem 0">{{ . }}</div>{{ end }}
+    {{ with .Params.firstLine }}<div style="color:var(--text-secondary); font-style:italic; font-size:.9rem">"{{ . }}"</div>{{ end }}
+    <div style="margin-top:.5rem; font-size:.85rem; color:var(--text-secondary)">
+      {{ len $translations }} translation{{ if gt (len $translations) 1 }}s{{ end }}
+      · <a href="/inventory/" style="color:var(--accent)">Phelps inventory</a>
     </div>
+  </div>
+
+  {{/* ── Language jump list ── */}}
+  <div class="phelps-langs" style="margin-bottom:1.5rem; display:flex; flex-wrap:wrap; gap:.4rem;">
+    {{ range $translations }}
+    <a href="#trans-{{ .language }}" class="lang-chip">
+      {{ .language }}<span class="lang-chip-name">{{ .lang_name }}</span>
+    </a>
     {{ end }}
   </div>
+
+  {{/* ── Full translations ── */}}
+  {{ range $translations }}
+  {{ $trans := . }}
+  {{ $rtl := false }}
+  {{ range $rtlLangs }}{{ if eq . $trans.language }}{{ $rtl = true }}{{ end }}{{ end }}
+  <div class="translation-card" id="trans-{{ $trans.language }}" style="margin-bottom:1rem;">
+    <div class="translation-lang">
+      <a href="/prayers/{{ $trans.language }}/#{{ $pin }}">{{ $trans.lang_name }}</a>
+      <span style="opacity:.7; font-size:.75rem">{{ $trans.language }}</span>
+    </div>
+    <div class="translation-text"{{ if $rtl }} dir="rtl"{{ end }}>{{ $trans.text }}</div>
+  </div>
+  {{ end }}
 
   <p style="margin-top:1.5rem; font-size:.85rem; color:var(--text-secondary)">
     <a href="/">← All languages</a>

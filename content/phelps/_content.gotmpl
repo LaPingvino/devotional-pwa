@@ -1,19 +1,20 @@
 {{/* Generate one cross-language page per phelps code by listing assets/phelps/ */}}
 {{ range readDir "assets/phelps" }}
   {{ $filename := .Name }}
-  {{ $pin := strings.TrimSuffix ".json" $filename }}
   {{ $transFile := printf "phelps/%s" $filename }}
   {{ with resources.Get $transFile }}
-    {{ $translations := . | transform.Unmarshal }}
-    {{ if $translations }}
-      {{ $firstText := (index $translations 0).text }}
+    {{ $pf := . | transform.Unmarshal }}
+    {{ if $pf.translations }}
+      {{ $pin := $pf.pin | upper }}
       {{ $.AddPage (dict
-        "path"   (upper $pin)
-        "title"  ($firstText | truncate 80)
+        "path"   $pin
+        "title"  $pf.first_line
         "kind"   "page"
         "params" (dict
-          "pin"          (upper $pin)
-          "translations" $translations
+          "pin"          $pin
+          "title"        $pf.title
+          "firstLine"    $pf.first_line
+          "translations" $pf.translations
         )
       ) }}
     {{ end }}

@@ -8,7 +8,7 @@
   {{ with .Permalink }}<link rel="canonical" href="{{ . }}">{{ end }}
   {{ $css := resources.Get "css/main.css" | minify }}
   <link rel="stylesheet" href="{{ $css.RelPermalink }}">
-  <link rel="icon" href="/favicon.ico">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 </head>
 <body>
 <header class="site-header">

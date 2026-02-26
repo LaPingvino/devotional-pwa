@@ -34,15 +34,24 @@
 
     <div class="prayer-list" id="prayer-list"{{ if $rtl }} dir="rtl"{{ end }}>
       {{ range $prayers }}
-      <article class="prayer-card" id="{{ .phelps }}" data-cat="{{ .category }}">
+      {{ $pin := .phelps }}
+      <article class="prayer-card" id="{{ $pin }}" data-cat="{{ .category }}">
         <div class="prayer-card-header">
           {{ with .name }}<span class="prayer-name">{{ . }}</span>{{ end }}
           <span class="prayer-phelps">
-            <a href="/phelps/{{ .phelps }}/" title="See all {{ len $.Params.prayers }} translations">{{ .phelps }}</a>
+            <a href="/phelps/{{ $pin }}/" title="All translations">{{ $pin }}</a>
           </span>
-          <button class="fav-btn" data-phelps="{{ .phelps }}" aria-label="Toggle favourite">☆</button>
+          <button class="fav-btn" data-phelps="{{ $pin }}" aria-label="Toggle favourite">☆</button>
         </div>
         <div class="prayer-text">{{ .text }}</div>
+        {{ with .translations }}
+        <div class="prayer-translations">
+          <span class="trans-label">Also in:</span>
+          {{ range . }}
+          <a href="/prayers/{{ .language }}/#{{ $pin }}" title="{{ .lang_name }}">{{ .language }}</a>
+          {{ end }}
+        </div>
+        {{ end }}
       </article>
       {{ end }}
     </div>
