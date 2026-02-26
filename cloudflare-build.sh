@@ -3,11 +3,13 @@
 # Installs Dolt, clones DB, generates data files, builds Hugo site
 set -e
 
-# Install Dolt (installs to ~/bin; /usr/local/bin may not be writable)
+# Install Dolt binary directly (install.sh requires root; downloading binary doesn't)
+mkdir -p "$HOME/bin"
+export PATH="$HOME/bin:$PATH"
 if ! command -v dolt &>/dev/null; then
   echo "Installing Dolt..."
-  curl -fsSL https://github.com/dolthub/dolt/releases/latest/download/install.sh | INSTALL_DIR="$HOME/bin" bash
-  export PATH="$HOME/bin:$PATH"
+  curl -fsSL "https://github.com/dolthub/dolt/releases/latest/download/dolt-linux-amd64.tar.gz" \
+    | tar -xz --strip-components=2 -C "$HOME/bin" dolt-linux-amd64/bin/dolt
 fi
 echo "Dolt version: $(dolt version)"
 
