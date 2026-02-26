@@ -241,6 +241,18 @@ async function renderSidebar(activeLang, activeCategory) {
   const structureLang = categories[0] && categories[0].structureLang;
   const isUsingFallback = structureLang && activeLang && structureLang !== activeLang;
 
+  // Fetch per-category prayer counts for the viewing language
+  let countMap = {}; // {categoryName: count}
+  if (activeLang && structureLang) {
+    try {
+      const escapedLang = activeLang.replace(/'/g, "''");
+      const escapedSL = structureLang.replace(/'/g, "''");
+      const countSql = `SELECT pbs.category_name, COUNT(DISTINCT w.version) as cnt FROM prayer_book_structure pbs LEFT JOIN writings w ON w.phelps = pbs.phelps_code AND w.language='${escapedLang}' WHERE pbs.source_language='${escapedSL}' GROUP BY pbs.category_name`;
+      const countRows = await executeQuery(countSql);
+      countRows.forEach(r => { countMap[r.category_name] = parseInt(r.cnt, 10) || 0; });
+    } catch (e) { /* ignore — counts are optional */ }
+  }
+
   let html = "";
 
   // Language switcher at the top of the sidebar
@@ -273,7 +285,12 @@ async function renderSidebar(activeLang, activeCategory) {
     const href = activeLang
       ? `#category/${encodeURIComponent(cat.name)}/${encodeURIComponent(activeLang)}`
       : `#category/${encodeURIComponent(cat.name)}`;
-    html += `<a class="category-item${isActive ? ' active' : ''}" href="${href}" title="${cat.name}">${cat.name}</a>`;
+    const count = activeLang ? (countMap[cat.name] ?? -1) : -1; // -1 = unknown
+    const isEmpty = count === 0;
+    const countBadge = count >= 0
+      ? `<span class="category-count${isEmpty ? " category-count-zero" : ""}">${count}</span>`
+      : "";
+    html += `<a class="category-item${isActive ? " active" : ""}${isEmpty ? " category-empty" : ""}" href="${isEmpty ? "javascript:void(0)" : href}" title="${cat.name}">${cat.name}${countBadge}</a>`;
   }
   listEl.innerHTML = html;
 

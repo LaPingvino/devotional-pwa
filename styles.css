@@ -1062,6 +1062,32 @@ body[data-theme="sepia"]
     font-weight: 600;
 }
 
+/* Empty category — greyed out, not clickable */
+.category-item.category-empty {
+    opacity: 0.38;
+    cursor: default;
+    pointer-events: none;
+}
+
+/* Prayer count badge */
+.category-count {
+    margin-left: auto;
+    padding-left: 6px;
+    font-size: 0.85em;
+    font-weight: 600;
+    opacity: 0.55;
+    flex-shrink: 0;
+}
+
+.category-count-zero {
+    opacity: 0.35;
+}
+
+/* Hide count badges in collapsed sidebar */
+#category-sidebar.collapsed .category-count {
+    display: none;
+}
+
 #category-sidebar.collapsed .category-item {
     padding: 10px 12px;
     font-size: 0;  /* hide text */
