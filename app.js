@@ -164,6 +164,18 @@ function initializeStaticPrayerActions() {
 const contentDiv = document.getElementById("content");
 const prayerLanguageNav = document.getElementById("prayer-language-nav");
 
+// --- Overflow menu context ---
+window.currentContextPhelps = null;
+
+function setContextPhelps(phelps) {
+  window.currentContextPhelps = phelps || null;
+  const item = document.getElementById("menu-item-source");
+  const divider = document.getElementById("menu-divider-source");
+  const visible = !!phelps;
+  if (item) item.style.display = visible ? "" : "none";
+  if (divider) divider.style.display = visible ? "" : "none";
+}
+
 // --- Category Sidebar ---
 const CATEGORY_CACHE_PREFIX = "hw_categories_cache_";
 const CATEGORY_CACHE_EXPIRY_MS = 24 * 60 * 60 * 1000; // 24 hours
@@ -1598,6 +1610,7 @@ async function _renderPrayerContent(
 
   const finalDisplayLanguageForPhelpsMeta =
     await getLanguageDisplayName(languageToDisplay);
+  setContextPhelps(phelpsToDisplay || null);
   let phelpsDisplayHtml = "Not Assigned";
   if (phelpsToDisplay) {
     const textPart = titleCalculationResults.phelpsIsSuggested
@@ -2135,12 +2148,13 @@ async function _renderPrayerCodeViewContent(phelpsCode, page) {
     paginationHtml += "</div>";
   }
 
-  const internalHeaderHtml = `<header><h2><span id="category">Prayer Code</span><span id="blocktitle">${phelpsCode} (Page ${page}) - All Languages</span></h2></header>`;
+  const internalHeaderHtml = `<header><h2><span id="category">Prayer Code</span><span id="blocktitle">${phelpsCode} – All Languages</span></h2><a href="#source/${encodeURIComponent(phelpsCode)}" class="source-view-link" style="font-size:0.9em">&#x1f7d9; View source / inventory</a></header>`;
   return `<div id="prayer-code-content-area">${internalHeaderHtml}${listHtml}${paginationHtml}</div>`;
 }
 
 async function renderPrayerCodeView(phelpsCode, page = 1) {
   currentPageByPhelpsCode[phelpsCode] = page;
+  setContextPhelps(phelpsCode);
 
   await renderPageLayout({
     titleKey: `Translations for ${phelpsCode}`,
@@ -3051,6 +3065,7 @@ async function _renderBottomLanguageSelector(categoryContext = null) {
 }
 
 async function renderLanguageList() {
+  setContextPhelps(null);
   // Clear header navigation specific to other views
   updateHeaderNavigation([]);
   renderSidebar(null, null); // reset sidebar to show no active category/language
@@ -3288,6 +3303,7 @@ async function renderSearchResults(searchTerm, page = 1) {
 // ============================================================
 
 async function renderSourceView(phelps) {
+  setContextPhelps(phelps);
   const escapedPin = phelps.replace(/'/g, "''");
 
   await renderPageLayout({
