@@ -64,7 +64,7 @@ function renderTable() {
   const rows = filtered.slice(0, 500);
   tbody.innerHTML = rows.map(e =>
     `<tr>
-      <td class="pin-cell"><a href="/phelps/${e.pin}/">${e.pin}</a></td>
+      <td class="pin-cell"><a href="/phelps/${e.pin.toLowerCase()}/">${e.pin}</a></td>
       <td>${e.first_line || ''}</td>
     </tr>`
   ).join('');
