@@ -3497,14 +3497,11 @@ async function renderSourceView(phelps) {
 const INVENTORY_PAGE_SIZE = 30;
 const INVENTORY_PREFIXES = ["AB", "ABU", "BH", "BHU", "BB", "BBU"];
 
-// Build the PIN-prefix SQL condition, disambiguating overlapping prefixes
+// Build the PIN-prefix SQL condition using the indexed prefix column
 function prefixSqlCondition(prefix) {
   if (!prefix) return null;
   const p = prefix.toUpperCase();
-  if (p === "AB") return "(PIN LIKE 'AB%' AND PIN NOT LIKE 'ABU%')";
-  if (p === "BH") return "(PIN LIKE 'BH%' AND PIN NOT LIKE 'BHU%')";
-  if (p === "BB") return "(PIN LIKE 'BB%' AND PIN NOT LIKE 'BBU%')";
-  return `PIN LIKE '${p}%'`;
+  return `prefix = '${p}'`;
 }
 
 // Build inventory page base URL (hash path, no page param)
