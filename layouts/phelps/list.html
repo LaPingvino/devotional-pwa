@@ -96,7 +96,7 @@ function renderTable() {
     const countCell = hasTranslations
       ? `<span style="color:var(--accent); font-weight:600">${e.translations}</span>`
       : `<span style="opacity:.3">—</span>`;
-    return `<tr${hasTranslations ? '' : ' style="opacity:.5"'}>
+    return `<tr>
       <td class="pin-cell">${pinCell}</td>
       <td style="font-size:.8rem; color:var(--text-secondary)">${authorFromPin(e.pin)}</td>
       <td>${e.first_line || ''}</td>
