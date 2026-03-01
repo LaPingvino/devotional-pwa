@@ -55,6 +55,17 @@ go run scripts/gen_pdf.go \
   --font-dir ./fonts \
   --out-dir ./static/downloads \
   --phelps-base-url /phelps/
+
+# Generate combined all-languages PDF and EPUB
+echo "Generating combined all-languages PDF and EPUB..."
+go run scripts/gen_pdf.go \
+  --db ./bahaiwritings \
+  --lang all \
+  --combined \
+  --both \
+  --font-dir ./fonts \
+  --out-dir ./static/downloads \
+  --phelps-base-url /phelps/
 echo "PDF/EPUB generation complete: $(ls static/downloads/*.pdf 2>/dev/null | wc -l) PDFs"
 
 # Build Hugo site

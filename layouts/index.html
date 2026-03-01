@@ -4,6 +4,10 @@
   <p style="color:var(--text-secondary); margin-bottom:1.5rem;">
     {{ len site.Data.languages }} languages · {{ site.Params.description }}
   </p>
+  <div style="margin-bottom:1.5rem;">
+    <a href="/downloads/prayers_all.pdf" class="dl-link" download>Download all languages — PDF</a>
+    <a href="/downloads/prayers_all.epub" class="dl-link" download style="margin-left:.5rem;">EPUB</a>
+  </div>
   <div class="lang-grid">
     {{ range site.Data.languages }}
     <a class="lang-card" href="/prayers/{{ .code }}/">

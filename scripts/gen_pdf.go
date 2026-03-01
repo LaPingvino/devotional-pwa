@@ -566,10 +566,30 @@ func markdownToSegs(text string, isRTL bool) []pdfSeg {
 
 // ── gofpdf PDF renderer ────────────────────────────────────────────────────────
 
-// renderPDFGo generates a prayer book PDF using gofpdf.
-// This replaces the previous WeasyPrint-based renderPDF and runs ~50× faster.
-func renderPDFGo(prayers []Prayer, lang, title, lname, phelpsBaseURL string,
-	translations map[string][]string, outFile, fontDir string) {
+// pdfCtx holds shared rendering state passed between helpers.
+type pdfCtx struct {
+	pdf      *gofpdf.Fpdf
+	fi       *fontInfo
+	contentW float64
+	lm       float64 // left margin
+}
+
+// bodyColor / metaColor / headColor / noteColor set PDF text colour.
+func (c *pdfCtx) bodyColor() { c.pdf.SetTextColor(26, 26, 26) }
+func (c *pdfCtx) metaColor() { c.pdf.SetTextColor(160, 160, 160) }
+func (c *pdfCtx) headColor() { c.pdf.SetTextColor(44, 62, 80) }
+func (c *pdfCtx) noteColor() { c.pdf.SetTextColor(100, 100, 100) }
+
+// renderPrayerSection renders a group of prayers (one language section) into
+// the already-open pdf.  bodyFont is chosen by the caller to match the script.
+func renderPrayerSection(ctx *pdfCtx, prayers []Prayer, lang, phelpsBaseURL string,
+	translations map[string][]string) {
+
+	pdf := ctx.pdf
+	fi := ctx.fi
+	lm := ctx.lm
+	contentW := ctx.contentW
+	lineH := 6.5
 
 	isRTL := rtlLangs[lang]
 	align := "L"
@@ -577,47 +597,15 @@ func renderPDFGo(prayers []Prayer, lang, title, lname, phelpsBaseURL string,
 		align = "R"
 	}
 
-	pdf := gofpdf.New("P", "mm", "A4", "")
-	pdf.SetMargins(25, 22, 22)
-	pdf.SetAutoPageBreak(true, 22)
-	pdf.SetCreator("Bahá'í Prayer Book Generator", true)
-	pdf.SetTitle(title, true)
-
-	fi := loadFonts(pdf, lang, fontDir)
-
-	pageW, _ := pdf.GetPageSize()
-	lm, _, rm, _ := pdf.GetMargins()
-	contentW := pageW - lm - rm
-
-	// Color helpers
-	setBodyColor := func() { pdf.SetTextColor(26, 26, 26) }
-	setMetaColor := func() { pdf.SetTextColor(160, 160, 160) }
-	setHeadColor := func() { pdf.SetTextColor(44, 62, 80) }
-	setNoteColor := func() { pdf.SetTextColor(100, 100, 100) }
-
-	lineH := 6.5 // mm per body text line at 11pt
-
-	// ── Title page ────────────────────────────────────────────────────────────
-	pdf.AddPage()
-	pdf.SetY(75)
-
-	setHeadColor()
-	pdf.SetFont(fi.bodyFont, "", 24)
-	pdf.MultiCell(contentW, 12, title, "", "C", false)
-
-	if lname != "" {
-		pdf.SetFont(fi.bodyFont, "", 14)
-		setMetaColor()
-		pdf.MultiCell(contentW, 8, lname, "", "C", false)
+	// Determine which body font to use for this language.
+	bodyFont := fi.bodyFont
+	if isRTL && fi.loaded["NotoNaskhArabic"] {
+		bodyFont = "NotoNaskhArabic"
+	} else if fi.loaded["NotoSerif"] {
+		bodyFont = "NotoSerif"
 	}
 
-	pdf.Ln(6)
-	pdf.SetFont(fi.monoFont, "", 9)
-	setMetaColor()
-	pdf.MultiCell(contentW, 5, fmt.Sprintf("%d prayers", len(prayers)), "", "C", false)
-	setBodyColor()
-
-	// ── Group prayers by category ─────────────────────────────────────────────
+	// Group by category
 	type catGroup struct {
 		name    string
 		prayers []Prayer
@@ -637,111 +625,239 @@ func renderPDFGo(prayers []Prayer, lang, title, lname, phelpsBaseURL string,
 		}
 	}
 
-	// ── Prayer pages ──────────────────────────────────────────────────────────
-	pdf.AddPage()
-
 	for _, grp := range groups {
-		// Category header
 		if grp.name != "" {
 			catName := grp.name
 			if isRTL {
 				catName = shapeText(catName)
 			}
-			setHeadColor()
-			pdf.SetFont(fi.bodyFont, "", 14)
-			// Draw a bottom rule manually (gofpdf doesn't have border-bottom on MultiCell)
+			ctx.headColor()
+			pdf.SetFont(bodyFont, "", 14)
 			pdf.MultiCell(contentW, 8, catName, "", align, false)
 			y := pdf.GetY()
 			pdf.SetDrawColor(44, 62, 80)
 			pdf.Line(lm, y, lm+contentW, y)
 			pdf.SetDrawColor(200, 200, 200)
 			pdf.Ln(5)
-			setBodyColor()
+			ctx.bodyColor()
 		}
 
 		for _, p := range grp.prayers {
-			// ── Phelps code line ──────────────────────────────────────────────
 			pdf.SetFont(fi.monoFont, "", 7)
-			setMetaColor()
+			ctx.metaColor()
 			pdf.CellFormat(contentW, 4, p.Phelps, "", 1, align, false, 0, "")
-			setBodyColor()
+			ctx.bodyColor()
 
-			// ── Prayer body ───────────────────────────────────────────────────
 			for _, seg := range markdownToSegs(p.Text, isRTL) {
 				switch seg.style {
 				case segHeader:
-					pdf.SetFont(fi.bodyFont, "", 10)
-					setNoteColor()
+					pdf.SetFont(bodyFont, "", 10)
+					ctx.noteColor()
 					pdf.MultiCell(contentW, 5.5, seg.text, "", align, false)
 					pdf.Ln(0.5)
-					setBodyColor()
-
+					ctx.bodyColor()
 				case segSubheader:
-					pdf.SetFont(fi.bodyFont, "", 9)
-					setNoteColor()
+					pdf.SetFont(bodyFont, "", 9)
+					ctx.noteColor()
 					pdf.MultiCell(contentW, 5, seg.text, "", align, false)
 					pdf.Ln(0.5)
-					setBodyColor()
-
+					ctx.bodyColor()
 				case segVerse:
 					indentW := 8.0
 					effectiveW := contentW - indentW
-					if isRTL {
-						// Right margin indent: shift X to the right (for RTL paragraph the
-						// "visual left" of the indented block is the right side)
-						pdf.SetFont(fi.bodyFont, "", 11)
-						pdf.MultiCell(effectiveW, lineH, seg.text, "", align, false)
-					} else {
-						// Left margin indent
+					if !isRTL {
 						pdf.SetX(lm + indentW)
-						pdf.SetFont(fi.bodyFont, "", 11)
-						pdf.MultiCell(effectiveW, lineH, seg.text, "", align, false)
 					}
+					pdf.SetFont(bodyFont, "", 11)
+					pdf.MultiCell(effectiveW, lineH, seg.text, "", align, false)
 					pdf.Ln(0.5)
-
 				case segNote:
-					pdf.SetFont(fi.bodyFont, "", 9)
-					setNoteColor()
+					pdf.SetFont(bodyFont, "", 9)
+					ctx.noteColor()
 					pdf.MultiCell(contentW, 5, seg.text, "", align, false)
 					pdf.Ln(0.5)
-					setBodyColor()
-
-				default: // segNormal
-					pdf.SetFont(fi.bodyFont, "", 11)
+					ctx.bodyColor()
+				default:
+					pdf.SetFont(bodyFont, "", 11)
 					pdf.MultiCell(contentW, lineH, seg.text, "", align, false)
 					pdf.Ln(0.5)
 				}
 			}
 
-			// ── Translation note ──────────────────────────────────────────────
 			var transLangs []string
-			if langs, ok := translations[p.Phelps]; ok {
-				for _, l := range langs {
+			if ls, ok := translations[p.Phelps]; ok {
+				for _, l := range ls {
 					if l != lang {
 						transLangs = append(transLangs, l)
 					}
 				}
 			}
 			if len(transLangs) > 0 {
-				pdf.SetFont(fi.bodyFont, "", 8)
-				setMetaColor()
+				pdf.SetFont(bodyFont, "", 8)
+				ctx.metaColor()
 				pdf.MultiCell(contentW, 4, "Also in: "+strings.Join(transLangs, ", "), "", align, false)
-				setBodyColor()
+				ctx.bodyColor()
 			}
 
-			// ── Separator ─────────────────────────────────────────────────────
 			pdf.Ln(2)
 			y := pdf.GetY()
 			pdf.Line(lm, y, lm+contentW, y)
 			pdf.Ln(4)
 		}
 	}
+}
+
+// newPDF creates a configured Fpdf and returns a pdfCtx with geometry pre-computed.
+func newPDF(title, fontDir string, langs []string) (*pdfCtx, *fontInfo) {
+	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf.SetMargins(25, 22, 22)
+	pdf.SetAutoPageBreak(true, 22)
+	pdf.SetCreator("Bahá'í Prayer Book Generator", true)
+	pdf.SetTitle(title, true)
+
+	// For combined docs load all scripts; for single docs pick the right font.
+	// loadFonts selects a primary bodyFont; we also pre-load the Arabic font
+	// so it's available for renderPrayerSection when switching scripts.
+	primaryLang := ""
+	if len(langs) == 1 {
+		primaryLang = langs[0]
+	}
+	fi := loadFonts(pdf, primaryLang, fontDir)
+
+	// For combined PDFs, always ensure Arabic font is loaded too.
+	if len(langs) > 1 && !fi.loaded["NotoNaskhArabic"] {
+		loadTTFInto(pdf, fi, "NotoNaskhArabic", "NotoNaskhArabic-Regular.ttf", fontDir)
+	}
+
+	pageW, _ := pdf.GetPageSize()
+	lm, _, rm, _ := pdf.GetMargins()
+	contentW := pageW - lm - rm
+	return &pdfCtx{pdf: pdf, fi: fi, contentW: contentW, lm: lm}, fi
+}
+
+// loadTTFInto is a helper that loads one font into an existing Fpdf+fontInfo.
+func loadTTFInto(pdf *gofpdf.Fpdf, fi *fontInfo, family, filename, fontDir string) {
+	if fi.loaded[family] {
+		return
+	}
+	home, _ := os.UserHomeDir()
+	searchDirs := []string{fontDir, "fonts"}
+	if home != "" {
+		searchDirs = append(searchDirs,
+			filepath.Join(home, ".local/share/fonts/noto"),
+			filepath.Join(home, ".local/share/fonts"),
+		)
+	}
+	searchDirs = append(searchDirs, "/usr/share/fonts/truetype/noto", "/usr/share/fonts/opentype/noto")
+	for _, dir := range searchDirs {
+		if dir == "" {
+			continue
+		}
+		path := filepath.Join(dir, filename)
+		data, err := os.ReadFile(path)
+		if err != nil {
+			continue
+		}
+		pdf.AddUTF8FontFromBytes(family, "", data)
+		fi.loaded[family] = true
+		fmt.Fprintf(os.Stderr, "  font: %s ← %s\n", family, filepath.Base(path))
+		return
+	}
+}
+
+// renderPDFGo generates a single-language prayer book PDF using gofpdf.
+func renderPDFGo(prayers []Prayer, lang, title, lname, phelpsBaseURL string,
+	translations map[string][]string, outFile, fontDir string) {
+
+	ctx, fi := newPDF(title, fontDir, []string{lang})
+	pdf := ctx.pdf
+	contentW := ctx.contentW
+
+	// Title page
+	pdf.AddPage()
+	pdf.SetY(75)
+	ctx.headColor()
+	pdf.SetFont(fi.bodyFont, "", 24)
+	pdf.MultiCell(contentW, 12, title, "", "C", false)
+	if lname != "" {
+		pdf.SetFont(fi.bodyFont, "", 14)
+		ctx.metaColor()
+		pdf.MultiCell(contentW, 8, lname, "", "C", false)
+	}
+	pdf.Ln(6)
+	pdf.SetFont(fi.monoFont, "", 9)
+	ctx.metaColor()
+	pdf.MultiCell(contentW, 5, fmt.Sprintf("%d prayers", len(prayers)), "", "C", false)
+	ctx.bodyColor()
+
+	pdf.AddPage()
+	renderPrayerSection(ctx, prayers, lang, phelpsBaseURL, translations)
 
 	if err := pdf.OutputFileAndClose(outFile); err != nil {
 		fmt.Fprintf(os.Stderr, "PDF write error: %v\n", err)
 		os.Exit(1)
 	}
 	fmt.Printf("  Written: %s\n", outFile)
+}
+
+// renderCombinedPDF generates one PDF containing all supplied languages,
+// each preceded by a language divider page.
+func renderCombinedPDF(langPrayers []langSection, title, phelpsBaseURL string,
+	translations map[string][]string, outFile, fontDir string) {
+
+	// Collect all language codes for font pre-loading
+	var langCodes []string
+	total := 0
+	for _, ls := range langPrayers {
+		langCodes = append(langCodes, ls.lang)
+		total += len(ls.prayers)
+	}
+
+	ctx, fi := newPDF(title, fontDir, langCodes)
+	pdf := ctx.pdf
+	contentW := ctx.contentW
+
+	// Cover page
+	pdf.AddPage()
+	pdf.SetY(75)
+	ctx.headColor()
+	pdf.SetFont(fi.bodyFont, "", 24)
+	pdf.MultiCell(contentW, 12, title, "", "C", false)
+	pdf.SetFont(fi.bodyFont, "", 14)
+	ctx.metaColor()
+	pdf.MultiCell(contentW, 8, "All Languages", "", "C", false)
+	pdf.Ln(6)
+	pdf.SetFont(fi.monoFont, "", 9)
+	pdf.MultiCell(contentW, 5, fmt.Sprintf("%d prayers · %d languages", total, len(langPrayers)), "", "C", false)
+	ctx.bodyColor()
+
+	for _, ls := range langPrayers {
+		// Language divider page
+		pdf.AddPage()
+		pdf.SetY(90)
+		ctx.headColor()
+		pdf.SetFont(fi.bodyFont, "", 20)
+		pdf.MultiCell(contentW, 10, ls.lname, "", "C", false)
+		pdf.SetFont(fi.monoFont, "", 10)
+		ctx.metaColor()
+		pdf.MultiCell(contentW, 6, fmt.Sprintf("%s · %d prayers", ls.lang, len(ls.prayers)), "", "C", false)
+		ctx.bodyColor()
+
+		pdf.AddPage()
+		renderPrayerSection(ctx, ls.prayers, ls.lang, phelpsBaseURL, translations)
+	}
+
+	if err := pdf.OutputFileAndClose(outFile); err != nil {
+		fmt.Fprintf(os.Stderr, "Combined PDF write error: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("  Written: %s\n", outFile)
+}
+
+type langSection struct {
+	lang    string
+	lname   string
+	prayers []Prayer
 }
 
 // ── EPUB renderer (pandoc) ─────────────────────────────────────────────────────
@@ -1100,10 +1216,11 @@ func main() {
 	output     := flag.String("output", "", "Output file")
 	outDir     := flag.String("out-dir", "", "Output directory")
 	fontDir    := flag.String("font-dir", defaultFontDir, "Directory with Noto .ttf fonts")
-	htmlOnly   := flag.Bool("html-only", false, "Output HTML only (for EPUB pipeline)")
-	epubMode   := flag.Bool("epub", false, "Generate EPUB via pandoc")
-	bothMode   := flag.Bool("both", false, "Generate both PDF and EPUB")
-	indexMode  := flag.Bool("index", false, "Generate first-lines concordance index")
+	htmlOnly    := flag.Bool("html-only", false, "Output HTML only (for EPUB pipeline)")
+	epubMode    := flag.Bool("epub", false, "Generate EPUB via pandoc")
+	bothMode    := flag.Bool("both", false, "Generate both PDF and EPUB")
+	indexMode   := flag.Bool("index", false, "Generate first-lines concordance index")
+	combinedMode := flag.Bool("combined", false, "Generate a single combined PDF/EPUB for all languages")
 	title      := flag.String("title", "Bahá'í Prayers", "Document title")
 	phelpsBase := flag.String("phelps-base-url", "", "Base URL for phelps links")
 	flag.Parse()
@@ -1145,6 +1262,39 @@ func main() {
 	if err := os.MkdirAll(dir, 0755); err != nil {
 		fmt.Fprintf(os.Stderr, "mkdir: %v\n", err)
 		os.Exit(1)
+	}
+
+	// Combined mode: one PDF/EPUB containing all languages
+	if *combinedMode {
+		var sections []langSection
+		for _, l := range langs {
+			fmt.Printf("Loading %s...\n", l)
+			prayers := queryPrayers(*db, *source, l)
+			if len(prayers) == 0 {
+				continue
+			}
+			lname := langName(*db, l)
+			sections = append(sections, langSection{lang: l, lname: lname, prayers: prayers})
+		}
+		fmt.Printf("Building combined output for %d languages...\n", len(sections))
+		combinedBase := filepath.Join(dir, "prayers_all")
+		if *output != "" {
+			combinedBase = strings.TrimSuffix(*output, filepath.Ext(*output))
+		}
+		combinedTitle := *title + " — All Languages"
+		if !*epubMode {
+			renderCombinedPDF(sections, combinedTitle, *phelpsBase, translationsMap, combinedBase+".pdf", *fontDir)
+		}
+		if *epubMode || *bothMode {
+			// Build a mega-HTML for EPUB
+			var buf strings.Builder
+			for _, ls := range sections {
+				docTitle := *title + " — " + ls.lname
+				buf.WriteString(generateHTML(ls.prayers, ls.lang, docTitle, *phelpsBase, translationsMap))
+			}
+			renderEPUB(buf.String(), combinedBase+".epub", "all", combinedTitle, "mul")
+		}
+		return
 	}
 
 	for _, l := range langs {
