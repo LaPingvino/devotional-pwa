@@ -22,10 +22,14 @@ if ! hugo version 2>/dev/null | grep -q "$HUGO_VERSION"; then
 fi
 echo "Hugo version: $(hugo version)"
 
-# PDF/EPUB generation is disabled pending a switch from weasyprint (Python, slow)
-# to a Go-native solution (gofpdf + arabicshaper).  WeasyPrint + 100+ languages
-# exceeded the 20-minute Cloudflare Pages build limit.
-# TODO: re-enable once gen_pdf.go uses gofpdf for fast pure-Go PDF output.
+# Install pandoc (for EPUB generation alongside the gofpdf PDFs)
+PANDOC_VERSION="${PANDOC_VERSION:-3.6.4}"
+if ! command -v pandoc &>/dev/null; then
+  echo "Installing pandoc $PANDOC_VERSION..."
+  curl -fsSL "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-linux-amd64.tar.gz" \
+    | tar -xz --strip-components=2 -C "$HOME/bin" "pandoc-${PANDOC_VERSION}/bin/pandoc"
+fi
+echo "Pandoc version: $(pandoc --version | head -1)"
 
 # Clone the prayer database (public DoltHub repo, no auth needed)
 if [ -d "bahaiwritings/.dolt" ]; then
@@ -39,6 +43,19 @@ fi
 # Generate Hugo data files from Dolt
 echo "Generating data files..."
 go run scripts/gen_hugo_data.go --dolt-dir ./bahaiwritings --out-dir .
+
+# Generate per-language PDFs and EPUBs using gofpdf (pure Go, ~2 min for all languages)
+# Fonts are bundled in the fonts/ directory — no download needed.
+echo "Generating prayer book PDFs and EPUBs..."
+mkdir -p static/downloads
+go run scripts/gen_pdf.go \
+  --db ./bahaiwritings \
+  --lang all \
+  --both \
+  --font-dir ./fonts \
+  --out-dir ./static/downloads \
+  --phelps-base-url /phelps/
+echo "PDF/EPUB generation complete: $(ls static/downloads/*.pdf 2>/dev/null | wc -l) PDFs"
 
 # Build Hugo site
 echo "Building Hugo site..."

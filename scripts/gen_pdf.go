@@ -10,17 +10,18 @@
 //   go run gen_pdf.go --index --output index.pdf     # first-lines concordance
 //
 // Flags:
-//   --db      Path to dolt repo     (default: ~/prayermatching/bahaiwritings)
-//   --lang    Language code         (default: en; use "all" for all languages)
-//   --source  Prayer source         (default: bahaiprayers.net)
-//   --output  Output file           (default: prayers_LANG.pdf / .epub)
-//   --out-dir Output directory      (default: current dir; used with --lang all)
-//   --html-only  Skip weasyprint, output HTML only
-//   --epub    Generate EPUB via pandoc (instead of PDF)
-//   --both    Generate both PDF and EPUB
-//   --index   Generate first-lines concordance index instead of full prayers
-//   --title   PDF/EPUB title        (default: "Bahá'í Prayers")
-//   --phelps-base-url  Base URL for phelps inventory links (e.g. https://site.example/phelps/)
+//   --db       Path to dolt repo       (default: ~/prayermatching/bahaiwritings)
+//   --lang     Language code           (default: en; use "all" for all languages)
+//   --source   Prayer source           (default: bahaiprayers.net)
+//   --output   Output file             (default: prayers_LANG.pdf / .epub)
+//   --out-dir  Output directory        (default: current dir; used with --lang all)
+//   --font-dir Directory with Noto .ttf fonts  (default: fonts/ relative to script)
+//   --html-only  Output HTML only (for EPUB via pandoc)
+//   --epub     Generate EPUB via pandoc
+//   --both     Generate both PDF and EPUB
+//   --index    Generate first-lines concordance index
+//   --title    Document title          (default: "Bahá'í Prayers")
+//   --phelps-base-url  Base URL for phelps inventory links
 
 package main
 
@@ -35,13 +36,20 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"unicode"
+	"unicode/utf8"
+
+	"github.com/phpdave11/gofpdf"
 )
 
-// RTL script languages
+// ── RTL language set ───────────────────────────────────────────────────────────
+
 var rtlLangs = map[string]bool{
 	"ar": true, "fa": true, "ur": true, "he": true,
 	"ug": true, // Uyghur
 }
+
+// ── Data types ─────────────────────────────────────────────────────────────────
 
 type Prayer struct {
 	Phelps        string
@@ -51,8 +59,9 @@ type Prayer struct {
 	Category      string
 	CategoryOrder int
 	OrderInCat    int
-	Translations  []string // other language codes that also have this prayer
 }
+
+// ── Dolt query helper ──────────────────────────────────────────────────────────
 
 func doltCSV(dbPath, sql string) [][]string {
 	cmd := exec.Command("dolt", "sql", "-q", sql, "--result-format", "csv")
@@ -75,8 +84,10 @@ func doltCSV(dbPath, sql string) [][]string {
 	return rows[1:] // skip header
 }
 
-// sanitizeText strips control characters and PUA codepoints that WeasyPrint
-// cannot render (U+0001–U+001F except whitespace, U+007F, U+0080–U+009F, U+F000–U+F8FF).
+// ── Text sanitization ──────────────────────────────────────────────────────────
+
+// sanitizeText strips control characters and Private Use Area codepoints that
+// cause rendering warnings in PDF generators.
 func sanitizeText(s string) string {
 	return strings.Map(func(r rune) rune {
 		if r < 0x20 && r != '\t' && r != '\n' && r != '\r' {
@@ -92,13 +103,690 @@ func sanitizeText(s string) string {
 	}, s)
 }
 
-// markdownToHTML converts the simple markdown used in prayer texts to HTML.
-// Supported: ## heading, # heading, * verse line, ! note, blank line = <br>
+// ── Embedded Arabic shaper ─────────────────────────────────────────────────────
+//
+// Inline implementation of Arabic contextual letter-form substitution.
+// For the full, well-commented version with UBA Bidi support, see:
+//   ~/prayermatching/arabicshaper/arabicshaper.go
+//
+// This simplified version uses Unicode block ranges for RTL detection instead
+// of golang.org/x/text/unicode/bidi, so it adds no external dependency here.
+
+type arabicForms [4]rune // [isolated, final, initial, medial]
+
+var arabicFormTable = map[rune]arabicForms{
+	// Right-joining (isolated + final only)
+	0x0621: {0xFE80, 0, 0, 0},
+	0x0622: {0xFE81, 0xFE82, 0, 0},
+	0x0623: {0xFE83, 0xFE84, 0, 0},
+	0x0624: {0xFE85, 0xFE86, 0, 0},
+	0x0625: {0xFE87, 0xFE88, 0, 0},
+	0x0627: {0xFE8D, 0xFE8E, 0, 0},
+	0x0629: {0xFE93, 0xFE94, 0, 0},
+	0x062F: {0xFEA9, 0xFEAA, 0, 0},
+	0x0630: {0xFEAB, 0xFEAC, 0, 0},
+	0x0631: {0xFEAD, 0xFEAE, 0, 0},
+	0x0632: {0xFEAF, 0xFEB0, 0, 0},
+	0x0648: {0xFEED, 0xFEEE, 0, 0},
+	0x0649: {0xFEEF, 0xFEF0, 0, 0},
+	// Dual-joining (all four forms)
+	0x0626: {0xFE89, 0xFE8A, 0xFE8B, 0xFE8C},
+	0x0628: {0xFE8F, 0xFE90, 0xFE91, 0xFE92},
+	0x062A: {0xFE95, 0xFE96, 0xFE97, 0xFE98},
+	0x062B: {0xFE99, 0xFE9A, 0xFE9B, 0xFE9C},
+	0x062C: {0xFE9D, 0xFE9E, 0xFE9F, 0xFEA0},
+	0x062D: {0xFEA1, 0xFEA2, 0xFEA3, 0xFEA4},
+	0x062E: {0xFEA5, 0xFEA6, 0xFEA7, 0xFEA8},
+	0x0633: {0xFEB1, 0xFEB2, 0xFEB3, 0xFEB4},
+	0x0634: {0xFEB5, 0xFEB6, 0xFEB7, 0xFEB8},
+	0x0635: {0xFEB9, 0xFEBA, 0xFEBB, 0xFEBC},
+	0x0636: {0xFEBD, 0xFEBE, 0xFEBF, 0xFEC0},
+	0x0637: {0xFEC1, 0xFEC2, 0xFEC3, 0xFEC4},
+	0x0638: {0xFEC5, 0xFEC6, 0xFEC7, 0xFEC8},
+	0x0639: {0xFEC9, 0xFECA, 0xFECB, 0xFECC},
+	0x063A: {0xFECD, 0xFECE, 0xFECF, 0xFED0},
+	0x0641: {0xFED1, 0xFED2, 0xFED3, 0xFED4},
+	0x0642: {0xFED5, 0xFED6, 0xFED7, 0xFED8},
+	0x0643: {0xFED9, 0xFEDA, 0xFEDB, 0xFEDC},
+	0x0644: {0xFEDD, 0xFEDE, 0xFEDF, 0xFEE0},
+	0x0645: {0xFEE1, 0xFEE2, 0xFEE3, 0xFEE4},
+	0x0646: {0xFEE5, 0xFEE6, 0xFEE7, 0xFEE8},
+	0x0647: {0xFEE9, 0xFEEA, 0xFEEB, 0xFEEC},
+	0x064A: {0xFEF1, 0xFEF2, 0xFEF3, 0xFEF4},
+	0x0640: {0x0640, 0x0640, 0x0640, 0x0640}, // Tatweel (transparent)
+	// Persian/Urdu extensions
+	0x067E: {0xFB56, 0xFB57, 0xFB58, 0xFB59},
+	0x0686: {0xFB7A, 0xFB7B, 0xFB7C, 0xFB7D},
+	0x0698: {0xFB8A, 0xFB8B, 0, 0},
+	0x06A9: {0xFB8E, 0xFB8F, 0xFB90, 0xFB91},
+	0x06AF: {0xFB92, 0xFB93, 0xFB94, 0xFB95},
+	0x06CC: {0xFBFC, 0xFBFD, 0xFBFE, 0xFBFF},
+	0x06C1: {0xFBA6, 0xFBA7, 0xFBA8, 0xFBA9},
+	0x06D2: {0xFBAE, 0xFBAF, 0, 0},
+	0x0679: {0xFB66, 0xFB67, 0xFB68, 0xFB69},
+	0x0688: {0xFB88, 0xFB89, 0, 0},
+	0x0691: {0xFB8C, 0xFB8D, 0, 0},
+}
+
+var lamAlifTable = map[rune][2]rune{
+	0x0622: {0xFEF5, 0xFEF6},
+	0x0623: {0xFEF7, 0xFEF8},
+	0x0625: {0xFEF9, 0xFEFA},
+	0x0627: {0xFEFB, 0xFEFC},
+}
+
+type joiningType int
+
+const (
+	joinNone        joiningType = iota
+	joinRight
+	joinDual
+	joinTransparent
+)
+
+func arabicJoining(r rune) joiningType {
+	if r >= 0x064B && r <= 0x065F {
+		return joinTransparent
+	}
+	if r == 0x0670 || r == 0x0640 {
+		return joinTransparent
+	}
+	forms, ok := arabicFormTable[r]
+	if !ok {
+		return joinNone
+	}
+	if forms[2] == 0 && forms[3] == 0 {
+		return joinRight
+	}
+	return joinDual
+}
+
+func prevJoining(runes []rune, i int) joiningType {
+	for j := i - 1; j >= 0; j-- {
+		if jt := arabicJoining(runes[j]); jt != joinTransparent {
+			return jt
+		}
+	}
+	return joinNone
+}
+
+func nextJoining(runes []rune, i int) joiningType {
+	for j := i + 1; j < len(runes); j++ {
+		if jt := arabicJoining(runes[j]); jt != joinTransparent {
+			return jt
+		}
+	}
+	return joinNone
+}
+
+func shapeArabicRun(s string) string {
+	runes := []rune(s)
+	out := make([]rune, 0, len(runes))
+	for i := 0; i < len(runes); i++ {
+		r := runes[i]
+		forms, ok := arabicFormTable[r]
+		if !ok {
+			out = append(out, r)
+			continue
+		}
+		if r == 0x0644 {
+			var transparents []rune
+			j := i + 1
+			for j < len(runes) && arabicJoining(runes[j]) == joinTransparent {
+				transparents = append(transparents, runes[j])
+				j++
+			}
+			if j < len(runes) {
+				if lamAlef, isAlef := lamAlifTable[runes[j]]; isAlef {
+					pj := prevJoining(runes, i)
+					var lig rune
+					if pj == joinDual || pj == joinRight {
+						lig = lamAlef[1]
+					} else {
+						lig = lamAlef[0]
+					}
+					out = append(out, lig)
+					out = append(out, transparents...)
+					i = j
+					continue
+				}
+			}
+		}
+		jt := arabicJoining(r)
+		pj := prevJoining(runes, i)
+		nj := nextJoining(runes, i)
+		connectsRight := pj == joinDual || pj == joinRight
+		connectsLeft := (jt == joinDual) && (nj == joinDual || nj == joinRight)
+		var formIdx int
+		switch {
+		case connectsLeft && connectsRight:
+			formIdx = 3
+		case connectsLeft:
+			formIdx = 2
+		case connectsRight:
+			formIdx = 1
+		default:
+			formIdx = 0
+		}
+		chosen := forms[formIdx]
+		if chosen == 0 {
+			if formIdx == 3 && forms[1] != 0 {
+				chosen = forms[1]
+			} else {
+				chosen = forms[0]
+			}
+		}
+		out = append(out, chosen)
+	}
+	return string(out)
+}
+
+func reverseRTLRun(s string) string {
+	runes := []rune(s)
+	type cluster []rune
+	var clusters []cluster
+	for i := 0; i < len(runes); {
+		cl := cluster{runes[i]}
+		i++
+		for i < len(runes) && unicode.Is(unicode.M, runes[i]) {
+			cl = append(cl, runes[i])
+			i++
+		}
+		clusters = append(clusters, cl)
+	}
+	for l, r := 0, len(clusters)-1; l < r; l, r = l+1, r-1 {
+		clusters[l], clusters[r] = clusters[r], clusters[l]
+	}
+	var b strings.Builder
+	for _, cl := range clusters {
+		for _, r := range cl {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// isRTLChar returns true if rune r is in an RTL Unicode block.
+func isRTLChar(r rune) bool {
+	return (r >= 0x0590 && r <= 0x06FF) || // Hebrew + Arabic
+		(r >= 0x0750 && r <= 0x077F) || // Arabic Supplement
+		(r >= 0x08A0 && r <= 0x08FF) || // Arabic Extended-A
+		(r >= 0xFB50 && r <= 0xFDFF) || // Arabic Presentation Forms-A
+		(r >= 0xFE70 && r <= 0xFEFF) // Arabic Presentation Forms-B
+}
+
+// shapeText shapes and reverses a full string for RTL rendering.
+// Each line is processed: RTL runs are shaped and reversed, LTR runs kept as-is.
+func shapeText(s string) string {
+	if !strings.ContainsRune(s, 0) { // quick sanity
+		_ = utf8.ValidString(s)
+	}
+	var lines []string
+	for _, line := range strings.Split(s, "\n") {
+		lines = append(lines, shapeTextLine(line))
+	}
+	return strings.Join(lines, "\n")
+}
+
+func shapeTextLine(line string) string {
+	if line == "" {
+		return line
+	}
+	runes := []rune(line)
+	// Classify each rune
+	const (
+		clsRTL     = 'R'
+		clsLTR     = 'L'
+		clsNeutral = 'N'
+	)
+	class := make([]byte, len(runes))
+	for i, r := range runes {
+		if isRTLChar(r) {
+			class[i] = clsRTL
+		} else if r == ' ' || r == '\t' || (r >= '0' && r <= '9') {
+			class[i] = clsNeutral
+		} else {
+			class[i] = clsLTR
+		}
+	}
+	// Detect paragraph direction from first strong char
+	paraDir := byte(clsLTR)
+	for _, c := range class {
+		if c == clsRTL {
+			paraDir = clsRTL
+			break
+		}
+		if c == clsLTR {
+			break
+		}
+	}
+	// Resolve neutrals
+	last := paraDir
+	for i, c := range class {
+		if c == clsNeutral {
+			class[i] = last
+		} else {
+			last = c
+		}
+	}
+	// Build runs
+	type run struct {
+		runes []rune
+		rtl   bool
+	}
+	var runs []run
+	if len(runes) > 0 {
+		cur := run{rtl: class[0] == clsRTL}
+		for i, r := range runes {
+			isRTL := class[i] == clsRTL
+			if isRTL != cur.rtl {
+				runs = append(runs, cur)
+				cur = run{rtl: isRTL}
+			}
+			cur.runes = append(cur.runes, r)
+		}
+		runs = append(runs, cur)
+	}
+	// Shape RTL runs
+	for i := range runs {
+		if runs[i].rtl {
+			t := shapeArabicRun(string(runs[i].runes))
+			runs[i].runes = []rune(reverseRTLRun(t))
+		}
+	}
+	// Concatenate in visual order (RTL paragraph: reverse run order)
+	var b strings.Builder
+	if paraDir == clsRTL {
+		for i := len(runs) - 1; i >= 0; i-- {
+			b.WriteString(string(runs[i].runes))
+		}
+	} else {
+		for _, r := range runs {
+			b.WriteString(string(r.runes))
+		}
+	}
+	return b.String()
+}
+
+// ── Font loading ───────────────────────────────────────────────────────────────
+
+// fontInfo tracks which fonts have been loaded into a gofpdf instance.
+type fontInfo struct {
+	bodyFont string
+	monoFont string
+	loaded   map[string]bool
+}
+
+// loadFonts finds and registers the appropriate Unicode fonts for the given
+// language.  Returns the font family name to use for body text.
+//
+// Font search order:
+//  1. --font-dir flag value
+//  2. fonts/ relative to the current working directory
+//  3. ~/.local/share/fonts/noto/
+//  4. /usr/share/fonts/truetype/noto/
+//  5. Built-in Helvetica (ASCII fallback, no external file needed)
+//
+// We use AddUTF8FontFromBytes (reads the file ourselves) rather than AddUTF8Font
+// to avoid gofpdf's internal font-directory path prepending.
+func loadFonts(pdf *gofpdf.Fpdf, lang, fontDir string) *fontInfo {
+	fi := &fontInfo{loaded: map[string]bool{}}
+
+	home, _ := os.UserHomeDir()
+	searchDirs := []string{fontDir, "fonts"}
+	if home != "" {
+		searchDirs = append(searchDirs,
+			filepath.Join(home, ".local/share/fonts/noto"),
+			filepath.Join(home, ".local/share/fonts"),
+		)
+	}
+	searchDirs = append(searchDirs,
+		"/usr/share/fonts/truetype/noto",
+		"/usr/share/fonts/opentype/noto",
+		"/usr/local/share/fonts",
+	)
+
+	findFont := func(filename string) string {
+		for _, dir := range searchDirs {
+			if dir == "" {
+				continue
+			}
+			path := filepath.Join(dir, filename)
+			if _, err := os.Stat(path); err == nil {
+				return path
+			}
+		}
+		return ""
+	}
+
+	// Read the font file and register with gofpdf via bytes (avoids internal path mangling).
+	loadTTF := func(family, filename string) bool {
+		if fi.loaded[family] {
+			return true
+		}
+		path := findFont(filename)
+		if path == "" {
+			return false
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  font read error %s: %v\n", path, err)
+			return false
+		}
+		pdf.AddUTF8FontFromBytes(family, "", data)
+		fi.loaded[family] = true
+		fmt.Fprintf(os.Stderr, "  font: %s ← %s\n", family, filepath.Base(path))
+		return true
+	}
+
+	// Language → preferred font
+	switch lang {
+	case "ar", "fa", "ur":
+		if loadTTF("NotoNaskhArabic", "NotoNaskhArabic-Regular.ttf") {
+			fi.bodyFont = "NotoNaskhArabic"
+		}
+	}
+
+	// Default body font: NotoSerif covers Latin, Cyrillic, Greek, Vietnamese, etc.
+	if fi.bodyFont == "" {
+		if loadTTF("NotoSerif", "NotoSerif-Regular.ttf") {
+			fi.bodyFont = "NotoSerif"
+		} else {
+			fi.bodyFont = "Helvetica" // built-in, ASCII only
+		}
+	}
+
+	fi.monoFont = "Courier" // built-in monospace for phelps codes
+	return fi
+}
+
+// ── PDF segment types ──────────────────────────────────────────────────────────
+
+type segStyle int
+
+const (
+	segNormal    segStyle = iota
+	segVerse              // indented, italic
+	segNote               // smaller, grey
+	segHeader             // larger, italic heading within a prayer
+	segSubheader          // small italic heading
+)
+
+type pdfSeg struct {
+	text  string
+	style segStyle
+}
+
+// markdownToSegs converts the prayer markdown format to a list of PDF segments.
+// For RTL languages, each text segment is pre-shaped and reversed here.
+func markdownToSegs(text string, isRTL bool) []pdfSeg {
+	lines := strings.Split(sanitizeText(text), "\n")
+	var segs []pdfSeg
+	var pending []string
+
+	shape := func(s string) string {
+		if isRTL {
+			return shapeText(s)
+		}
+		return s
+	}
+
+	flushPending := func() {
+		if len(pending) > 0 {
+			combined := strings.Join(pending, " ")
+			pending = nil
+			segs = append(segs, pdfSeg{text: shape(combined), style: segNormal})
+		}
+	}
+
+	for _, line := range lines {
+		t := strings.TrimSpace(line)
+		switch {
+		case strings.HasPrefix(t, "## "):
+			flushPending()
+			segs = append(segs, pdfSeg{text: shape(strings.TrimPrefix(t, "## ")), style: segSubheader})
+		case strings.HasPrefix(t, "# "):
+			flushPending()
+			segs = append(segs, pdfSeg{text: shape(strings.TrimPrefix(t, "# ")), style: segHeader})
+		case strings.HasPrefix(t, "* "):
+			flushPending()
+			segs = append(segs, pdfSeg{text: shape(strings.TrimPrefix(t, "* ")), style: segVerse})
+		case strings.HasPrefix(t, "! "):
+			flushPending()
+			segs = append(segs, pdfSeg{text: strings.TrimPrefix(t, "! "), style: segNote})
+		case t == "":
+			flushPending()
+		default:
+			pending = append(pending, t)
+		}
+	}
+	flushPending()
+	return segs
+}
+
+// ── gofpdf PDF renderer ────────────────────────────────────────────────────────
+
+// renderPDFGo generates a prayer book PDF using gofpdf.
+// This replaces the previous WeasyPrint-based renderPDF and runs ~50× faster.
+func renderPDFGo(prayers []Prayer, lang, title, lname, phelpsBaseURL string,
+	translations map[string][]string, outFile, fontDir string) {
+
+	isRTL := rtlLangs[lang]
+	align := "L"
+	if isRTL {
+		align = "R"
+	}
+
+	pdf := gofpdf.New("P", "mm", "A4", "")
+	pdf.SetMargins(25, 22, 22)
+	pdf.SetAutoPageBreak(true, 22)
+	pdf.SetCreator("Bahá'í Prayer Book Generator", true)
+	pdf.SetTitle(title, true)
+
+	fi := loadFonts(pdf, lang, fontDir)
+
+	pageW, _ := pdf.GetPageSize()
+	lm, _, rm, _ := pdf.GetMargins()
+	contentW := pageW - lm - rm
+
+	// Color helpers
+	setBodyColor := func() { pdf.SetTextColor(26, 26, 26) }
+	setMetaColor := func() { pdf.SetTextColor(160, 160, 160) }
+	setHeadColor := func() { pdf.SetTextColor(44, 62, 80) }
+	setNoteColor := func() { pdf.SetTextColor(100, 100, 100) }
+
+	lineH := 6.5 // mm per body text line at 11pt
+
+	// ── Title page ────────────────────────────────────────────────────────────
+	pdf.AddPage()
+	pdf.SetY(75)
+
+	setHeadColor()
+	pdf.SetFont(fi.bodyFont, "", 24)
+	pdf.MultiCell(contentW, 12, title, "", "C", false)
+
+	if lname != "" {
+		pdf.SetFont(fi.bodyFont, "", 14)
+		setMetaColor()
+		pdf.MultiCell(contentW, 8, lname, "", "C", false)
+	}
+
+	pdf.Ln(6)
+	pdf.SetFont(fi.monoFont, "", 9)
+	setMetaColor()
+	pdf.MultiCell(contentW, 5, fmt.Sprintf("%d prayers", len(prayers)), "", "C", false)
+	setBodyColor()
+
+	// ── Group prayers by category ─────────────────────────────────────────────
+	type catGroup struct {
+		name    string
+		prayers []Prayer
+	}
+	var groups []catGroup
+	catIdx := map[string]int{}
+	for _, p := range prayers {
+		key := p.Category
+		if key == "" {
+			key = "\x00"
+		}
+		if idx, seen := catIdx[key]; seen {
+			groups[idx].prayers = append(groups[idx].prayers, p)
+		} else {
+			catIdx[key] = len(groups)
+			groups = append(groups, catGroup{name: p.Category, prayers: []Prayer{p}})
+		}
+	}
+
+	// ── Prayer pages ──────────────────────────────────────────────────────────
+	pdf.AddPage()
+
+	for _, grp := range groups {
+		// Category header
+		if grp.name != "" {
+			catName := grp.name
+			if isRTL {
+				catName = shapeText(catName)
+			}
+			setHeadColor()
+			pdf.SetFont(fi.bodyFont, "", 14)
+			// Draw a bottom rule manually (gofpdf doesn't have border-bottom on MultiCell)
+			pdf.MultiCell(contentW, 8, catName, "", align, false)
+			y := pdf.GetY()
+			pdf.SetDrawColor(44, 62, 80)
+			pdf.Line(lm, y, lm+contentW, y)
+			pdf.SetDrawColor(200, 200, 200)
+			pdf.Ln(5)
+			setBodyColor()
+		}
+
+		for _, p := range grp.prayers {
+			// ── Phelps code line ──────────────────────────────────────────────
+			pdf.SetFont(fi.monoFont, "", 7)
+			setMetaColor()
+			pdf.CellFormat(contentW, 4, p.Phelps, "", 1, align, false, 0, "")
+			setBodyColor()
+
+			// ── Prayer body ───────────────────────────────────────────────────
+			for _, seg := range markdownToSegs(p.Text, isRTL) {
+				switch seg.style {
+				case segHeader:
+					pdf.SetFont(fi.bodyFont, "", 10)
+					setNoteColor()
+					pdf.MultiCell(contentW, 5.5, seg.text, "", align, false)
+					pdf.Ln(0.5)
+					setBodyColor()
+
+				case segSubheader:
+					pdf.SetFont(fi.bodyFont, "", 9)
+					setNoteColor()
+					pdf.MultiCell(contentW, 5, seg.text, "", align, false)
+					pdf.Ln(0.5)
+					setBodyColor()
+
+				case segVerse:
+					indentW := 8.0
+					effectiveW := contentW - indentW
+					if isRTL {
+						// Right margin indent: shift X to the right (for RTL paragraph the
+						// "visual left" of the indented block is the right side)
+						pdf.SetFont(fi.bodyFont, "", 11)
+						pdf.MultiCell(effectiveW, lineH, seg.text, "", align, false)
+					} else {
+						// Left margin indent
+						pdf.SetX(lm + indentW)
+						pdf.SetFont(fi.bodyFont, "", 11)
+						pdf.MultiCell(effectiveW, lineH, seg.text, "", align, false)
+					}
+					pdf.Ln(0.5)
+
+				case segNote:
+					pdf.SetFont(fi.bodyFont, "", 9)
+					setNoteColor()
+					pdf.MultiCell(contentW, 5, seg.text, "", align, false)
+					pdf.Ln(0.5)
+					setBodyColor()
+
+				default: // segNormal
+					pdf.SetFont(fi.bodyFont, "", 11)
+					pdf.MultiCell(contentW, lineH, seg.text, "", align, false)
+					pdf.Ln(0.5)
+				}
+			}
+
+			// ── Translation note ──────────────────────────────────────────────
+			var transLangs []string
+			if langs, ok := translations[p.Phelps]; ok {
+				for _, l := range langs {
+					if l != lang {
+						transLangs = append(transLangs, l)
+					}
+				}
+			}
+			if len(transLangs) > 0 {
+				pdf.SetFont(fi.bodyFont, "", 8)
+				setMetaColor()
+				pdf.MultiCell(contentW, 4, "Also in: "+strings.Join(transLangs, ", "), "", align, false)
+				setBodyColor()
+			}
+
+			// ── Separator ─────────────────────────────────────────────────────
+			pdf.Ln(2)
+			y := pdf.GetY()
+			pdf.Line(lm, y, lm+contentW, y)
+			pdf.Ln(4)
+		}
+	}
+
+	if err := pdf.OutputFileAndClose(outFile); err != nil {
+		fmt.Fprintf(os.Stderr, "PDF write error: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("  Written: %s\n", outFile)
+}
+
+// ── EPUB renderer (pandoc) ─────────────────────────────────────────────────────
+
+func renderEPUB(htmlContent, outFile, tmpTag, title, lang string) {
+	tmpFile := fmt.Sprintf("/tmp/prayers_%s_epub.html", tmpTag)
+	if err := os.WriteFile(tmpFile, []byte(htmlContent), 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "Temp write error: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("  Converting to EPUB...\n")
+	cmd := exec.Command("pandoc",
+		"--metadata", "title="+title,
+		"--metadata", "lang="+lang,
+		"-f", "html",
+		"-t", "epub",
+		"--toc",
+		"--toc-depth=1",
+		"-o", outFile,
+		tmpFile,
+	)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "  pandoc error (EPUB skipped): %v\n", err)
+	} else {
+		fmt.Printf("  Written: %s\n", outFile)
+	}
+	os.Remove(tmpFile)
+}
+
+func renderHTML(htmlContent, outFile string) {
+	if err := os.WriteFile(outFile, []byte(htmlContent), 0644); err != nil {
+		fmt.Fprintf(os.Stderr, "Write error: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("  Written: %s\n", outFile)
+}
+
+// ── HTML generator (for EPUB source) ──────────────────────────────────────────
+
 func markdownToHTML(text string) template.HTML {
 	lines := strings.Split(sanitizeText(text), "\n")
 	var buf strings.Builder
 	inParagraph := false
-
 	closePara := func() {
 		if inParagraph {
 			buf.WriteString("</p>\n")
@@ -111,42 +799,30 @@ func markdownToHTML(text string) template.HTML {
 			inParagraph = true
 		}
 	}
-
 	for i, line := range lines {
 		trimmed := strings.TrimSpace(line)
-
 		switch {
 		case strings.HasPrefix(trimmed, "## "):
 			closePara()
-			t := template.HTMLEscapeString(strings.TrimPrefix(trimmed, "## "))
-			buf.WriteString(fmt.Sprintf("<h3 class=\"prayer-sub-header\">%s</h3>\n", t))
-
+			buf.WriteString(fmt.Sprintf("<h3>%s</h3>\n", template.HTMLEscapeString(strings.TrimPrefix(trimmed, "## "))))
 		case strings.HasPrefix(trimmed, "# "):
 			closePara()
-			t := template.HTMLEscapeString(strings.TrimPrefix(trimmed, "# "))
-			buf.WriteString(fmt.Sprintf("<h2 class=\"prayer-header\">%s</h2>\n", t))
-
+			buf.WriteString(fmt.Sprintf("<h2>%s</h2>\n", template.HTMLEscapeString(strings.TrimPrefix(trimmed, "# "))))
 		case strings.HasPrefix(trimmed, "* "):
 			closePara()
-			t := template.HTMLEscapeString(strings.TrimPrefix(trimmed, "* "))
-			buf.WriteString(fmt.Sprintf("<p class=\"verse\">%s</p>\n", t))
-
+			buf.WriteString(fmt.Sprintf("<p class=\"verse\">%s</p>\n", template.HTMLEscapeString(strings.TrimPrefix(trimmed, "* "))))
 		case strings.HasPrefix(trimmed, "! "):
 			closePara()
-			t := template.HTMLEscapeString(strings.TrimPrefix(trimmed, "! "))
-			buf.WriteString(fmt.Sprintf("<p class=\"note\"><em>%s</em></p>\n", t))
-
+			buf.WriteString(fmt.Sprintf("<p class=\"note\"><em>%s</em></p>\n", template.HTMLEscapeString(strings.TrimPrefix(trimmed, "! "))))
 		case trimmed == "":
 			if inParagraph {
 				closePara()
 			} else if i > 0 && i < len(lines)-1 {
 				buf.WriteString("<br>\n")
 			}
-
 		default:
 			if inParagraph {
-				buf.WriteString("<br>\n")
-				buf.WriteString(template.HTMLEscapeString(trimmed))
+				buf.WriteString("<br>\n" + template.HTMLEscapeString(trimmed))
 			} else {
 				openPara()
 				buf.WriteString(template.HTMLEscapeString(trimmed))
@@ -157,13 +833,11 @@ func markdownToHTML(text string) template.HTML {
 	return template.HTML(buf.String())
 }
 
-// slugify converts a category name to an HTML-safe ID
 func slugify(s string) string {
 	re := regexp.MustCompile(`[^a-z0-9]+`)
 	return re.ReplaceAllString(strings.ToLower(s), "-")
 }
 
-// CategorySection groups prayers under a category header
 type CategorySection struct {
 	Name    string
 	Slug    string
@@ -173,258 +847,122 @@ type CategorySection struct {
 type PrayerPage struct {
 	Phelps       string
 	HTML         template.HTML
-	Translations string // "Also in: en, fr, de" or ""
-	PhelpsLink   string // URL to inventory for this code
+	Translations string
+	PhelpsLink   string
 }
 
-type PageData struct {
-	Title      string
-	Lang       string
-	LangName   string
-	Dir        string
-	IndentSide string
-	Count      int
-	Categories []CategorySection
-	HasCats    bool
+func basePINKey(pin string) string {
+	n := len(pin)
+	if n < 4 {
+		return pin
+	}
+	suffix := pin[n-3:]
+	for _, c := range suffix {
+		if c < 'A' || c > 'Z' {
+			return pin
+		}
+	}
+	if pin[n-4] >= '0' && pin[n-4] <= '9' {
+		return pin[:n-3]
+	}
+	return pin
 }
 
-// HTML document template
 const htmlTmpl = `<!DOCTYPE html>
 <html lang="{{.Lang}}" dir="{{.Dir}}">
 <head>
 <meta charset="UTF-8">
 <title>{{.Title}}</title>
 <style>
-  @page {
-    size: A4;
-    margin: 2.5cm 3cm 2.5cm 3cm;
-    @bottom-center {
-      content: counter(page);
-      font-family: serif;
-      font-size: 9pt;
-      color: #666;
-    }
-  }
-  body {
-    font-family: "Noto Serif", "Linux Libertine O", "DejaVu Serif", serif;
-    font-size: 11pt;
-    line-height: 1.7;
-    color: #1a1a1a;
-    background: white;
-    direction: {{.Dir}};
-  }
-  .title-page {
-    page-break-after: always;
-    text-align: center;
-    padding-top: 8cm;
-    padding-bottom: 8cm;
-  }
-  .title-page h1 {
-    font-size: 28pt;
-    font-weight: normal;
-    letter-spacing: 0.05em;
-    margin-bottom: 0.5em;
-    color: #2c3e50;
-  }
-  .title-page .subtitle {
-    font-size: 14pt;
-    color: #7f8c8d;
-    font-style: italic;
-  }
-  .title-page .stats {
-    margin-top: 2em;
-    font-size: 10pt;
-    color: #95a5a6;
-  }
-  .toc {
-    page-break-after: always;
-    padding-top: 1cm;
-  }
-  .toc h2 {
-    font-size: 16pt;
-    font-weight: normal;
-    border-bottom: 1px solid #ccc;
-    padding-bottom: 0.3em;
-    margin-bottom: 1em;
-    color: #2c3e50;
-  }
-  .toc ol {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-  }
-  .toc li {
-    padding: 0.15em 0;
-    font-size: 10pt;
-    border-bottom: 1px dotted #ddd;
-  }
-  .toc a {
-    color: #2c3e50;
-    text-decoration: none;
-  }
-  .category-section {
-    margin-top: 2em;
-  }
-  h1.category-header {
-    font-size: 16pt;
-    font-weight: normal;
-    color: #2c3e50;
-    border-bottom: 2px solid #2c3e50;
-    padding-bottom: 0.2em;
-    margin-top: 2.5em;
-    margin-bottom: 1.2em;
-    page-break-after: avoid;
-  }
-  .prayer {
-    page-break-inside: avoid;
-    break-inside: avoid;
-    margin-bottom: 2.5em;
-    padding-bottom: 1.5em;
-    border-bottom: 1px solid #e8e8e8;
-  }
-  .prayer:last-child {
-    border-bottom: none;
-  }
-  .prayer-meta {
-    font-size: 8pt;
-    color: #aaa;
-    margin-bottom: 0.3em;
-    font-family: "DejaVu Sans Mono", monospace;
-  }
-  .prayer-header {
-    font-size: 10pt;
-    font-style: italic;
-    color: #666;
-    margin: 0 0 0.3em 0;
-    font-weight: normal;
-  }
-  .prayer-sub-header {
-    font-size: 10pt;
-    color: #888;
-    margin: 0 0 0.3em 0;
-    font-weight: normal;
-  }
-  p {
-    margin: 0 0 0.6em 0;
-  }
-  p.verse {
-    margin-{{.IndentSide}}: 1.5em;
-    font-style: italic;
-    color: #333;
-  }
-  p.note {
-    font-size: 9pt;
-    color: #666;
-    margin-{{.IndentSide}}: 1em;
-  }
-  .trans-note {
-    font-size: 8pt;
-    color: #bbb;
-    margin-top: 0.3em;
-    font-style: italic;
-  }
+body { font-family: "Noto Serif", serif; font-size: 11pt; line-height: 1.7; direction: {{.Dir}}; }
+h1.cat { font-size: 14pt; margin-top: 2em; }
+.prayer { margin-bottom: 2em; }
+.meta { font-size: 8pt; color: #aaa; font-family: monospace; }
+p.verse { margin-left: 1.5em; font-style: italic; }
+p.note { font-size: 9pt; color: #666; }
+.trans { font-size: 8pt; color: #bbb; font-style: italic; }
 </style>
 </head>
 <body>
-
-<div class="title-page">
-  <h1>{{.Title}}</h1>
-  {{if .LangName}}<div class="subtitle">{{.LangName}}</div>{{end}}
-  <div class="stats">{{.Count}} prayers · phelps.io inventory</div>
-</div>
-
-{{if .HasCats}}
-<div class="toc">
-  <h2>Contents</h2>
-  <ol>
-    {{range .Categories}}{{if .Name}}<li><a href="#cat-{{.Slug}}">{{.Name}}</a></li>
-    {{end}}{{end}}
-  </ol>
-</div>
-{{end}}
-
+<h1>{{.Title}}</h1>
 {{range .Categories}}
-<div class="category-section">
-  {{if .Name}}<h1 class="category-header" id="cat-{{.Slug}}">{{.Name}}</h1>{{end}}
+<div>
+  {{if .Name}}<h1 class="cat">{{.Name}}</h1>{{end}}
   {{range .Prayers}}
   <div class="prayer">
-    <div class="prayer-meta">{{.Phelps}}{{if .PhelpsLink}} · <a href="{{.PhelpsLink}}">↗</a>{{end}}</div>
+    <div class="meta">{{.Phelps}}</div>
     {{.HTML}}
-    {{if .Translations}}<p class="trans-note">{{.Translations}}</p>{{end}}
+    {{if .Translations}}<p class="trans">{{.Translations}}</p>{{end}}
   </div>
   {{end}}
 </div>
 {{end}}
-
 </body>
-</html>
-`
+</html>`
 
-// IndexEntry represents one row in the first-lines concordance
+func generateHTML(prayers []Prayer, lang, title, phelpsBaseURL string, translations map[string][]string) string {
+	dir := "ltr"
+	if rtlLangs[lang] {
+		dir = "rtl"
+	}
+	var categories []CategorySection
+	catIdx := map[string]int{}
+	for _, p := range prayers {
+		key := p.Category
+		if key == "" {
+			key = "\x00"
+		}
+		if _, seen := catIdx[key]; !seen {
+			catIdx[key] = len(categories)
+			categories = append(categories, CategorySection{Name: p.Category, Slug: slugify(p.Category)})
+		}
+		idx := catIdx[key]
+		var transLangs []string
+		if ls, ok := translations[p.Phelps]; ok {
+			for _, l := range ls {
+				if l != lang {
+					transLangs = append(transLangs, l)
+				}
+			}
+		}
+		transNote := ""
+		if len(transLangs) > 0 {
+			transNote = "Also in: " + strings.Join(transLangs, ", ")
+		}
+		phelpsLink := ""
+		if phelpsBaseURL != "" {
+			phelpsLink = phelpsBaseURL + strings.ToLower(basePINKey(p.Phelps)) + "/"
+		}
+		categories[idx].Prayers = append(categories[idx].Prayers, PrayerPage{
+			Phelps:       p.Phelps,
+			HTML:         markdownToHTML(p.Text),
+			Translations: transNote,
+			PhelpsLink:   phelpsLink,
+		})
+	}
+	data := struct {
+		Title      string
+		Lang       string
+		Dir        string
+		Categories []CategorySection
+	}{Title: title, Lang: lang, Dir: dir, Categories: categories}
+	tmpl := template.Must(template.New("p").Parse(htmlTmpl))
+	var buf strings.Builder
+	if err := tmpl.Execute(&buf, data); err != nil {
+		fmt.Fprintf(os.Stderr, "template error: %v\n", err)
+		os.Exit(1)
+	}
+	return buf.String()
+}
+
+// ── Index mode ─────────────────────────────────────────────────────────────────
+
 type IndexEntry struct {
 	Phelps    string
 	FirstLine string
 	LangCount int
 }
 
-const indexTmpl = `<!DOCTYPE html>
-<html lang="en" dir="ltr">
-<head>
-<meta charset="UTF-8">
-<title>{{.Title}}</title>
-<style>
-  @page {
-    size: A4;
-    margin: 2cm 2cm 2cm 2cm;
-    @bottom-center {
-      content: counter(page);
-      font-family: serif;
-      font-size: 8pt;
-      color: #999;
-    }
-  }
-  body {
-    font-family: "Noto Sans", "DejaVu Sans", sans-serif;
-    font-size: 8.5pt;
-    line-height: 1.4;
-    color: #1a1a1a;
-  }
-  h1 { font-size: 18pt; font-weight: normal; text-align: center; margin-bottom: 0.3em; color: #2c3e50; }
-  .subtitle { text-align: center; color: #7f8c8d; font-size: 10pt; margin-bottom: 2em; }
-  table { width: 100%; border-collapse: collapse; }
-  thead th { background: #2c3e50; color: white; padding: 4px 6px; text-align: left; font-size: 8pt; }
-  tr:nth-child(even) { background: #f8f8f8; }
-  td { padding: 3px 6px; border-bottom: 1px solid #eee; vertical-align: top; }
-  td.phelps { font-family: "DejaVu Sans Mono", monospace; font-size: 7.5pt; color: #555; white-space: nowrap; width: 9em; }
-  td.langs { text-align: center; color: #888; width: 2.5em; font-size: 7.5pt; }
-</style>
-</head>
-<body>
-<h1>{{.Title}}</h1>
-<div class="subtitle">{{.Count}} prayers — first-lines concordance</div>
-<table>
-  <thead><tr><th>Phelps</th><th>First line (English)</th><th title="Languages">L</th></tr></thead>
-  <tbody>
-  {{range .Entries}}
-  <tr>
-    <td class="phelps">{{.Phelps}}</td>
-    <td>{{.FirstLine}}</td>
-    <td class="langs">{{.LangCount}}</td>
-  </tr>
-  {{end}}
-  </tbody>
-</table>
-</body>
-</html>
-`
-
-type IndexData struct {
-	Title   string
-	Count   int
-	Entries []IndexEntry
-}
-
-// firstLine returns the first meaningful text line from a prayer text (strips headers)
 func firstLine(text string) string {
 	for _, line := range strings.Split(text, "\n") {
 		line = strings.TrimSpace(line)
@@ -442,63 +980,64 @@ func firstLine(text string) string {
 	return ""
 }
 
-func generateIndex(dbPath, source, title string) string {
-	qCount := fmt.Sprintf(
-		"SELECT phelps, COUNT(DISTINCT language) as lang_count FROM writings WHERE source='%s' AND phelps IS NOT NULL AND phelps <> '' GROUP BY phelps ORDER BY phelps",
-		source)
-	countRows := doltCSV(dbPath, qCount)
+const indexTmpl = `<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>{{.Title}}</title>
+<style>
+body{font-family:sans-serif;font-size:9pt}
+table{width:100%;border-collapse:collapse}
+th{background:#2c3e50;color:white;padding:3px 6px;text-align:left}
+td{padding:2px 6px;border-bottom:1px solid #eee}
+</style></head><body>
+<h1>{{.Title}}</h1>
+<p>{{.Count}} prayers</p>
+<table><thead><tr><th>Phelps</th><th>First line</th><th>L</th></tr></thead><tbody>
+{{range .Entries}}<tr><td>{{.Phelps}}</td><td>{{.FirstLine}}</td><td>{{.LangCount}}</td></tr>
+{{end}}</tbody></table></body></html>`
 
-	qEn := fmt.Sprintf(
-		"SELECT phelps, text FROM writings WHERE source='%s' AND language='en' AND phelps IS NOT NULL AND phelps <> '' ORDER BY phelps",
-		source)
-	enRows := doltCSV(dbPath, qEn)
-	enText := make(map[string]string, len(enRows))
-	for _, row := range enRows {
-		if len(row) < 2 {
-			continue
-		}
-		if _, exists := enText[row[0]]; !exists {
-			enText[row[0]] = row[1]
+func generateIndex(dbPath, source, title string) string {
+	countRows := doltCSV(dbPath, fmt.Sprintf(
+		"SELECT phelps, COUNT(DISTINCT language) as lc FROM writings WHERE source='%s' AND phelps IS NOT NULL AND phelps <> '' GROUP BY phelps ORDER BY phelps", source))
+	enRows := doltCSV(dbPath, fmt.Sprintf(
+		"SELECT phelps, text FROM writings WHERE source='%s' AND language='en' AND phelps IS NOT NULL ORDER BY phelps", source))
+	enText := map[string]string{}
+	for _, r := range enRows {
+		if len(r) >= 2 {
+			if _, e := enText[r[0]]; !e {
+				enText[r[0]] = r[1]
+			}
 		}
 	}
-
 	var entries []IndexEntry
-	for _, row := range countRows {
-		if len(row) < 2 {
+	for _, r := range countRows {
+		if len(r) < 2 {
 			continue
 		}
 		lc := 0
-		fmt.Sscanf(row[1], "%d", &lc)
-		entries = append(entries, IndexEntry{
-			Phelps:    row[0],
-			FirstLine: firstLine(enText[row[0]]),
-			LangCount: lc,
-		})
+		fmt.Sscanf(r[1], "%d", &lc)
+		entries = append(entries, IndexEntry{Phelps: r[0], FirstLine: firstLine(enText[r[0]]), LangCount: lc})
 	}
-
-	data := IndexData{Title: title, Count: len(entries), Entries: entries}
-	tmpl := template.Must(template.New("index").Parse(indexTmpl))
+	data := struct {
+		Title   string
+		Count   int
+		Entries []IndexEntry
+	}{title, len(entries), entries}
+	tmpl := template.Must(template.New("i").Parse(indexTmpl))
 	var buf strings.Builder
-	if err := tmpl.Execute(&buf, data); err != nil {
-		fmt.Fprintf(os.Stderr, "index template error: %v\n", err)
-		os.Exit(1)
-	}
+	tmpl.Execute(&buf, data)
 	return buf.String()
 }
 
-// queryTranslations builds a map of phelps code → list of other language codes
+// ── Data queries ───────────────────────────────────────────────────────────────
+
 func queryTranslations(dbPath, source string) map[string][]string {
 	rows := doltCSV(dbPath, fmt.Sprintf(
-		"SELECT phelps, language FROM writings WHERE source='%s' AND phelps IS NOT NULL AND phelps <> '' ORDER BY phelps, language",
-		source))
+		"SELECT phelps, language FROM writings WHERE source='%s' AND phelps IS NOT NULL AND phelps <> '' ORDER BY phelps, language", source))
 	m := map[string][]string{}
 	for _, row := range rows {
-		if len(row) < 2 {
+		if len(row) < 2 || strings.HasSuffix(row[1], "-translit") {
 			continue
 		}
-		if !strings.HasSuffix(row[1], "-translit") {
-			m[row[0]] = append(m[row[0]], row[1])
-		}
+		m[row[0]] = append(m[row[0]], row[1])
 	}
 	return m
 }
@@ -519,7 +1058,6 @@ ORDER BY COALESCE(pbs.category_order,9999),
          COALESCE(pbs.order_in_category,9999),
          w.phelps
 `, safe, source))
-
 	var out []Prayer
 	for _, row := range rows {
 		if len(row) < 6 {
@@ -542,224 +1080,46 @@ ORDER BY COALESCE(pbs.category_order,9999),
 }
 
 func langName(dbPath, lang string) string {
-	rows := doltCSV(dbPath, fmt.Sprintf(
-		"SELECT name FROM languages WHERE langcode = '%s' LIMIT 1", lang))
+	rows := doltCSV(dbPath, fmt.Sprintf("SELECT name FROM languages WHERE langcode='%s' LIMIT 1", lang))
 	if len(rows) == 0 || len(rows[0]) == 0 {
 		return ""
 	}
 	return rows[0][0]
 }
 
-// basePINKey strips trailing 3-char alpha mnemonic suffix
-func basePINKey(pin string) string {
-	n := len(pin)
-	if n < 4 {
-		return pin
-	}
-	suffix := pin[n-3:]
-	for _, c := range suffix {
-		if c < 'A' || c > 'Z' {
-			return pin
-		}
-	}
-	if pin[n-4] >= '0' && pin[n-4] <= '9' {
-		return pin[:n-3]
-	}
-	return pin
-}
-
-func generateHTML(prayers []Prayer, lang, title, lname, phelpsBaseURL string, translations map[string][]string) string {
-	dir := "ltr"
-	indentSide := "left"
-	if rtlLangs[lang] {
-		dir = "rtl"
-		indentSide = "right"
-	}
-
-	// Group prayers into category sections
-	var categories []CategorySection
-	catIdx := map[string]int{} // category name → index in categories
-	uncatKey := "\x00" // sentinel for uncategorized
-
-	for _, p := range prayers {
-		catName := p.Category
-		key := catName
-		if catName == "" {
-			key = uncatKey
-		}
-		if _, seen := catIdx[key]; !seen {
-			catIdx[key] = len(categories)
-			if catName == "" {
-				categories = append(categories, CategorySection{Name: "", Slug: ""})
-			} else {
-				categories = append(categories, CategorySection{
-					Name: catName,
-					Slug: slugify(catName),
-				})
-			}
-		}
-		idx := catIdx[key]
-
-		// Build translations note (exclude current language)
-		var transLangs []string
-		if langs, ok := translations[p.Phelps]; ok {
-			for _, l := range langs {
-				if l != lang {
-					transLangs = append(transLangs, l)
-				}
-			}
-		}
-		transNote := ""
-		if len(transLangs) > 0 {
-			transNote = "Also in: " + strings.Join(transLangs, ", ")
-		}
-
-		// Build phelps inventory link
-		phelpsLink := ""
-		if phelpsBaseURL != "" {
-			base := strings.ToLower(basePINKey(p.Phelps))
-			phelpsLink = phelpsBaseURL + base + "/"
-		}
-
-		categories[idx].Prayers = append(categories[idx].Prayers, PrayerPage{
-			Phelps:       p.Phelps,
-			HTML:         markdownToHTML(p.Text),
-			Translations: transNote,
-			PhelpsLink:   phelpsLink,
-		})
-	}
-
-	// Check if we have any real category names (for ToC)
-	hasCats := false
-	for _, c := range categories {
-		if c.Name != "" {
-			hasCats = true
-			break
-		}
-	}
-
-	data := struct {
-		Title      string
-		Lang       string
-		LangName   string
-		Dir        string
-		IndentSide string
-		Count      int
-		Categories []CategorySection
-		HasCats    bool
-	}{
-		Title:      title,
-		Lang:       lang,
-		LangName:   lname,
-		Dir:        dir,
-		IndentSide: indentSide,
-		Count:      len(prayers),
-		Categories: categories,
-		HasCats:    hasCats,
-	}
-
-	tmpl := template.Must(template.New("page").Parse(htmlTmpl))
-	var buf strings.Builder
-	if err := tmpl.Execute(&buf, data); err != nil {
-		fmt.Fprintf(os.Stderr, "template error: %v\n", err)
-		os.Exit(1)
-	}
-	return buf.String()
-}
-
-func renderPDF(htmlContent, outFile, tmpTag string) {
-	tmpFile := fmt.Sprintf("/tmp/prayers_%s.html", tmpTag)
-	if err := os.WriteFile(tmpFile, []byte(htmlContent), 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "Temp write error: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Printf("  Converting to PDF...\n")
-	cmd := exec.Command("weasyprint", tmpFile, outFile)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "  weasyprint error: %v\n", err)
-		os.Remove(tmpFile)
-		os.Exit(1)
-	}
-	os.Remove(tmpFile)
-	fmt.Printf("  Written: %s\n", outFile)
-}
-
-func renderEPUB(htmlContent, outFile, tmpTag, title, lang string) {
-	tmpFile := fmt.Sprintf("/tmp/prayers_%s_epub.html", tmpTag)
-	if err := os.WriteFile(tmpFile, []byte(htmlContent), 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "Temp write error: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Printf("  Converting to EPUB...\n")
-	cmd := exec.Command("pandoc",
-		"--metadata", "title="+title,
-		"--metadata", "lang="+lang,
-		"-f", "html",
-		"-t", "epub",
-		"--toc",
-		"--toc-depth=1",
-		"-o", outFile,
-		tmpFile,
-	)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "  pandoc error: %v\n", err)
-		os.Remove(tmpFile)
-		return // don't exit — EPUB is optional
-	}
-	os.Remove(tmpFile)
-	fmt.Printf("  Written: %s\n", outFile)
-}
-
-func renderHTML(htmlContent, outFile string) {
-	if err := os.WriteFile(outFile, []byte(htmlContent), 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "Write error: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Printf("  Written: %s\n", outFile)
-}
+// ── main ───────────────────────────────────────────────────────────────────────
 
 func main() {
 	home, _ := os.UserHomeDir()
 	defaultDB := filepath.Join(home, "prayermatching", "bahaiwritings")
+	defaultFontDir := "fonts" // relative to CWD; override with --font-dir
 
-	db          := flag.String("db", defaultDB, "Path to dolt repo")
-	lang        := flag.String("lang", "en", "Language code (or 'all')")
-	source      := flag.String("source", "bahaiprayers.net", "Prayer source")
-	output      := flag.String("output", "", "Output file")
-	outDir      := flag.String("out-dir", "", "Output directory (used with --lang all)")
-	htmlOnly    := flag.Bool("html-only", false, "Output HTML only")
-	epubMode    := flag.Bool("epub", false, "Generate EPUB via pandoc")
-	bothMode    := flag.Bool("both", false, "Generate both PDF and EPUB")
-	indexMode   := flag.Bool("index", false, "Generate first-lines concordance index")
-	title       := flag.String("title", "Bahá'í Prayers", "Document title")
-	phelpsBase  := flag.String("phelps-base-url", "", "Base URL for phelps inventory links")
+	db         := flag.String("db", defaultDB, "Path to dolt repo")
+	lang       := flag.String("lang", "en", "Language code (or 'all')")
+	source     := flag.String("source", "bahaiprayers.net", "Prayer source")
+	output     := flag.String("output", "", "Output file")
+	outDir     := flag.String("out-dir", "", "Output directory")
+	fontDir    := flag.String("font-dir", defaultFontDir, "Directory with Noto .ttf fonts")
+	htmlOnly   := flag.Bool("html-only", false, "Output HTML only (for EPUB pipeline)")
+	epubMode   := flag.Bool("epub", false, "Generate EPUB via pandoc")
+	bothMode   := flag.Bool("both", false, "Generate both PDF and EPUB")
+	indexMode  := flag.Bool("index", false, "Generate first-lines concordance index")
+	title      := flag.String("title", "Bahá'í Prayers", "Document title")
+	phelpsBase := flag.String("phelps-base-url", "", "Base URL for phelps links")
 	flag.Parse()
 
 	// Index mode
 	if *indexMode {
-		indexTitle := *title + " — First Lines Index"
-		htmlContent := generateIndex(*db, *source, indexTitle)
+		html := generateIndex(*db, *source, *title+" — First Lines Index")
 		outFile := *output
 		if outFile == "" {
-			if *htmlOnly {
-				outFile = "prayers_index.html"
-			} else {
-				outFile = "prayers_index.pdf"
-			}
+			outFile = "prayers_index.html"
 		}
-		if *htmlOnly {
-			renderHTML(htmlContent, outFile)
-		} else {
-			renderPDF(htmlContent, outFile, "index")
-		}
+		renderHTML(html, outFile)
 		return
 	}
 
-	// Resolve languages to process
+	// Resolve languages
 	var langs []string
 	if *lang == "all" {
 		rows := doltCSV(*db, fmt.Sprintf(
@@ -775,26 +1135,23 @@ func main() {
 	}
 	sort.Strings(langs)
 
-	// Pre-load all translations (one query for all languages)
 	fmt.Println("Loading translation index...")
 	translationsMap := queryTranslations(*db, *source)
 
-	// Determine output directory
 	dir := *outDir
 	if dir == "" {
 		dir = "."
 	}
 	if err := os.MkdirAll(dir, 0755); err != nil {
-		fmt.Fprintf(os.Stderr, "mkdir error: %v\n", err)
+		fmt.Fprintf(os.Stderr, "mkdir: %v\n", err)
 		os.Exit(1)
 	}
 
 	for _, l := range langs {
-		fmt.Printf("Fetching %s prayers...\n", l)
-
+		fmt.Printf("Processing %s...\n", l)
 		prayers := queryPrayers(*db, *source, l)
 		if len(prayers) == 0 {
-			fmt.Printf("  No resolved prayers for %s, skipping.\n", l)
+			fmt.Printf("  No resolved prayers, skipping.\n")
 			continue
 		}
 		fmt.Printf("  %d prayers\n", len(prayers))
@@ -805,26 +1162,25 @@ func main() {
 			docTitle = *title + " — " + lname
 		}
 
-		htmlContent := generateHTML(prayers, l, docTitle, lname, *phelpsBase, translationsMap)
-
-		// Determine output file base (without extension)
 		var baseName string
 		if *output != "" && len(langs) == 1 {
-			// Single language with explicit output: use as-is (strip any extension)
 			baseName = strings.TrimSuffix(*output, filepath.Ext(*output))
 		} else {
 			baseName = filepath.Join(dir, "prayers_"+l)
 		}
 
 		if *htmlOnly {
-			renderHTML(htmlContent, baseName+".html")
+			html := generateHTML(prayers, l, docTitle, *phelpsBase, translationsMap)
+			renderHTML(html, baseName+".html")
 		} else if *epubMode {
-			renderEPUB(htmlContent, baseName+".epub", l, docTitle, l)
+			html := generateHTML(prayers, l, docTitle, *phelpsBase, translationsMap)
+			renderEPUB(html, baseName+".epub", l, docTitle, l)
 		} else if *bothMode {
-			renderPDF(htmlContent, baseName+".pdf", l)
-			renderEPUB(htmlContent, baseName+".epub", l, docTitle, l)
+			renderPDFGo(prayers, l, docTitle, lname, *phelpsBase, translationsMap, baseName+".pdf", *fontDir)
+			html := generateHTML(prayers, l, docTitle, *phelpsBase, translationsMap)
+			renderEPUB(html, baseName+".epub", l, docTitle, l)
 		} else {
-			renderPDF(htmlContent, baseName+".pdf", l)
+			renderPDFGo(prayers, l, docTitle, lname, *phelpsBase, translationsMap, baseName+".pdf", *fontDir)
 		}
 	}
 }
