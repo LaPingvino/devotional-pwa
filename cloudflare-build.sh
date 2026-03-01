@@ -36,16 +36,22 @@ if [ ! -f "$FONTS_DIR/.installed" ]; then
   pushd /tmp >/dev/null
   # apt-get download requires no root — just downloads .deb files to cwd
   apt-get download fonts-noto-core fonts-noto-extra fonts-noto-cjk 2>&1 | tail -5 || true
+  echo "  Downloaded: $(ls fonts-noto*.deb 2>/dev/null | tr '\n' ' ' || echo 'none')"
   mkdir -p noto-extract
   for deb in fonts-noto*.deb; do
-    [ -f "$deb" ] && dpkg -x "$deb" noto-extract/
+    [ -f "$deb" ] && dpkg -x "$deb" noto-extract/ && echo "  Extracted: $deb" || true
   done
-  find noto-extract \( -name "*.ttf" -o -name "*.otf" \) -exec cp {} "$FONTS_DIR/" \; 2>/dev/null || true
+  # Include .ttc/.otc (TrueType/OpenType Collections used by fonts-noto-cjk)
+  FONT_COUNT=$(find noto-extract \( -name "*.ttf" -o -name "*.otf" -o -name "*.ttc" -o -name "*.otc" \) 2>/dev/null | wc -l)
+  echo "  Font files found in packages: $FONT_COUNT"
+  find noto-extract \( -name "*.ttf" -o -name "*.otf" -o -name "*.ttc" -o -name "*.otc" \) \
+    -exec cp {} "$FONTS_DIR/" \; 2>/dev/null || true
   rm -rf noto-extract fonts-noto*.deb
-  if ls "$FONTS_DIR"/*.ttf "$FONTS_DIR"/*.otf &>/dev/null 2>&1; then
+  INSTALLED=$(find "$FONTS_DIR" \( -name "*.ttf" -o -name "*.otf" -o -name "*.ttc" -o -name "*.otc" \) 2>/dev/null | wc -l)
+  if [ "$INSTALLED" -gt 0 ]; then
     fc-cache -f "$FONTS_DIR"
     touch "$FONTS_DIR/.installed"
-    echo "Noto fonts ready: $(ls "$FONTS_DIR" | grep -c '\.\(ttf\|otf\)$') font files"
+    echo "Noto fonts ready: $INSTALLED font files installed"
   else
     echo "Warning: Noto font download failed — non-Latin scripts may not render correctly in PDFs"
   fi
