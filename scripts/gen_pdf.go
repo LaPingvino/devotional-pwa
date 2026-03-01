@@ -75,10 +75,27 @@ func doltCSV(dbPath, sql string) [][]string {
 	return rows[1:] // skip header
 }
 
+// sanitizeText strips control characters and PUA codepoints that WeasyPrint
+// cannot render (U+0001–U+001F except whitespace, U+007F, U+0080–U+009F, U+F000–U+F8FF).
+func sanitizeText(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r < 0x20 && r != '\t' && r != '\n' && r != '\r' {
+			return -1
+		}
+		if r == 0x7F || (r >= 0x80 && r <= 0x9F) {
+			return -1
+		}
+		if r >= 0xF000 && r <= 0xF8FF { // PUA (Wingdings, Zapf Dingbats, etc.)
+			return -1
+		}
+		return r
+	}, s)
+}
+
 // markdownToHTML converts the simple markdown used in prayer texts to HTML.
 // Supported: ## heading, # heading, * verse line, ! note, blank line = <br>
 func markdownToHTML(text string) template.HTML {
-	lines := strings.Split(text, "\n")
+	lines := strings.Split(sanitizeText(text), "\n")
 	var buf strings.Builder
 	inParagraph := false
 
