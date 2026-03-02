@@ -800,50 +800,41 @@ func renderPDFGo(prayers []Prayer, lang, title, lname, phelpsBaseURL string,
 	fmt.Printf("  Written: %s\n", outFile)
 }
 
-// renderCombinedPDF generates one PDF containing all supplied languages,
-// each preceded by a language divider page.
+// renderCombinedPDF generates one PDF containing all supplied languages.
+// No cover page or divider pages — each language starts on its own page
+// with a compact inline header to keep the combined file size down.
 func renderCombinedPDF(langPrayers []langSection, title, phelpsBaseURL string,
 	translations map[string][]string, outFile, fontDir string) {
 
 	// Collect all language codes for font pre-loading
 	var langCodes []string
-	total := 0
 	for _, ls := range langPrayers {
 		langCodes = append(langCodes, ls.lang)
-		total += len(ls.prayers)
 	}
 
 	ctx, fi := newPDF(title, fontDir, langCodes)
 	pdf := ctx.pdf
 	contentW := ctx.contentW
 
-	// Cover page
-	pdf.AddPage()
-	pdf.SetY(75)
-	ctx.headColor()
-	pdf.SetFont(fi.bodyFont, "", 24)
-	pdf.MultiCell(contentW, 12, title, "", "C", false)
-	pdf.SetFont(fi.bodyFont, "", 14)
-	ctx.metaColor()
-	pdf.MultiCell(contentW, 8, "All Languages", "", "C", false)
-	pdf.Ln(6)
-	pdf.SetFont(fi.monoFont, "", 9)
-	pdf.MultiCell(contentW, 5, fmt.Sprintf("%d prayers · %d languages", total, len(langPrayers)), "", "C", false)
-	ctx.bodyColor()
-
 	for _, ls := range langPrayers {
-		// Language divider page
 		pdf.AddPage()
-		pdf.SetY(90)
+		// Compact language header at top of each section
 		ctx.headColor()
-		pdf.SetFont(fi.bodyFont, "", 20)
-		pdf.MultiCell(contentW, 10, ls.lname, "", "C", false)
-		pdf.SetFont(fi.monoFont, "", 10)
+		pdf.SetFont(fi.bodyFont, "", 14)
+		lname := ls.lname
+		if lname == "" {
+			lname = ls.lang
+		}
+		pdf.MultiCell(contentW, 8, lname, "", "C", false)
+		pdf.SetFont(fi.monoFont, "", 8)
 		ctx.metaColor()
-		pdf.MultiCell(contentW, 6, fmt.Sprintf("%s · %d prayers", ls.lang, len(ls.prayers)), "", "C", false)
+		pdf.MultiCell(contentW, 5, fmt.Sprintf("%s · %d prayers", ls.lang, len(ls.prayers)), "", "C", false)
+		pdf.Ln(3)
+		y := pdf.GetY()
+		pdf.Line(ctx.lm, y, ctx.lm+contentW, y)
+		pdf.Ln(4)
 		ctx.bodyColor()
 
-		pdf.AddPage()
 		renderPrayerSection(ctx, ls.prayers, ls.lang, phelpsBaseURL, translations)
 	}
 
