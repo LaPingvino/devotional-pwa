@@ -58,9 +58,11 @@ download_font() {
   echo "  Downloading $file..."
   curl -fsSL "$url" -o "fonts/$file" || echo "  Warning: failed to download $file (skipping)"
 }
-# CJK (Simplified Chinese covers SC/TC/JP/KR ranges)
-download_font "NotoSerifCJKsc-Regular.otf" \
-  "https://github.com/googlefonts/noto-cjk/raw/main/Serif/OTF/SimplifiedChinese/NotoSerifCJKsc-Regular.otf"
+# CJK: variable TTF uses TrueType (glyf) outlines, unlike the static OTF (CFF)
+# gofpdf only supports TrueType outlines, so we use the variable TTF here.
+# pyftsubset creates a subset; gofpdf uses the glyf table and ignores gvar.
+download_font "NotoSerifCJKsc-VF.ttf" \
+  "https://github.com/googlefonts/noto-cjk/raw/main/Serif/Variable/TTF/NotoSerifCJKsc-VF.ttf"
 # Indic scripts
 download_font "NotoSerifDevanagari-Regular.ttf" \
   "$NOTO_BASE/NotoSerifDevanagari/full/ttf/NotoSerifDevanagari-Regular.ttf"

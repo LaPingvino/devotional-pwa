@@ -451,7 +451,7 @@ var langScriptFont = map[string]string{
 // scriptFontFile maps a font family name to its TTF/OTF filename.
 var scriptFontFile = map[string]string{
 	"NotoNaskhArabic":    "NotoNaskhArabic-Regular.ttf",
-	"NotoSerifCJK":       "NotoSerifCJKsc-Regular.otf",
+	"NotoSerifCJK":       "NotoSerifCJKsc-VF.ttf",
 	"NotoSerifDevanagari": "NotoSerifDevanagari-Regular.ttf",
 	"NotoSerifBengali":   "NotoSerifBengali-Regular.ttf",
 	"NotoSerifTamil":     "NotoSerifTamil-Regular.ttf",
@@ -503,9 +503,9 @@ func mergeRunes(sets ...map[rune]bool) map[rune]bool {
 // file (in os.TempDir()) on success, or "" if pyftsubset is unavailable or
 // fails (callers fall back to the full font in that case).
 //
-// OTF fonts with CFF outlines are automatically converted to TTF (quadratic
-// bezier) format after subsetting, because gofpdf's font parser only supports
-// TrueType outline format.
+// All fonts used should already be in TrueType (glyf) format; CFF-based OTF
+// fonts are not supported by gofpdf.  CJK uses NotoSerifCJKsc-VF.ttf
+// (variable TrueType) whose glyf table is read directly by gofpdf.
 func subsetTTF(inputPath string, runes map[rune]bool) string {
 	if _, err := exec.LookPath("pyftsubset"); err != nil {
 		return ""
@@ -537,22 +537,6 @@ func subsetTTF(inputPath string, runes map[rune]bool) string {
 	if orig != nil && sub != nil {
 		fmt.Fprintf(os.Stderr, "  subset %s: %dKB → %dKB\n",
 			filepath.Base(inputPath), orig.Size()/1024, sub.Size()/1024)
-	}
-
-	// If the subset is CFF-based OTF, convert to TTF so gofpdf can use it.
-	// gofpdf's font parser only supports TrueType (quadratic bezier) outlines.
-	// fonttools otf2ttf converts CFF outlines → TrueType glyf outlines, producing
-	// a proper TTF binary.  (cu2qu is for UFO source files and won't work here.)
-	if strings.HasSuffix(strings.ToLower(outPath), ".otf") {
-		ttfPath := outPath[:len(outPath)-4] + ".ttf"
-		convCmd := exec.Command("fonttools", "otf2ttf", "-o", ttfPath, outPath)
-		if convOut, convErr := convCmd.CombinedOutput(); convErr == nil {
-			os.Remove(outPath)
-			return ttfPath
-		} else {
-			fmt.Fprintf(os.Stderr, "  OTF→TTF conversion failed: %v\n%s\n", convErr, convOut)
-			// Fall through: return the OTF path and let gofpdf try (will likely fail for CFF)
-		}
 	}
 
 	return outPath
