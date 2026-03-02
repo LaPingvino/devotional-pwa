@@ -541,18 +541,11 @@ func subsetTTF(inputPath string, runes map[rune]bool) string {
 
 	// If the subset is CFF-based OTF, convert to TTF so gofpdf can use it.
 	// gofpdf's font parser only supports TrueType (quadratic bezier) outlines.
+	// fonttools cu2qu converts CFF outlines→TrueType quadratic and replaces the
+	// CFF  table with a glyf table, producing a proper TTF binary.
 	if strings.HasSuffix(strings.ToLower(outPath), ".otf") {
 		ttfPath := outPath[:len(outPath)-4] + ".ttf"
-		pyScript := `
-import sys
-from fontTools.ttLib import TTFont
-from fontTools import cu2qu
-font = TTFont(sys.argv[1])
-if 'CFF ' in font or 'CFF2' in font:
-    cu2qu.font_to_quadratic(font, reverse_direction=True)
-font.save(sys.argv[2])
-`
-		convCmd := exec.Command("python3", "-c", pyScript, outPath, ttfPath)
+		convCmd := exec.Command("fonttools", "cu2qu", "-o", ttfPath, outPath)
 		if convOut, convErr := convCmd.CombinedOutput(); convErr == nil {
 			os.Remove(outPath)
 			return ttfPath
