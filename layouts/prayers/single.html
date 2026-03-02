@@ -43,9 +43,12 @@
       {{ $pinL := $pin | lower }}
       {{ $baseL := replaceRE "[a-z]{3}$" "" $pinL }}
       {{ $suffix := strings.TrimPrefix $baseL $pinL }}
-      <article class="prayer-card" id="{{ $pin }}" data-cat="{{ .category }}">
+      {{ $wc := len (findRE `\S+` (replaceRE `#+\s+[^\n]+` "" .text)) }}
+      <article class="prayer-card folded" id="{{ $pin }}" data-cat="{{ .category }}">
         <div class="prayer-card-header">
+          <span class="prayer-toggle" aria-hidden="true">▶</span>
           {{ with .name }}<span class="prayer-name">{{ . }}</span>{{ end }}
+          <span class="word-count">~{{ $wc }}w</span>
           <span class="prayer-phelps">
             <a href="/phelps/{{ $baseL }}/{{ if $suffix }}#{{ $suffix }}{{ end }}" title="All translations">{{ $pin }}</a>
             <a href="/inventory/?pin={{ $baseL | upper }}" title="Inventory entry" style="opacity:.6; font-size:.8em; margin-left:.3em">↗</a>
@@ -96,6 +99,22 @@ document.querySelectorAll('.fav-btn').forEach(btn => {
     favs.has(p) ? favs.delete(p) : favs.add(p);
     localStorage.setItem(FAVS_KEY, JSON.stringify([...favs]));
     renderFavs();
+  });
+});
+
+// Foldable prayers — expand hash target, toggle on header click
+const hash = location.hash.slice(1);
+if (hash) {
+  const target = document.getElementById(hash);
+  if (target && target.classList.contains('prayer-card')) {
+    target.classList.remove('folded');
+    setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+  }
+}
+document.querySelectorAll('.prayer-card-header').forEach(header => {
+  header.addEventListener('click', e => {
+    if (e.target.closest('a') || e.target.closest('.fav-btn')) return;
+    header.closest('.prayer-card').classList.toggle('folded');
   });
 });
 </script>

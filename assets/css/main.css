@@ -146,7 +146,28 @@ body {
   background: #f9f9f9;
   border-bottom: 1px solid var(--border);
   font-size: .8rem;
+  cursor: pointer;
+  user-select: none;
 }
+.prayer-toggle {
+  font-size: .65rem;
+  color: var(--text-secondary);
+  transition: transform .15s;
+  flex-shrink: 0;
+}
+.prayer-card:not(.folded) .prayer-toggle { transform: rotate(90deg); }
+.word-count {
+  font-size: .72rem;
+  color: var(--text-secondary);
+  background: #efefef;
+  padding: .1rem .4rem;
+  border-radius: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.prayer-card.folded .prayer-text { display: none; }
+.prayer-card.folded .prayer-translations { display: none; }
+.prayer-card.folded .prayer-card-header { border-bottom: none; }
 .prayer-phelps {
   font-family: monospace;
   font-size: .75rem;
