@@ -1047,6 +1047,8 @@ func renderEPUB(htmlContent, outFile, tmpTag, title, lang string) {
 	cmd := exec.Command("pandoc",
 		"--metadata", "title="+title,
 		"--metadata", "lang="+lang,
+		"--metadata", "author=Bahá'í Writings",
+		"--metadata", "publisher=Bahá'í Writings",
 		"-f", "html",
 		"-t", "epub",
 		"--toc",
