@@ -471,16 +471,25 @@ var scriptFontFile = map[string]string{
 
 // collectRunes returns the set of all Unicode codepoints used in the given
 // prayers (text, name, and category fields).  Used to drive font subsetting.
-func collectRunes(prayers []Prayer) map[rune]bool {
+// If isRTL is true, texts are shaped first so that Arabic Presentation Forms
+// (U+FExx/FBxx) are included instead of the base Arabic codepoints — the
+// renderer outputs shaped forms and the subset font must contain them.
+func collectRunes(prayers []Prayer, isRTL bool) map[rune]bool {
 	runes := map[rune]bool{}
+	shape := func(s string) string {
+		if isRTL {
+			return shapeText(s)
+		}
+		return s
+	}
 	for _, p := range prayers {
-		for _, r := range p.Text {
+		for _, r := range shape(p.Text) {
 			runes[r] = true
 		}
-		for _, r := range p.Name {
+		for _, r := range shape(p.Name) {
 			runes[r] = true
 		}
-		for _, r := range p.Category {
+		for _, r := range shape(p.Category) {
 			runes[r] = true
 		}
 	}
@@ -934,7 +943,7 @@ func loadTTFInto(pdf *gofpdf.Fpdf, fi *fontInfo, family, filename, fontDir strin
 func renderPDFGo(prayers []Prayer, lang, title, lname, phelpsBaseURL string,
 	translations map[string][]string, outFile, fontDir string) {
 
-	runes := collectRunes(prayers)
+	runes := collectRunes(prayers, rtlLangs[lang])
 	ctx, fi := newPDF(title, fontDir, []string{lang}, runes)
 	pdf := ctx.pdf
 	contentW := ctx.contentW
@@ -977,7 +986,7 @@ func renderCombinedPDF(langPrayers []langSection, title, phelpsBaseURL string,
 	var runeSets []map[rune]bool
 	for _, ls := range langPrayers {
 		langCodes = append(langCodes, ls.lang)
-		runeSets = append(runeSets, collectRunes(ls.prayers))
+		runeSets = append(runeSets, collectRunes(ls.prayers, rtlLangs[ls.lang]))
 	}
 	allRunes := mergeRunes(runeSets...)
 
