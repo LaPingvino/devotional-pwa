@@ -493,6 +493,12 @@ func collectRunes(prayers []Prayer, isRTL bool) map[rune]bool {
 			runes[r] = true
 		}
 	}
+	// Always include printable ASCII so metadata text (Phelps codes, "Also in:",
+	// language lists) renders correctly even when the primary script font is
+	// subsetted to a non-Latin script (e.g. NotoNaskhArabic for Arabic PDFs).
+	for r := rune(0x20); r <= rune(0x7E); r++ {
+		runes[r] = true
+	}
 	return runes
 }
 
