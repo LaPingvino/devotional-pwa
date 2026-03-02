@@ -417,6 +417,74 @@ type fontInfo struct {
 	loaded   map[string]bool
 }
 
+// collectRunes returns the set of all Unicode codepoints used in the given
+// prayers (text, name, and category fields).  Used to drive font subsetting.
+func collectRunes(prayers []Prayer) map[rune]bool {
+	runes := map[rune]bool{}
+	for _, p := range prayers {
+		for _, r := range p.Text {
+			runes[r] = true
+		}
+		for _, r := range p.Name {
+			runes[r] = true
+		}
+		for _, r := range p.Category {
+			runes[r] = true
+		}
+	}
+	return runes
+}
+
+// mergeRunes merges multiple rune sets into one.
+func mergeRunes(sets ...map[rune]bool) map[rune]bool {
+	out := map[rune]bool{}
+	for _, s := range sets {
+		for r := range s {
+			out[r] = true
+		}
+	}
+	return out
+}
+
+// subsetTTF uses pyftsubset (from Python fonttools) to create a minimal TTF
+// containing only the codepoints in runes.  Returns the path to the subsetted
+// file (in os.TempDir()) on success, or "" if pyftsubset is unavailable or
+// fails (callers fall back to the full font in that case).
+func subsetTTF(inputPath string, runes map[rune]bool) string {
+	if _, err := exec.LookPath("pyftsubset"); err != nil {
+		return ""
+	}
+	if len(runes) == 0 {
+		return ""
+	}
+	// Build a comma-separated hex unicode list.
+	codes := make([]string, 0, len(runes))
+	for r := range runes {
+		if r > 0 {
+			codes = append(codes, fmt.Sprintf("%04X", r))
+		}
+	}
+	sort.Strings(codes)
+
+	outPath := filepath.Join(os.TempDir(), "prayerbook_subset_"+filepath.Base(inputPath))
+	cmd := exec.Command("pyftsubset", inputPath,
+		"--unicodes="+strings.Join(codes, ","),
+		"--output-file="+outPath,
+		"--layout-features=*", // preserve GSUB/GPOS (ligatures, marks, etc.)
+	)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		fmt.Fprintf(os.Stderr, "  pyftsubset %s: %v\n%s\n", filepath.Base(inputPath), err, out)
+		return ""
+	}
+	orig, _ := os.Stat(inputPath)
+	sub, _ := os.Stat(outPath)
+	if orig != nil && sub != nil {
+		fmt.Fprintf(os.Stderr, "  subset %s: %dKB → %dKB\n",
+			filepath.Base(inputPath), orig.Size()/1024, sub.Size()/1024)
+	}
+	return outPath
+}
+
 // loadFonts finds and registers the appropriate Unicode fonts for the given
 // language.  Returns the font family name to use for body text.
 //
@@ -427,9 +495,10 @@ type fontInfo struct {
 //  4. /usr/share/fonts/truetype/noto/
 //  5. Built-in Helvetica (ASCII fallback, no external file needed)
 //
+// If runes is non-nil, fonts are subsetted via pyftsubset before embedding.
 // We use AddUTF8FontFromBytes (reads the file ourselves) rather than AddUTF8Font
 // to avoid gofpdf's internal font-directory path prepending.
-func loadFonts(pdf *gofpdf.Fpdf, lang, fontDir string) *fontInfo {
+func loadFonts(pdf *gofpdf.Fpdf, lang, fontDir string, runes map[rune]bool) *fontInfo {
 	fi := &fontInfo{loaded: map[string]bool{}}
 
 	home, _ := os.UserHomeDir()
@@ -460,6 +529,7 @@ func loadFonts(pdf *gofpdf.Fpdf, lang, fontDir string) *fontInfo {
 	}
 
 	// Read the font file and register with gofpdf via bytes (avoids internal path mangling).
+	// If runes is non-nil, pyftsubset is attempted to reduce the embedded font size.
 	loadTTF := func(family, filename string) bool {
 		if fi.loaded[family] {
 			return true
@@ -467,6 +537,10 @@ func loadFonts(pdf *gofpdf.Fpdf, lang, fontDir string) *fontInfo {
 		path := findFont(filename)
 		if path == "" {
 			return false
+		}
+		// Try subsetting first; fall back to full font if unavailable.
+		if subPath := subsetTTF(path, runes); subPath != "" {
+			path = subPath
 		}
 		data, err := os.ReadFile(path)
 		if err != nil {
@@ -708,7 +782,9 @@ func renderPrayerSection(ctx *pdfCtx, prayers []Prayer, lang, phelpsBaseURL stri
 }
 
 // newPDF creates a configured Fpdf and returns a pdfCtx with geometry pre-computed.
-func newPDF(title, fontDir string, langs []string) (*pdfCtx, *fontInfo) {
+// runes, if non-nil, is passed to font loaders so they can subset the TTF files
+// via pyftsubset before embedding (reducing the combined PDF size significantly).
+func newPDF(title, fontDir string, langs []string, runes map[rune]bool) (*pdfCtx, *fontInfo) {
 	pdf := gofpdf.New("P", "mm", "A4", "")
 	pdf.SetMargins(25, 22, 22)
 	pdf.SetAutoPageBreak(true, 22)
@@ -722,11 +798,11 @@ func newPDF(title, fontDir string, langs []string) (*pdfCtx, *fontInfo) {
 	if len(langs) == 1 {
 		primaryLang = langs[0]
 	}
-	fi := loadFonts(pdf, primaryLang, fontDir)
+	fi := loadFonts(pdf, primaryLang, fontDir, runes)
 
 	// For combined PDFs, always ensure Arabic font is loaded too.
 	if len(langs) > 1 && !fi.loaded["NotoNaskhArabic"] {
-		loadTTFInto(pdf, fi, "NotoNaskhArabic", "NotoNaskhArabic-Regular.ttf", fontDir)
+		loadTTFInto(pdf, fi, "NotoNaskhArabic", "NotoNaskhArabic-Regular.ttf", fontDir, runes)
 	}
 
 	pageW, _ := pdf.GetPageSize()
@@ -736,7 +812,8 @@ func newPDF(title, fontDir string, langs []string) (*pdfCtx, *fontInfo) {
 }
 
 // loadTTFInto is a helper that loads one font into an existing Fpdf+fontInfo.
-func loadTTFInto(pdf *gofpdf.Fpdf, fi *fontInfo, family, filename, fontDir string) {
+// If runes is non-nil, pyftsubset is used to embed only the needed codepoints.
+func loadTTFInto(pdf *gofpdf.Fpdf, fi *fontInfo, family, filename, fontDir string, runes map[rune]bool) {
 	if fi.loaded[family] {
 		return
 	}
@@ -754,6 +831,12 @@ func loadTTFInto(pdf *gofpdf.Fpdf, fi *fontInfo, family, filename, fontDir strin
 			continue
 		}
 		path := filepath.Join(dir, filename)
+		if _, err := os.Stat(path); err != nil {
+			continue
+		}
+		if subPath := subsetTTF(path, runes); subPath != "" {
+			path = subPath
+		}
 		data, err := os.ReadFile(path)
 		if err != nil {
 			continue
@@ -769,7 +852,8 @@ func loadTTFInto(pdf *gofpdf.Fpdf, fi *fontInfo, family, filename, fontDir strin
 func renderPDFGo(prayers []Prayer, lang, title, lname, phelpsBaseURL string,
 	translations map[string][]string, outFile, fontDir string) {
 
-	ctx, fi := newPDF(title, fontDir, []string{lang})
+	runes := collectRunes(prayers)
+	ctx, fi := newPDF(title, fontDir, []string{lang}, runes)
 	pdf := ctx.pdf
 	contentW := ctx.contentW
 
@@ -806,13 +890,16 @@ func renderPDFGo(prayers []Prayer, lang, title, lname, phelpsBaseURL string,
 func renderCombinedPDF(langPrayers []langSection, title, phelpsBaseURL string,
 	translations map[string][]string, outFile, fontDir string) {
 
-	// Collect all language codes for font pre-loading
+	// Collect all language codes and all runes for font subsetting.
 	var langCodes []string
+	var runeSets []map[rune]bool
 	for _, ls := range langPrayers {
 		langCodes = append(langCodes, ls.lang)
+		runeSets = append(runeSets, collectRunes(ls.prayers))
 	}
+	allRunes := mergeRunes(runeSets...)
 
-	ctx, fi := newPDF(title, fontDir, langCodes)
+	ctx, fi := newPDF(title, fontDir, langCodes, allRunes)
 	pdf := ctx.pdf
 	contentW := ctx.contentW
 
@@ -1211,7 +1298,7 @@ func main() {
 	epubMode    := flag.Bool("epub", false, "Generate EPUB via pandoc")
 	bothMode    := flag.Bool("both", false, "Generate both PDF and EPUB")
 	indexMode   := flag.Bool("index", false, "Generate first-lines concordance index")
-	combinedMode := flag.Bool("combined", false, "Generate a single combined PDF/EPUB for all languages")
+	combinedMode  := flag.Bool("combined", false, "Generate combined PDF/EPUB for all languages")
 	title      := flag.String("title", "Bahá'í Prayers", "Document title")
 	phelpsBase := flag.String("phelps-base-url", "", "Base URL for phelps links")
 	flag.Parse()
@@ -1255,9 +1342,29 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Combined mode: one PDF/EPUB containing all languages
+	// nonLatinScript lists language codes that use a non-Latin writing system.
+	// All other languages are grouped into the "latin" volume (which also covers
+	// Cyrillic, Greek and other European scripts — essentially "non-Asian/non-RTL").
+	// The split keeps each PDF under Cloudflare Pages' 25 MiB per-file limit.
+	nonLatinScript := map[string]bool{
+		// Arabic / Perso-Arabic
+		"ar": true, "fa": true, "ur": true, "ug": true, "dih": true,
+		// CJK
+		"zh-Hans": true, "zh-Hant": true, "ja": true, "ko": true,
+		// Devanagari
+		"hi": true, "mr": true, "ne": true,
+		// Other Indic scripts
+		"bn": true, "ta": true, "te": true, "ml": true,
+		"kn": true, "gu": true, "pa": true, "si": true,
+		// Southeast Asian
+		"th": true, "lo": true, "km": true, "my": true,
+		// Other non-Latin
+		"he": true, "am": true, "ti": true,
+	}
+
+	// Combined mode: PDFs split by script family + a single EPUB for all
 	if *combinedMode {
-		var sections []langSection
+		var allSections, latinSections, otherSections []langSection
 		for _, l := range langs {
 			fmt.Printf("Loading %s...\n", l)
 			prayers := queryPrayers(*db, *source, l)
@@ -1265,25 +1372,46 @@ func main() {
 				continue
 			}
 			lname := langName(*db, l)
-			sections = append(sections, langSection{lang: l, lname: lname, prayers: prayers})
+			sec := langSection{lang: l, lname: lname, prayers: prayers}
+			allSections = append(allSections, sec)
+			if nonLatinScript[l] {
+				otherSections = append(otherSections, sec)
+			} else {
+				latinSections = append(latinSections, sec)
+			}
+			// Include English in both volumes as a reference
+			if l == "en" {
+				otherSections = append(otherSections, sec)
+			}
 		}
-		fmt.Printf("Building combined output for %d languages...\n", len(sections))
-		combinedBase := filepath.Join(dir, "prayers_all")
-		if *output != "" {
-			combinedBase = strings.TrimSuffix(*output, filepath.Ext(*output))
-		}
+		fmt.Printf("Combined: %d languages total (%d latin, %d non-latin)\n",
+			len(allSections), len(latinSections), len(otherSections))
+
 		combinedTitle := *title + " — All Languages"
+		outBase := filepath.Join(dir, "prayers_all")
+
 		if !*epubMode {
-			renderCombinedPDF(sections, combinedTitle, *phelpsBase, translationsMap, combinedBase+".pdf", *fontDir)
+			if len(latinSections) > 0 {
+				renderCombinedPDF(latinSections,
+					*title+" — Latin & European Scripts",
+					*phelpsBase, translationsMap,
+					outBase+"_latin.pdf", *fontDir)
+			}
+			if len(otherSections) > 0 {
+				renderCombinedPDF(otherSections,
+					*title+" — Asian & Other Scripts",
+					*phelpsBase, translationsMap,
+					outBase+"_other.pdf", *fontDir)
+			}
 		}
 		if *epubMode || *bothMode {
-			// Build a mega-HTML for EPUB
+			// Single EPUB with all languages regardless of PDF split
 			var buf strings.Builder
-			for _, ls := range sections {
+			for _, ls := range allSections {
 				docTitle := *title + " — " + ls.lname
 				buf.WriteString(generateHTML(ls.prayers, ls.lang, docTitle, *phelpsBase, translationsMap))
 			}
-			renderEPUB(buf.String(), combinedBase+".epub", "all", combinedTitle, "mul")
+			renderEPUB(buf.String(), outBase+".epub", "all", combinedTitle, "mul")
 		}
 		return
 	}

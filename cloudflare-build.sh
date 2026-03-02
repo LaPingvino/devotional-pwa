@@ -44,6 +44,10 @@ fi
 echo "Generating data files..."
 go run scripts/gen_hugo_data.go --dolt-dir ./bahaiwritings --out-dir .
 
+# Install fonttools for font subsetting (reduces embedded font size in PDFs significantly)
+pip install fonttools 2>/dev/null || pip3 install fonttools 2>/dev/null || true
+echo "fonttools: $(pyftsubset --version 2>&1 || echo 'not available (PDFs will use full fonts)')"
+
 # Generate per-language PDFs and EPUBs using gofpdf (pure Go, ~2 min for all languages)
 # Fonts are bundled in the fonts/ directory — no download needed.
 echo "Generating prayer book PDFs and EPUBs..."

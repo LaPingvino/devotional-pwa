@@ -5,8 +5,10 @@
     {{ len site.Data.languages }} languages · {{ site.Params.description }}
   </p>
   <div style="margin-bottom:1.5rem;">
-    <a href="/downloads/prayers_all.pdf" class="dl-link" download>Download all languages — PDF</a>
-    <a href="/downloads/prayers_all.epub" class="dl-link" download style="margin-left:.5rem;">EPUB</a>
+    <span style="color:var(--text-secondary);font-size:.85rem;">Download all languages:</span>
+    <a href="/downloads/prayers_all_latin.pdf" class="dl-link" download>Latin &amp; European — PDF</a>
+    <a href="/downloads/prayers_all_other.pdf" class="dl-link" download style="margin-left:.4rem;">Asian &amp; Other — PDF</a>
+    <a href="/downloads/prayers_all.epub" class="dl-link" download style="margin-left:.4rem;">All — EPUB</a>
   </div>
   <div class="lang-grid">
     {{ range site.Data.languages }}
