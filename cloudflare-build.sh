@@ -48,8 +48,52 @@ go run scripts/gen_hugo_data.go --dolt-dir ./bahaiwritings --out-dir .
 pip install fonttools 2>/dev/null || pip3 install fonttools 2>/dev/null || true
 echo "fonttools: $(pyftsubset --version 2>&1 || echo 'not available (PDFs will use full fonts)')"
 
+# Download additional Noto fonts for non-Latin scripts (CJK, Indic, SE Asian, etc.)
+# These are too large to keep in the repo but essential for the Asian/Other PDF.
+NOTO_BASE="https://github.com/notofonts/notofonts.github.io/raw/main/fonts"
+mkdir -p fonts
+download_font() {
+  local file="$1" url="$2"
+  [ -f "fonts/$file" ] && return
+  echo "  Downloading $file..."
+  curl -fsSL "$url" -o "fonts/$file" || echo "  Warning: failed to download $file (skipping)"
+}
+# CJK (Simplified Chinese covers SC/TC/JP/KR ranges)
+download_font "NotoSerifCJKsc-Regular.otf" \
+  "https://github.com/googlefonts/noto-cjk/raw/main/Serif/OTF/SimplifiedChinese/NotoSerifCJKsc-Regular.otf"
+# Indic scripts
+download_font "NotoSerifDevanagari-Regular.ttf" \
+  "$NOTO_BASE/NotoSerifDevanagari/full/ttf/NotoSerifDevanagari-Regular.ttf"
+download_font "NotoSerifBengali-Regular.ttf" \
+  "$NOTO_BASE/NotoSerifBengali/full/ttf/NotoSerifBengali-Regular.ttf"
+download_font "NotoSerifTamil-Regular.ttf" \
+  "$NOTO_BASE/NotoSerifTamil/full/ttf/NotoSerifTamil-Regular.ttf"
+download_font "NotoSerifTelugu-Regular.ttf" \
+  "$NOTO_BASE/NotoSerifTelugu/full/ttf/NotoSerifTelugu-Regular.ttf"
+download_font "NotoSerifMalayalam-Regular.ttf" \
+  "$NOTO_BASE/NotoSerifMalayalam/full/ttf/NotoSerifMalayalam-Regular.ttf"
+download_font "NotoSerifKannada-Regular.ttf" \
+  "$NOTO_BASE/NotoSerifKannada/full/ttf/NotoSerifKannada-Regular.ttf"
+download_font "NotoSerifGujarati-Regular.ttf" \
+  "$NOTO_BASE/NotoSerifGujarati/full/ttf/NotoSerifGujarati-Regular.ttf"
+download_font "NotoSerifGurmukhi-Regular.ttf" \
+  "$NOTO_BASE/NotoSerifGurmukhi/full/ttf/NotoSerifGurmukhi-Regular.ttf"
+# Southeast Asian
+download_font "NotoSerifThai-Regular.ttf" \
+  "$NOTO_BASE/NotoSerifThai/full/ttf/NotoSerifThai-Regular.ttf"
+download_font "NotoSerifLao-Regular.ttf" \
+  "$NOTO_BASE/NotoSerifLao/full/ttf/NotoSerifLao-Regular.ttf"
+download_font "NotoSerifKhmer-Regular.ttf" \
+  "$NOTO_BASE/NotoSerifKhmer/full/ttf/NotoSerifKhmer-Regular.ttf"
+# Other
+download_font "NotoSerifHebrew-Regular.ttf" \
+  "$NOTO_BASE/NotoSerifHebrew/full/ttf/NotoSerifHebrew-Regular.ttf"
+download_font "NotoSerifEthiopic-Regular.ttf" \
+  "$NOTO_BASE/NotoSerifEthiopic/full/ttf/NotoSerifEthiopic-Regular.ttf"
+echo "Fonts in fonts/: $(ls fonts/*.ttf fonts/*.otf 2>/dev/null | wc -l) files"
+
 # Generate per-language PDFs and EPUBs using gofpdf (pure Go, ~2 min for all languages)
-# Fonts are bundled in the fonts/ directory — no download needed.
+# NotoSerif + NotoNaskhArabic in repo; other scripts downloaded above.
 echo "Generating prayer book PDFs and EPUBs..."
 mkdir -p static/downloads
 go run scripts/gen_pdf.go \

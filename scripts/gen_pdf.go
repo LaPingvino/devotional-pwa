@@ -415,6 +415,58 @@ type fontInfo struct {
 	bodyFont string
 	monoFont string
 	loaded   map[string]bool
+	langFont map[string]string // lang code -> preferred font family for this lang
+}
+
+// langScriptFont maps language codes to their required Noto font family names.
+// Languages absent from this map fall back to NotoSerif (covers Latin/Cyrillic/Greek).
+var langScriptFont = map[string]string{
+	// Perso-Arabic
+	"ar": "NotoNaskhArabic", "fa": "NotoNaskhArabic",
+	"ur": "NotoNaskhArabic", "ug": "NotoNaskhArabic", "dih": "NotoNaskhArabic",
+	// CJK (one font covers all CJK variants)
+	"zh-Hans": "NotoSerifCJK", "zh-Hant": "NotoSerifCJK",
+	"ja": "NotoSerifCJK", "ko": "NotoSerifCJK",
+	// Devanagari
+	"hi": "NotoSerifDevanagari", "mr": "NotoSerifDevanagari", "ne": "NotoSerifDevanagari",
+	// Other Indic
+	"bn": "NotoSerifBengali",
+	"ta": "NotoSerifTamil",
+	"te": "NotoSerifTelugu",
+	"ml": "NotoSerifMalayalam",
+	"kn": "NotoSerifKannada",
+	"gu": "NotoSerifGujarati",
+	"pa": "NotoSerifGurmukhi",
+	"si": "NotoSerifSinhala",
+	// Southeast Asian
+	"th": "NotoSerifThai",
+	"lo": "NotoSerifLao",
+	"km": "NotoSerifKhmer",
+	"my": "NotoSerifMyanmar",
+	// Other non-Latin
+	"he": "NotoSerifHebrew",
+	"am": "NotoSerifEthiopic", "ti": "NotoSerifEthiopic",
+}
+
+// scriptFontFile maps a font family name to its TTF/OTF filename.
+var scriptFontFile = map[string]string{
+	"NotoNaskhArabic":    "NotoNaskhArabic-Regular.ttf",
+	"NotoSerifCJK":       "NotoSerifCJKsc-Regular.otf",
+	"NotoSerifDevanagari": "NotoSerifDevanagari-Regular.ttf",
+	"NotoSerifBengali":   "NotoSerifBengali-Regular.ttf",
+	"NotoSerifTamil":     "NotoSerifTamil-Regular.ttf",
+	"NotoSerifTelugu":    "NotoSerifTelugu-Regular.ttf",
+	"NotoSerifMalayalam": "NotoSerifMalayalam-Regular.ttf",
+	"NotoSerifKannada":   "NotoSerifKannada-Regular.ttf",
+	"NotoSerifGujarati":  "NotoSerifGujarati-Regular.ttf",
+	"NotoSerifGurmukhi":  "NotoSerifGurmukhi-Regular.ttf",
+	"NotoSerifSinhala":   "NotoSerifSinhala-Regular.ttf",
+	"NotoSerifThai":      "NotoSerifThai-Regular.ttf",
+	"NotoSerifLao":       "NotoSerifLao-Regular.ttf",
+	"NotoSerifKhmer":     "NotoSerifKhmer-Regular.ttf",
+	"NotoSerifMyanmar":   "NotoSerifMyanmar-Regular.ttf",
+	"NotoSerifHebrew":    "NotoSerifHebrew-Regular.ttf",
+	"NotoSerifEthiopic":  "NotoSerifEthiopic-Regular.ttf",
 }
 
 // collectRunes returns the set of all Unicode codepoints used in the given
@@ -499,7 +551,7 @@ func subsetTTF(inputPath string, runes map[rune]bool) string {
 // We use AddUTF8FontFromBytes (reads the file ourselves) rather than AddUTF8Font
 // to avoid gofpdf's internal font-directory path prepending.
 func loadFonts(pdf *gofpdf.Fpdf, lang, fontDir string, runes map[rune]bool) *fontInfo {
-	fi := &fontInfo{loaded: map[string]bool{}}
+	fi := &fontInfo{loaded: map[string]bool{}, langFont: map[string]string{}}
 
 	home, _ := os.UserHomeDir()
 	searchDirs := []string{fontDir, "fonts"}
@@ -554,10 +606,12 @@ func loadFonts(pdf *gofpdf.Fpdf, lang, fontDir string, runes map[rune]bool) *fon
 	}
 
 	// Language → preferred font
-	switch lang {
-	case "ar", "fa", "ur":
-		if loadTTF("NotoNaskhArabic", "NotoNaskhArabic-Regular.ttf") {
-			fi.bodyFont = "NotoNaskhArabic"
+	if wantFamily, ok := langScriptFont[lang]; ok {
+		if wantFile, fok := scriptFontFile[wantFamily]; fok {
+			if loadTTF(wantFamily, wantFile) {
+				fi.bodyFont = wantFamily
+				fi.langFont[lang] = wantFamily
+			}
 		}
 	}
 
@@ -673,7 +727,11 @@ func renderPrayerSection(ctx *pdfCtx, prayers []Prayer, lang, phelpsBaseURL stri
 
 	// Determine which body font to use for this language.
 	bodyFont := fi.bodyFont
-	if isRTL && fi.loaded["NotoNaskhArabic"] {
+	if langF, ok := fi.langFont[lang]; ok && fi.loaded[langF] {
+		bodyFont = langF
+	} else if wantFamily, ok := langScriptFont[lang]; ok && fi.loaded[wantFamily] {
+		bodyFont = wantFamily
+	} else if isRTL && fi.loaded["NotoNaskhArabic"] {
 		bodyFont = "NotoNaskhArabic"
 	} else if fi.loaded["NotoSerif"] {
 		bodyFont = "NotoSerif"
@@ -800,9 +858,28 @@ func newPDF(title, fontDir string, langs []string, runes map[rune]bool) (*pdfCtx
 	}
 	fi := loadFonts(pdf, primaryLang, fontDir, runes)
 
-	// For combined PDFs, always ensure Arabic font is loaded too.
-	if len(langs) > 1 && !fi.loaded["NotoNaskhArabic"] {
-		loadTTFInto(pdf, fi, "NotoNaskhArabic", "NotoNaskhArabic-Regular.ttf", fontDir, runes)
+	// For combined PDFs, load all required script fonts based on the language list.
+	if len(langs) > 1 {
+		// Track which font families we still need to load
+		neededFamilies := map[string]bool{}
+		for _, l := range langs {
+			if family, ok := langScriptFont[l]; ok {
+				neededFamilies[family] = true
+			}
+		}
+		for family := range neededFamilies {
+			if !fi.loaded[family] {
+				if file, ok := scriptFontFile[family]; ok {
+					loadTTFInto(pdf, fi, family, file, fontDir, runes)
+				}
+			}
+			// Record per-language font mapping on fi
+			for _, l := range langs {
+				if langScriptFont[l] == family && fi.loaded[family] {
+					fi.langFont[l] = family
+				}
+			}
+		}
 	}
 
 	pageW, _ := pdf.GetPageSize()
