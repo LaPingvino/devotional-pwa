@@ -502,6 +502,10 @@ func mergeRunes(sets ...map[rune]bool) map[rune]bool {
 // containing only the codepoints in runes.  Returns the path to the subsetted
 // file (in os.TempDir()) on success, or "" if pyftsubset is unavailable or
 // fails (callers fall back to the full font in that case).
+//
+// OTF fonts with CFF outlines are automatically converted to TTF (quadratic
+// bezier) format after subsetting, because gofpdf's font parser only supports
+// TrueType outline format.
 func subsetTTF(inputPath string, runes map[rune]bool) string {
 	if _, err := exec.LookPath("pyftsubset"); err != nil {
 		return ""
@@ -534,6 +538,30 @@ func subsetTTF(inputPath string, runes map[rune]bool) string {
 		fmt.Fprintf(os.Stderr, "  subset %s: %dKB → %dKB\n",
 			filepath.Base(inputPath), orig.Size()/1024, sub.Size()/1024)
 	}
+
+	// If the subset is CFF-based OTF, convert to TTF so gofpdf can use it.
+	// gofpdf's font parser only supports TrueType (quadratic bezier) outlines.
+	if strings.HasSuffix(strings.ToLower(outPath), ".otf") {
+		ttfPath := outPath[:len(outPath)-4] + ".ttf"
+		pyScript := `
+import sys
+from fontTools.ttLib import TTFont
+from fontTools import cu2qu
+font = TTFont(sys.argv[1])
+if 'CFF ' in font or 'CFF2' in font:
+    cu2qu.font_to_quadratic(font, reverse_direction=True)
+font.save(sys.argv[2])
+`
+		convCmd := exec.Command("python3", "-c", pyScript, outPath, ttfPath)
+		if convOut, convErr := convCmd.CombinedOutput(); convErr == nil {
+			os.Remove(outPath)
+			return ttfPath
+		} else {
+			fmt.Fprintf(os.Stderr, "  OTF→TTF conversion failed: %v\n%s\n", convErr, convOut)
+			// Fall through: return the OTF path and let gofpdf try (will likely fail for CFF)
+		}
+	}
+
 	return outPath
 }
 
