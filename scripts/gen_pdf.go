@@ -541,11 +541,11 @@ func subsetTTF(inputPath string, runes map[rune]bool) string {
 
 	// If the subset is CFF-based OTF, convert to TTF so gofpdf can use it.
 	// gofpdf's font parser only supports TrueType (quadratic bezier) outlines.
-	// fonttools cu2qu converts CFF outlines→TrueType quadratic and replaces the
-	// CFF  table with a glyf table, producing a proper TTF binary.
+	// fonttools otf2ttf converts CFF outlines → TrueType glyf outlines, producing
+	// a proper TTF binary.  (cu2qu is for UFO source files and won't work here.)
 	if strings.HasSuffix(strings.ToLower(outPath), ".otf") {
 		ttfPath := outPath[:len(outPath)-4] + ".ttf"
-		convCmd := exec.Command("fonttools", "cu2qu", "-o", ttfPath, outPath)
+		convCmd := exec.Command("fonttools", "otf2ttf", "-o", ttfPath, outPath)
 		if convOut, convErr := convCmd.CombinedOutput(); convErr == nil {
 			os.Remove(outPath)
 			return ttfPath
