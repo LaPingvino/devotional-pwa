@@ -1051,8 +1051,7 @@ func renderEPUB(htmlContent, outFile, tmpTag, title, lang string) {
 		"--metadata", "publisher=Bahá'í Writings",
 		"-f", "html",
 		"-t", "epub",
-		"--toc",
-		"--toc-depth=1",
+		"--split-level=1",
 		"-o", outFile,
 		tmpFile,
 	)
@@ -1169,6 +1168,7 @@ const htmlTmpl = `<!DOCTYPE html>
 <style>
 body { font-family: "Noto Serif", serif; font-size: 11pt; line-height: 1.7; direction: {{.Dir}}; }
 h1.cat { font-size: 14pt; margin-top: 2em; }
+h2.cat { font-size: 14pt; margin-top: 2em; }
 .prayer { margin-bottom: 2em; }
 .meta { font-size: 8pt; color: #aaa; font-family: monospace; }
 p.verse { margin-left: 1.5em; font-style: italic; }
@@ -1180,7 +1180,7 @@ p.note { font-size: 9pt; color: #666; }
 <h1>{{.Title}}</h1>
 {{range .Categories}}
 <div>
-  {{if .Name}}<h1 class="cat">{{.Name}}</h1>{{end}}
+  {{if .Name}}{{if $.FlatEPUB}}<h2 class="cat">{{.Name}}</h2>{{else}}<h1 class="cat">{{.Name}}</h1>{{end}}{{end}}
   {{range .Prayers}}
   <div class="prayer">
     <div class="meta">{{.Phelps}}</div>
@@ -1193,7 +1193,7 @@ p.note { font-size: 9pt; color: #666; }
 </body>
 </html>`
 
-func generateHTML(prayers []Prayer, lang, title, phelpsBaseURL string, translations map[string][]string) string {
+func generateHTML(prayers []Prayer, lang, title, phelpsBaseURL string, translations map[string][]string, flatEPUB bool) string {
 	dir := "ltr"
 	if rtlLangs[lang] {
 		dir = "rtl"
@@ -1238,7 +1238,8 @@ func generateHTML(prayers []Prayer, lang, title, phelpsBaseURL string, translati
 		Lang       string
 		Dir        string
 		Categories []CategorySection
-	}{Title: title, Lang: lang, Dir: dir, Categories: categories}
+		FlatEPUB   bool
+	}{Title: title, Lang: lang, Dir: dir, Categories: categories, FlatEPUB: flatEPUB}
 	tmpl := template.Must(template.New("p").Parse(htmlTmpl))
 	var buf strings.Builder
 	if err := tmpl.Execute(&buf, data); err != nil {
@@ -1508,7 +1509,7 @@ func main() {
 			var buf strings.Builder
 			for _, ls := range allSections {
 				docTitle := *title + " — " + ls.lname
-				buf.WriteString(generateHTML(ls.prayers, ls.lang, docTitle, *phelpsBase, translationsMap))
+				buf.WriteString(generateHTML(ls.prayers, ls.lang, docTitle, *phelpsBase, nil, true))
 			}
 			renderEPUB(buf.String(), outBase+".epub", "all", combinedTitle, "mul")
 		}
@@ -1538,14 +1539,14 @@ func main() {
 		}
 
 		if *htmlOnly {
-			html := generateHTML(prayers, l, docTitle, *phelpsBase, translationsMap)
+			html := generateHTML(prayers, l, docTitle, *phelpsBase, translationsMap, false)
 			renderHTML(html, baseName+".html")
 		} else if *epubMode {
-			html := generateHTML(prayers, l, docTitle, *phelpsBase, translationsMap)
+			html := generateHTML(prayers, l, docTitle, *phelpsBase, nil, true)
 			renderEPUB(html, baseName+".epub", l, docTitle, l)
 		} else if *bothMode {
 			renderPDFGo(prayers, l, docTitle, lname, *phelpsBase, translationsMap, baseName+".pdf", *fontDir)
-			html := generateHTML(prayers, l, docTitle, *phelpsBase, translationsMap)
+			html := generateHTML(prayers, l, docTitle, *phelpsBase, nil, true)
 			renderEPUB(html, baseName+".epub", l, docTitle, l)
 		} else {
 			renderPDFGo(prayers, l, docTitle, lname, *phelpsBase, translationsMap, baseName+".pdf", *fontDir)
