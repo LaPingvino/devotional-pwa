@@ -1139,10 +1139,10 @@ type CategorySection struct {
 }
 
 type PrayerPage struct {
-	Phelps       string
-	HTML         template.HTML
-	Translations string
-	PhelpsLink   string
+	Phelps     string
+	ID         string
+	HTML       template.HTML
+	TransLinks template.HTML
 }
 
 func basePINKey(pin string) string {
@@ -1187,10 +1187,10 @@ p.note { font-size: 9pt; color: #666; }
 <div>
   {{if .Name}}{{if $.Fragment}}<h3 class="cat">{{.Name}}</h3>{{else if $.FlatEPUB}}<h2 class="cat">{{.Name}}</h2>{{else}}<h1 class="cat">{{.Name}}</h1>{{end}}{{end}}
   {{range .Prayers}}
-  <div class="prayer">
+  <div class="prayer"{{if .ID}} id="{{.ID}}"{{end}}>
     <div class="meta">{{.Phelps}}</div>
     {{.HTML}}
-    {{if .Translations}}<p class="trans">{{.Translations}}</p>{{end}}
+    {{if .TransLinks}}<p class="trans">{{.TransLinks}}</p>{{end}}
   </div>
   {{end}}
 </div>
@@ -1198,13 +1198,14 @@ p.note { font-size: 9pt; color: #666; }
 </html>{{else}}</section>
 {{end}}`
 
-func generateHTML(prayers []Prayer, lang, title, phelpsBaseURL string, translations map[string][]string, flatEPUB bool, fragment bool) string {
+func generateHTML(prayers []Prayer, lang, title, phelpsBaseURL string, translations map[string][]string, flatEPUB bool, fragment bool, includedLangs map[string]bool) string {
 	dir := "ltr"
 	if rtlLangs[lang] {
 		dir = "rtl"
 	}
 	var categories []CategorySection
 	catIdx := map[string]int{}
+	seenIDs := map[string]bool{}
 	for _, p := range prayers {
 		key := p.Category
 		if key == "" {
@@ -1217,25 +1218,39 @@ func generateHTML(prayers []Prayer, lang, title, phelpsBaseURL string, translati
 		idx := catIdx[key]
 		var transLangs []string
 		if ls, ok := translations[p.Phelps]; ok {
+			seen := map[string]bool{}
 			for _, l := range ls {
-				if l != lang {
+				if l != lang && !seen[l] && (includedLangs == nil || includedLangs[l]) {
+					seen[l] = true
 					transLangs = append(transLangs, l)
 				}
 			}
 		}
-		transNote := ""
-		if len(transLangs) > 0 {
-			transNote = "Also in: " + strings.Join(transLangs, ", ")
-		}
-		phelpsLink := ""
-		if phelpsBaseURL != "" {
-			phelpsLink = phelpsBaseURL + strings.ToLower(basePINKey(p.Phelps)) + "/"
+		phelpsKey := strings.ToLower(p.Phelps)
+		var id string
+		var transLinks template.HTML
+		if fragment {
+			candidate := lang + "-" + phelpsKey
+			if !seenIDs[candidate] {
+				seenIDs[candidate] = true
+				id = candidate
+			}
+			if len(transLangs) > 0 {
+				var parts []string
+				for _, tl := range transLangs {
+					anchor := tl + "-" + phelpsKey
+					parts = append(parts, fmt.Sprintf(`<a href="#%s">%s</a>`, anchor, template.HTMLEscapeString(tl)))
+				}
+				transLinks = template.HTML("Also in: " + strings.Join(parts, ", "))
+			}
+		} else if len(transLangs) > 0 {
+			transLinks = template.HTML("Also in: " + template.HTMLEscapeString(strings.Join(transLangs, ", ")))
 		}
 		categories[idx].Prayers = append(categories[idx].Prayers, PrayerPage{
-			Phelps:       p.Phelps,
-			HTML:         markdownToHTML(p.Text),
-			Translations: transNote,
-			PhelpsLink:   phelpsLink,
+			Phelps:     p.Phelps,
+			ID:         id,
+			HTML:       markdownToHTML(p.Text),
+			TransLinks: transLinks,
 		})
 	}
 	data := struct {
@@ -1531,9 +1546,13 @@ p.note { font-size: 9pt; color: #666; }
 <body>
 <h1>` + template.HTMLEscapeString(combinedTitle) + `</h1>
 `)
+			includedLangs := map[string]bool{}
+			for _, ls := range allSections {
+				includedLangs[ls.lang] = true
+			}
 			for _, ls := range allSections {
 				docTitle := *title + " — " + ls.lname
-				buf.WriteString(generateHTML(ls.prayers, ls.lang, docTitle, *phelpsBase, nil, false, true))
+				buf.WriteString(generateHTML(ls.prayers, ls.lang, docTitle, *phelpsBase, translationsMap, false, true, includedLangs))
 			}
 			buf.WriteString("</body>\n</html>")
 			renderEPUB(buf.String(), outBase+".epub", "all", combinedTitle, "mul")
@@ -1564,14 +1583,14 @@ p.note { font-size: 9pt; color: #666; }
 		}
 
 		if *htmlOnly {
-			html := generateHTML(prayers, l, docTitle, *phelpsBase, translationsMap, false, false)
+			html := generateHTML(prayers, l, docTitle, *phelpsBase, translationsMap, false, false, nil)
 			renderHTML(html, baseName+".html")
 		} else if *epubMode {
-			html := generateHTML(prayers, l, docTitle, *phelpsBase, nil, true, false)
+			html := generateHTML(prayers, l, docTitle, *phelpsBase, nil, true, false, nil)
 			renderEPUB(html, baseName+".epub", l, docTitle, l)
 		} else if *bothMode {
 			renderPDFGo(prayers, l, docTitle, lname, *phelpsBase, translationsMap, baseName+".pdf", *fontDir)
-			html := generateHTML(prayers, l, docTitle, *phelpsBase, nil, true, false)
+			html := generateHTML(prayers, l, docTitle, *phelpsBase, nil, true, false, nil)
 			renderEPUB(html, baseName+".epub", l, docTitle, l)
 		} else {
 			renderPDFGo(prayers, l, docTitle, lname, *phelpsBase, translationsMap, baseName+".pdf", *fontDir)
