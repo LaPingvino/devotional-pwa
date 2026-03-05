@@ -26,6 +26,7 @@
 package main
 
 import (
+	"archive/zip"
 	"encoding/csv"
 	"flag"
 	"fmt"
@@ -36,6 +37,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -1035,36 +1037,106 @@ type langSection struct {
 	prayers []Prayer
 }
 
-// ── EPUB renderer (pandoc) ─────────────────────────────────────────────────────
+// ── EPUB renderer (Go-native, no pandoc) ────────────────────────────────────────
 
 func renderEPUB(htmlContent, outFile, tmpTag, title, lang string) {
-	tmpFile := fmt.Sprintf("/tmp/prayers_%s_epub.html", tmpTag)
-	if err := os.WriteFile(tmpFile, []byte(htmlContent), 0644); err != nil {
-		fmt.Fprintf(os.Stderr, "Temp write error: %v\n", err)
-		os.Exit(1)
+	fmt.Printf("  Generating EPUB...\n")
+	f, err := os.Create(outFile)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "  EPUB create error: %v\n", err)
+		return
 	}
-	fmt.Printf("  Converting to EPUB...\n")
-	cmd := exec.Command("pandoc",
-		"--metadata", "title="+title,
-		"--metadata", "lang="+lang,
-		"--metadata", "author=Bahá'í Writings",
-		"--metadata", "publisher=Bahá'í Writings",
-		"-f", "html",
-		"-t", "epub",
-		"--split-level=1",
-		"--toc",
-		"--toc-depth=3",
-		"-o", outFile,
-		tmpFile,
-	)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
-	if err := cmd.Run(); err != nil {
-		fmt.Fprintf(os.Stderr, "  pandoc error (EPUB skipped): %v\n", err)
-	} else {
-		fmt.Printf("  Written: %s\n", outFile)
+	defer f.Close()
+	w := zip.NewWriter(f)
+	defer w.Close()
+
+	// mimetype must be first and stored uncompressed (EPUB spec §3.4)
+	mh := &zip.FileHeader{Name: "mimetype", Method: zip.Store}
+	mh.Modified = time.Now()
+	mw, _ := w.CreateHeader(mh)
+	mw.Write([]byte("application/epub+zip")) //nolint:errcheck
+
+	// META-INF/container.xml
+	cw, _ := w.Create("META-INF/container.xml")
+	cw.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>` + "\n" + //nolint:errcheck
+		`<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">` + "\n" +
+		`  <rootfiles>` + "\n" +
+		`    <rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/>` + "\n" +
+		`  </rootfiles>` + "\n" +
+		`</container>`))
+
+	// OEBPS/content.xhtml — HTML body converted to valid XHTML
+	dir := "ltr"
+	if rtlLangs[lang] {
+		dir = "rtl"
 	}
-	os.Remove(tmpFile)
+	bodyRe := regexp.MustCompile(`(?si)<body[^>]*>(.*)</body>`)
+	body := htmlContent
+	if m := bodyRe.FindStringSubmatch(htmlContent); len(m) > 1 {
+		body = m[1]
+	}
+	body = strings.ReplaceAll(body, "<br>", "<br/>")
+	body = strings.ReplaceAll(body, "<hr>", "<hr/>")
+	xhtml := `<?xml version="1.0" encoding="UTF-8"?>` + "\n" +
+		`<!DOCTYPE html>` + "\n" +
+		`<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="` + lang + `" lang="` + lang + `" dir="` + dir + `">` + "\n" +
+		`<head><meta charset="UTF-8"/>` + "\n" +
+		`<title>` + template.HTMLEscapeString(title) + `</title>` + "\n" +
+		`<style>` + "\n" +
+		`body { font-family: "Noto Serif", serif; font-size: 11pt; line-height: 1.7; direction: ` + dir + `; }` + "\n" +
+		`h1, h2.cat { font-size: 14pt; margin-top: 2em; }` + "\n" +
+		`h3.cat { font-size: 12pt; margin-top: 1.5em; }` + "\n" +
+		`.prayer { margin-bottom: 2em; }` + "\n" +
+		`.meta { font-size: 8pt; color: #aaa; font-family: monospace; }` + "\n" +
+		`p.verse { margin-left: 1.5em; font-style: italic; }` + "\n" +
+		`p.note { font-size: 9pt; color: #666; }` + "\n" +
+		`.trans { font-size: 8pt; color: #bbb; font-style: italic; }` + "\n" +
+		`</style></head>` + "\n" +
+		`<body>` + "\n" + body + "\n" + `</body></html>`
+	xw, _ := w.Create("OEBPS/content.xhtml")
+	xw.Write([]byte(xhtml)) //nolint:errcheck
+
+	// OEBPS/nav.xhtml — minimal navigation document (EPUB3 required)
+	headRe := regexp.MustCompile(`<h[123][^>]*class="cat"[^>]*>([^<]+)</h[123]>`)
+	headMatches := headRe.FindAllStringSubmatch(htmlContent, -1)
+	var navItems strings.Builder
+	for _, m := range headMatches {
+		navItems.WriteString("    <li><a href=\"content.xhtml\">" + template.HTMLEscapeString(strings.TrimSpace(m[1])) + "</a></li>\n")
+	}
+	if navItems.Len() == 0 {
+		navItems.WriteString("    <li><a href=\"content.xhtml\">" + template.HTMLEscapeString(title) + "</a></li>\n")
+	}
+	nav := `<?xml version="1.0" encoding="UTF-8"?>` + "\n" +
+		`<!DOCTYPE html>` + "\n" +
+		`<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">` + "\n" +
+		`<head><meta charset="UTF-8"/><title>` + template.HTMLEscapeString(title) + `</title></head>` + "\n" +
+		`<body><nav epub:type="toc"><h1>` + template.HTMLEscapeString(title) + `</h1>` + "\n" +
+		`<ol>` + "\n" + navItems.String() + `</ol></nav></body></html>`
+	nw, _ := w.Create("OEBPS/nav.xhtml")
+	nw.Write([]byte(nav)) //nolint:errcheck
+
+	// OEBPS/content.opf — package metadata
+	modified := time.Now().UTC().Format("2006-01-02T15:04:05Z")
+	uid := "bahai-prayers-" + tmpTag
+	opf := `<?xml version="1.0" encoding="UTF-8"?>` + "\n" +
+		`<package version="3.0" xmlns="http://www.idpf.org/2007/opf" unique-identifier="uid">` + "\n" +
+		`  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">` + "\n" +
+		`    <dc:identifier id="uid">` + uid + `</dc:identifier>` + "\n" +
+		`    <dc:title>` + template.HTMLEscapeString(title) + `</dc:title>` + "\n" +
+		`    <dc:language>` + lang + `</dc:language>` + "\n" +
+		`    <dc:creator>Bahá'í Writings</dc:creator>` + "\n" +
+		`    <meta property="dcterms:modified">` + modified + `</meta>` + "\n" +
+		`  </metadata>` + "\n" +
+		`  <manifest>` + "\n" +
+		`    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>` + "\n" +
+		`    <item id="content" href="content.xhtml" media-type="application/xhtml+xml"/>` + "\n" +
+		`  </manifest>` + "\n" +
+		`  <spine><itemref idref="content"/></spine>` + "\n" +
+		`</package>`
+	ow, _ := w.Create("OEBPS/content.opf")
+	ow.Write([]byte(opf)) //nolint:errcheck
+
+	fmt.Printf("  Written: %s\n", outFile)
 }
 
 func renderHTML(htmlContent, outFile string) {

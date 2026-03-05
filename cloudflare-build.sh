@@ -22,15 +22,6 @@ if ! hugo version 2>/dev/null | grep -q "$HUGO_VERSION"; then
 fi
 echo "Hugo version: $(hugo version)"
 
-# Install pandoc (for EPUB generation alongside the gofpdf PDFs)
-PANDOC_VERSION="${PANDOC_VERSION:-3.6.4}"
-if ! command -v pandoc &>/dev/null; then
-  echo "Installing pandoc $PANDOC_VERSION..."
-  curl -fsSL "https://github.com/jgm/pandoc/releases/download/${PANDOC_VERSION}/pandoc-${PANDOC_VERSION}-linux-amd64.tar.gz" \
-    | tar -xz --strip-components=2 -C "$HOME/bin" "pandoc-${PANDOC_VERSION}/bin/pandoc"
-fi
-echo "Pandoc version: $(pandoc --version | head -1)"
-
 # Clone the prayer database (public DoltHub repo, no auth needed)
 if [ -d "bahaiwritings/.dolt" ]; then
   echo "Pulling latest bahaiwritings..."
