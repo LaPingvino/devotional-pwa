@@ -45,15 +45,27 @@ type LangRef struct {
 	LangName string `json:"lang_name"`
 }
 
+// PrayerSource holds text from one source for the same prayer.
+type PrayerSource struct {
+	Source  string `json:"source"`
+	Version string `json:"version"`
+	Text    string `json:"text"`
+	Notes   string `json:"notes,omitempty"`
+}
+
 // Prayer for per-language data files
 type Prayer struct {
-	Phelps        string    `json:"phelps"`
-	Text          string    `json:"text"`
-	Name          string    `json:"name,omitempty"`
-	Category      string    `json:"category,omitempty"`
-	CategoryOrder int       `json:"cat_order,omitempty"`
-	OrderInCat    int       `json:"order_in_cat,omitempty"`
-	Translations  []LangRef `json:"translations,omitempty"` // other languages with this phelps code
+	Phelps        string         `json:"phelps"`
+	Text          string         `json:"text"`
+	Name          string         `json:"name,omitempty"`
+	Category      string         `json:"category,omitempty"`
+	CategoryOrder int            `json:"cat_order,omitempty"`
+	OrderInCat    int            `json:"order_in_cat,omitempty"`
+	Source        string         `json:"source,omitempty"`
+	Version       string         `json:"version,omitempty"`
+	Notes         string         `json:"notes,omitempty"`
+	AltSources    []PrayerSource `json:"alt_sources,omitempty"` // additional sources for same prayer
+	Translations  []LangRef      `json:"translations,omitempty"` // other languages with this phelps code
 }
 
 // SubCode is one passage within a base PIN (e.g. BH01313NAM within BH01313).
@@ -283,10 +295,9 @@ func doltQuery(query string) [][]string {
 
 func queryLanguages() []Language {
 	rows := doltQuery(`
-		SELECT l.langcode, l.name, COUNT(w.version) as cnt
+		SELECT l.langcode, l.name, COUNT(DISTINCT w.phelps) as cnt
 		FROM languages l
 		LEFT JOIN writings w ON w.language = l.langcode
-		    AND w.source = 'bahaiprayers.net'
 		    AND w.phelps IS NOT NULL AND w.phelps <> ''
 		WHERE l.inlang = 'en'
 		GROUP BY l.langcode, l.name
@@ -312,8 +323,9 @@ func queryLanguages() []Language {
 
 func queryPrayersForLang(lang string) []Prayer {
 	safe := strings.ReplaceAll(lang, "'", "''")
+	// Prefer bahaiprayers.net as primary (sort 0), bahaiprayers.app as secondary (sort 1)
 	rows := doltQuery(fmt.Sprintf(`
-		SELECT w.phelps, w.text, COALESCE(w.name,''),
+		SELECT w.phelps, w.text, COALESCE(w.name,''), w.source, w.version, COALESCE(w.notes,''),
 		       COALESCE(pbs.category_name,''),
 		       COALESCE(pbs.category_order,0),
 		       COALESCE(pbs.order_in_category,0)
@@ -322,29 +334,85 @@ func queryPrayersForLang(lang string) []Prayer {
 		    ON pbs.phelps_code = w.phelps
 		    AND pbs.source_language = '%s'
 		WHERE w.language = '%s'
-		    AND w.source = 'bahaiprayers.net'
 		    AND w.phelps IS NOT NULL AND w.phelps <> ''
-		ORDER BY COALESCE(pbs.category_order,9999),
+		ORDER BY CASE w.source WHEN 'bahaiprayers.net' THEN 0 ELSE 1 END,
+		         COALESCE(pbs.category_order,9999),
 		         COALESCE(pbs.order_in_category,9999),
 		         w.phelps
 	`, safe, safe))
 
-	var out []Prayer
+	type rawRow struct {
+		phelps, text, name, source, version, notes string
+		catName                                    string
+		catOrd, ordInCat                           int
+	}
+
+	// Group by phelps: first row becomes primary, rest become alt_sources
+	type group struct {
+		primary rawRow
+		alts    []PrayerSource
+	}
+	groups := map[string]*group{}
+	var order []string // insertion order = category-sorted order from primary rows
+
 	for _, row := range rows[1:] {
-		if len(row) < 6 {
+		if len(row) < 9 {
 			continue
 		}
 		catOrd, ordInCat := 0, 0
-		fmt.Sscanf(row[4], "%d", &catOrd)
-		fmt.Sscanf(row[5], "%d", &ordInCat)
-		out = append(out, Prayer{
-			Phelps:        row[0],
-			Text:          row[1],
-			Name:          row[2],
-			Category:      row[3],
-			CategoryOrder: catOrd,
-			OrderInCat:    ordInCat,
-		})
+		fmt.Sscanf(row[7], "%d", &catOrd)
+		fmt.Sscanf(row[8], "%d", &ordInCat)
+		r := rawRow{
+			phelps: row[0], text: row[1], name: row[2],
+			source: row[3], version: row[4], notes: row[5],
+			catName: row[6], catOrd: catOrd, ordInCat: ordInCat,
+		}
+		if g, ok := groups[r.phelps]; !ok {
+			groups[r.phelps] = &group{primary: r}
+			order = append(order, r.phelps)
+		} else if r.source == "bahaiprayers.net" && g.primary.source != "bahaiprayers.net" {
+			// Promote net to primary if app was first
+			g.alts = append([]PrayerSource{{
+				Source: g.primary.source, Version: g.primary.version,
+				Text: g.primary.text, Notes: g.primary.notes,
+			}}, g.alts...)
+			g.primary = r
+		} else if r.source != g.primary.source {
+			// Only add as alt if it's a genuinely different source
+			// (skip duplicates from the same source caused by prayer_book_structure multi-category join)
+			alreadyHaveSource := false
+			for _, a := range g.alts {
+				if a.Source == r.source {
+					alreadyHaveSource = true
+					break
+				}
+			}
+			if !alreadyHaveSource {
+				g.alts = append(g.alts, PrayerSource{
+					Source: r.source, Version: r.version, Text: r.text, Notes: r.notes,
+				})
+			}
+		}
+	}
+
+	out := make([]Prayer, 0, len(order))
+	for _, phelps := range order {
+		g := groups[phelps]
+		p := Prayer{
+			Phelps:        phelps,
+			Text:          g.primary.text,
+			Name:          g.primary.name,
+			Category:      g.primary.catName,
+			CategoryOrder: g.primary.catOrd,
+			OrderInCat:    g.primary.ordInCat,
+			Source:        g.primary.source,
+			Version:       g.primary.version,
+			Notes:         g.primary.notes,
+		}
+		if len(g.alts) > 0 {
+			p.AltSources = g.alts
+		}
+		out = append(out, p)
 	}
 	return out
 }

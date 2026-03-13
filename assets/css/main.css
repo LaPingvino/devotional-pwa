@@ -167,7 +167,44 @@ body {
 }
 .prayer-card.folded .prayer-text { display: none; }
 .prayer-card.folded .prayer-translations { display: none; }
+.prayer-card.folded .prayer-notes { display: none; }
+.prayer-card.folded .prayer-alt-sources { display: none; }
+.prayer-card.folded .prayer-meta { display: none; }
 .prayer-card.folded .prayer-card-header { border-bottom: none; }
+/* Notes and source meta */
+.prayer-notes {
+  padding: .35rem .75rem;
+  font-size: .78rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  border-top: 1px solid var(--border);
+}
+.prayer-meta {
+  padding: .2rem .75rem .35rem;
+  font-size: .72rem;
+  color: var(--text-secondary);
+}
+.prayer-source {
+  opacity: .7;
+}
+.prayer-alt-sources {
+  padding: .3rem .75rem;
+  font-size: .78rem;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  gap: .25rem;
+  align-items: center;
+}
+.alt-source-item {
+  display: inline-block;
+  padding: .1rem .4rem;
+  background: #f0f0f0;
+  border-radius: 3px;
+  color: var(--text-secondary);
+  font-size: .75rem;
+  cursor: default;
+}
 .prayer-phelps {
   font-family: monospace;
   font-size: .75rem;

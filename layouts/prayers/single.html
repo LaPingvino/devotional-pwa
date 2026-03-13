@@ -56,6 +56,20 @@
           <button class="fav-btn" data-phelps="{{ $pin }}" aria-label="Toggle favourite">☆</button>
         </div>
         <div class="prayer-text">{{ .text | markdownify }}</div>
+        {{ with .notes }}
+        <div class="prayer-notes">{{ . }}</div>
+        {{ end }}
+        {{ with .alt_sources }}
+        <div class="prayer-alt-sources">
+          <span class="trans-label">Other versions:</span>
+          {{ range . }}
+          <span class="alt-source-item" title="{{ .source }}{{ with .notes }} · {{ . }}{{ end }}">{{ .source }}</span>
+          {{ end }}
+        </div>
+        {{ end }}
+        <div class="prayer-meta">
+          {{ with .source }}<span class="prayer-source">{{ . }}</span>{{ end }}
+        </div>
         {{ with .translations }}
         <div class="prayer-translations">
           <span class="trans-label">Also in:</span>
