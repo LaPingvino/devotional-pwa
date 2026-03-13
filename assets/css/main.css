@@ -180,12 +180,13 @@ body {
   border-top: 1px solid var(--border);
 }
 .prayer-meta {
-  padding: .2rem .75rem .35rem;
-  font-size: .72rem;
+  padding: .15rem .75rem .3rem;
+  font-size: .65rem;
   color: var(--text-secondary);
+  text-align: right;
 }
 .prayer-source {
-  opacity: .7;
+  opacity: .6;
 }
 .prayer-alt-sources {
   padding: .3rem .75rem;
