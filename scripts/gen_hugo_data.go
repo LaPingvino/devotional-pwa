@@ -151,15 +151,18 @@ func main() {
 	writeJSON(filepath.Join(dataDir, "languages.json"), langs)
 	log.Printf("  %d languages", len(langs))
 
-	// 2a. First pass: collect all prayers and build deduped phelps→language index
-	log.Println("→ prayers by language (pass 1: collecting)...")
-	allPrayers := map[string][]Prayer{} // langCode → prayers
-	phelpsLangs := map[string][]LangRef{} // phelps full code → deduped lang refs
-	phelpsLangsSeen := map[string]map[string]bool{} // dedup tracker
+	// Build lang name lookup for LangRef construction
+	langNames := map[string]string{}
+	for _, l := range langs {
+		langNames[l.Code] = l.Name
+	}
 
-	for _, lang := range langs {
-		prayers := queryPrayersForLang(lang.Code)
-		allPrayers[lang.Code] = prayers
+	// 2a. First pass: one bulk query for all prayers across all languages
+	log.Println("→ prayers (bulk query, all languages)...")
+	allPrayers := queryAllPrayers() // langCode → prayers
+	phelpsLangs := map[string][]LangRef{}  // phelps full code → deduped lang refs
+	phelpsLangsSeen := map[string]map[string]bool{}
+	for langCode, prayers := range allPrayers {
 		for _, p := range prayers {
 			if p.Phelps == "" {
 				continue
@@ -167,16 +170,16 @@ func main() {
 			if phelpsLangsSeen[p.Phelps] == nil {
 				phelpsLangsSeen[p.Phelps] = map[string]bool{}
 			}
-			if phelpsLangsSeen[p.Phelps][lang.Code] {
-				continue // one entry per language per phelps code
+			if phelpsLangsSeen[p.Phelps][langCode] {
+				continue
 			}
-			phelpsLangsSeen[p.Phelps][lang.Code] = true
+			phelpsLangsSeen[p.Phelps][langCode] = true
 			phelpsLangs[p.Phelps] = append(phelpsLangs[p.Phelps], LangRef{
-				Language: lang.Code,
-				LangName: lang.Name,
+				Language: langCode,
+				LangName: langNames[langCode],
 			})
 		}
-		log.Printf("  %s: %d prayers", lang.Code, len(prayers))
+		log.Printf("  %s: %d prayers", langCode, len(prayers))
 	}
 
 	// 2b. Second pass: write per-language JSON with "Also in:" translation lists + prayerbooks
@@ -353,65 +356,64 @@ func queryLanguages() []Language {
 	return out
 }
 
-func queryPrayersForLang(lang string) []Prayer {
-	safe := strings.ReplaceAll(lang, "'", "''")
-	// Prefer bahaiprayers.net as primary (sort 0), bahaiprayers.app as secondary (sort 1)
-	rows := doltQuery(fmt.Sprintf(`
-		SELECT w.phelps, w.text, COALESCE(w.name,''), w.source, w.version, COALESCE(w.notes,''),
+// queryAllPrayers fetches every prayer for every language in one SQL query
+// and groups them by language, then by phelps within each language.
+func queryAllPrayers() map[string][]Prayer {
+	rows := doltQuery(`
+		SELECT w.language, w.phelps, w.text, COALESCE(w.name,''), w.source, w.version, COALESCE(w.notes,''),
 		       COALESCE(pbs.category_name,''),
 		       COALESCE(pbs.category_order,0),
 		       COALESCE(pbs.order_in_category,0)
 		FROM writings w
 		LEFT JOIN prayer_book_structure pbs
 		    ON pbs.phelps_code = w.phelps
-		    AND pbs.source_language = '%s'
-		WHERE w.language = '%s'
-		    AND w.phelps IS NOT NULL AND w.phelps <> ''
-		ORDER BY CASE w.source WHEN 'bahaiprayers.net' THEN 0 ELSE 1 END,
+		    AND pbs.source_language = w.language
+		WHERE w.phelps IS NOT NULL AND w.phelps <> ''
+		ORDER BY w.language,
+		         CASE w.source WHEN 'bahaiprayers.net' THEN 0 ELSE 1 END,
 		         COALESCE(pbs.category_order,9999),
 		         COALESCE(pbs.order_in_category,9999),
 		         w.phelps
-	`, safe, safe))
+	`)
 
 	type rawRow struct {
-		phelps, text, name, source, version, notes string
-		catName                                    string
-		catOrd, ordInCat                           int
+		lang, phelps, text, name, source, version, notes string
+		catName                                           string
+		catOrd, ordInCat                                  int
 	}
-
-	// Group by phelps: first row becomes primary, rest become alt_sources
 	type group struct {
 		primary rawRow
 		alts    []PrayerSource
 	}
-	groups := map[string]*group{}
-	var order []string // insertion order = category-sorted order from primary rows
+
+	langGroups := map[string]map[string]*group{}
+	langOrder := map[string][]string{}
 
 	for _, row := range rows[1:] {
-		if len(row) < 9 {
+		if len(row) < 10 {
 			continue
 		}
 		catOrd, ordInCat := 0, 0
-		fmt.Sscanf(row[7], "%d", &catOrd)
-		fmt.Sscanf(row[8], "%d", &ordInCat)
+		fmt.Sscanf(row[8], "%d", &catOrd)
+		fmt.Sscanf(row[9], "%d", &ordInCat)
 		r := rawRow{
-			phelps: row[0], text: row[1], name: row[2],
-			source: row[3], version: row[4], notes: row[5],
-			catName: row[6], catOrd: catOrd, ordInCat: ordInCat,
+			lang: row[0], phelps: row[1], text: row[2], name: row[3],
+			source: row[4], version: row[5], notes: row[6],
+			catName: row[7], catOrd: catOrd, ordInCat: ordInCat,
 		}
-		if g, ok := groups[r.phelps]; !ok {
-			groups[r.phelps] = &group{primary: r}
-			order = append(order, r.phelps)
+		if langGroups[r.lang] == nil {
+			langGroups[r.lang] = map[string]*group{}
+		}
+		if g, ok := langGroups[r.lang][r.phelps]; !ok {
+			langGroups[r.lang][r.phelps] = &group{primary: r}
+			langOrder[r.lang] = append(langOrder[r.lang], r.phelps)
 		} else if r.source == "bahaiprayers.net" && g.primary.source != "bahaiprayers.net" {
-			// Promote net to primary if app was first
 			g.alts = append([]PrayerSource{{
 				Source: g.primary.source, Version: g.primary.version,
 				Text: g.primary.text, Notes: g.primary.notes,
 			}}, g.alts...)
 			g.primary = r
 		} else if r.source != g.primary.source {
-			// Only add as alt if it's a genuinely different source
-			// (skip duplicates from the same source caused by prayer_book_structure multi-category join)
 			alreadyHaveSource := false
 			for _, a := range g.alts {
 				if a.Source == r.source {
@@ -427,26 +429,30 @@ func queryPrayersForLang(lang string) []Prayer {
 		}
 	}
 
-	out := make([]Prayer, 0, len(order))
-	for _, phelps := range order {
-		g := groups[phelps]
-		p := Prayer{
-			Phelps:        phelps,
-			Text:          g.primary.text,
-			Name:          g.primary.name,
-			Category:      g.primary.catName,
-			CategoryOrder: g.primary.catOrd,
-			OrderInCat:    g.primary.ordInCat,
-			Source:        g.primary.source,
-			Version:       g.primary.version,
-			Notes:         g.primary.notes,
+	result := map[string][]Prayer{}
+	for lang, order := range langOrder {
+		prayers := make([]Prayer, 0, len(order))
+		for _, phelps := range order {
+			g := langGroups[lang][phelps]
+			p := Prayer{
+				Phelps:        phelps,
+				Text:          g.primary.text,
+				Name:          g.primary.name,
+				Category:      g.primary.catName,
+				CategoryOrder: g.primary.catOrd,
+				OrderInCat:    g.primary.ordInCat,
+				Source:        g.primary.source,
+				Version:       g.primary.version,
+				Notes:         g.primary.notes,
+			}
+			if len(g.alts) > 0 {
+				p.AltSources = g.alts
+			}
+			prayers = append(prayers, p)
 		}
-		if len(g.alts) > 0 {
-			p.AltSources = g.alts
-		}
-		out = append(out, p)
+		result[lang] = prayers
 	}
-	return out
+	return result
 }
 
 // prayerBookEntry holds one row from prayer_book_structure
