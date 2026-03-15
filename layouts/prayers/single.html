@@ -39,6 +39,14 @@
       <a href="#" data-cat="{{ . }}">{{ . }}</a>
       {{ end }}
     </div>
+    {{ if gt (len $sources) 1 }}
+    <div class="sidebar-section" id="source-bar" style="margin-top:1rem">
+      <div class="sidebar-heading">Source</div>
+      {{ range $i, $src := $sources }}
+      <a href="#" class="{{ if eq $i 0 }}active{{ end }}" data-src="{{ $src }}">{{ $src }}</a>
+      {{ end }}
+    </div>
+    {{ end }}
     <div class="sidebar-section" style="margin-top:1rem">
       <div class="sidebar-heading">Download</div>
       <a href="/downloads/prayers_{{ $lang }}.pdf" class="dl-link" download>PDF</a>
@@ -52,15 +60,6 @@
   <main class="main-content">
     <h1>{{ .Params.langName }}</h1>
     <p style="color:var(--text-secondary); margin-bottom:1rem;">{{ len $prayers }} prayers{{ if $rtl }} · RTL{{ end }}</p>
-
-    {{ if gt (len $sources) 1 }}
-    <div class="source-bar" id="source-bar">
-      <span class="source-bar-label">Source:</span>
-      {{ range $i, $src := $sources }}
-      <button class="source-tab{{ if eq $i 0 }} active{{ end }}" data-src="{{ $src }}">{{ $src }}</button>
-      {{ end }}
-    </div>
-    {{ end }}
 
     <div class="prayer-list" id="prayer-list"{{ if $rtl }} dir="rtl"{{ end }}>
       {{ range $prayers }}
@@ -115,7 +114,8 @@ function applySource(src) {
   if (src) localStorage.setItem(SRC_KEY, src);
   else localStorage.removeItem(SRC_KEY);
 
-  document.querySelectorAll('.source-tab').forEach(btn => {
+  document.querySelectorAll('[data-src]').forEach(btn => {
+    if (!btn.closest('#source-bar')) return;
     btn.classList.toggle('active', btn.dataset.src === src);
   });
 
@@ -148,12 +148,12 @@ function applySource(src) {
 const srcBar = document.getElementById('source-bar');
 if (srcBar) {
   // Validate stored preference against actual sources on this page
-  const knownSrcs = [...srcBar.querySelectorAll('.source-tab')].map(b => b.dataset.src);
+  const knownSrcs = [...srcBar.querySelectorAll('[data-src]')].map(b => b.dataset.src);
   if (activeSrc && !knownSrcs.includes(activeSrc)) activeSrc = '';
   applySource(activeSrc || knownSrcs[0] || '');
 
-  srcBar.querySelectorAll('.source-tab').forEach(btn => {
-    btn.addEventListener('click', () => applySource(btn.dataset.src));
+  srcBar.querySelectorAll('[data-src]').forEach(btn => {
+    btn.addEventListener('click', e => { e.preventDefault(); applySource(btn.dataset.src); });
   });
 }
 
