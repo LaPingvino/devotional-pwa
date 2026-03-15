@@ -35,8 +35,10 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 	"unicode"
 	"unicode/utf8"
@@ -1466,6 +1468,58 @@ ORDER BY COALESCE(pbs.category_order,9999),
 	return out
 }
 
+// queryAllPrayersAll fetches every prayer for every language in one query.
+func queryAllPrayersAll(dbPath, source string) map[string][]Prayer {
+	safe := strings.ReplaceAll(source, "'", "''")
+	rows := doltCSV(dbPath, fmt.Sprintf(`
+SELECT w.language, w.phelps, w.text, COALESCE(w.name,''),
+       COALESCE(pbs.category_name,''),
+       COALESCE(pbs.category_order,'0'),
+       COALESCE(pbs.order_in_category,'0')
+FROM writings w
+LEFT JOIN prayer_book_structure pbs
+    ON pbs.phelps_code = w.phelps AND pbs.source_language = 'en'
+WHERE w.source = '%s'
+    AND w.phelps IS NOT NULL AND w.phelps <> ''
+ORDER BY w.language,
+         COALESCE(pbs.category_order,9999),
+         COALESCE(pbs.order_in_category,9999),
+         w.phelps
+`, safe))
+	result := map[string][]Prayer{}
+	for _, row := range rows[1:] {
+		if len(row) < 7 {
+			continue
+		}
+		catOrd, ordInCat := 0, 0
+		fmt.Sscanf(row[5], "%d", &catOrd)
+		fmt.Sscanf(row[6], "%d", &ordInCat)
+		lang := row[0]
+		result[lang] = append(result[lang], Prayer{
+			Phelps:        row[1],
+			Text:          row[2],
+			Name:          row[3],
+			Language:      lang,
+			Category:      row[4],
+			CategoryOrder: catOrd,
+			OrderInCat:    ordInCat,
+		})
+	}
+	return result
+}
+
+// queryAllLangNames fetches all language display names in one query.
+func queryAllLangNames(dbPath string) map[string]string {
+	rows := doltCSV(dbPath, "SELECT langcode, name FROM languages WHERE inlang='en'")
+	m := map[string]string{}
+	for _, row := range rows[1:] {
+		if len(row) >= 2 {
+			m[row[0]] = row[1]
+		}
+	}
+	return m
+}
+
 func langName(dbPath, lang string) string {
 	rows := doltCSV(dbPath, fmt.Sprintf("SELECT name FROM languages WHERE langcode='%s' LIMIT 1", lang))
 	if len(rows) == 0 || len(rows[0]) == 0 {
@@ -1523,6 +1577,10 @@ func main() {
 	}
 	sort.Strings(langs)
 
+	fmt.Println("Loading prayer data (bulk)...")
+	allPrayersMap := queryAllPrayersAll(*db, *source)
+	allLangNames := queryAllLangNames(*db)
+
 	fmt.Println("Loading translation index...")
 	translationsMap := queryTranslations(*db, *source)
 
@@ -1559,12 +1617,11 @@ func main() {
 	if *combinedMode {
 		var allSections, latinSections, otherSections []langSection
 		for _, l := range langs {
-			fmt.Printf("Loading %s...\n", l)
-			prayers := queryPrayers(*db, *source, l)
+			prayers := allPrayersMap[l]
 			if len(prayers) == 0 {
 				continue
 			}
-			lname := langName(*db, l)
+			lname := allLangNames[l]
 			sec := langSection{lang: l, lname: lname, prayers: prayers}
 			allSections = append(allSections, sec)
 			if nonLatinScript[l] {
@@ -1632,16 +1689,22 @@ p.note { font-size: 9pt; color: #666; }
 		return
 	}
 
+	// Parallel per-language rendering
+	concurrency := runtime.NumCPU()
+	if concurrency < 1 {
+		concurrency = 1
+	}
+	sem := make(chan struct{}, concurrency)
+	var wg sync.WaitGroup
+
 	for _, l := range langs {
-		fmt.Printf("Processing %s...\n", l)
-		prayers := queryPrayers(*db, *source, l)
+		prayers := allPrayersMap[l]
 		if len(prayers) == 0 {
-			fmt.Printf("  No resolved prayers, skipping.\n")
+			fmt.Printf("Skipping %s (no prayers)\n", l)
 			continue
 		}
-		fmt.Printf("  %d prayers\n", len(prayers))
 
-		lname := langName(*db, l)
+		lname := allLangNames[l]
 		docTitle := *title
 		if lname != "" {
 			docTitle = *title + " — " + lname
@@ -1654,18 +1717,34 @@ p.note { font-size: 9pt; color: #666; }
 			baseName = filepath.Join(dir, "prayers_"+l)
 		}
 
-		if *htmlOnly {
-			html := generateHTML(prayers, l, docTitle, *phelpsBase, translationsMap, false, false, nil)
-			renderHTML(html, baseName+".html")
-		} else if *epubMode {
-			html := generateHTML(prayers, l, docTitle, *phelpsBase, nil, true, false, nil)
-			renderEPUB(html, baseName+".epub", l, docTitle, l)
-		} else if *bothMode {
-			renderPDFGo(prayers, l, docTitle, lname, *phelpsBase, translationsMap, baseName+".pdf", *fontDir)
-			html := generateHTML(prayers, l, docTitle, *phelpsBase, nil, true, false, nil)
-			renderEPUB(html, baseName+".epub", l, docTitle, l)
-		} else {
-			renderPDFGo(prayers, l, docTitle, lname, *phelpsBase, translationsMap, baseName+".pdf", *fontDir)
-		}
+		// Capture loop vars
+		l, prayers, lname, docTitle, baseName := l, prayers, lname, docTitle, baseName
+		fontDir := *fontDir
+		phelpsBase := *phelpsBase
+		htmlOnly, epubMode, bothMode := *htmlOnly, *epubMode, *bothMode
+		title := *title
+
+		wg.Add(1)
+		sem <- struct{}{}
+		go func() {
+			defer wg.Done()
+			defer func() { <-sem }()
+			fmt.Printf("Processing %s (%d prayers)...\n", l, len(prayers))
+			if htmlOnly {
+				html := generateHTML(prayers, l, docTitle, phelpsBase, translationsMap, false, false, nil)
+				renderHTML(html, baseName+".html")
+			} else if epubMode {
+				html := generateHTML(prayers, l, docTitle, phelpsBase, nil, true, false, nil)
+				renderEPUB(html, baseName+".epub", l, docTitle, l)
+			} else if bothMode {
+				renderPDFGo(prayers, l, docTitle, lname, phelpsBase, translationsMap, baseName+".pdf", fontDir)
+				html := generateHTML(prayers, l, docTitle, phelpsBase, nil, true, false, nil)
+				renderEPUB(html, baseName+".epub", l, docTitle, l)
+			} else {
+				renderPDFGo(prayers, l, docTitle, lname, phelpsBase, translationsMap, baseName+".pdf", fontDir)
+			}
+			_ = title // suppress unused warning
+		}()
 	}
+	wg.Wait()
 }

@@ -24,7 +24,7 @@
       <a href="#" data-cat="{{ . }}">{{ . }}</a>
       {{ end }}
     </div>
-    {{ if gt (len $prayerbooks) 1 }}
+    {{ if and $prayerbooks (gt (len $prayerbooks) 1) }}
     <div class="sidebar-section" id="book-bar" style="margin-top:1rem">
       <div class="sidebar-heading">Prayerbook</div>
       {{ range $prayerbooks }}
