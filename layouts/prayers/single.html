@@ -52,7 +52,7 @@
       <article class="prayer-card folded" id="{{ $pin }}"
                data-cat="{{ .category }}"
                data-native-cat="{{ .category }}"
-               data-book-cats="{{ .book_cats | jsonify | htmlEscape }}">
+               data-book-cats="{{ .book_cats | jsonify }}">
         <div class="prayer-card-header">
           <span class="prayer-toggle" aria-hidden="true">▶</span>
           {{ with .name }}<span class="prayer-name">{{ . }}</span>{{ end }}
