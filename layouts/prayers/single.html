@@ -122,6 +122,9 @@ function applyBook(book) {
   rebuildCategories();
 }
 
+// Category filter + sidebar counts
+let activeCat = '';
+
 const bookBar = document.getElementById('book-bar');
 if (bookBar) {
   const knownBooks = [...bookBar.querySelectorAll('[data-book]')].map(l => l.dataset.book);
@@ -139,9 +142,6 @@ if (bookBar) {
   // Single prayerbook: just build category counts once
   rebuildCategories();
 }
-
-// Category filter + sidebar counts
-let activeCat = '';
 
 function rebuildCategories() {
   const counts = {};
