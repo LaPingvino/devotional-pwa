@@ -4,7 +4,9 @@
   {{ $lang := .code }}
   {{ $prayerFile := printf "prayers/%s.json" $lang }}
   {{ with resources.Get $prayerFile }}
-    {{ $prayers := . | transform.Unmarshal }}
+    {{ $data := . | transform.Unmarshal }}
+    {{ $prayers := $data.prayers }}
+    {{ $prayerbooks := $data.prayerbooks }}
     {{ $.AddPage (dict
       "path"    $lang
       "title"   $langInfo.name
@@ -15,6 +17,7 @@
         "rtl"         $langInfo.rtl
         "prayerCount" $langInfo.prayer_count
         "prayers"     $prayers
+        "prayerbooks" $prayerbooks
       )
     ) }}
   {{ end }}

@@ -1,30 +1,15 @@
 {{ $lang := .Params.langCode }}
 {{ $rtl := .Params.rtl }}
 {{ $prayers := .Params.prayers }}
+{{ $prayerbooks := .Params.prayerbooks }}
 
-{{/* Build deduplicated category list (preserve order by cat_order) */}}
+{{/* Build deduplicated category list from native prayerbook (preserve order by cat_order) */}}
 {{ $cats := slice }}
 {{ $seenCats := dict }}
 {{ range $prayers }}
   {{ if and .category (not (index $seenCats .category)) }}
     {{ $cats = $cats | append .category }}
     {{ $seenCats = merge $seenCats (dict .category true) }}
-  {{ end }}
-{{ end }}
-
-{{/* Collect all distinct sources across prayers and alt_sources */}}
-{{ $sources := slice }}
-{{ $seenSrcs := dict }}
-{{ range $prayers }}
-  {{ if and .source (not (index $seenSrcs .source)) }}
-    {{ $sources = $sources | append .source }}
-    {{ $seenSrcs = merge $seenSrcs (dict .source true) }}
-  {{ end }}
-  {{ range .alt_sources }}
-    {{ if and .source (not (index $seenSrcs .source)) }}
-      {{ $sources = $sources | append .source }}
-      {{ $seenSrcs = merge $seenSrcs (dict .source true) }}
-    {{ end }}
   {{ end }}
 {{ end }}
 
@@ -39,11 +24,11 @@
       <a href="#" data-cat="{{ . }}">{{ . }}</a>
       {{ end }}
     </div>
-    {{ if gt (len $sources) 1 }}
-    <div class="sidebar-section" id="source-bar" style="margin-top:1rem">
-      <div class="sidebar-heading">Source</div>
-      {{ range $i, $src := $sources }}
-      <a href="#" class="{{ if eq $i 0 }}active{{ end }}" data-src="{{ $src }}">{{ $src }}</a>
+    {{ if gt (len $prayerbooks) 1 }}
+    <div class="sidebar-section" id="book-bar" style="margin-top:1rem">
+      <div class="sidebar-heading">Prayerbook</div>
+      {{ range $prayerbooks }}
+      <a href="#" data-book="{{ .code }}" title="{{ .name }}">{{ .name }}</a>
       {{ end }}
     </div>
     {{ end }}
@@ -68,8 +53,10 @@
       {{ $baseL := replaceRE "[a-z]{3}$" "" $pinL }}
       {{ $suffix := strings.TrimPrefix $baseL $pinL }}
       {{ $wc := len (findRE `\S+` (replaceRE `#+\s+[^\n]+` "" .text)) }}
-      {{ $allSrcs := .source }}{{ range .alt_sources }}{{ $allSrcs = printf "%s,%s" $allSrcs .source }}{{ end }}
-      <article class="prayer-card folded" id="{{ $pin }}" data-cat="{{ .category }}" data-src="{{ .source }}" data-srcs="{{ $allSrcs }}">
+      <article class="prayer-card folded" id="{{ $pin }}"
+               data-cat="{{ .category }}"
+               data-native-cat="{{ .category }}"
+               data-book-cats="{{ .book_cats | jsonify | htmlEscape }}">
         <div class="prayer-card-header">
           <span class="prayer-toggle" aria-hidden="true">▶</span>
           {{ with .name }}<span class="prayer-name">{{ . }}</span>{{ end }}
@@ -80,15 +67,12 @@
           </span>
           <button class="fav-btn" data-phelps="{{ $pin }}" aria-label="Toggle favourite">☆</button>
         </div>
-        <div class="prayer-text" data-src="{{ .source }}">{{ .text | markdownify }}</div>
-        {{ range .alt_sources }}
-        <div class="prayer-text" data-src="{{ .source }}" style="display:none">{{ .text | markdownify }}</div>
-        {{ end }}
+        <div class="prayer-text">{{ .text | markdownify }}</div>
         {{ with .notes }}
         <div class="prayer-notes">{{ . }}</div>
         {{ end }}
         <div class="prayer-meta">
-          {{ with .source }}<span class="prayer-source" id="src-label-{{ $pin }}">{{ . }}</span>{{ end }}
+          {{ with .source }}<span class="prayer-source">{{ . }}</span>{{ end }}
         </div>
         {{ with .translations }}
         <div class="prayer-translations">
@@ -105,86 +89,71 @@
 </div>
 
 <script>
-// Source switcher
-const SRC_KEY = 'hw_source_{{ $lang }}';
-let activeSrc = localStorage.getItem(SRC_KEY) || '';
+// Prayerbook switcher
+const BOOK_KEY = 'hw_book_{{ $lang }}';
+let activeBook = localStorage.getItem(BOOK_KEY) || '{{ $lang }}';
 
-function applySource(src) {
-  activeSrc = src;
-  if (src) localStorage.setItem(SRC_KEY, src);
-  else localStorage.removeItem(SRC_KEY);
+function applyBook(book) {
+  activeBook = book;
+  localStorage.setItem(BOOK_KEY, book);
 
-  document.querySelectorAll('[data-src]').forEach(btn => {
-    if (!btn.closest('#source-bar')) return;
-    btn.classList.toggle('active', btn.dataset.src === src);
+  document.querySelectorAll('#book-bar [data-book]').forEach(l => {
+    l.classList.toggle('active', l.dataset.book === book);
   });
 
+  // Update data-cat on each card from book_cats
   document.querySelectorAll('.prayer-card').forEach(card => {
-    const srcs = card.dataset.srcs ? card.dataset.srcs.split(',') : [card.dataset.src];
-    const hasSrc = !src || srcs.includes(src);
-    card.classList.toggle('src-hidden', !hasSrc);
-
-    // Show the right text variant
-    if (src) {
-      card.querySelectorAll('.prayer-text').forEach(div => {
-        div.style.display = div.dataset.src === src ? '' : 'none';
-      });
-      // Update source label
-      const lbl = card.querySelector('.prayer-source');
-      if (lbl) lbl.textContent = src;
-    } else {
-      // No filter: show primary text, hide alts
-      card.querySelectorAll('.prayer-text').forEach((div, i) => {
-        div.style.display = i === 0 ? '' : 'none';
-      });
-      const lbl = card.querySelector('.prayer-source');
-      if (lbl) lbl.textContent = card.dataset.src;
+    let cat = card.dataset.nativeCat || '';
+    if (book) {
+      try {
+        const bc = JSON.parse(card.dataset.bookCats || '{}');
+        if (bc[book]) cat = bc[book].cat || '';
+      } catch(e) {}
     }
+    card.dataset.cat = cat;
   });
 
   rebuildCategories();
 }
 
-const srcBar = document.getElementById('source-bar');
-if (srcBar) {
-  // Validate stored preference against actual sources on this page
-  const knownSrcs = [...srcBar.querySelectorAll('[data-src]')].map(b => b.dataset.src);
-  if (activeSrc && !knownSrcs.includes(activeSrc)) activeSrc = '';
-  applySource(activeSrc || knownSrcs[0] || '');
-
-  srcBar.querySelectorAll('[data-src]').forEach(btn => {
-    btn.addEventListener('click', e => { e.preventDefault(); applySource(btn.dataset.src); });
+const bookBar = document.getElementById('book-bar');
+if (bookBar) {
+  const knownBooks = [...bookBar.querySelectorAll('[data-book]')].map(l => l.dataset.book);
+  if (!knownBooks.includes(activeBook)) activeBook = knownBooks[0] || '';
+  applyBook(activeBook);
+  bookBar.querySelectorAll('[data-book]').forEach(l => {
+    l.addEventListener('click', e => { e.preventDefault(); applyBook(l.dataset.book); });
   });
+} else {
+  // Single prayerbook: just build category counts once
+  rebuildCategories();
 }
 
 // Category filter + sidebar counts
 let activeCat = '';
 
 function rebuildCategories() {
-  // Count src-visible prayers per category
   const counts = {};
   let total = 0;
   document.querySelectorAll('.prayer-card').forEach(card => {
-    if (card.classList.contains('src-hidden')) return;
     total++;
     const c = card.dataset.cat || '';
     counts[c] = (counts[c] || 0) + 1;
   });
 
-  // Update "All prayers" link
   const allLink = document.getElementById('cat-all');
   if (allLink) allLink.textContent = `All prayers (${total})`;
 
-  // Update named category links
   document.querySelectorAll('.sidebar a[data-cat]').forEach(link => {
     const cat = link.dataset.cat;
-    if (!cat) return; // skip the "All" link handled above
+    if (!cat) return;
     const n = counts[cat] || 0;
     link.textContent = n ? `${cat} (${n})` : cat;
     link.style.display = n ? '' : 'none';
   });
 
-  // Re-apply active category (in case it's now empty)
+  // If active category vanished, reset to All
+  if (activeCat && !counts[activeCat]) activeCat = '';
   applyCategory(activeCat);
 }
 
@@ -194,8 +163,7 @@ function applyCategory(cat) {
     l.classList.toggle('active', l.dataset.cat === cat);
   });
   document.querySelectorAll('.prayer-card').forEach(card => {
-    const catMatch = !cat || card.dataset.cat === cat;
-    card.classList.toggle('hidden', !catMatch || card.classList.contains('src-hidden'));
+    card.classList.toggle('hidden', !(!cat || card.dataset.cat === cat));
   });
 }
 
