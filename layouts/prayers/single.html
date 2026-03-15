@@ -13,6 +13,12 @@
   {{ end }}
 {{ end }}
 
+{{/* Default prayerbook: native language → English → first available */}}
+{{ $defaultBook := "" }}
+{{ range $prayerbooks }}{{ if and (not $defaultBook) (eq .code $lang) }}{{ $defaultBook = .code }}{{ end }}{{ end }}
+{{ range $prayerbooks }}{{ if and (not $defaultBook) (eq .code "en") }}{{ $defaultBook = .code }}{{ end }}{{ end }}
+{{ if and (not $defaultBook) $prayerbooks }}{{ $defaultBook = (index $prayerbooks 0).code }}{{ end }}
+
 {{ partial "head.html" (dict "Title" .Params.langName "Lang" $lang "Params" (dict "rtl" $rtl)) }}
 <div class="page-body">
 
@@ -28,7 +34,7 @@
     <div class="sidebar-section" id="book-bar" style="margin-top:1rem">
       <div class="sidebar-heading">Prayerbook</div>
       {{ range $prayerbooks }}
-      <a href="#" data-book="{{ .code }}" title="{{ .name }}">{{ .name }}</a>
+      <a href="#" class="{{ if eq .code $defaultBook }}active{{ end }}" data-book="{{ .code }}" title="{{ .name }}">{{ .name }}</a>
       {{ end }}
     </div>
     {{ end }}
@@ -91,7 +97,7 @@
 <script>
 // Prayerbook switcher
 const BOOK_KEY = 'hw_book_{{ $lang }}';
-let activeBook = localStorage.getItem(BOOK_KEY) || '{{ $lang }}';
+let activeBook = localStorage.getItem(BOOK_KEY) || '';
 
 function applyBook(book) {
   activeBook = book;
@@ -119,7 +125,12 @@ function applyBook(book) {
 const bookBar = document.getElementById('book-bar');
 if (bookBar) {
   const knownBooks = [...bookBar.querySelectorAll('[data-book]')].map(l => l.dataset.book);
-  if (!knownBooks.includes(activeBook)) activeBook = knownBooks[0] || '';
+  if (!knownBooks.includes(activeBook)) {
+    // Default: native language book → English → first available
+    if (knownBooks.includes('{{ $lang }}')) activeBook = '{{ $lang }}';
+    else if (knownBooks.includes('en')) activeBook = 'en';
+    else activeBook = knownBooks[0] || '';
+  }
   applyBook(activeBook);
   bookBar.querySelectorAll('[data-book]').forEach(l => {
     l.addEventListener('click', e => { e.preventDefault(); applyBook(l.dataset.book); });
