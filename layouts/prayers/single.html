@@ -142,13 +142,7 @@ function applySource(src) {
     }
   });
 
-  // Re-run active category filter
-  const activeCat = document.querySelector('.sidebar a[data-cat].active');
-  const cat = activeCat ? activeCat.dataset.cat : '';
-  document.querySelectorAll('.prayer-card').forEach(card => {
-    const catMatch = !cat || card.dataset.cat === cat;
-    card.classList.toggle('hidden', !catMatch || card.classList.contains('src-hidden'));
-  });
+  rebuildCategories();
 }
 
 const srcBar = document.getElementById('source-bar');
@@ -163,17 +157,52 @@ if (srcBar) {
   });
 }
 
-// Category filter
+// Category filter + sidebar counts
+let activeCat = '';
+
+function rebuildCategories() {
+  // Count src-visible prayers per category
+  const counts = {};
+  let total = 0;
+  document.querySelectorAll('.prayer-card').forEach(card => {
+    if (card.classList.contains('src-hidden')) return;
+    total++;
+    const c = card.dataset.cat || '';
+    counts[c] = (counts[c] || 0) + 1;
+  });
+
+  // Update "All prayers" link
+  const allLink = document.getElementById('cat-all');
+  if (allLink) allLink.textContent = `All prayers (${total})`;
+
+  // Update named category links
+  document.querySelectorAll('.sidebar a[data-cat]').forEach(link => {
+    const cat = link.dataset.cat;
+    if (!cat) return; // skip the "All" link handled above
+    const n = counts[cat] || 0;
+    link.textContent = n ? `${cat} (${n})` : cat;
+    link.style.display = n ? '' : 'none';
+  });
+
+  // Re-apply active category (in case it's now empty)
+  applyCategory(activeCat);
+}
+
+function applyCategory(cat) {
+  activeCat = cat;
+  document.querySelectorAll('.sidebar a[data-cat]').forEach(l => {
+    l.classList.toggle('active', l.dataset.cat === cat);
+  });
+  document.querySelectorAll('.prayer-card').forEach(card => {
+    const catMatch = !cat || card.dataset.cat === cat;
+    card.classList.toggle('hidden', !catMatch || card.classList.contains('src-hidden'));
+  });
+}
+
 document.querySelectorAll('.sidebar a[data-cat]').forEach(link => {
   link.addEventListener('click', e => {
     e.preventDefault();
-    const cat = link.dataset.cat;
-    document.querySelectorAll('.sidebar a[data-cat]').forEach(l => l.classList.remove('active'));
-    link.classList.add('active');
-    document.querySelectorAll('.prayer-card').forEach(card => {
-      const catMatch = !cat || card.dataset.cat === cat;
-      card.classList.toggle('hidden', !catMatch || card.classList.contains('src-hidden'));
-    });
+    applyCategory(link.dataset.cat);
   });
 });
 
