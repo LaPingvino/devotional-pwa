@@ -2,42 +2,32 @@
 {{ $rtl := .Params.rtl }}
 {{ $prayers := .Params.prayers }}
 {{ $prayerbooks := .Params.prayerbooks }}
+{{ $allBooks := $.Site.Data.prayerbooks }}
 
-{{/* Build deduplicated category list from native prayerbook (preserve order by cat_order) */}}
-{{ $cats := slice }}
-{{ $seenCats := dict }}
-{{ range $prayers }}
-  {{ if and .category (not (index $seenCats .category)) }}
-    {{ $cats = $cats | append .category }}
-    {{ $seenCats = merge $seenCats (dict .category true) }}
-  {{ end }}
-{{ end }}
-
-{{/* Default prayerbook: native language → English → first available */}}
+{{/* Default prayerbook: native language → English → first available in page's matched books */}}
 {{ $defaultBook := "" }}
 {{ range $prayerbooks }}{{ if and (not $defaultBook) (eq .code $lang) }}{{ $defaultBook = .code }}{{ end }}{{ end }}
 {{ range $prayerbooks }}{{ if and (not $defaultBook) (eq .code "en") }}{{ $defaultBook = .code }}{{ end }}{{ end }}
-{{ if and (not $defaultBook) $prayerbooks }}{{ $defaultBook = (index $prayerbooks 0).code }}{{ end }}
+{{ if not $defaultBook }}{{ $defaultBook = "en" }}{{ end }}
 
 {{ partial "head.html" (dict "Title" .Params.langName "Lang" $lang "Params" (dict "rtl" $rtl)) }}
 <div class="page-body">
 
   <aside class="sidebar">
-    <div class="sidebar-section">
-      <div class="sidebar-heading">Categories</div>
-      <a href="#" class="active" id="cat-all" data-cat="">All prayers ({{ len $prayers }})</a>
-      {{ range $cats }}
-      <a href="#" data-cat="{{ . }}">{{ . }}</a>
-      {{ end }}
-    </div>
-    {{ if and $prayerbooks (gt (len $prayerbooks) 1) }}
-    <div class="sidebar-section" id="book-bar" style="margin-top:1rem">
+    {{ if $allBooks }}
+    <div class="sidebar-section" id="book-bar">
       <div class="sidebar-heading">Prayerbook</div>
-      {{ range $prayerbooks }}
-      <a href="#" class="{{ if eq .code $defaultBook }}active{{ end }}" data-book="{{ .code }}" title="{{ .name }}">{{ .name }}</a>
-      {{ end }}
+      <select id="book-select" style="width:100%; padding:.3rem .5rem; margin-bottom:.5rem; background:var(--bg-secondary,#f5f5f5); border:1px solid var(--border,#ddd); border-radius:4px; color:inherit; font-size:.9rem">
+        {{ range $allBooks }}
+        <option value="{{ .code }}"{{ if eq .code $defaultBook }} selected{{ end }}>{{ .name }}</option>
+        {{ end }}
+      </select>
     </div>
     {{ end }}
+    <div class="sidebar-section" id="cat-section"{{ if $prayerbooks }} style="margin-top:1rem"{{ end }}>
+      <div class="sidebar-heading">Categories</div>
+      <div id="cat-list"></div>
+    </div>
     <div class="sidebar-section" style="margin-top:1rem">
       <div class="sidebar-heading">Download</div>
       <a href="/downloads/prayers_{{ $lang }}.pdf" class="dl-link" download>PDF</a>
@@ -95,19 +85,74 @@
 </div>
 
 <script>
-// Prayerbook switcher
 const BOOK_KEY = 'hw_book_{{ $lang }}';
-let activeBook = localStorage.getItem(BOOK_KEY) || '';
+let activeBook = localStorage.getItem(BOOK_KEY) || '{{ $defaultBook }}';
+let activeCat = '';
+
+// Build the category list dynamically for the current activeBook
+function rebuildCategories() {
+  const catStats = {}; // cat → {count, order}
+  let total = 0;
+  document.querySelectorAll('.prayer-card').forEach(card => {
+    total++;
+    const cat = card.dataset.cat || '';
+    if (cat) {
+      if (!catStats[cat]) {
+        let order = 9999;
+        try {
+          const bc = JSON.parse(card.dataset.bookCats || '{}');
+          if (bc[activeBook]) order = bc[activeBook].cat_order || 9999;
+        } catch(e) {}
+        catStats[cat] = {count: 0, order};
+      }
+      catStats[cat].count++;
+    }
+  });
+
+  // Reset activeCat if it no longer exists
+  if (activeCat && !catStats[activeCat]) activeCat = '';
+
+  const catList = document.getElementById('cat-list');
+  catList.innerHTML = '';
+
+  const allLink = document.createElement('a');
+  allLink.href = '#';
+  allLink.dataset.cat = '';
+  allLink.textContent = `All prayers (${total})`;
+  allLink.className = activeCat === '' ? 'active' : '';
+  allLink.addEventListener('click', e => { e.preventDefault(); applyCategory(''); });
+  catList.appendChild(allLink);
+
+  Object.entries(catStats)
+    .sort(([nameA, a], [nameB, b]) => (a.order - b.order) || nameA.localeCompare(nameB))
+    .forEach(([cat, {count}]) => {
+      const link = document.createElement('a');
+      link.href = '#';
+      link.dataset.cat = cat;
+      link.textContent = `${cat} (${count})`;
+      link.className = activeCat === cat ? 'active' : '';
+      link.addEventListener('click', e => { e.preventDefault(); applyCategory(cat); });
+      catList.appendChild(link);
+    });
+}
+
+function applyCategory(cat) {
+  activeCat = cat;
+  document.querySelectorAll('#cat-list a').forEach(l => {
+    l.classList.toggle('active', l.dataset.cat === cat);
+  });
+  document.querySelectorAll('.prayer-card').forEach(card => {
+    card.classList.toggle('hidden', !(!cat || card.dataset.cat === cat));
+  });
+}
 
 function applyBook(book) {
   activeBook = book;
   localStorage.setItem(BOOK_KEY, book);
 
-  document.querySelectorAll('#book-bar [data-book]').forEach(l => {
-    l.classList.toggle('active', l.dataset.book === book);
-  });
+  const sel = document.getElementById('book-select');
+  if (sel) sel.value = book;
 
-  // Update data-cat on each card from book_cats
   document.querySelectorAll('.prayer-card').forEach(card => {
     let cat = card.dataset.nativeCat || '';
     if (book) {
@@ -120,70 +165,15 @@ function applyBook(book) {
   });
 
   rebuildCategories();
-}
-
-// Category filter + sidebar counts
-let activeCat = '';
-
-const bookBar = document.getElementById('book-bar');
-if (bookBar) {
-  const knownBooks = [...bookBar.querySelectorAll('[data-book]')].map(l => l.dataset.book);
-  if (!knownBooks.includes(activeBook)) {
-    // Default: native language book → English → first available
-    if (knownBooks.includes('{{ $lang }}')) activeBook = '{{ $lang }}';
-    else if (knownBooks.includes('en')) activeBook = 'en';
-    else activeBook = knownBooks[0] || '';
-  }
-  applyBook(activeBook);
-  bookBar.querySelectorAll('[data-book]').forEach(l => {
-    l.addEventListener('click', e => { e.preventDefault(); applyBook(l.dataset.book); });
-  });
-} else {
-  // Single prayerbook: just build category counts once
-  rebuildCategories();
-}
-
-function rebuildCategories() {
-  const counts = {};
-  let total = 0;
-  document.querySelectorAll('.prayer-card').forEach(card => {
-    total++;
-    const c = card.dataset.cat || '';
-    counts[c] = (counts[c] || 0) + 1;
-  });
-
-  const allLink = document.getElementById('cat-all');
-  if (allLink) allLink.textContent = `All prayers (${total})`;
-
-  document.querySelectorAll('.sidebar a[data-cat]').forEach(link => {
-    const cat = link.dataset.cat;
-    if (!cat) return;
-    const n = counts[cat] || 0;
-    link.textContent = n ? `${cat} (${n})` : cat;
-    link.style.display = n ? '' : 'none';
-  });
-
-  // If active category vanished, reset to All
-  if (activeCat && !counts[activeCat]) activeCat = '';
   applyCategory(activeCat);
 }
 
-function applyCategory(cat) {
-  activeCat = cat;
-  document.querySelectorAll('.sidebar a[data-cat]').forEach(l => {
-    l.classList.toggle('active', l.dataset.cat === cat);
-  });
-  document.querySelectorAll('.prayer-card').forEach(card => {
-    card.classList.toggle('hidden', !(!cat || card.dataset.cat === cat));
-  });
+// Prayerbook select
+const bookSelect = document.getElementById('book-select');
+if (bookSelect) {
+  bookSelect.addEventListener('change', () => applyBook(bookSelect.value));
 }
-
-document.querySelectorAll('.sidebar a[data-cat]').forEach(link => {
-  link.addEventListener('click', e => {
-    e.preventDefault();
-    applyCategory(link.dataset.cat);
-  });
-});
+applyBook(activeBook);
 
 // Favourites
 const FAVS_KEY = 'hw_favorites';
