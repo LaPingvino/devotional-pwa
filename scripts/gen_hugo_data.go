@@ -45,6 +45,25 @@ type LangRef struct {
 	LangName string `json:"lang_name"`
 }
 
+// BookRef names a prayerbook available for a language page
+type BookRef struct {
+	Code string `json:"code"`
+	Name string `json:"name"`
+}
+
+// BookCat holds one prayerbook's category assignment for a prayer
+type BookCat struct {
+	Category   string `json:"cat"`
+	CatOrder   int    `json:"cat_order,omitempty"`
+	OrderInCat int    `json:"order_in_cat,omitempty"`
+}
+
+// LangFile is the top-level structure written to assets/prayers/{lang}.json
+type LangFile struct {
+	Prayers     []Prayer  `json:"prayers"`
+	Prayerbooks []BookRef `json:"prayerbooks,omitempty"`
+}
+
 // PrayerSource holds text from one source for the same prayer.
 type PrayerSource struct {
 	Source  string `json:"source"`
@@ -64,8 +83,9 @@ type Prayer struct {
 	Source        string         `json:"source,omitempty"`
 	Version       string         `json:"version,omitempty"`
 	Notes         string         `json:"notes,omitempty"`
-	AltSources    []PrayerSource `json:"alt_sources,omitempty"` // additional sources for same prayer
-	Translations  []LangRef      `json:"translations,omitempty"` // other languages with this phelps code
+	AltSources    []PrayerSource     `json:"alt_sources,omitempty"`  // additional sources for same prayer
+	BookCats      map[string]BookCat `json:"book_cats,omitempty"`    // prayerbook code → category assignment
+	Translations  []LangRef          `json:"translations,omitempty"` // other languages with this phelps code
 }
 
 // SubCode is one passage within a base PIN (e.g. BH01313NAM within BH01313).
@@ -159,13 +179,19 @@ func main() {
 		log.Printf("  %s: %d prayers", lang.Code, len(prayers))
 	}
 
-	// 2b. Second pass: write per-language JSON with "Also in:" translation lists
-	log.Println("→ prayers by language (pass 2: writing with translation lists)...")
+	// 2b. Second pass: write per-language JSON with "Also in:" translation lists + prayerbooks
+	log.Println("→ loading all prayerbook category assignments (single query)...")
+	allBookCats, allPrayerbooks := queryAllBookCats(allPrayers)
+	log.Printf("  book_cats loaded for %d languages", len(allBookCats))
+
+	log.Println("→ prayers by language (pass 2: writing)...")
 	for _, lang := range langs {
 		prayers := allPrayers[lang.Code]
+		bookCatsMap := allBookCats[lang.Code]
+		prayerbooks := allPrayerbooks[lang.Code]
+
 		for i, p := range prayers {
 			if refs, ok := phelpsLangs[p.Phelps]; ok {
-				// Exclude current language from its own translation list
 				others := make([]LangRef, 0, len(refs)-1)
 				for _, r := range refs {
 					if r.Language != lang.Code {
@@ -174,8 +200,14 @@ func main() {
 				}
 				prayers[i].Translations = others
 			}
+			if bc, ok := bookCatsMap[p.Phelps]; ok {
+				prayers[i].BookCats = bc
+			}
 		}
-		writeJSON(filepath.Join(assetsDir, "prayers", lang.Code+".json"), prayers)
+		writeJSON(filepath.Join(assetsDir, "prayers", lang.Code+".json"), LangFile{
+			Prayers:     prayers,
+			Prayerbooks: prayerbooks,
+		})
 	}
 
 	// 3. Group phelps codes by base PIN (strips trailing 3-char alpha mnemonic suffix)
@@ -415,6 +447,120 @@ func queryPrayersForLang(lang string) []Prayer {
 		out = append(out, p)
 	}
 	return out
+}
+
+// prayerBookEntry holds one row from prayer_book_structure
+type prayerBookEntry struct {
+	bookCode   string
+	bookName   string
+	catName    string
+	catOrder   int
+	ordInCat   int
+}
+
+// queryAllBookCats loads the full prayer_book_structure table (~10K rows) plus
+// prayerbook language names into memory, then builds per-language index maps in Go.
+// Returns:
+//   - pbIndex: phelps_code → []prayerBookEntry (all prayerbooks containing this code)
+//   - bookNames: bookCode → display name
+func loadPrayerBookStructure() (
+	pbIndex map[string][]prayerBookEntry,
+	bookNames map[string]string,
+) {
+	rows := doltQuery(`
+		SELECT pbs.phelps_code, pbs.source_language, l.name,
+		       pbs.category_name, pbs.category_order, pbs.order_in_category
+		FROM prayer_book_structure pbs
+		JOIN languages l ON l.langcode = pbs.source_language AND l.inlang = 'en'
+		ORDER BY pbs.source_language, pbs.category_order, pbs.order_in_category
+	`)
+
+	pbIndex = map[string][]prayerBookEntry{}
+	bookNames = map[string]string{}
+
+	for _, row := range rows[1:] {
+		if len(row) < 6 {
+			continue
+		}
+		phelps, bookCode, bookName, catName := row[0], row[1], row[2], row[3]
+		catOrd, ordInCat := 0, 0
+		fmt.Sscanf(row[4], "%d", &catOrd)
+		fmt.Sscanf(row[5], "%d", &ordInCat)
+		pbIndex[phelps] = append(pbIndex[phelps], prayerBookEntry{
+			bookCode: bookCode, bookName: bookName,
+			catName: catName, catOrder: catOrd, ordInCat: ordInCat,
+		})
+		bookNames[bookCode] = bookName
+	}
+	return pbIndex, bookNames
+}
+
+// buildLangBookCats takes the in-memory pbIndex and a list of phelps codes for
+// one language, and returns the book_cats map and the ordered prayerbook list.
+func buildLangBookCats(pbIndex map[string][]prayerBookEntry, langPhelps []string) (
+	bookCats map[string]map[string]BookCat, // phelps → bookCode → BookCat
+	books []BookRef,
+) {
+	bookCats = map[string]map[string]BookCat{}
+	bookOrder := []string{}
+	bookSeen := map[string]bool{}
+	bookNameMap := map[string]string{}
+
+	for _, phelps := range langPhelps {
+		entries, ok := pbIndex[phelps]
+		if !ok {
+			continue
+		}
+		m := map[string]BookCat{}
+		for _, e := range entries {
+			if _, exists := m[e.bookCode]; !exists {
+				m[e.bookCode] = BookCat{Category: e.catName, CatOrder: e.catOrder, OrderInCat: e.ordInCat}
+			}
+			if !bookSeen[e.bookCode] {
+				bookSeen[e.bookCode] = true
+				bookOrder = append(bookOrder, e.bookCode)
+				bookNameMap[e.bookCode] = e.bookName
+			}
+		}
+		if len(m) > 0 {
+			bookCats[phelps] = m
+		}
+	}
+
+	books = make([]BookRef, 0, len(bookOrder))
+	for _, code := range bookOrder {
+		books = append(books, BookRef{Code: code, Name: bookNameMap[code]})
+	}
+	return bookCats, books
+}
+
+// queryAllBookCats is the public entry point: loads PBS once, then builds
+// per-language maps using the already-collected allPrayers data.
+func queryAllBookCats(allPrayers map[string][]Prayer) (
+	langBookCats map[string]map[string]map[string]BookCat,
+	langBooks map[string][]BookRef,
+) {
+	pbIndex, _ := loadPrayerBookStructure()
+
+	langBookCats = map[string]map[string]map[string]BookCat{}
+	langBooks = map[string][]BookRef{}
+
+	for lang, prayers := range allPrayers {
+		phelps := make([]string, 0, len(prayers))
+		for _, p := range prayers {
+			if p.Phelps != "" {
+				phelps = append(phelps, p.Phelps)
+			}
+		}
+		bc, bks := buildLangBookCats(pbIndex, phelps)
+		if len(bc) > 0 {
+			langBookCats[lang] = bc
+		}
+		if len(bks) > 0 {
+			langBooks[lang] = bks
+		}
+	}
+	return langBookCats, langBooks
 }
 
 func queryInventory() []InventoryEntry {
