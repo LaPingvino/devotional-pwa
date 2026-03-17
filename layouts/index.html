@@ -1,22 +1,86 @@
 {{ partial "head.html" (dict "Title" "All Languages" "Lang" "en") }}
 <div class="main-content">
   <h1>Bahá'í Prayers</h1>
-  <p style="color:var(--text-secondary); margin-bottom:1.5rem;">
+  <p style="color:var(--text-secondary); margin-bottom:1rem;">
     {{ len site.Data.languages }} languages · {{ site.Params.description }}
   </p>
+
+  <div class="lang-controls">
+    <input type="search" id="lang-search" placeholder="Search languages…" autocomplete="off"
+           style="flex:1; min-width:180px; padding:.45rem .75rem; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text); font-size:.95rem;">
+    <label class="filter-toggle" title="Show only languages with multiple prayers">
+      <input type="checkbox" id="filter-rich" checked>
+      <span>Many prayers only</span>
+    </label>
+    <select id="min-prayers" style="padding:.4rem .6rem; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text); font-size:.85rem;">
+      <option value="1">All (1+)</option>
+      <option value="2">2+ prayers</option>
+      <option value="5" selected>5+ prayers</option>
+      <option value="10">10+ prayers</option>
+      <option value="20">20+ prayers</option>
+    </select>
+  </div>
+  <p id="lang-count-msg" style="font-size:.8rem; color:var(--text-secondary); margin:.4rem 0 .8rem;"></p>
+
   <div style="margin-bottom:1.5rem;">
     <span style="color:var(--text-secondary);font-size:.85rem;">Download all languages:</span>
     <a href="/downloads/prayers_all_latin.pdf" class="dl-link" download>Latin &amp; European — PDF</a>
     <a href="/downloads/prayers_all_other.pdf" class="dl-link" download style="margin-left:.4rem;">Asian &amp; Other — PDF</a>
     <a href="/downloads/prayers_all.epub" class="dl-link" download style="margin-left:.4rem;">All — EPUB</a>
   </div>
-  <div class="lang-grid">
-    {{ range site.Data.languages }}
-    <a class="lang-card" href="/prayers/{{ .code }}/">
+
+  <div class="lang-grid" id="lang-grid">
+    {{- $sorted := site.Data.languages -}}
+    {{- range $sorted }}
+    <a class="lang-card" href="/prayers/{{ .code }}/"
+       data-name="{{ .name | lower }}"
+       data-code="{{ .code | lower }}"
+       data-count="{{ .prayer_count }}">
       <span>{{ .name }}</span>
       <span class="count">{{ .prayer_count }}</span>
     </a>
     {{ end }}
   </div>
 </div>
+
+<script>
+(function() {
+  const grid     = document.getElementById('lang-grid');
+  const search   = document.getElementById('lang-search');
+  const minSel   = document.getElementById('min-prayers');
+  const msg      = document.getElementById('lang-count-msg');
+  const cards    = Array.from(grid.querySelectorAll('.lang-card'));
+  const richChk  = document.getElementById('filter-rich');
+
+  // Pin English to front
+  const enCard = cards.find(c => c.dataset.code === 'en');
+  if (enCard) grid.prepend(enCard);
+
+  richChk.addEventListener('change', () => {
+    minSel.disabled = !richChk.checked;
+    filter();
+  });
+  minSel.addEventListener('change', filter);
+  search.addEventListener('input', filter);
+
+  function filter() {
+    const q   = search.value.toLowerCase().trim();
+    const min = richChk.checked ? parseInt(minSel.value, 10) : 1;
+    let shown = 0;
+    cards.forEach(c => {
+      const nameMatch = !q || c.dataset.name.includes(q) || c.dataset.code.includes(q);
+      const countOk   = parseInt(c.dataset.count, 10) >= min;
+      const vis       = nameMatch && countOk;
+      c.style.display = vis ? '' : 'none';
+      if (vis) shown++;
+    });
+    const total = cards.length;
+    msg.textContent = shown < total
+      ? `Showing ${shown} of ${total} languages`
+      : `${total} languages`;
+  }
+
+  filter();
+})();
+</script>
 {{ partial "foot.html" . }}

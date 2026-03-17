@@ -97,6 +97,22 @@ body {
 }
 
 /* ── Homepage / language list ───────────────────────── */
+.lang-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .5rem;
+  align-items: center;
+  margin-bottom: .25rem;
+}
+.filter-toggle {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: .85rem;
+  color: var(--text-secondary);
+  cursor: pointer;
+  white-space: nowrap;
+}
 .lang-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
