@@ -64,6 +64,8 @@ var knownMappings = map[string]string{
 	"he": "NotoSerifHebrew",
 	"am": "NotoSerifEthiopic", "ti": "NotoSerifEthiopic",
 	"hy": "NotoSerifArmenian",
+	"bod": "NotoSerifTibetan",
+	"dv": "NotoSansThaana", // dv-b is romanized Latin
 }
 
 // scriptDetect maps a Unicode range to a human-readable script name.
@@ -173,8 +175,6 @@ func main() {
 
 	// Scripts we know about but don't yet have fonts for — suppress as known gaps.
 	knownUnsupported := map[string]string{
-		"bod": "Tibetan (no NotoSerifTibetan in build)",
-		"dv":  "Thaana/Maldivian (no NotoSansThaana in build)",
 		"nyo": "false positive: Latin prayer with Ethiopic chars in appended language label",
 	}
 

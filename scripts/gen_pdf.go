@@ -54,6 +54,7 @@ var rtlLangs = map[string]bool{
 	"pus": true, "ckb": true,             // Pashto, Sorani Kurdish
 	"bal": true, "brh": true,             // Balochi, Brahui
 	"tuk": true, "pan-b": true, "raj-b": true, // Arabic-script variants
+	"dv": true,                                // Thaana script (RTL); dv-b is Latin
 }
 
 // ── Data types ─────────────────────────────────────────────────────────────────
@@ -473,6 +474,8 @@ var langScriptFont = map[string]string{
 	"am": "NotoSerifEthiopic", "ti": "NotoSerifEthiopic",
 	"hy": "NotoSerifArmenian",          // Armenian
 	"ory": "NotoSerifOriya", "kxu": "NotoSerifOriya", // Odia/Oriya script (ory-b uses Devanagari)
+	"bod": "NotoSerifTibetan",          // Tibetan
+	"dv": "NotoSansThaana", // Dhivehi/Maldivian (Thaana script); dv-b is romanized Latin
 }
 
 // scriptFontFile maps a font family name to its TTF/OTF filename.
@@ -496,6 +499,8 @@ var scriptFontFile = map[string]string{
 	"NotoSerifEthiopic":  "NotoSerifEthiopic-Regular.ttf",
 	"NotoSerifArmenian":  "NotoSerifArmenian-Regular.ttf",
 	"NotoSerifOriya":     "NotoSerifOriya-Regular.ttf",
+	"NotoSerifTibetan":   "NotoSerifTibetan-Regular.ttf",
+	"NotoSansThaana":     "NotoSansThaana-Regular.ttf",
 }
 
 // collectRunes returns the set of all Unicode codepoints used in the given
@@ -1669,6 +1674,8 @@ func main() {
 		"he": true, "am": true, "ti": true,
 		"hy": true,                         // Armenian
 		"ory": true, "kxu": true,             // Odia/Oriya script
+		"bod": true,                          // Tibetan
+		"dv": true,                           // Thaana/Dhivehi (dv-b is Latin)
 	}
 
 	// Phelps-only mode: all languages for one prayer code (e.g. Short Obligatory Prayer)

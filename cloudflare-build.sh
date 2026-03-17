@@ -87,6 +87,10 @@ download_font "NotoSerifArmenian-Regular.ttf" \
   "$NOTO_BASE/NotoSerifArmenian/full/ttf/NotoSerifArmenian-Regular.ttf"
 download_font "NotoSerifOriya-Regular.ttf" \
   "$NOTO_BASE/NotoSerifOriya/full/ttf/NotoSerifOriya-Regular.ttf"
+download_font "NotoSerifTibetan-Regular.ttf" \
+  "$NOTO_BASE/NotoSerifTibetan/full/ttf/NotoSerifTibetan-Regular.ttf"
+download_font "NotoSansThaana-Regular.ttf" \
+  "$NOTO_BASE/NotoSansThaana/full/ttf/NotoSansThaana-Regular.ttf"
 echo "Fonts in fonts/: $(ls fonts/*.ttf fonts/*.otf 2>/dev/null | wc -l) files"
 
 # Generate per-language PDFs and EPUBs using gofpdf (pure Go, ~2 min for all languages)
