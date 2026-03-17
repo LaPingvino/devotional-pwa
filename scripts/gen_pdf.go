@@ -425,23 +425,33 @@ type fontInfo struct {
 // langScriptFont maps language codes to their required Noto font family names.
 // Languages absent from this map fall back to NotoSerif (covers Latin/Cyrillic/Greek).
 var langScriptFont = map[string]string{
-	// Perso-Arabic
+	// Perso-Arabic (including Kashmiri written in Nastaliq)
 	"ar": "NotoNaskhArabic", "fa": "NotoNaskhArabic",
 	"ur": "NotoNaskhArabic", "ug": "NotoNaskhArabic", "dih": "NotoNaskhArabic",
+	"kas": "NotoNaskhArabic", "snd": "NotoNaskhArabic",
 	// CJK (one font covers all CJK variants)
 	"zh-Hans": "NotoSerifCJK", "zh-Hant": "NotoSerifCJK",
 	"ja": "NotoSerifCJK", "ko": "NotoSerifCJK",
-	// Devanagari
+	// Devanagari — standard + variant codes (mr-b, mr-c = Marathi; bho-* = Bhojpuri Devanagari)
 	"hi": "NotoSerifDevanagari", "mr": "NotoSerifDevanagari", "ne": "NotoSerifDevanagari",
-	// Other Indic
+	"mr-b": "NotoSerifDevanagari", "mr-c": "NotoSerifDevanagari",
+	"bho-b": "NotoSerifDevanagari", "bho-c": "NotoSerifDevanagari", "bho-d": "NotoSerifDevanagari",
+	"gbm": "NotoSerifDevanagari", "gbm-b": "NotoSerifDevanagari", // Garhwali
+	"raj": "NotoSerifDevanagari", "raj-b": "NotoSerifDevanagari", // Rajasthani
+	"raj-c": "NotoSerifDevanagari", "raj-d": "NotoSerifDevanagari",
+	"unr": "NotoSerifDevanagari", "unr-b": "NotoSerifDevanagari", "unr-c": "NotoSerifDevanagari", // Mundari
+	// Bengali — standard + variants
 	"bn": "NotoSerifBengali",
+	"ben": "NotoSerifBengali", "ben-b": "NotoSerifBengali", "ben-c": "NotoSerifBengali",
+	// Other Indic
 	"ta": "NotoSerifTamil",
 	"te": "NotoSerifTelugu",
 	"ml": "NotoSerifMalayalam",
 	"kn": "NotoSerifKannada",
 	"gu": "NotoSerifGujarati",
 	"pa": "NotoSerifGurmukhi",
-	"si": "NotoSerifSinhala",
+	"pan": "NotoSerifGurmukhi", "pan-b": "NotoSerifGurmukhi", // Punjabi variants
+	"si": "NotoSerifSinhala", "sin": "NotoSerifSinhala",      // Sinhala variants
 	// Southeast Asian
 	"th": "NotoSerifThai",
 	"lo": "NotoSerifLao",
@@ -849,9 +859,11 @@ func renderPrayerSection(ctx *pdfCtx, prayers []Prayer, lang, phelpsBaseURL stri
 				}
 			}
 			if len(transLangs) > 0 {
-				pdf.SetFont(bodyFont, "", 8)
+				// Use base Latin font — language codes are ASCII and the script-specific
+				// bodyFont (e.g. NotoNaskhArabic) does not contain Latin glyphs.
+				pdf.SetFont(fi.bodyFont, "", 8)
 				ctx.metaColor()
-				pdf.MultiCell(contentW, 4, "Also in: "+strings.Join(transLangs, ", "), "", align, false)
+				pdf.MultiCell(contentW, 4, "Also in: "+strings.Join(transLangs, ", "), "", "L", false)
 				ctx.bodyColor()
 			}
 
@@ -1601,13 +1613,23 @@ func main() {
 	nonLatinScript := map[string]bool{
 		// Arabic / Perso-Arabic
 		"ar": true, "fa": true, "ur": true, "ug": true, "dih": true,
+		"kas": true, "snd": true,
 		// CJK
 		"zh-Hans": true, "zh-Hant": true, "ja": true, "ko": true,
-		// Devanagari
+		// Devanagari (standard + variants)
 		"hi": true, "mr": true, "ne": true,
+		"mr-b": true, "mr-c": true,
+		"bho-b": true, "bho-c": true, "bho-d": true,
+		"gbm": true, "gbm-b": true,
+		"raj": true, "raj-b": true, "raj-c": true, "raj-d": true,
+		"unr": true, "unr-b": true, "unr-c": true,
+		// Bengali (standard + variants)
+		"bn": true, "ben": true, "ben-b": true, "ben-c": true,
 		// Other Indic scripts
-		"bn": true, "ta": true, "te": true, "ml": true,
-		"kn": true, "gu": true, "pa": true, "si": true,
+		"ta": true, "te": true, "ml": true,
+		"kn": true, "gu": true,
+		"pa": true, "pan": true, "pan-b": true,
+		"si": true, "sin": true,
 		// Southeast Asian
 		"th": true, "lo": true, "km": true, "my": true,
 		// Other non-Latin
@@ -1617,12 +1639,21 @@ func main() {
 	// Phelps-only mode: all languages for one prayer code (e.g. Short Obligatory Prayer)
 	if *phelpsOnly != "" {
 		code := strings.ReplaceAll(*phelpsOnly, "'", "''")
+		// Query all sources for phelps-only mode — the SOP has translations from
+		// bw17, bw18, sop_pdf etc. as well as bahaiprayers.net.  Deduplicate per
+		// language by preferring bahaiprayers.net > bahaiprayers.org > others.
 		rows := doltCSV(*db, fmt.Sprintf(
 			`SELECT w.language, w.phelps, w.text, COALESCE(w.name,'')
 			 FROM writings w
-			 WHERE w.phelps = '%s' AND w.source = '%s'
+			 WHERE w.phelps = '%s'
 			   AND w.phelps IS NOT NULL AND w.phelps <> ''
-			 ORDER BY w.language`, code, *source))
+			 ORDER BY w.language,
+			   CASE w.source
+			     WHEN 'bahaiprayers.net' THEN 1
+			     WHEN 'bahaiprayers.org' THEN 2
+			     WHEN 'bahaiprayers.app' THEN 3
+			     ELSE 4
+			   END`, code))
 
 		byLang := map[string][]Prayer{}
 		var langOrder []string
@@ -1659,8 +1690,10 @@ func main() {
 			outBase = strings.TrimSuffix(*output, filepath.Ext(*output))
 		}
 		fmt.Printf("Phelps-only %s: %d language versions\n", *phelpsOnly, len(sections))
+		// No "Also in:" for single-prayer collections — every language IS "also in".
+		noTrans := map[string][]string{}
 		if !*epubMode {
-			renderCombinedPDF(sections, docTitle, *phelpsBase, translationsMap, outBase+".pdf", *fontDir)
+			renderCombinedPDF(sections, docTitle, *phelpsBase, noTrans, outBase+".pdf", *fontDir)
 		}
 		if *epubMode || *bothMode {
 			var buf strings.Builder
@@ -1672,7 +1705,7 @@ func main() {
 				`</head><body><h1>` + template.HTMLEscapeString(docTitle) + `</h1>`)
 			for _, ls := range sections {
 				buf.WriteString(generateHTML(ls.prayers, ls.lang,
-					*title+" — "+ls.lname, *phelpsBase, nil, true, true, nil))
+					*title+" — "+ls.lname, *phelpsBase, noTrans, true, true, nil))
 			}
 			buf.WriteString("</body></html>")
 			renderEPUB(buf.String(), outBase+".epub", "sop", docTitle, "mul")
