@@ -26,7 +26,7 @@
         <th>PIN</th>
         <th>Author</th>
         <th>First line (English)</th>
-        <th style="text-align:center">Trans.</th>
+        <th>Translations</th>
       </tr>
     </thead>
     <tbody id="inv-body">
@@ -84,25 +84,49 @@ function applyFilters() {
   renderTable();
 }
 
+function langChips(langs, pin) {
+  if (!langs || !langs.length) return '';
+  return langs.map(l =>
+    `<a href="/prayers/${l.language}/#${pin}" title="${l.lang_name}"
+        style="display:inline-block;padding:.1rem .35rem;margin:.1rem .1rem 0 0;background:#f0f0f0;border-radius:3px;font-family:monospace;font-size:.72rem;color:var(--text);text-decoration:none;transition:background .1s"
+        onmouseover="this.style.background='#ff7954';this.style.color='#fff'"
+        onmouseout="this.style.background='#f0f0f0';this.style.color='var(--text)'">${l.language}</a>`
+  ).join('');
+}
+
 function renderTable() {
   const tbody = document.getElementById('inv-body');
   const status = document.getElementById('inv-status');
   status.textContent = `${filtered.length.toLocaleString()} entries`;
 
   const rows = filtered.slice(0, 500);
-  tbody.innerHTML = rows.map(e => {
-    const hasTranslations = e.translations > 0;
-    const pinCell = `<a href="${phelpsUrl(e.pin)}">${e.pin}</a>`;
-    const countCell = hasTranslations
-      ? `<span style="color:var(--accent); font-weight:600">${e.translations}</span>`
-      : `<span style="opacity:.3">—</span>`;
-    return `<tr>
-      <td class="pin-cell">${pinCell}</td>
-      <td style="font-size:.8rem; color:var(--text-secondary)">${authorFromPin(e.pin)}</td>
+  let html = '';
+  let prevBase = null;
+  rows.forEach(e => {
+    const base = e.pin.replace(/[A-Z]{3}$/, match => /\d/.test(e.pin[e.pin.length - 4]) ? '' : match);
+    // Detect mnemonic suffix: last 3 chars are alpha and preceded by a digit
+    const n = e.pin.length;
+    const hasMnemonic = /^[A-Z]{3}$/.test(e.pin.slice(n - 3)) && /\d/.test(e.pin[n - 4]);
+    const basePin = hasMnemonic ? e.pin.slice(0, n - 3) : e.pin;
+    const mnemonic = hasMnemonic ? e.pin.slice(n - 3) : '';
+    const sameGroup = basePin === prevBase;
+    prevBase = basePin;
+
+    const pinLink = `<a href="${phelpsUrl(e.pin)}">${e.pin}</a>`;
+    const chips = langChips(e.langs, e.pin);
+    const transCell = chips
+      ? `<td style="font-size:.8rem">${chips}</td>`
+      : `<td style="text-align:center;opacity:.3;font-size:.85rem">—</td>`;
+
+    const borderStyle = sameGroup ? 'border-top:1px dashed #eee' : '';
+    html += `<tr style="${borderStyle}">
+      <td class="pin-cell">${pinLink}</td>
+      <td style="font-size:.8rem; color:var(--text-secondary)">${sameGroup ? '' : authorFromPin(e.pin)}</td>
       <td>${e.first_line || ''}</td>
-      <td style="text-align:center; font-size:.85rem">${countCell}</td>
+      ${transCell}
     </tr>`;
-  }).join('');
+  });
+  tbody.innerHTML = html;
   if (filtered.length > 500) {
     tbody.innerHTML += `<tr><td colspan="4" style="color:var(--text-secondary); padding:.5rem">
       … ${(filtered.length - 500).toLocaleString()} more. Refine your search.

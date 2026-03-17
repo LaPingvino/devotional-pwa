@@ -71,10 +71,17 @@
           {{ with .source }}<span class="prayer-source">{{ . }}</span>{{ end }}
         </div>
         {{ with .translations }}
+        {{ $transCount := len . }}
         <div class="prayer-translations">
           <span class="trans-label">Also in:</span>
+          {{ if gt $transCount 8 }}
+          <input type="search" class="trans-filter-input" placeholder="Filter…"
+                 style="flex:1; min-width:120px; max-width:200px; padding:.15rem .4rem; border:1px solid var(--border); border-radius:4px; font-size:.75rem; background:var(--surface); color:var(--text);">
+          <span class="trans-filter-count" style="font-size:.72rem; color:var(--text-secondary);"></span>
+          {{ end }}
           {{ range . }}
-          <a href="/prayers/{{ .language }}/#{{ $pin }}" title="{{ .lang_name }}">{{ .language }}</a>
+          <a href="/prayers/{{ .language }}/#{{ $pin }}" title="{{ .lang_name }}"
+             data-code="{{ .language | lower }}" data-name="{{ .lang_name | lower }}">{{ .language }}</a>
           {{ end }}
         </div>
         {{ end }}
@@ -191,6 +198,25 @@ document.querySelectorAll('.fav-btn').forEach(btn => {
     localStorage.setItem(FAVS_KEY, JSON.stringify([...favs]));
     renderFavs();
   });
+});
+
+// Filterable "Also in:" translation chips
+document.querySelectorAll('.prayer-translations').forEach(section => {
+  const input = section.querySelector('.trans-filter-input');
+  if (!input) return;
+  const links = Array.from(section.querySelectorAll('a[data-code]'));
+  const countEl = section.querySelector('.trans-filter-count');
+  function filterTrans() {
+    const q = input.value.toLowerCase().trim();
+    let shown = 0;
+    links.forEach(a => {
+      const match = !q || a.dataset.code.includes(q) || a.dataset.name.includes(q);
+      a.style.display = match ? '' : 'none';
+      if (match) shown++;
+    });
+    if (countEl) countEl.textContent = q ? `${shown}/${links.length}` : '';
+  }
+  input.addEventListener('input', filterTrans);
 });
 
 // Foldable prayers — expand hash target, toggle on header click
