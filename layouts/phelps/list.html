@@ -87,10 +87,10 @@ function applyFilters() {
 function langChips(langs, pin) {
   if (!langs || !langs.length) return '';
   return langs.map(l =>
-    `<a href="/prayers/${l.language}/#${pin}" title="${l.lang_name}"
-        style="display:inline-block;padding:.1rem .35rem;margin:.1rem .1rem 0 0;background:#f0f0f0;border-radius:3px;font-family:monospace;font-size:.72rem;color:var(--text);text-decoration:none;transition:background .1s"
+    `<a href="/prayers/${l.language}/#${pin}" title="${l.language}"
+        style="display:inline-block;padding:.1rem .4rem;margin:.1rem .1rem 0 0;background:#f0f0f0;border-radius:3px;font-size:.75rem;color:var(--text);text-decoration:none;transition:background .1s"
         onmouseover="this.style.background='#ff7954';this.style.color='#fff'"
-        onmouseout="this.style.background='#f0f0f0';this.style.color='var(--text)'">${l.language}</a>`
+        onmouseout="this.style.background='#f0f0f0';this.style.color='var(--text)'">${l.lang_name || l.language}</a>`
   ).join('');
 }
 

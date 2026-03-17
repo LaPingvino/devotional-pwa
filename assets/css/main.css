@@ -283,27 +283,73 @@ body {
 .prefix-btn.translated-only { margin-left: .5rem; background: #f0f0f0; }
 .prefix-btn.translated-only.active { background: var(--accent); color: #fff; }
 
-/* Language chips on phelps pages */
-.lang-chip {
+/* Language dropdown (replaces chip lists) */
+.lang-dropdown { position: relative; display: inline-block; }
+.lang-dropdown > summary {
   display: inline-flex;
   align-items: center;
   gap: .3rem;
-  padding: .2rem .5rem;
+  padding: .25rem .6rem;
   background: #f0f0f0;
   border-radius: 4px;
+  font-size: .82rem;
+  cursor: pointer;
+  list-style: none;
+  user-select: none;
+  transition: background .1s, color .1s;
+}
+.lang-dropdown > summary::-webkit-details-marker { display: none; }
+.lang-dropdown > summary::after { content: ' ▾'; font-size: .7rem; opacity: .6; }
+.lang-dropdown[open] > summary { background: var(--accent); color: #fff; }
+.lang-dropdown[open] > summary::after { content: ' ▴'; }
+.lang-dropdown-panel {
+  position: absolute;
+  z-index: 60;
+  top: calc(100% + 4px);
+  left: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.15);
+  min-width: 220px;
+  max-width: 300px;
+  padding: .4rem;
+}
+.lang-dropdown-panel input {
+  width: 100%;
+  padding: .25rem .4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: .82rem;
+  background: var(--bg);
+  color: var(--text);
+  margin-bottom: .3rem;
+  box-sizing: border-box;
+}
+.lang-dropdown-panel input:focus { outline: none; border-color: var(--accent); }
+.lang-dropdown-list {
+  max-height: 220px;
+  overflow-y: auto;
+}
+.lang-dropdown-list a {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: .22rem .35rem;
+  font-size: .82rem;
   text-decoration: none;
   color: var(--text);
-  font-size: .8rem;
+  border-radius: 3px;
+  gap: .4rem;
+}
+.lang-dropdown-list a:hover { background: #fff3ef; color: var(--accent); }
+.lang-code-badge {
   font-family: monospace;
-  transition: background .1s;
-}
-.lang-chip:hover { background: var(--accent); color: #fff; }
-.lang-chip-name {
-  font-family: sans-serif;
-  font-size: .7rem;
+  font-size: .72rem;
   color: var(--text-secondary);
+  flex-shrink: 0;
 }
-.lang-chip:hover .lang-chip-name { color: rgba(255,255,255,.8); }
+.lang-dropdown-list a:hover .lang-code-badge { color: var(--accent); }
 
 .prayer-text {
   padding: 1rem .75rem;

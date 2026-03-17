@@ -74,27 +74,26 @@
     </div>
     {{ end }}
 
-    {{/* Translation count + filterable language list */}}
+    {{/* Translation dropdown */}}
     {{ $transCount := len $sc.translations }}
-    <div style="display:flex; align-items:center; gap:.6rem; margin-bottom:.4rem; flex-wrap:wrap;">
-      <span style="font-size:.8rem; color:var(--text-secondary);">
-        {{ $transCount }} translation{{ if gt $transCount 1 }}s{{ end }}
-      </span>
-      {{ if gt $transCount 8 }}
-      <input type="search" class="lang-filter-input" placeholder="Filter languages…"
-             style="flex:1; min-width:160px; max-width:280px; padding:.25rem .55rem; border:1px solid var(--border); border-radius:4px; font-size:.82rem; background:var(--surface); color:var(--text);">
-      <span class="lang-filter-count" style="font-size:.78rem; color:var(--text-secondary);"></span>
-      {{ end }}
-    </div>
-    <div class="phelps-langs" style="display:flex; flex-wrap:wrap; gap:.4rem;">
-      {{ range $sc.translations }}
-      {{ $lang := . }}
-      <a href="/prayers/{{ $lang.language }}/#{{ $sc.code }}" class="lang-chip"
-         data-code="{{ $lang.language | lower }}" data-name="{{ $lang.lang_name | lower }}">
-        {{ $lang.language }}<span class="lang-chip-name">{{ $lang.lang_name }}</span>
-      </a>
-      {{ end }}
-    </div>
+    {{ if gt $transCount 0 }}
+    <details class="lang-dropdown">
+      <summary>{{ $transCount }} translation{{ if gt $transCount 1 }}s{{ end }}</summary>
+      <div class="lang-dropdown-panel">
+        {{ if gt $transCount 6 }}
+        <input type="search" class="lang-filter-input" placeholder="Filter languages…" autocomplete="off">
+        {{ end }}
+        <div class="lang-dropdown-list">
+          {{ range $sc.translations }}
+          <a href="/prayers/{{ .language }}/#{{ $sc.code }}"
+             data-code="{{ .language | lower }}" data-name="{{ .lang_name | lower }}">
+            {{ .lang_name }}<span class="lang-code-badge">{{ .language }}</span>
+          </a>
+          {{ end }}
+        </div>
+      </div>
+    </details>
+    {{ end }}
 
   </div>
   {{ end }}
@@ -131,27 +130,24 @@ document.querySelectorAll('.fulltext-reader').forEach(reader => {
   show(0); // initial render
 });
 
-// Filterable language chips
-document.querySelectorAll('.subcode-section').forEach(section => {
-  const input = section.querySelector('.lang-filter-input');
+// Filterable language dropdown
+document.querySelectorAll('.lang-dropdown').forEach(dd => {
+  const input = dd.querySelector('.lang-filter-input');
   if (!input) return;
-  const chips = Array.from(section.querySelectorAll('.lang-chip'));
-  const countEl = section.querySelector('.lang-filter-count');
-
-  function filterChips() {
+  const links = Array.from(dd.querySelectorAll('.lang-dropdown-list a'));
+  input.addEventListener('input', () => {
     const q = input.value.toLowerCase().trim();
-    let shown = 0;
-    chips.forEach(chip => {
-      const match = !q || chip.dataset.code.includes(q) || chip.dataset.name.includes(q);
-      chip.style.display = match ? '' : 'none';
-      if (match) shown++;
+    links.forEach(a => {
+      a.style.display = (!q || a.dataset.code.includes(q) || a.dataset.name.includes(q)) ? '' : 'none';
     });
-    if (countEl) {
-      countEl.textContent = q ? `${shown} of ${chips.length}` : '';
-    }
-  }
+  });
+});
 
-  input.addEventListener('input', filterChips);
+// Close dropdown when clicking outside
+document.addEventListener('click', e => {
+  document.querySelectorAll('.lang-dropdown[open]').forEach(dd => {
+    if (!dd.contains(e.target)) dd.removeAttribute('open');
+  });
 });
 </script>
 {{ partial "foot.html" . }}

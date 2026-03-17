@@ -74,15 +74,22 @@
         {{ $transCount := len . }}
         <div class="prayer-translations">
           <span class="trans-label">Also in:</span>
-          {{ if gt $transCount 8 }}
-          <input type="search" class="trans-filter-input" placeholder="Filter…"
-                 style="flex:1; min-width:120px; max-width:200px; padding:.15rem .4rem; border:1px solid var(--border); border-radius:4px; font-size:.75rem; background:var(--surface); color:var(--text);">
-          <span class="trans-filter-count" style="font-size:.72rem; color:var(--text-secondary);"></span>
-          {{ end }}
-          {{ range . }}
-          <a href="/prayers/{{ .language }}/#{{ $pin }}" title="{{ .lang_name }}"
-             data-code="{{ .language | lower }}" data-name="{{ .lang_name | lower }}">{{ .language }}</a>
-          {{ end }}
+          <details class="lang-dropdown">
+            <summary>{{ $transCount }} language{{ if gt $transCount 1 }}s{{ end }}</summary>
+            <div class="lang-dropdown-panel">
+              {{ if gt $transCount 6 }}
+              <input type="search" class="lang-filter-input" placeholder="Filter languages…" autocomplete="off">
+              {{ end }}
+              <div class="lang-dropdown-list">
+                {{ range . }}
+                <a href="/prayers/{{ .language }}/#{{ $pin }}"
+                   data-code="{{ .language | lower }}" data-name="{{ .lang_name | lower }}">
+                  {{ .lang_name }}<span class="lang-code-badge">{{ .language }}</span>
+                </a>
+                {{ end }}
+              </div>
+            </div>
+          </details>
         </div>
         {{ end }}
       </article>
@@ -200,23 +207,22 @@ document.querySelectorAll('.fav-btn').forEach(btn => {
   });
 });
 
-// Filterable "Also in:" translation chips
-document.querySelectorAll('.prayer-translations').forEach(section => {
-  const input = section.querySelector('.trans-filter-input');
+// Filterable language dropdowns
+document.querySelectorAll('.lang-dropdown').forEach(dd => {
+  const input = dd.querySelector('.lang-filter-input');
   if (!input) return;
-  const links = Array.from(section.querySelectorAll('a[data-code]'));
-  const countEl = section.querySelector('.trans-filter-count');
-  function filterTrans() {
+  const links = Array.from(dd.querySelectorAll('.lang-dropdown-list a'));
+  input.addEventListener('input', () => {
     const q = input.value.toLowerCase().trim();
-    let shown = 0;
     links.forEach(a => {
-      const match = !q || a.dataset.code.includes(q) || a.dataset.name.includes(q);
-      a.style.display = match ? '' : 'none';
-      if (match) shown++;
+      a.style.display = (!q || a.dataset.code.includes(q) || a.dataset.name.includes(q)) ? '' : 'none';
     });
-    if (countEl) countEl.textContent = q ? `${shown}/${links.length}` : '';
-  }
-  input.addEventListener('input', filterTrans);
+  });
+});
+document.addEventListener('click', e => {
+  document.querySelectorAll('.lang-dropdown[open]').forEach(dd => {
+    if (!dd.contains(e.target)) dd.removeAttribute('open');
+  });
 });
 
 // Foldable prayers — expand hash target, toggle on header click
