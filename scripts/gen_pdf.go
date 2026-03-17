@@ -50,7 +50,9 @@ import (
 
 var rtlLangs = map[string]bool{
 	"ar": true, "fa": true, "ur": true, "he": true,
-	"ug": true, // Uyghur
+	"ug": true,                           // Uyghur
+	"pus": true, "ckb": true,             // Pashto, Sorani Kurdish
+	"bal": true, "brh": true,             // Balochi, Brahui
 }
 
 // ── Data types ─────────────────────────────────────────────────────────────────
@@ -427,13 +429,16 @@ type fontInfo struct {
 var langScriptFont = map[string]string{
 	// Perso-Arabic (including Kashmiri written in Nastaliq)
 	"ar": "NotoNaskhArabic", "fa": "NotoNaskhArabic",
-	"ur": "NotoNaskhArabic", "ug": "NotoNaskhArabic", "dih": "NotoNaskhArabic",
+	"ur": "NotoNaskhArabic", "ug": "NotoNaskhArabic",
 	"kas": "NotoNaskhArabic", "snd": "NotoNaskhArabic",
+	"pus": "NotoNaskhArabic", "ckb": "NotoNaskhArabic", // Pashto, Sorani Kurdish
+	"bal": "NotoNaskhArabic", "brh": "NotoNaskhArabic", // Balochi, Brahui
 	// CJK (one font covers all CJK variants)
 	"zh-Hans": "NotoSerifCJK", "zh-Hant": "NotoSerifCJK",
 	"ja": "NotoSerifCJK", "ko": "NotoSerifCJK",
 	// Devanagari — standard + variant codes (mr-b, mr-c = Marathi; bho-* = Bhojpuri Devanagari)
 	"hi": "NotoSerifDevanagari", "mr": "NotoSerifDevanagari", "ne": "NotoSerifDevanagari",
+	"san": "NotoSerifDevanagari", // Sanskrit
 	"mr-b": "NotoSerifDevanagari", "mr-c": "NotoSerifDevanagari",
 	"bho-b": "NotoSerifDevanagari", "bho-c": "NotoSerifDevanagari", "bho-d": "NotoSerifDevanagari",
 	"gbm": "NotoSerifDevanagari", "gbm-b": "NotoSerifDevanagari", // Garhwali
@@ -447,7 +452,7 @@ var langScriptFont = map[string]string{
 	"ta": "NotoSerifTamil",
 	"te": "NotoSerifTelugu",
 	"ml": "NotoSerifMalayalam",
-	"kn": "NotoSerifKannada",
+	"kn": "NotoSerifKannada", "tcy": "NotoSerifKannada", // Kannada, Tulu
 	"gu": "NotoSerifGujarati",
 	"pa": "NotoSerifGurmukhi",
 	"pan": "NotoSerifGurmukhi", "pan-b": "NotoSerifGurmukhi", // Punjabi variants
@@ -460,6 +465,8 @@ var langScriptFont = map[string]string{
 	// Other non-Latin
 	"he": "NotoSerifHebrew",
 	"am": "NotoSerifEthiopic", "ti": "NotoSerifEthiopic",
+	"hy": "NotoSerifArmenian",          // Armenian
+	"ory": "NotoSerifOriya", "ory-b": "NotoSerifOriya", // Odia/Oriya
 }
 
 // scriptFontFile maps a font family name to its TTF/OTF filename.
@@ -481,6 +488,8 @@ var scriptFontFile = map[string]string{
 	"NotoSerifMyanmar":   "NotoSerifMyanmar-Regular.ttf",
 	"NotoSerifHebrew":    "NotoSerifHebrew-Regular.ttf",
 	"NotoSerifEthiopic":  "NotoSerifEthiopic-Regular.ttf",
+	"NotoSerifArmenian":  "NotoSerifArmenian-Regular.ttf",
+	"NotoSerifOriya":     "NotoSerifOriya-Regular.ttf",
 }
 
 // collectRunes returns the set of all Unicode codepoints used in the given
@@ -1626,12 +1635,13 @@ func main() {
 	// The split keeps each PDF under Cloudflare Pages' 25 MiB per-file limit.
 	nonLatinScript := map[string]bool{
 		// Arabic / Perso-Arabic
-		"ar": true, "fa": true, "ur": true, "ug": true, "dih": true,
+		"ar": true, "fa": true, "ur": true, "ug": true,
 		"kas": true, "snd": true,
+		"pus": true, "ckb": true, "bal": true, "brh": true,
 		// CJK
 		"zh-Hans": true, "zh-Hant": true, "ja": true, "ko": true,
 		// Devanagari (standard + variants)
-		"hi": true, "mr": true, "ne": true,
+		"hi": true, "mr": true, "ne": true, "san": true,
 		"mr-b": true, "mr-c": true,
 		"bho-b": true, "bho-c": true, "bho-d": true,
 		"gbm": true, "gbm-b": true,
@@ -1641,13 +1651,15 @@ func main() {
 		"bn": true, "ben": true, "ben-b": true, "ben-c": true,
 		// Other Indic scripts
 		"ta": true, "te": true, "ml": true,
-		"kn": true, "gu": true,
+		"kn": true, "tcy": true, "gu": true,
 		"pa": true, "pan": true, "pan-b": true,
 		"si": true, "sin": true,
 		// Southeast Asian
 		"th": true, "lo": true, "km": true, "my": true,
 		// Other non-Latin
 		"he": true, "am": true, "ti": true,
+		"hy": true,                         // Armenian
+		"ory": true, "ory-b": true,          // Odia/Oriya
 	}
 
 	// Phelps-only mode: all languages for one prayer code (e.g. Short Obligatory Prayer)
