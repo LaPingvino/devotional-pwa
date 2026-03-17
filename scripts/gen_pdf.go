@@ -1546,6 +1546,7 @@ func main() {
 	bothMode    := flag.Bool("both", false, "Generate both PDF and EPUB")
 	indexMode   := flag.Bool("index", false, "Generate first-lines concordance index")
 	combinedMode  := flag.Bool("combined", false, "Generate combined PDF/EPUB for all languages")
+	phelpsOnly    := flag.String("phelps-only", "", "Generate all-languages document for one phelps code (e.g. BH11209)")
 	title      := flag.String("title", "Bahá'í Prayers", "Document title")
 	phelpsBase := flag.String("phelps-base-url", "", "Base URL for phelps links")
 	flag.Parse()
@@ -1611,6 +1612,72 @@ func main() {
 		"th": true, "lo": true, "km": true, "my": true,
 		// Other non-Latin
 		"he": true, "am": true, "ti": true,
+	}
+
+	// Phelps-only mode: all languages for one prayer code (e.g. Short Obligatory Prayer)
+	if *phelpsOnly != "" {
+		code := strings.ReplaceAll(*phelpsOnly, "'", "''")
+		rows := doltCSV(*db, fmt.Sprintf(
+			`SELECT w.language, w.phelps, w.text, COALESCE(w.name,'')
+			 FROM writings w
+			 WHERE w.phelps = '%s' AND w.source = '%s'
+			   AND w.phelps IS NOT NULL AND w.phelps <> ''
+			 ORDER BY w.language`, code, *source))
+
+		byLang := map[string][]Prayer{}
+		var langOrder []string
+		for _, row := range rows {
+			if len(row) < 4 {
+				continue
+			}
+			l := row[0]
+			if _, seen := byLang[l]; !seen {
+				langOrder = append(langOrder, l)
+			}
+			byLang[l] = append(byLang[l], Prayer{
+				Language: l, Phelps: row[1], Text: row[2], Name: row[3],
+			})
+		}
+		sort.Slice(langOrder, func(i, j int) bool {
+			ni := allLangNames[langOrder[i]]
+			nj := allLangNames[langOrder[j]]
+			if ni == "" { ni = langOrder[i] }
+			if nj == "" { nj = langOrder[j] }
+			return ni < nj
+		})
+
+		var sections []langSection
+		for _, l := range langOrder {
+			lname := allLangNames[l]
+			if lname == "" { lname = l }
+			sections = append(sections, langSection{lang: l, lname: lname, prayers: byLang[l]})
+		}
+
+		docTitle := *title + " — Short Obligatory Prayer — All Languages"
+		outBase := filepath.Join(dir, "prayers_sop")
+		if *output != "" {
+			outBase = strings.TrimSuffix(*output, filepath.Ext(*output))
+		}
+		fmt.Printf("Phelps-only %s: %d language versions\n", *phelpsOnly, len(sections))
+		if !*epubMode {
+			renderCombinedPDF(sections, docTitle, *phelpsBase, translationsMap, outBase+".pdf", *fontDir)
+		}
+		if *epubMode || *bothMode {
+			var buf strings.Builder
+			buf.WriteString(`<!DOCTYPE html><html lang="mul"><head><meta charset="UTF-8"><title>` +
+				template.HTMLEscapeString(docTitle) + `</title>` +
+				`<style>body{font-family:"Noto Serif",serif;font-size:11pt;line-height:1.7}` +
+				`.prayer{margin-bottom:2em}.meta{font-size:8pt;color:#aaa;font-family:monospace}` +
+				`p.verse{margin-left:1.5em;font-style:italic}p.note{font-size:9pt;color:#666}</style>` +
+				`</head><body><h1>` + template.HTMLEscapeString(docTitle) + `</h1>`)
+			for _, ls := range sections {
+				buf.WriteString(generateHTML(ls.prayers, ls.lang,
+					*title+" — "+ls.lname, *phelpsBase, nil, true, true, nil))
+			}
+			buf.WriteString("</body></html>")
+			renderEPUB(buf.String(), outBase+".epub", "sop", docTitle, "mul")
+		}
+		return
 	}
 
 	// Combined mode: PDFs split by script family + a single EPUB for all
