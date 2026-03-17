@@ -567,6 +567,20 @@ func subsetTTF(inputPath string, runes map[rune]bool) string {
 		fmt.Fprintf(os.Stderr, "  subset %s: %dKB → %dKB\n",
 			filepath.Base(inputPath), orig.Size()/1024, sub.Size()/1024)
 	}
+	// If pyftsubset produced an empty or suspiciously tiny file (<1KB), it
+	// likely failed silently (e.g. all requested codepoints are in Basic Latin
+	// which pyftsubset may strip from a serif font's subset).  Fall back to
+	// the full font so gofpdf doesn't crash with "undefined font".
+	if sub == nil || sub.Size() < 1024 {
+		fmt.Fprintf(os.Stderr, "  subset too small (%dB) — falling back to full font for %s\n",
+			func() int64 {
+				if sub != nil {
+					return sub.Size()
+				}
+				return 0
+			}(), filepath.Base(inputPath))
+		return ""
+	}
 
 	return outPath
 }
