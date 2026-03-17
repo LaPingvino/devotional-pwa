@@ -330,7 +330,12 @@ body {
 .lang-dropdown-list {
   max-height: 220px;
   overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
 }
+.lang-dropdown-list::-webkit-scrollbar { width: 6px; }
+.lang-dropdown-list::-webkit-scrollbar-track { background: transparent; }
+.lang-dropdown-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
 .lang-dropdown-list a {
   display: flex;
   justify-content: space-between;

@@ -84,11 +84,7 @@
         <input type="search" class="lang-filter-input" placeholder="Filter languages…" autocomplete="off">
         {{ end }}
         <div class="lang-dropdown-list">
-          {{ range $sc.translations }}
-          <a href="/prayers/{{ .language }}/#{{ $sc.code }}"
-             data-code="{{ .language | lower }}" data-name="{{ .lang_name | lower }}">
-            {{ .lang_name }}<span class="lang-code-badge">{{ .language }}</span>
-          </a>
+          {{ range $sc.translations }}<a href="/prayers/{{ .language }}/#{{ $sc.code }}" data-code="{{ .language | lower }}" data-name="{{ .lang_name | lower }}">{{ .lang_name }}<span class="lang-code-badge">{{ .language }}</span></a>
           {{ end }}
         </div>
       </div>
