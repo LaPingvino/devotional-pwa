@@ -284,7 +284,7 @@ body {
 .prefix-btn.translated-only.active { background: var(--accent); color: #fff; }
 
 /* Language dropdown (replaces chip lists) */
-.lang-dropdown { position: relative; display: inline-block; }
+.lang-dropdown { display: inline-block; }
 .lang-dropdown > summary {
   display: inline-flex;
   align-items: center;
@@ -303,17 +303,15 @@ body {
 .lang-dropdown[open] > summary { background: var(--accent); color: #fff; }
 .lang-dropdown[open] > summary::after { content: ' ▴'; }
 .lang-dropdown-panel {
-  position: absolute;
-  z-index: 60;
-  top: calc(100% + 4px);
-  left: 0;
+  display: block;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 6px;
-  box-shadow: 0 4px 16px rgba(0,0,0,.15);
+  box-shadow: 0 2px 8px rgba(0,0,0,.12);
   min-width: 220px;
-  max-width: 300px;
+  max-width: 320px;
   padding: .4rem;
+  margin-top: .3rem;
 }
 .lang-dropdown-panel input {
   width: 100%;
