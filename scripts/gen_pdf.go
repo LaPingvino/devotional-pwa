@@ -53,6 +53,7 @@ var rtlLangs = map[string]bool{
 	"ug": true,                           // Uyghur
 	"pus": true, "ckb": true,             // Pashto, Sorani Kurdish
 	"bal": true, "brh": true,             // Balochi, Brahui
+	"tuk": true, "pan-b": true, "raj-b": true, // Arabic-script variants
 }
 
 // ── Data types ─────────────────────────────────────────────────────────────────
@@ -433,29 +434,34 @@ var langScriptFont = map[string]string{
 	"kas": "NotoNaskhArabic", "snd": "NotoNaskhArabic",
 	"pus": "NotoNaskhArabic", "ckb": "NotoNaskhArabic", // Pashto, Sorani Kurdish
 	"bal": "NotoNaskhArabic", "brh": "NotoNaskhArabic", // Balochi, Brahui
+	"tuk": "NotoNaskhArabic",                           // Turkmen (Arabic script variant)
+	"pan-b": "NotoNaskhArabic",                         // Punjabi Shahmukhi (Arabic script)
+	"raj-b": "NotoNaskhArabic",                         // Rajasthani (Arabic script variant)
 	// CJK (one font covers all CJK variants)
 	"zh-Hans": "NotoSerifCJK", "zh-Hant": "NotoSerifCJK",
 	"ja": "NotoSerifCJK", "ko": "NotoSerifCJK",
 	// Devanagari — standard + variant codes (mr-b, mr-c = Marathi; bho-* = Bhojpuri Devanagari)
 	"hi": "NotoSerifDevanagari", "mr": "NotoSerifDevanagari", "ne": "NotoSerifDevanagari",
 	"san": "NotoSerifDevanagari", // Sanskrit
-	"mr-b": "NotoSerifDevanagari", "mr-c": "NotoSerifDevanagari",
-	"bho-b": "NotoSerifDevanagari", "bho-c": "NotoSerifDevanagari", "bho-d": "NotoSerifDevanagari",
-	"gbm": "NotoSerifDevanagari", "gbm-b": "NotoSerifDevanagari", // Garhwali
-	"raj": "NotoSerifDevanagari", "raj-b": "NotoSerifDevanagari", // Rajasthani
+	"mr-b": "NotoSerifDevanagari",                      // mr-c is romanized, omitted
+	"bho-b": "NotoSerifDevanagari", "bho-d": "NotoSerifDevanagari", // bho-c is romanized, omitted
+	"gbm": "NotoSerifDevanagari", "gbm-b": "NotoSerifDevanagari",   // Garhwali
+	"raj": "NotoSerifDevanagari",                        // raj-b is Arabic script, handled above
 	"raj-c": "NotoSerifDevanagari", "raj-d": "NotoSerifDevanagari",
 	"unr": "NotoSerifDevanagari", "unr-b": "NotoSerifDevanagari", "unr-c": "NotoSerifDevanagari", // Mundari
+	"gon": "NotoSerifDevanagari", "kfy": "NotoSerifDevanagari", "kru": "NotoSerifDevanagari",     // Gondi, Kumaoni, Kurukh
+	"ory-b": "NotoSerifDevanagari", // ory-b uses Devanagari, not Odia script
 	// Bengali — standard + variants
 	"bn": "NotoSerifBengali",
 	"ben": "NotoSerifBengali", "ben-b": "NotoSerifBengali", "ben-c": "NotoSerifBengali",
 	// Other Indic
 	"ta": "NotoSerifTamil",
-	"te": "NotoSerifTelugu",
+	"te": "NotoSerifTelugu", "lmn": "NotoSerifTelugu", // Telugu, Lambadi
 	"ml": "NotoSerifMalayalam",
 	"kn": "NotoSerifKannada", "tcy": "NotoSerifKannada", // Kannada, Tulu
-	"gu": "NotoSerifGujarati",
+	"gu": "NotoSerifGujarati", "dng": "NotoSerifGujarati", // Gujarati script
 	"pa": "NotoSerifGurmukhi",
-	"pan": "NotoSerifGurmukhi", "pan-b": "NotoSerifGurmukhi", // Punjabi variants
+	"pan": "NotoSerifGurmukhi", // pan-b is Shahmukhi (Arabic), handled above
 	"si": "NotoSerifSinhala", "sin": "NotoSerifSinhala",      // Sinhala variants
 	// Southeast Asian
 	"th": "NotoSerifThai",
@@ -466,7 +472,7 @@ var langScriptFont = map[string]string{
 	"he": "NotoSerifHebrew",
 	"am": "NotoSerifEthiopic", "ti": "NotoSerifEthiopic",
 	"hy": "NotoSerifArmenian",          // Armenian
-	"ory": "NotoSerifOriya", "ory-b": "NotoSerifOriya", // Odia/Oriya
+	"ory": "NotoSerifOriya", "kxu": "NotoSerifOriya", // Odia/Oriya script (ory-b uses Devanagari)
 }
 
 // scriptFontFile maps a font family name to its TTF/OTF filename.
@@ -1638,28 +1644,31 @@ func main() {
 		"ar": true, "fa": true, "ur": true, "ug": true,
 		"kas": true, "snd": true,
 		"pus": true, "ckb": true, "bal": true, "brh": true,
+		"tuk": true, "pan-b": true, "raj-b": true,
 		// CJK
 		"zh-Hans": true, "zh-Hant": true, "ja": true, "ko": true,
 		// Devanagari (standard + variants)
 		"hi": true, "mr": true, "ne": true, "san": true,
-		"mr-b": true, "mr-c": true,
-		"bho-b": true, "bho-c": true, "bho-d": true,
+		"mr-b": true,                              // mr-c is romanized Latin
+		"bho-b": true, "bho-d": true,              // bho-c is romanized Latin
 		"gbm": true, "gbm-b": true,
-		"raj": true, "raj-b": true, "raj-c": true, "raj-d": true,
+		"raj": true, "raj-c": true, "raj-d": true, // raj-b is Arabic, handled above
 		"unr": true, "unr-b": true, "unr-c": true,
+		"gon": true, "kfy": true, "kru": true,     // Gondi, Kumaoni, Kurukh (Devanagari)
+		"ory-b": true,                             // Devanagari script variant
 		// Bengali (standard + variants)
 		"bn": true, "ben": true, "ben-b": true, "ben-c": true,
 		// Other Indic scripts
-		"ta": true, "te": true, "ml": true,
-		"kn": true, "tcy": true, "gu": true,
-		"pa": true, "pan": true, "pan-b": true,
+		"ta": true, "te": true, "lmn": true, "ml": true,
+		"kn": true, "tcy": true, "gu": true, "dng": true,
+		"pa": true, "pan": true, // pan-b is Arabic, handled above
 		"si": true, "sin": true,
 		// Southeast Asian
 		"th": true, "lo": true, "km": true, "my": true,
 		// Other non-Latin
 		"he": true, "am": true, "ti": true,
 		"hy": true,                         // Armenian
-		"ory": true, "ory-b": true,          // Odia/Oriya
+		"ory": true, "kxu": true,             // Odia/Oriya script
 	}
 
 	// Phelps-only mode: all languages for one prayer code (e.g. Short Obligatory Prayer)
