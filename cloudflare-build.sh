@@ -97,7 +97,7 @@ go run scripts/gen_pdf.go \
   --out-dir ./static/downloads \
   --phelps-base-url /phelps/
 
-# Generate combined all-languages PDF and EPUB
+# Generate combined all-languages PDFs and EPUB (Latin/European + Asian/Other + all)
 echo "Generating combined all-languages PDF and EPUB..."
 go run scripts/gen_pdf.go \
   --db ./bahaiwritings \
@@ -107,6 +107,17 @@ go run scripts/gen_pdf.go \
   --font-dir ./fonts \
   --out-dir ./static/downloads \
   --phelps-base-url /phelps/
+
+# Generate Short Obligatory Prayer in all languages
+echo "Generating Short Obligatory Prayer (BH11209) all-languages document..."
+go run scripts/gen_pdf.go \
+  --db ./bahaiwritings \
+  --phelps-only BH11209 \
+  --both \
+  --font-dir ./fonts \
+  --out-dir ./static/downloads \
+  --phelps-base-url /phelps/
+
 echo "PDF/EPUB generation complete: $(ls static/downloads/*.pdf 2>/dev/null | wc -l) PDFs"
 
 # Build Hugo site
