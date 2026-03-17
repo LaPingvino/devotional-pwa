@@ -1723,7 +1723,7 @@ func main() {
 		}
 		if *epubMode || *bothMode {
 			var buf strings.Builder
-			buf.WriteString(`<!DOCTYPE html><html lang="mul"><head><meta charset="UTF-8"><title>` +
+			buf.WriteString(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>` +
 				template.HTMLEscapeString(docTitle) + `</title>` +
 				`<style>body{font-family:"Noto Serif",serif;font-size:11pt;line-height:1.7}` +
 				`.prayer{margin-bottom:2em}.meta{font-size:8pt;color:#aaa;font-family:monospace}` +
@@ -1734,7 +1734,7 @@ func main() {
 					*title+" — "+ls.lname, *phelpsBase, noTrans, true, true, nil))
 			}
 			buf.WriteString("</body></html>")
-			renderEPUB(buf.String(), outBase+".epub", "sop", docTitle, "mul")
+			renderEPUB(buf.String(), outBase+".epub", "sop", docTitle, "en")
 		}
 		return
 	}
@@ -1784,7 +1784,7 @@ func main() {
 			// Single EPUB with all languages — one HTML doc, one chapter
 			var buf strings.Builder
 			buf.WriteString(`<!DOCTYPE html>
-<html lang="mul"><head>
+<html lang="en"><head>
 <meta charset="UTF-8">
 <title>` + template.HTMLEscapeString(combinedTitle) + `</title>
 <style>
@@ -1810,7 +1810,7 @@ p.note { font-size: 9pt; color: #666; }
 				buf.WriteString(generateHTML(ls.prayers, ls.lang, docTitle, *phelpsBase, translationsMap, false, true, includedLangs))
 			}
 			buf.WriteString("</body>\n</html>")
-			renderEPUB(buf.String(), outBase+".epub", "all", combinedTitle, "mul")
+			renderEPUB(buf.String(), outBase+".epub", "all", combinedTitle, "en")
 		}
 		return
 	}
