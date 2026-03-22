@@ -1,0 +1,16 @@
+{{ partial "head.html" (dict "Title" "Qur'an Translations" "Lang" "en") }}
+<div class="main-content" style="max-width:600px; margin:2rem auto; padding:0 1rem;">
+  <h1>Qur'an Translations</h1>
+  <p style="color:var(--text-secondary); margin-bottom:1.5rem;">
+    Root-recovery translations of the Holy Qur'an in {{ len .Pages }} languages.
+  </p>
+  <div class="lang-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:.75rem;">
+    {{ range .Pages }}
+    <a href="{{ .RelPermalink }}" class="lang-card" style="display:block; padding:.75rem 1rem; background:var(--surface); border:1px solid var(--border); border-radius:8px; text-decoration:none; color:var(--text);">
+      <strong>{{ .Params.langCode | upper }}</strong>
+      <span style="color:var(--text-secondary); font-size:.85rem; margin-left:.5rem;">114 surahs</span>
+    </a>
+    {{ end }}
+  </div>
+</div>
+{{ partial "foot.html" . }}

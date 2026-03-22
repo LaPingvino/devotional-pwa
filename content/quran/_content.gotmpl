@@ -1,0 +1,18 @@
+{{/* Generate one page per language from assets/quran/{lang}.json */}}
+{{ $quranDir := "quran" }}
+{{ range resources.Match "quran/*.json" }}
+  {{ $data := . | transform.Unmarshal }}
+  {{ $lang := $data.language }}
+  {{ $rtl := false }}
+  {{ range site.Params.rtlLanguages }}{{ if eq . $lang }}{{ $rtl = true }}{{ end }}{{ end }}
+  {{ $.AddPage (dict
+    "path"    $lang
+    "title"   (printf "Qur'an (%s)" $lang)
+    "kind"    "page"
+    "params"  (dict
+      "langCode"  $lang
+      "rtl"       $rtl
+      "surahs"    $data.surahs
+    )
+  ) }}
+{{ end }}

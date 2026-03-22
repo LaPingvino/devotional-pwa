@@ -1,0 +1,298 @@
+{{ $lang := .Params.langCode }}
+{{ $rtl := .Params.rtl }}
+{{ $surahs := .Params.surahs }}
+
+{{ partial "head.html" (dict "Title" (printf "Qur'an (%s)" $lang) "Lang" $lang "Params" (dict "rtl" $rtl)) }}
+<div class="page-body">
+
+  {{/* ── Desktop sidebar: surah list ── */}}
+  <aside class="sidebar quran-sidebar" id="surah-sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-heading">Surahs</div>
+      {{ range $surahs }}
+      <a href="#surah-{{ .number }}" class="surah-link" data-surah="{{ .number }}">
+        <span class="surah-num">{{ .number }}.</span> {{ .name_ar }}
+      </a>
+      {{ end }}
+    </div>
+    <div class="sidebar-section" style="margin-top:1rem">
+      <a href="/" style="padding:.4rem 1rem; display:block; font-size:.85rem; color:var(--text-secondary)">&#8592; All languages</a>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <h1>Qur'an <span style="color:var(--text-secondary); font-size:.85rem;">({{ $lang }})</span></h1>
+
+    {{/* ── Mobile surah selector ── */}}
+    <div class="quran-mobile-nav" id="mobile-surah-nav">
+      <select id="surah-select-mobile">
+        {{ range $surahs }}
+        <option value="{{ .number }}">{{ .number }}. {{ .name_ar }} — {{ .name_trans }}</option>
+        {{ end }}
+      </select>
+    </div>
+
+    {{/* ── Language switcher ── */}}
+    <div style="margin-bottom:1rem;">
+      <label for="quran-lang-switch" style="font-size:.85rem; color:var(--text-secondary);">Language:</label>
+      <select id="quran-lang-switch" style="padding:.2rem .4rem; border:1px solid var(--border); border-radius:4px; font-size:.85rem; background:var(--surface); color:var(--text);">
+        <option value="{{ $lang }}" selected>{{ $lang }}</option>
+      </select>
+    </div>
+
+    {{/* ── Surah content ── */}}
+    <div id="surah-content"{{ if $rtl }} dir="rtl"{{ end }}>
+      {{ range $surahs }}
+      {{ $surahNum := .number }}
+      <section class="surah-section" id="surah-{{ .number }}" data-surah="{{ .number }}">
+        <div class="surah-header">
+          <span class="surah-number">{{ .number }}</span>
+          <div>
+            <span class="surah-name-ar">{{ .name_ar }}</span>
+            <span class="surah-name-trans">{{ .name_trans }}</span>
+          </div>
+        </div>
+
+        <div class="verse-list">
+          {{ range .verses }}
+          <div class="verse" id="surah-{{ $surahNum }}-ayah-{{ .ayah }}">
+            <span class="ayah-num">{{ .ayah }}</span>
+            <span class="ayah-text">{{ .text }}</span>
+          </div>
+          {{ end }}
+        </div>
+
+        {{ with .commentary }}
+        <details class="surah-commentary">
+          <summary>Commentary</summary>
+          <div class="commentary-text">{{ . | markdownify }}</div>
+        </details>
+        {{ end }}
+      </section>
+      {{ end }}
+    </div>
+  </main>
+</div>
+
+<style>
+/* ── Qur'an-specific styles ─────────────────────────── */
+
+/* Surah link in sidebar */
+.quran-sidebar .surah-link {
+  font-size: .85rem;
+  padding: .3rem 1rem;
+}
+.surah-num {
+  display: inline-block;
+  min-width: 2em;
+  text-align: right;
+  margin-right: .4em;
+  color: var(--text-secondary);
+  font-size: .8rem;
+}
+
+/* Mobile surah nav — hidden on desktop */
+.quran-mobile-nav {
+  display: none;
+  margin-bottom: 1rem;
+}
+.quran-mobile-nav select {
+  width: 100%;
+  padding: .4rem .5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: .9rem;
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* Surah sections */
+.surah-section {
+  display: none;
+  scroll-margin-top: 70px;
+}
+.surah-section.active {
+  display: block;
+}
+.surah-header {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  padding: .75rem 0;
+  margin-bottom: .5rem;
+  border-bottom: 2px solid var(--accent);
+}
+.surah-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 50%;
+  font-size: 1rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.surah-name-ar {
+  display: block;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+.surah-name-trans {
+  display: block;
+  font-size: .85rem;
+  color: var(--text-secondary);
+}
+
+/* Verses */
+.verse-list {
+  padding: .5rem 0;
+}
+.verse {
+  display: flex;
+  gap: .75rem;
+  padding: .4rem 0;
+  line-height: 1.8;
+  border-bottom: 1px solid #f0f0f0;
+}
+.verse:last-child {
+  border-bottom: none;
+}
+.ayah-num {
+  flex-shrink: 0;
+  min-width: 2rem;
+  text-align: center;
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--accent);
+  padding-top: .3rem;
+  font-family: monospace;
+}
+.ayah-text {
+  flex: 1;
+  font-size: .95rem;
+}
+
+/* RTL verse layout */
+[dir="rtl"] .verse {
+  flex-direction: row-reverse;
+}
+[dir="rtl"] .ayah-text {
+  font-size: 1.1rem;
+  line-height: 2.2;
+}
+
+/* Commentary */
+.surah-commentary {
+  margin-top: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.surah-commentary summary {
+  padding: .6rem .75rem;
+  background: #f9f9f9;
+  cursor: pointer;
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  user-select: none;
+}
+.surah-commentary summary:hover {
+  background: #fff3ef;
+}
+.commentary-text {
+  padding: .75rem;
+  font-size: .9rem;
+  line-height: 1.7;
+}
+.commentary-text p {
+  margin-bottom: .5rem;
+}
+
+/* ── Responsive ── */
+@media (max-width: 768px) {
+  #surah-sidebar {
+    display: none;
+  }
+  .quran-mobile-nav {
+    display: block;
+  }
+}
+</style>
+
+<script>
+(function() {
+  const sections = document.querySelectorAll('.surah-section');
+  const sidebarLinks = document.querySelectorAll('.surah-link');
+  const mobileSelect = document.getElementById('surah-select-mobile');
+  const langSwitch = document.getElementById('quran-lang-switch');
+
+  // Populate language switcher from available quran pages
+  // We detect sibling pages by scanning links — or we can just build from known data
+  // For now, the lang switcher navigates to /quran/{lang}/#{surah}
+  // Additional languages will be added via JS fetch or hardcoded in template
+
+  function showSurah(num) {
+    sections.forEach(s => s.classList.toggle('active', s.dataset.surah === String(num)));
+    sidebarLinks.forEach(l => l.classList.toggle('active', l.dataset.surah === String(num)));
+    if (mobileSelect) mobileSelect.value = num;
+    history.replaceState(null, '', '#surah-' + num);
+  }
+
+  // Sidebar click
+  sidebarLinks.forEach(link => {
+    link.addEventListener('click', e => {
+      e.preventDefault();
+      showSurah(link.dataset.surah);
+    });
+  });
+
+  // Mobile select
+  if (mobileSelect) {
+    mobileSelect.addEventListener('change', () => showSurah(mobileSelect.value));
+  }
+
+  // Language switcher
+  if (langSwitch) {
+    langSwitch.addEventListener('change', () => {
+      const targetLang = langSwitch.value;
+      const currentHash = location.hash || '';
+      window.location.href = '/quran/' + targetLang + '/' + currentHash;
+    });
+  }
+
+  // Populate language switcher with other available languages
+  // Fetch the quran index or scan links — simple approach: fetch directory listing
+  // For robustness, we detect from <link> tags or a data attribute. For now, try fetching sibling pages.
+  fetch('/quran/')
+    .then(r => r.ok ? r.text() : '')
+    .then(html => {
+      if (!html) return;
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const links = doc.querySelectorAll('a[href*="/quran/"]');
+      const langs = new Set();
+      links.forEach(a => {
+        const m = a.href.match(/\/quran\/([a-z-]+)\/?/i);
+        if (m) langs.add(m[1]);
+      });
+      langs.forEach(l => {
+        if (l === '{{ $lang }}') return;
+        const opt = document.createElement('option');
+        opt.value = l;
+        opt.textContent = l;
+        langSwitch.appendChild(opt);
+      });
+    })
+    .catch(() => {});
+
+  // Init: show surah from hash or default to 1
+  const hashMatch = location.hash.match(/surah-(\d+)/);
+  showSurah(hashMatch ? hashMatch[1] : 1);
+})();
+</script>
+{{ partial "foot.html" . }}
