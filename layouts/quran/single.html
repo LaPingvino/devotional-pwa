@@ -1,6 +1,7 @@
 {{ $lang := .Params.langCode }}
 {{ $rtl := .Params.rtl }}
 {{ $surahs := .Params.surahs }}
+{{ $isArabic := eq $lang "ar" }}
 
 {{ partial "head.html" (dict "Title" (printf "Qur'an (%s)" $lang) "Lang" $lang "Params" (dict "rtl" $rtl)) }}
 <div class="page-body">
@@ -32,15 +33,25 @@
       </select>
     </div>
 
-    {{/* ── Language switcher ── */}}
-    <div style="margin-bottom:1rem;">
-      <label for="quran-lang-switch" style="font-size:.85rem; color:var(--text-secondary);">Language:</label>
-      <select id="quran-lang-switch" style="padding:.2rem .4rem; border:1px solid var(--border); border-radius:4px; font-size:.85rem; background:var(--surface); color:var(--text);">
-        <option value="{{ $lang }}" selected>{{ $lang }}</option>
-      </select>
+    {{/* ── Controls row: language + Arabic toggle ── */}}
+    <div class="quran-controls">
+      <div>
+        <label for="quran-lang-switch">Language:</label>
+        <select id="quran-lang-switch">
+          <option value="{{ $lang }}" selected>{{ $lang }}</option>
+        </select>
+      </div>
+      {{ if not $isArabic }}
+      <label class="arabic-toggle">
+        <input type="checkbox" id="show-arabic"> Show Arabic
+      </label>
+      {{ end }}
     </div>
 
     {{/* ── Surah content ── */}}
+    {{ $basmalah := "" }}
+    {{ with index $surahs 0 }}{{ with index .verses 0 }}{{ $basmalah = .text }}{{ end }}{{ end }}
+
     <div id="surah-content"{{ if $rtl }} dir="rtl"{{ end }}>
       {{ range $surahs }}
       {{ $surahNum := .number }}
@@ -53,11 +64,17 @@
           </div>
         </div>
 
+        {{ if and (ne $surahNum 1) (ne $surahNum 9) }}
+        <div class="basmalah">{{ $basmalah }}</div>
+        {{ end }}
+
         <div class="verse-list">
           {{ range .verses }}
-          <div class="verse" id="surah-{{ $surahNum }}-ayah-{{ .ayah }}">
+          <div class="verse" id="surah-{{ $surahNum }}-ayah-{{ .ayah }}" data-surah="{{ $surahNum }}" data-ayah="{{ .ayah }}">
             <span class="ayah-num">{{ .ayah }}</span>
-            <span class="ayah-text">{{ .text }}</span>
+            <div class="ayah-body">
+              <span class="ayah-text">{{ .text }}</span>
+            </div>
           </div>
           {{ end }}
         </div>
@@ -77,7 +94,6 @@
 <style>
 /* ── Qur'an-specific styles ─────────────────────────── */
 
-/* Surah link in sidebar */
 .quran-sidebar .surah-link {
   font-size: .85rem;
   padding: .3rem 1rem;
@@ -91,7 +107,6 @@
   font-size: .8rem;
 }
 
-/* Mobile surah nav — hidden on desktop */
 .quran-mobile-nav {
   display: none;
   margin-bottom: 1rem;
@@ -104,6 +119,58 @@
   font-size: .9rem;
   background: var(--surface);
   color: var(--text);
+}
+
+/* Controls row */
+.quran-controls {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 1rem;
+  font-size: .85rem;
+  color: var(--text-secondary);
+}
+.quran-controls select {
+  padding: .2rem .4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: .85rem;
+  background: var(--surface);
+  color: var(--text);
+}
+.arabic-toggle {
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+}
+
+/* Basmalah */
+.basmalah {
+  text-align: center;
+  padding: .6rem 0;
+  font-style: italic;
+  color: var(--text-secondary);
+  border-bottom: 1px solid #f0f0f0;
+  margin-bottom: .25rem;
+}
+[dir="rtl"] .basmalah {
+  font-style: normal;
+  font-size: 1.2rem;
+  line-height: 2;
+}
+.basmalah-ar {
+  display: none;
+  text-align: center;
+  padding: .4rem 0;
+  font-size: 1.15rem;
+  line-height: 2;
+  color: var(--accent);
+  direction: rtl;
+}
+.show-arabic .basmalah-ar {
+  display: block;
 }
 
 /* Surah sections */
@@ -170,9 +237,27 @@
   padding-top: .3rem;
   font-family: monospace;
 }
-.ayah-text {
+.ayah-body {
   flex: 1;
+}
+.ayah-text {
   font-size: .95rem;
+}
+
+/* Inline Arabic */
+.ayah-arabic {
+  display: none;
+  direction: rtl;
+  text-align: right;
+  font-size: 1.1rem;
+  line-height: 2;
+  color: var(--accent);
+  margin-top: .2rem;
+  padding-top: .2rem;
+  border-top: 1px dotted #e0e0e0;
+}
+.show-arabic .ayah-arabic {
+  display: block;
 }
 
 /* RTL verse layout */
@@ -213,7 +298,6 @@
   margin-bottom: .5rem;
 }
 
-/* ── Responsive ── */
 @media (max-width: 768px) {
   #surah-sidebar {
     display: none;
@@ -226,15 +310,16 @@
 
 <script>
 (function() {
+  const LANG = '{{ $lang }}';
+  const IS_ARABIC = {{ if $isArabic }}true{{ else }}false{{ end }};
   const sections = document.querySelectorAll('.surah-section');
   const sidebarLinks = document.querySelectorAll('.surah-link');
   const mobileSelect = document.getElementById('surah-select-mobile');
   const langSwitch = document.getElementById('quran-lang-switch');
+  const arabicToggle = document.getElementById('show-arabic');
+  const surahContent = document.getElementById('surah-content');
 
-  // Populate language switcher from available quran pages
-  // We detect sibling pages by scanning links — or we can just build from known data
-  // For now, the lang switcher navigates to /quran/{lang}/#{surah}
-  // Additional languages will be added via JS fetch or hardcoded in template
+  let arabicData = null; // lazy-loaded
 
   function showSurah(num) {
     sections.forEach(s => s.classList.toggle('active', s.dataset.surah === String(num)));
@@ -243,7 +328,6 @@
     history.replaceState(null, '', '#surah-' + num);
   }
 
-  // Sidebar click
   sidebarLinks.forEach(link => {
     link.addEventListener('click', e => {
       e.preventDefault();
@@ -251,29 +335,22 @@
     });
   });
 
-  // Mobile select
   if (mobileSelect) {
     mobileSelect.addEventListener('change', () => showSurah(mobileSelect.value));
   }
 
-  // Language switcher
   if (langSwitch) {
     langSwitch.addEventListener('change', () => {
-      const targetLang = langSwitch.value;
-      const currentHash = location.hash || '';
-      window.location.href = '/quran/' + targetLang + '/' + currentHash;
+      window.location.href = '/quran/' + langSwitch.value + '/' + (location.hash || '');
     });
   }
 
-  // Populate language switcher with other available languages
-  // Fetch the quran index or scan links — simple approach: fetch directory listing
-  // For robustness, we detect from <link> tags or a data attribute. For now, try fetching sibling pages.
+  // Populate language switcher
   fetch('/quran/')
     .then(r => r.ok ? r.text() : '')
     .then(html => {
       if (!html) return;
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(html, 'text/html');
+      const doc = new DOMParser().parseFromString(html, 'text/html');
       const links = doc.querySelectorAll('a[href*="/quran/"]');
       const langs = new Set();
       links.forEach(a => {
@@ -281,7 +358,7 @@
         if (m) langs.add(m[1]);
       });
       langs.forEach(l => {
-        if (l === '{{ $lang }}') return;
+        if (l === LANG) return;
         const opt = document.createElement('option');
         opt.value = l;
         opt.textContent = l;
@@ -290,7 +367,90 @@
     })
     .catch(() => {});
 
-  // Init: show surah from hash or default to 1
+  // Arabic inline toggle
+  if (arabicToggle && !IS_ARABIC) {
+    arabicToggle.addEventListener('change', async () => {
+      if (arabicToggle.checked) {
+        surahContent.classList.add('show-arabic');
+        if (!arabicData) {
+          try {
+            const resp = await fetch('/quran/ar.json');
+            if (resp.ok) {
+              arabicData = await resp.json();
+            }
+          } catch(e) {}
+          if (!arabicData) {
+            // Fallback: fetch the Arabic page and extract from DOM
+            try {
+              const resp = await fetch('/quran/ar/');
+              const html = await resp.text();
+              const doc = new DOMParser().parseFromString(html, 'text/html');
+              arabicData = {};
+              doc.querySelectorAll('.verse').forEach(v => {
+                const s = v.dataset.surah;
+                const a = v.dataset.ayah;
+                const txt = v.querySelector('.ayah-text');
+                if (s && a && txt) {
+                  if (!arabicData[s]) arabicData[s] = {};
+                  arabicData[s][a] = txt.textContent;
+                }
+              });
+            } catch(e) { console.warn('Could not load Arabic data', e); }
+          }
+        }
+        if (arabicData) {
+          injectArabic();
+        }
+      } else {
+        surahContent.classList.remove('show-arabic');
+      }
+    });
+  }
+
+  function injectArabic() {
+    // Inject Arabic text under each verse (if not already done)
+    document.querySelectorAll('.verse').forEach(v => {
+      if (v.querySelector('.ayah-arabic')) return;
+      const s = v.dataset.surah;
+      const a = v.dataset.ayah;
+      let arText = '';
+      if (arabicData.surahs) {
+        // JSON format from ar.json
+        const surah = arabicData.surahs.find(su => su.number == s);
+        if (surah) {
+          const verse = surah.verses.find(ve => ve.ayah == a);
+          if (verse) arText = verse.text;
+        }
+      } else {
+        // DOM-scraped format
+        arText = (arabicData[s] || {})[a] || '';
+      }
+      if (arText) {
+        const el = document.createElement('div');
+        el.className = 'ayah-arabic';
+        el.textContent = arText;
+        v.querySelector('.ayah-body').appendChild(el);
+      }
+    });
+    // Also inject Arabic basmalah
+    document.querySelectorAll('.basmalah').forEach(b => {
+      if (b.querySelector('.basmalah-ar')) return;
+      let arBasmalah = '';
+      if (arabicData.surahs) {
+        arBasmalah = arabicData.surahs[0]?.verses[0]?.text || '';
+      } else {
+        arBasmalah = (arabicData['1'] || {})['1'] || '';
+      }
+      if (arBasmalah) {
+        const el = document.createElement('div');
+        el.className = 'basmalah-ar';
+        el.textContent = arBasmalah;
+        b.after(el);
+      }
+    });
+  }
+
+  // Init
   const hashMatch = location.hash.match(/surah-(\d+)/);
   showSurah(hashMatch ? hashMatch[1] : 1);
 })();
