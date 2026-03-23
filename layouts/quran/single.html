@@ -236,20 +236,73 @@
   font-size: .95rem;
 }
 
-/* Inline Arabic */
-.ayah-arabic {
+/* Bilingual mirror table (shown when Arabic toggled on) */
+.bilingual-table {
   display: none;
+  width: 100%;
+  border-collapse: collapse;
+}
+.show-arabic .verse-list {
+  display: none;
+}
+.show-arabic .bilingual-table {
+  display: table;
+}
+.bilingual-table td {
+  vertical-align: top;
+  padding: .35rem .5rem;
+  border-bottom: 1px solid #f0f0f0;
+  line-height: 1.8;
+}
+.bilingual-table tr:last-child td {
+  border-bottom: none;
+}
+.bilingual-table .bt-ar {
   direction: rtl;
   text-align: right;
-  font-size: 1.1rem;
-  line-height: 2;
-  color: var(--accent);
-  margin-top: .2rem;
-  padding-top: .2rem;
-  border-top: 1px dotted #e0e0e0;
+  width: 45%;
+  font-size: 1.05rem;
+  line-height: 2.2;
+  color: #333;
 }
-.show-arabic .ayah-arabic {
+.bilingual-table .bt-num {
+  width: 3rem;
+  text-align: center;
+  font-size: .75rem;
+  font-weight: 600;
+  color: var(--accent);
+  font-family: monospace;
+  padding-top: .5rem;
+}
+.bilingual-table .bt-trans {
+  text-align: left;
+  width: 45%;
+  font-size: .95rem;
+}
+.basmalah-ar {
+  display: none;
+  text-align: center;
+  padding: .4rem 0;
+  font-size: 1.15rem;
+  line-height: 2;
+  color: var(--text-secondary);
+  direction: rtl;
+}
+.show-arabic .basmalah-ar {
   display: block;
+}
+@media (max-width: 600px) {
+  .bilingual-table .bt-ar,
+  .bilingual-table .bt-num,
+  .bilingual-table .bt-trans {
+    display: block;
+    width: 100%;
+  }
+  .bilingual-table .bt-ar { text-align: right; padding-bottom: 0; }
+  .bilingual-table .bt-num { text-align: center; padding: .1rem 0; }
+  .bilingual-table .bt-trans { padding-top: 0; }
+  .bilingual-table tr { display: block; border-bottom: 1px solid #f0f0f0; padding: .3rem 0; }
+  .bilingual-table td { border-bottom: none; }
 }
 
 /* RTL verse layout */
@@ -404,40 +457,52 @@
     });
   }
 
+  // Build a lookup: arVerses[surahNum][ayahNum] = text
+  function buildArLookup() {
+    const lookup = {};
+    if (arabicData.surahs) {
+      arabicData.surahs.forEach(s => {
+        lookup[s.number] = {};
+        s.verses.forEach(v => { lookup[s.number][v.ayah] = v.text; });
+      });
+    } else {
+      Object.assign(lookup, arabicData);
+    }
+    return lookup;
+  }
+
   function injectArabic() {
-    // Inject Arabic text under each verse (if not already done)
-    document.querySelectorAll('.verse').forEach(v => {
-      if (v.querySelector('.ayah-arabic')) return;
-      const s = v.dataset.surah;
-      const a = v.dataset.ayah;
-      let arText = '';
-      if (arabicData.surahs) {
-        // JSON format from ar.json
-        const surah = arabicData.surahs.find(su => su.number == s);
-        if (surah) {
-          const verse = surah.verses.find(ve => ve.ayah == a);
-          if (verse) arText = verse.text;
-        }
-      } else {
-        // DOM-scraped format
-        arText = (arabicData[s] || {})[a] || '';
-      }
-      if (arText) {
-        const el = document.createElement('div');
-        el.className = 'ayah-arabic';
-        el.textContent = arText;
-        v.appendChild(el);
-      }
+    const ar = buildArLookup();
+    const arBasmalah = (ar[1] || {})[1] || '';
+
+    // For each surah section, insert a bilingual table after the verse-list
+    document.querySelectorAll('.surah-section').forEach(sec => {
+      if (sec.querySelector('.bilingual-table')) return;
+      const surahNum = sec.dataset.surah;
+      const verses = sec.querySelectorAll('.verse');
+      if (!verses.length || !ar[surahNum]) return;
+
+      const table = document.createElement('table');
+      table.className = 'bilingual-table';
+      verses.forEach(v => {
+        const ayah = v.dataset.ayah;
+        const arText = (ar[surahNum] || {})[ayah] || '';
+        const transText = v.querySelector('.ayah-text')?.textContent || '';
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+          `<td class="bt-ar">${arText}</td>` +
+          `<td class="bt-num">${ayah}</td>` +
+          `<td class="bt-trans">${transText}</td>`;
+        table.appendChild(tr);
+      });
+      // Insert after the verse-list
+      const ol = sec.querySelector('.verse-list');
+      if (ol) ol.after(table);
     });
-    // Also inject Arabic basmalah
+
+    // Inject Arabic basmalah
     document.querySelectorAll('.basmalah').forEach(b => {
-      if (b.querySelector('.basmalah-ar')) return;
-      let arBasmalah = '';
-      if (arabicData.surahs) {
-        arBasmalah = arabicData.surahs[0]?.verses[0]?.text || '';
-      } else {
-        arBasmalah = (arabicData['1'] || {})['1'] || '';
-      }
+      if (b.nextElementSibling?.classList.contains('basmalah-ar')) return;
       if (arBasmalah) {
         const el = document.createElement('div');
         el.className = 'basmalah-ar';
