@@ -214,14 +214,12 @@
 .verse-list {
   padding: .5rem 0;
   margin: 0;
-  list-style: none;
-  counter-reset: none;
+  padding-left: 2.5rem;
 }
 .verse {
-  padding: .4rem 0 .4rem 2.5rem;
+  padding: .4rem 0;
   line-height: 1.8;
   border-bottom: 1px solid #f0f0f0;
-  position: relative;
 }
 .verse:last-child {
   border-bottom: none;
@@ -252,9 +250,9 @@
 }
 
 /* RTL verse layout */
-[dir="rtl"] .verse {
-  padding: .4rem 2.5rem .4rem 0;
-  direction: rtl;
+[dir="rtl"] .verse-list {
+  padding-left: 0;
+  padding-right: 2.5rem;
 }
 [dir="rtl"] .ayah-text {
   font-size: 1.1rem;
