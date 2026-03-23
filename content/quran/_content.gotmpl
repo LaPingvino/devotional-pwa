@@ -1,18 +1,24 @@
 {{/* Generate one page per language from assets/quran/{lang}.json */}}
-{{ $quranDir := "quran" }}
+{{/* First pass: collect all available languages */}}
+{{ $quranLangs := site.Data.quran_languages }}
 {{ range resources.Match "quran/*.json" }}
   {{ $data := . | transform.Unmarshal }}
   {{ $lang := $data.language }}
   {{ $rtl := false }}
   {{ range site.Params.rtlLanguages }}{{ if eq . $lang }}{{ $rtl = true }}{{ end }}{{ end }}
+  {{/* Find this language's display name */}}
+  {{ $langName := $lang }}
+  {{ range $quranLangs }}{{ if eq .code $lang }}{{ $langName = .name }}{{ end }}{{ end }}
   {{ $.AddPage (dict
     "path"    $lang
-    "title"   (printf "Qur'an (%s)" $lang)
+    "title"   (printf "Qur'an — %s" $langName)
     "kind"    "page"
     "params"  (dict
-      "langCode"  $lang
-      "rtl"       $rtl
-      "surahs"    $data.surahs
+      "langCode"    $lang
+      "langName"    $langName
+      "rtl"         $rtl
+      "surahs"      $data.surahs
+      "quranLangs"  $quranLangs
     )
   ) }}
 {{ end }}

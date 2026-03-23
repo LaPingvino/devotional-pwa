@@ -1,9 +1,11 @@
 {{ $lang := .Params.langCode }}
+{{ $langName := .Params.langName | default $lang }}
 {{ $rtl := .Params.rtl }}
 {{ $surahs := .Params.surahs }}
+{{ $quranLangs := .Params.quranLangs }}
 {{ $isArabic := eq $lang "ar" }}
 
-{{ partial "head.html" (dict "Title" (printf "Qur'an (%s)" $lang) "Lang" $lang "Params" (dict "rtl" $rtl)) }}
+{{ partial "head.html" (dict "Title" (printf "Qur'an — %s" $langName) "Lang" $lang "Params" (dict "rtl" $rtl)) }}
 <div class="page-body">
 
   {{/* ── Desktop sidebar: surah list ── */}}
@@ -22,7 +24,7 @@
   </aside>
 
   <main class="main-content">
-    <h1>Qur'an <span style="color:var(--text-secondary); font-size:.85rem;">({{ $lang }})</span></h1>
+    <h1>Qur'an <span style="color:var(--text-secondary); font-size:.85rem;">— {{ $langName }}</span></h1>
 
     {{/* ── Mobile surah selector ── */}}
     <div class="quran-mobile-nav" id="mobile-surah-nav">
@@ -35,12 +37,16 @@
 
     {{/* ── Controls row: language + Arabic toggle ── */}}
     <div class="quran-controls">
-      <div>
-        <label for="quran-lang-switch">Language:</label>
-        <select id="quran-lang-switch">
-          <option value="{{ $lang }}" selected>{{ $lang }}</option>
-        </select>
-      </div>
+      <details class="lang-dropdown" id="quran-lang-dropdown">
+        <summary>{{ $langName }} <span class="lang-code-badge">{{ $lang }}</span></summary>
+        <div class="lang-dropdown-panel">
+          <div class="lang-dropdown-list">
+            {{ range $quranLangs }}
+            <a href="/quran/{{ .code }}/" {{ if eq .code $lang }}class="active"{{ end }} data-code="{{ .code | lower }}" data-name="{{ .name | lower }}">{{ .name }}<span class="lang-code-badge">{{ .code }}</span></a>
+            {{ end }}
+          </div>
+        </div>
+      </details>
       {{ if not $isArabic }}
       <label class="arabic-toggle">
         <input type="checkbox" id="show-arabic"> Show Arabic
@@ -127,13 +133,10 @@
   font-size: .85rem;
   color: var(--text-secondary);
 }
-.quran-controls select {
-  padding: .2rem .4rem;
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  font-size: .85rem;
-  background: var(--surface);
-  color: var(--text);
+.quran-controls .lang-dropdown-list a.active {
+  background: #fff3ef;
+  color: var(--accent);
+  font-weight: 600;
 }
 .arabic-toggle {
   cursor: pointer;
@@ -365,7 +368,6 @@
   const sections = document.querySelectorAll('.surah-section');
   const sidebarLinks = document.querySelectorAll('.surah-link');
   const mobileSelect = document.getElementById('surah-select-mobile');
-  const langSwitch = document.getElementById('quran-lang-switch');
   const arabicToggle = document.getElementById('show-arabic');
   const surahContent = document.getElementById('surah-content');
 
@@ -389,33 +391,13 @@
     mobileSelect.addEventListener('change', () => showSurah(mobileSelect.value));
   }
 
-  if (langSwitch) {
-    langSwitch.addEventListener('change', () => {
-      window.location.href = '/quran/' + langSwitch.value + '/' + (location.hash || '');
+  // Language dropdown: preserve current surah hash when switching
+  document.querySelectorAll('#quran-lang-dropdown .lang-dropdown-list a').forEach(a => {
+    a.addEventListener('click', e => {
+      e.preventDefault();
+      window.location.href = a.href + (location.hash || '');
     });
-  }
-
-  // Populate language switcher
-  fetch('/quran/')
-    .then(r => r.ok ? r.text() : '')
-    .then(html => {
-      if (!html) return;
-      const doc = new DOMParser().parseFromString(html, 'text/html');
-      const links = doc.querySelectorAll('a[href*="/quran/"]');
-      const langs = new Set();
-      links.forEach(a => {
-        const m = a.href.match(/\/quran\/([a-z-]+)\/?/i);
-        if (m) langs.add(m[1]);
-      });
-      langs.forEach(l => {
-        if (l === LANG) return;
-        const opt = document.createElement('option');
-        opt.value = l;
-        opt.textContent = l;
-        langSwitch.appendChild(opt);
-      });
-    })
-    .catch(() => {});
+  });
 
   // Arabic inline toggle
   if (arabicToggle && !IS_ARABIC) {

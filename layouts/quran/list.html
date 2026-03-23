@@ -7,8 +7,8 @@
   <div class="lang-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:.75rem;">
     {{ range .Pages }}
     <a href="{{ .RelPermalink }}" class="lang-card" style="display:block; padding:.75rem 1rem; background:var(--surface); border:1px solid var(--border); border-radius:8px; text-decoration:none; color:var(--text);">
-      <strong>{{ .Params.langCode | upper }}</strong>
-      <span style="color:var(--text-secondary); font-size:.85rem; margin-left:.5rem;">114 surahs</span>
+      <strong>{{ .Params.langName }}</strong>
+      <span class="lang-code-badge" style="margin-left:.5rem;">{{ .Params.langCode }}</span>
     </a>
     {{ end }}
   </div>
