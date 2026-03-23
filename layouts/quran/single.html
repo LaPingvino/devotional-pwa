@@ -68,16 +68,13 @@
         <div class="basmalah">{{ $basmalah }}</div>
         {{ end }}
 
-        <div class="verse-list">
+        <ol class="verse-list" start="1">
           {{ range .verses }}
-          <div class="verse" id="surah-{{ $surahNum }}-ayah-{{ .ayah }}" data-surah="{{ $surahNum }}" data-ayah="{{ .ayah }}">
-            <span class="ayah-num">{{ .ayah }}</span>
-            <div class="ayah-body">
-              <span class="ayah-text">{{ .text }}</span>
-            </div>
-          </div>
+          <li class="verse" id="surah-{{ $surahNum }}-ayah-{{ .ayah }}" data-surah="{{ $surahNum }}" data-ayah="{{ .ayah }}" value="{{ .ayah }}">
+            <span class="ayah-text">{{ .text }}</span>
+          </li>
           {{ end }}
-        </div>
+        </ol>
 
         {{ with .commentary }}
         <details class="surah-commentary">
@@ -216,29 +213,23 @@
 /* Verses */
 .verse-list {
   padding: .5rem 0;
+  margin: 0;
+  list-style: none;
+  counter-reset: none;
 }
 .verse {
-  display: flex;
-  gap: .75rem;
-  padding: .4rem 0;
+  padding: .4rem 0 .4rem 2.5rem;
   line-height: 1.8;
   border-bottom: 1px solid #f0f0f0;
+  position: relative;
 }
 .verse:last-child {
   border-bottom: none;
 }
-.ayah-num {
-  flex-shrink: 0;
-  min-width: 2rem;
-  text-align: center;
-  font-size: .75rem;
-  font-weight: 600;
+.verse::marker {
   color: var(--accent);
-  padding-top: .3rem;
-  font-family: monospace;
-}
-.ayah-body {
-  flex: 1;
+  font-size: .8rem;
+  font-weight: 600;
 }
 .ayah-text {
   font-size: .95rem;
@@ -262,7 +253,8 @@
 
 /* RTL verse layout */
 [dir="rtl"] .verse {
-  flex-direction: row-reverse;
+  padding: .4rem 2.5rem .4rem 0;
+  direction: rtl;
 }
 [dir="rtl"] .ayah-text {
   font-size: 1.1rem;
@@ -429,7 +421,7 @@
         const el = document.createElement('div');
         el.className = 'ayah-arabic';
         el.textContent = arText;
-        v.querySelector('.ayah-body').appendChild(el);
+        v.appendChild(el);
       }
     });
     // Also inject Arabic basmalah
