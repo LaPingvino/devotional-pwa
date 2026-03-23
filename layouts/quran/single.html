@@ -64,7 +64,7 @@
           </div>
         </div>
 
-        {{ if and (ne $surahNum 1) (ne $surahNum 9) }}
+        {{ if and (ne (int $surahNum) 1) (ne (int $surahNum) 9) }}
         <div class="basmalah">{{ $basmalah }}</div>
         {{ end }}
 
