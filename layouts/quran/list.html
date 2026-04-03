@@ -1,12 +1,18 @@
 {{ partial "head.html" (dict "Title" "Qur'an Translations" "Lang" "en") }}
 <div class="main-content" style="max-width:600px; margin:2rem auto; padding:0 1rem;">
   <h1>Qur'an: Root-Recovery Translations</h1>
-  <div style="color:var(--text-secondary); margin-bottom:1.5rem; line-height:1.6; font-size:.9rem;">
-    <p>These translations recover meanings hidden in the Arabic roots of the Qur'an &mdash; meanings that centuries of conventional translation have obscured. Key choices: <em>kafir</em> (k-f-r) becomes &ldquo;those who conceal&rdquo;; <em>muslim</em> (s-l-m) becomes &ldquo;the Devoted&rdquo;; <em>hur</em> (h-w-r) becomes &ldquo;the Returners&rdquo; &mdash; the same root as Jesus's disciples.</p>
-    <p>The method: whenever a word is rare or might be in common use only because of the Qur'an, it likely suffers from circular interpretation. Instead, we check words with the same Arabic root and recover a more likely meaning. The translation stays as close as possible to the original structure, never dropping particles that conventional translations omit. It prefers an integrative reading: linking Qur'anic imagery across surahs and to the present day, and understanding the text as a unified whole.</p>
-    <p>Joop Kiefte developed this approach by manually translating Ar-Rahman (55) and Al-Mursalat (77), then used Claude (Anthropic) to apply the same method across the full Qur'an. Each language is translated directly from the Arabic following the same root-recovery procedure, so different languages may arrive at different but similarly inspired translation choices. Claude drafted and iterated; Joop reviewed, corrected, and directed.</p>
-    <p>Each surah includes commentary explaining the root analysis and translation reasoning. Available in {{ len .Pages }} languages.</p>
-  </div>
+  <p style="color:var(--text-secondary); margin-bottom:.5rem;">
+    Root-recovery translations of the Holy Qur'an in {{ len .Pages }} languages.
+  </p>
+  <details class="surah-commentary" style="margin-bottom:1.5rem;">
+    <summary>About this translation</summary>
+    <div class="commentary-text">
+      <p>These translations recover meanings hidden in the Arabic roots of the Qur'an &mdash; meanings that centuries of conventional translation have obscured. Key choices: <em>kafir</em> (k-f-r) becomes &ldquo;those who conceal&rdquo;; <em>muslim</em> (s-l-m) becomes &ldquo;the Devoted&rdquo;; <em>hur</em> (h-w-r) becomes &ldquo;the Returners&rdquo; &mdash; the same root as Jesus's disciples.</p>
+      <p>The method: whenever a word is rare or might be in common use only because of the Qur'an, it likely suffers from circular interpretation. Instead, we check words with the same Arabic root and recover a more likely meaning. The translation stays as close as possible to the original structure, never dropping particles that conventional translations omit. It prefers an integrative reading: linking Qur'anic imagery across surahs and to the present day, and understanding the text as a unified whole.</p>
+      <p>Joop Kiefte developed this approach by manually translating Ar-Rahman (55) and Al-Mursalat (77), then used Claude (Anthropic) to apply the same method across the full Qur'an. Each language is translated directly from the Arabic following the same root-recovery procedure, so different languages may arrive at different but similarly inspired translation choices. Claude drafted and iterated; Joop reviewed, corrected, and directed.</p>
+      <p>Each surah includes commentary explaining the root analysis and translation reasoning.</p>
+    </div>
+  </details>
   <div class="lang-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:.75rem;">
     {{ range .Pages }}
     <a href="{{ .RelPermalink }}" class="lang-card" style="display:block; padding:.75rem 1rem; background:var(--surface); border:1px solid var(--border); border-radius:8px; text-decoration:none; color:var(--text);">
