@@ -3,70 +3,93 @@
 {{ $chapters := .Params.chapters }}
 {{ $isOT := or (eq $book.section "torah") (eq $book.section "neviim") (eq $book.section "ketuvim") }}
 {{ $isNT := eq $book.section "nt" }}
-<div class="bible-reader">
-  <div class="bible-sidebar">
-    <div class="bible-sidebar-header">
-      <a href="/bible/">&#8592; All Books</a>
-    </div>
-    <h3>{{ $book.conventional }}</h3>
-    <p class="book-hebrew-title">{{ $book.hebrew }}</p>
-    <div class="chapter-list">
+<div class="page-body">
+
+  <aside class="sidebar bible-sidebar" id="bible-sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-heading"><a href="/bible/" style="color:inherit;text-decoration:none;">&#8592; Books</a></div>
+      <div style="padding:0 1rem .5rem;">
+        <strong>{{ $book.conventional }}</strong>
+        <div class="book-hebrew-title">{{ $book.hebrew }}</div>
+      </div>
+      <div class="sidebar-heading">Chapters</div>
       {{ range $chapters }}
-      <a class="chapter-link" href="#ch{{ .chapter }}" data-ch="{{ .chapter }}">{{ .chapter }}</a>
+      <a href="#ch{{ .chapter }}" class="chapter-link" data-ch="{{ .chapter }}">
+        <span class="ch-num">{{ .chapter }}</span>
+      </a>
       {{ end }}
     </div>
-  </div>
+  </aside>
 
-  <div class="bible-main">
+  <main class="main-content">
+    <h1>{{ $book.conventional }} <span style="color:var(--text-secondary);font-size:.85rem;">— {{ $book.hebrew }}</span></h1>
+
     <div class="bible-controls">
-      {{ if $book.has_hebrew }}
-      <label><input type="checkbox" id="show-hebrew" checked> עברית</label>
+      {{/* Source language selector (NT only — OT always shows Hebrew) */}}
+      {{ if $isNT }}
+      <details class="lang-dropdown" id="source-dropdown">
+        <summary>Source text</summary>
+        <div class="lang-dropdown-panel">
+          <div class="lang-dropdown-list">
+            {{ if $book.has_syriac }}<a href="#" class="source-opt active" data-src="syr">ܣܘܪܝܝܐ Syriac</a>{{ end }}
+            {{ if $book.has_greek }}<a href="#" class="source-opt active" data-src="el">Ελληνικά Greek</a>{{ end }}
+          </div>
+        </div>
+      </details>
       {{ end }}
-      {{ if $book.has_syriac }}
-      <label><input type="checkbox" id="show-syriac" checked> ܣܘܪܝܝܐ</label>
-      {{ end }}
-      {{ if $book.has_greek }}
-      <label><input type="checkbox" id="show-greek" checked> Ελληνικά</label>
-      {{ end }}
-      {{ if $book.has_english }}
-      <label><input type="checkbox" id="show-english" checked> English</label>
-      {{ end }}
-      {{ if $book.has_arabic }}
-      <label><input type="checkbox" id="show-arabic" checked> العربية</label>
+
+      {{/* Translation language picker */}}
+      <details class="lang-dropdown" id="trans-dropdown">
+        <summary id="trans-label">English</summary>
+        <div class="lang-dropdown-panel">
+          <div class="lang-dropdown-list">
+            {{ if $book.has_english }}<a href="#" class="trans-opt active" data-lang="en">English</a>{{ end }}
+            {{ if $book.has_arabic }}<a href="#" class="trans-opt" data-lang="ar">العربية Arabic</a>{{ end }}
+          </div>
+        </div>
+      </details>
+
+      {{ if $isOT }}
+      <label class="arabic-toggle" style="font-size:.85rem;cursor:pointer;display:flex;align-items:center;gap:.3rem;">
+        <input type="checkbox" id="show-source" checked> עברית
+      </label>
       {{ end }}
     </div>
 
+    {{/* Chapter content */}}
     {{ range $chapters }}
     <section class="bible-chapter" id="ch{{ .chapter }}">
-      <h2>
-        {{ if .title }}{{ .title }}{{ else }}Chapter {{ .chapter }}{{ end }}
-      </h2>
-      {{ if .subtitle }}<p class="chapter-subtitle">{{ .subtitle }}</p>{{ end }}
+      <div class="chapter-header">
+        <span class="chapter-number">{{ .chapter }}</span>
+        <div>
+          {{ if .title }}<span class="chapter-title">{{ .title }}</span>{{ end }}
+          {{ if .subtitle }}<span class="chapter-subtitle">{{ .subtitle }}</span>{{ end }}
+        </div>
+      </div>
 
       <table class="interlinear">
         <tbody>
         {{ range .verses }}
-        <tr class="verse-row">
-          {{/* Source languages — RTL on the left */}}
+        <tr>
+          {{/* Source column(s) */}}
           {{ if $.Params.book.has_hebrew }}
-          <td class="il-he" dir="rtl">{{ with .he }}{{ . }}{{ end }}</td>
+          <td class="il-src il-he" dir="rtl">{{ .he }}</td>
           {{ end }}
           {{ if $.Params.book.has_syriac }}
-          <td class="il-syr" dir="rtl">{{ with .syr }}{{ . }}{{ end }}</td>
+          <td class="il-src il-syr" dir="rtl">{{ .syr }}</td>
           {{ end }}
           {{ if $.Params.book.has_greek }}
-          <td class="il-el">{{ with .el }}{{ . }}{{ end }}</td>
+          <td class="il-src il-el">{{ .el }}</td>
           {{ end }}
 
-          {{/* Verse number */}}
           <td class="il-num">{{ .num }}</td>
 
-          {{/* Translation languages */}}
+          {{/* Translation columns */}}
           {{ if $.Params.book.has_english }}
-          <td class="il-en">{{ with .en }}{{ . }}{{ end }}</td>
+          <td class="il-trans il-en">{{ .en }}</td>
           {{ end }}
           {{ if $.Params.book.has_arabic }}
-          <td class="il-ar" dir="rtl">{{ with .ar }}{{ . }}{{ end }}</td>
+          <td class="il-trans il-ar" dir="rtl">{{ .ar }}</td>
           {{ end }}
         </tr>
         {{ end }}
@@ -81,32 +104,55 @@
       {{ end }}
     </section>
     {{ end }}
-  </div>
+  </main>
 </div>
 
 <script>
 (function() {
-  const colMap = {
-    'show-hebrew':  '.il-he',
-    'show-syriac':  '.il-syr',
-    'show-greek':   '.il-el',
-    'show-english': '.il-en',
-    'show-arabic':  '.il-ar'
-  };
+  // Source language toggles (NT: Syriac/Greek)
+  document.querySelectorAll('.source-opt').forEach(a => {
+    a.addEventListener('click', function(e) {
+      e.preventDefault();
+      this.classList.toggle('active');
+      const src = this.dataset.src;
+      const show = this.classList.contains('active');
+      document.querySelectorAll('.il-' + src).forEach(el => el.style.display = show ? '' : 'none');
+    });
+  });
 
-  function applyVisibility() {
-    for (const [id, sel] of Object.entries(colMap)) {
-      const cb = document.getElementById(id);
-      if (!cb) continue;
-      const show = cb.checked;
-      document.querySelectorAll(sel).forEach(el => el.style.display = show ? '' : 'none');
+  // Translation language picker — show selected, hide others
+  document.querySelectorAll('.trans-opt').forEach(a => {
+    a.addEventListener('click', function(e) {
+      e.preventDefault();
+      // Toggle this translation
+      this.classList.toggle('active');
+      const lang = this.dataset.lang;
+      const show = this.classList.contains('active');
+      document.querySelectorAll('.il-' + lang).forEach(el => el.style.display = show ? '' : 'none');
+      // Update summary label
+      const active = document.querySelectorAll('.trans-opt.active');
+      const names = Array.from(active).map(a => a.textContent.trim());
+      document.getElementById('trans-label').textContent = names.length ? names.join(' + ') : 'Translations';
+      // Close dropdown
+      document.getElementById('trans-dropdown').removeAttribute('open');
+    });
+  });
+
+  // OT: Hebrew source toggle
+  const srcCb = document.getElementById('show-source');
+  if (srcCb) {
+    srcCb.addEventListener('change', function() {
+      document.querySelectorAll('.il-he').forEach(el => el.style.display = this.checked ? '' : 'none');
+    });
+  }
+
+  // Initial state: hide non-active translations
+  document.querySelectorAll('.trans-opt').forEach(a => {
+    if (!a.classList.contains('active')) {
+      const lang = a.dataset.lang;
+      document.querySelectorAll('.il-' + lang).forEach(el => el.style.display = 'none');
     }
-  }
-
-  for (const id of Object.keys(colMap)) {
-    const cb = document.getElementById(id);
-    if (cb) cb.addEventListener('change', applyVisibility);
-  }
+  });
 
   // Chapter sidebar highlight
   const links = document.querySelectorAll('.chapter-link');
