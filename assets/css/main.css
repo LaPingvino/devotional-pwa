@@ -501,3 +501,35 @@ p { margin-bottom: .5rem; }
 }
 .dl-link:hover { opacity: .85; background: var(--accent) !important; }
 .sidebar .dl-link { display: inline-block; margin-left: 1rem; }
+
+/* ── Home page cards ───────────────────────────────── */
+.home-sections {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin: 2rem 0;
+}
+.home-card {
+  display: block;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.5rem;
+  text-decoration: none;
+  color: var(--text);
+  transition: box-shadow .2s, transform .15s;
+}
+.home-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,.12);
+  transform: translateY(-2px);
+}
+.home-card h2 {
+  color: var(--accent);
+  margin-bottom: .5rem;
+  font-size: 1.4rem;
+}
+.home-card p {
+  color: var(--text-secondary);
+  font-size: .95rem;
+  line-height: 1.5;
+}
