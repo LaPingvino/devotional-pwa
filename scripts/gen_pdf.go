@@ -548,6 +548,39 @@ func mergeRunes(sets ...map[rune]bool) map[rune]bool {
 	return out
 }
 
+// validateTTF does a basic structural check on a TrueType font file.
+// Returns false if the file is truncated or has table offsets beyond EOF.
+func validateTTF(path string) bool {
+	data, err := os.ReadFile(path)
+	if err != nil || len(data) < 12 {
+		return false
+	}
+	// TrueType: first 4 bytes are version (00010000 or "true" or "OTTO")
+	// Offset table: numTables at bytes 4-5
+	numTables := int(data[4])<<8 | int(data[5])
+	if numTables == 0 || numTables > 100 {
+		return false
+	}
+	// Each table record is 16 bytes, starting at offset 12
+	headerEnd := 12 + numTables*16
+	if headerEnd > len(data) {
+		return false
+	}
+	// Check each table's offset+length fits within the file
+	for i := 0; i < numTables; i++ {
+		rec := 12 + i*16
+		offset := int(data[rec+8])<<24 | int(data[rec+9])<<16 | int(data[rec+10])<<8 | int(data[rec+11])
+		length := int(data[rec+12])<<24 | int(data[rec+13])<<16 | int(data[rec+14])<<8 | int(data[rec+15])
+		if offset+length > len(data) {
+			tag := string(data[rec : rec+4])
+			fmt.Fprintf(os.Stderr, "  TTF table %q: offset %d + length %d > file size %d\n",
+				tag, offset, length, len(data))
+			return false
+		}
+	}
+	return true
+}
+
 // subsetTTF uses pyftsubset (from Python fonttools) to create a minimal TTF
 // containing only the codepoints in runes.  Returns the path to the subsetted
 // file (in os.TempDir()) on success, or "" if pyftsubset is unavailable or
@@ -600,6 +633,15 @@ func subsetTTF(inputPath string, runes map[rune]bool) string {
 				}
 				return 0
 			}(), filepath.Base(inputPath))
+		return ""
+	}
+
+	// Validate the subset font's internal structure before returning it.
+	// pyftsubset can produce fonts with truncated tables (especially NAME)
+	// that crash gofpdf's TTF parser with slice-out-of-range panics.
+	if !validateTTF(outPath) {
+		fmt.Fprintf(os.Stderr, "  subset %s failed validation — falling back to full font\n",
+			filepath.Base(inputPath))
 		return ""
 	}
 
@@ -716,41 +758,7 @@ func loadFonts(pdf *gofpdf.Fpdf, lang, fontDir string, runes map[rune]bool) *fon
 			fmt.Fprintf(os.Stderr, "  font read error %s: %v\n", path, err)
 			return false
 		}
-		// Protect against corrupt subset fonts crashing gofpdf's TTF parser.
-		loaded := func() (ok bool) {
-			defer func() {
-				if r := recover(); r != nil {
-					fmt.Fprintf(os.Stderr, "  font parse panic %s: %v — retrying with full font\n", filepath.Base(path), r)
-					ok = false
-				}
-			}()
-			pdf.AddUTF8FontFromBytes(family, "", data)
-			return true
-		}()
-		if !loaded {
-			// Retry with full (unsubsetted) font
-			origPath := findFont(filename)
-			if origPath == "" || origPath == path {
-				return false
-			}
-			data, err = os.ReadFile(origPath)
-			if err != nil {
-				return false
-			}
-			loaded = func() (ok bool) {
-				defer func() {
-					if r := recover(); r != nil {
-						fmt.Fprintf(os.Stderr, "  font parse panic (full) %s: %v\n", filepath.Base(origPath), r)
-						ok = false
-					}
-				}()
-				pdf.AddUTF8FontFromBytes(family, "", data)
-				return true
-			}()
-			if !loaded {
-				return false
-			}
-		}
+		pdf.AddUTF8FontFromBytes(family, "", data)
 		zeroCombiningMarkWidths(pdf)
 		fi.loaded[family] = true
 		fmt.Fprintf(os.Stderr, "  font: %s ← %s\n", family, filepath.Base(path))
