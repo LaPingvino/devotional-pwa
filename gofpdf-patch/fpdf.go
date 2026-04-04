@@ -2539,8 +2539,9 @@ func (f *Fpdf) CellFormat(w, h float64, txtStr, borderStr string, ln int,
 								i++
 							}
 							cmSeg := string(runes[cmStart:i])
-							// Kern back by the previous character's width
-							s.printf(" %d (%s)", prevWidth, f.escape(utf8toutf16(cmSeg, false)))
+							// Kern back by the previous character's width, overlay combining marks,
+							// then kern forward to restore the text position
+							s.printf(" %d (%s) %d", prevWidth, f.escape(utf8toutf16(cmSeg, false)), -prevWidth)
 							segStart = i
 							i-- // loop will increment
 						}

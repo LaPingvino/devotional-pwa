@@ -263,8 +263,9 @@ func shapeArabicRun(s string) string {
 		jt := arabicJoining(r)
 		pj := prevJoining(runes, i)
 		nj := nextJoining(runes, i)
-		connectsRight := pj == joinDual
-		connectsLeft := (jt == joinDual) && (nj == joinDual || nj == joinRight)
+		connectsRight := pj == joinDual || pj == joinLeft
+		connectsLeft := (jt == joinDual || jt == joinLeft) &&
+			(nj == joinDual || nj == joinRight || nj == joinLeft)
 		var formIdx int
 		switch {
 		case connectsLeft && connectsRight:
