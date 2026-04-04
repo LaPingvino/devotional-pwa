@@ -333,7 +333,9 @@ func shapeText(s string) string {
 	for _, line := range strings.Split(s, "\n") {
 		lines = append(lines, shapeTextLine(line))
 	}
-	return strings.Join(lines, "\n")
+	result := strings.Join(lines, "\n")
+	// Fix harakat spacing for gofpdf (insert ZWNJ before combining marks)
+	return fixHarakatSpacing(result)
 }
 
 func shapeTextLine(line string) string {
@@ -618,6 +620,54 @@ func subsetTTF(inputPath string, runes map[rune]bool) string {
 // If runes is non-nil, fonts are subsetted via pyftsubset before embedding.
 // We use AddUTF8FontFromBytes (reads the file ourselves) rather than AddUTF8Font
 // to avoid gofpdf's internal font-directory path prepending.
+// zeroCombiningMarkWidths adjusts the shaped text to work around gofpdf's
+// lack of combining mark support. After shaping, each combining mark (haraka)
+// is preceded by a backspace-equivalent: we insert a zero-width non-joiner
+// (U+200C) which most PDF fonts render as zero-width, effectively making
+// the combining mark overlay the previous base character.
+//
+// Actually, the reliable fix: we simply strip combining marks from the text
+// passed to gofpdf's width calculations but keep them for rendering.
+// Since gofpdf doesn't support this natively, we use a different approach:
+// remove combining marks from shaped output and accept unvowelized rendering
+// in the PDF only (the web version retains full harakat).
+//
+// UPDATE: Instead we keep harakat but compensate by adding U+200C (ZWNJ)
+// before each combining mark. Most Noto fonts render ZWNJ as zero-width,
+// which pushes the combining mark back to overlay the previous glyph.
+func zeroCombiningMarkWidths(_ *gofpdf.Fpdf) {
+	// No-op: the fix is applied in fixHarakatSpacing() during shaping.
+}
+
+// fixHarakatSpacing inserts a ZWNJ (U+200C) before each Arabic combining
+// mark in shaped text. This is a workaround for gofpdf: the ZWNJ occupies
+// negligible width in most fonts, effectively preventing the combining mark
+// from advancing the cursor by a full character width.
+func fixHarakatSpacing(s string) string {
+	var b strings.Builder
+	b.Grow(len(s) * 2)
+	runes := []rune(s)
+	for i, r := range runes {
+		if isArabicCombining(r) && i > 0 {
+			// Don't double-insert if previous is already ZWNJ
+			if runes[i-1] != 0x200C {
+				b.WriteRune(0x200C) // ZWNJ before combining mark
+			}
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
+}
+
+// isArabicCombining returns true if r is an Arabic combining mark (haraka,
+// shadda, sukun, etc.) that should overlay the previous base character.
+func isArabicCombining(r rune) bool {
+	return (r >= 0x064B && r <= 0x065F) || // Fathatan..Wavy Hamza Below
+		r == 0x0670 || // Superscript Alef
+		(r >= 0x0610 && r <= 0x061A) || // Arabic signs
+		(r >= 0x06D6 && r <= 0x06ED) // Quranic marks
+}
+
 func loadFonts(pdf *gofpdf.Fpdf, lang, fontDir string, runes map[rune]bool) *fontInfo {
 	fi := &fontInfo{loaded: map[string]bool{}, langFont: map[string]string{}}
 
@@ -668,6 +718,7 @@ func loadFonts(pdf *gofpdf.Fpdf, lang, fontDir string, runes map[rune]bool) *fon
 			return false
 		}
 		pdf.AddUTF8FontFromBytes(family, "", data)
+		zeroCombiningMarkWidths(pdf)
 		fi.loaded[family] = true
 		fmt.Fprintf(os.Stderr, "  font: %s ← %s\n", family, filepath.Base(path))
 		return true
@@ -989,6 +1040,7 @@ func loadTTFInto(pdf *gofpdf.Fpdf, fi *fontInfo, family, filename, fontDir strin
 			continue
 		}
 		pdf.AddUTF8FontFromBytes(family, "", data)
+		zeroCombiningMarkWidths(pdf)
 		fi.loaded[family] = true
 		fmt.Fprintf(os.Stderr, "  font: %s ← %s\n", family, filepath.Base(path))
 		return
