@@ -716,7 +716,41 @@ func loadFonts(pdf *gofpdf.Fpdf, lang, fontDir string, runes map[rune]bool) *fon
 			fmt.Fprintf(os.Stderr, "  font read error %s: %v\n", path, err)
 			return false
 		}
-		pdf.AddUTF8FontFromBytes(family, "", data)
+		// Protect against corrupt subset fonts crashing gofpdf's TTF parser.
+		loaded := func() (ok bool) {
+			defer func() {
+				if r := recover(); r != nil {
+					fmt.Fprintf(os.Stderr, "  font parse panic %s: %v — retrying with full font\n", filepath.Base(path), r)
+					ok = false
+				}
+			}()
+			pdf.AddUTF8FontFromBytes(family, "", data)
+			return true
+		}()
+		if !loaded {
+			// Retry with full (unsubsetted) font
+			origPath := findFont(filename)
+			if origPath == "" || origPath == path {
+				return false
+			}
+			data, err = os.ReadFile(origPath)
+			if err != nil {
+				return false
+			}
+			loaded = func() (ok bool) {
+				defer func() {
+					if r := recover(); r != nil {
+						fmt.Fprintf(os.Stderr, "  font parse panic (full) %s: %v\n", filepath.Base(origPath), r)
+						ok = false
+					}
+				}()
+				pdf.AddUTF8FontFromBytes(family, "", data)
+				return true
+			}()
+			if !loaded {
+				return false
+			}
+		}
 		zeroCombiningMarkWidths(pdf)
 		fi.loaded[family] = true
 		fmt.Fprintf(os.Stderr, "  font: %s ← %s\n", family, filepath.Base(path))
