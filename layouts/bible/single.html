@@ -1,6 +1,8 @@
 {{ partial "head.html" (dict "Title" .Title "Lang" "en") }}
 {{ $book := .Params.book }}
 {{ $chapters := .Params.chapters }}
+{{ $isOT := or (eq $book.section "torah") (eq $book.section "neviim") (eq $book.section "ketuvim") }}
+{{ $isNT := eq $book.section "nt" }}
 <div class="bible-reader">
   <div class="bible-sidebar">
     <div class="bible-sidebar-header">
@@ -17,10 +19,14 @@
 
   <div class="bible-main">
     <div class="bible-controls">
-      <label><input type="checkbox" id="show-original" checked> Show original</label>
-      {{ if and $book.has_syriac $book.has_greek }}
-      <label><input type="checkbox" id="show-syriac" checked> Syriac</label>
-      <label><input type="checkbox" id="show-greek" checked> Greek</label>
+      {{ if $book.has_hebrew }}
+      <label><input type="checkbox" id="show-hebrew" checked> עברית</label>
+      {{ end }}
+      {{ if $book.has_syriac }}
+      <label><input type="checkbox" id="show-syriac" checked> ܣܘܪܝܝܐ</label>
+      {{ end }}
+      {{ if $book.has_greek }}
+      <label><input type="checkbox" id="show-greek" checked> Ελληνικά</label>
       {{ end }}
       {{ if $book.has_english }}
       <label><input type="checkbox" id="show-english" checked> English</label>
@@ -37,23 +43,35 @@
       </h2>
       {{ if .subtitle }}<p class="chapter-subtitle">{{ .subtitle }}</p>{{ end }}
 
-      <ol class="verse-list">
+      <table class="interlinear">
+        <tbody>
         {{ range .verses }}
-        <li value="{{ .num }}" class="verse">
+        <tr class="verse-row">
+          {{/* Source languages — RTL on the left */}}
           {{ if $.Params.book.has_hebrew }}
-            {{ with .he }}<span class="verse-he" dir="rtl">{{ . }}</span>{{ end }}
+          <td class="il-he" dir="rtl">{{ with .he }}{{ . }}{{ end }}</td>
           {{ end }}
           {{ if $.Params.book.has_syriac }}
-            {{ with .syr }}<span class="verse-syr" dir="rtl">{{ . }}</span>{{ end }}
+          <td class="il-syr" dir="rtl">{{ with .syr }}{{ . }}{{ end }}</td>
           {{ end }}
           {{ if $.Params.book.has_greek }}
-            {{ with .el }}<span class="verse-el">{{ . }}</span>{{ end }}
+          <td class="il-el">{{ with .el }}{{ . }}{{ end }}</td>
           {{ end }}
-          {{ with .en }}<span class="verse-en">{{ . }}</span>{{ end }}
-          {{ with .ar }}<span class="verse-ar" dir="rtl">{{ . }}</span>{{ end }}
-        </li>
+
+          {{/* Verse number */}}
+          <td class="il-num">{{ .num }}</td>
+
+          {{/* Translation languages */}}
+          {{ if $.Params.book.has_english }}
+          <td class="il-en">{{ with .en }}{{ . }}{{ end }}</td>
+          {{ end }}
+          {{ if $.Params.book.has_arabic }}
+          <td class="il-ar" dir="rtl">{{ with .ar }}{{ . }}{{ end }}</td>
+          {{ end }}
+        </tr>
         {{ end }}
-      </ol>
+        </tbody>
+      </table>
 
       {{ with .commentary }}
       <details class="chapter-commentary">
@@ -68,40 +86,27 @@
 
 <script>
 (function() {
-  const toggles = {
-    'show-original': ['.verse-he', '.verse-syr', '.verse-el'],
-    'show-syriac': ['.verse-syr'],
-    'show-greek': ['.verse-el'],
-    'show-english': ['.verse-en']
+  const colMap = {
+    'show-hebrew':  '.il-he',
+    'show-syriac':  '.il-syr',
+    'show-greek':   '.il-el',
+    'show-english': '.il-en',
+    'show-arabic':  '.il-ar'
   };
 
-  // Original toggle controls both Hebrew (OT) and Syriac+Greek (NT)
-  const origCb = document.getElementById('show-original');
-  const syrCb = document.getElementById('show-syriac');
-  const grCb = document.getElementById('show-greek');
-  const enCb = document.getElementById('show-english');
-  const arCb = document.getElementById('show-arabic');
-
   function applyVisibility() {
-    const showOrig = origCb ? origCb.checked : true;
-    document.querySelectorAll('.verse-he').forEach(el => el.style.display = showOrig ? '' : 'none');
-    if (syrCb) {
-      document.querySelectorAll('.verse-syr').forEach(el => el.style.display = (showOrig && syrCb.checked) ? '' : 'none');
-    }
-    if (grCb) {
-      document.querySelectorAll('.verse-el').forEach(el => el.style.display = (showOrig && grCb.checked) ? '' : 'none');
-    }
-    if (enCb) {
-      document.querySelectorAll('.verse-en').forEach(el => el.style.display = enCb.checked ? '' : 'none');
-    }
-    if (arCb) {
-      document.querySelectorAll('.verse-ar').forEach(el => el.style.display = arCb.checked ? '' : 'none');
+    for (const [id, sel] of Object.entries(colMap)) {
+      const cb = document.getElementById(id);
+      if (!cb) continue;
+      const show = cb.checked;
+      document.querySelectorAll(sel).forEach(el => el.style.display = show ? '' : 'none');
     }
   }
 
-  [origCb, syrCb, grCb, enCb, arCb].forEach(cb => {
+  for (const id of Object.keys(colMap)) {
+    const cb = document.getElementById(id);
     if (cb) cb.addEventListener('change', applyVisibility);
-  });
+  }
 
   // Chapter sidebar highlight
   const links = document.querySelectorAll('.chapter-link');
