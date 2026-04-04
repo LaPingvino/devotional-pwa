@@ -1,0 +1,46 @@
+{{ partial "head.html" (dict "Title" "Bible" "Lang" "en") }}
+<div class="main-content">
+  <h1>Bible — Root-Recovery Translation</h1>
+  <p style="color:var(--text-secondary); margin-bottom:1.5rem;">
+    Translated from Hebrew (Tanakh) and Syriac &amp; Greek (New Testament), restoring the original root meanings.
+  </p>
+
+  {{ $sections := slice
+    (dict "id" "torah" "name" "Torah — תורה" "desc" "The Five Books of Moses")
+    (dict "id" "neviim" "name" "Nevi'im — נביאים" "desc" "The Prophets")
+    (dict "id" "ketuvim" "name" "Ketuvim — כתובים" "desc" "The Writings")
+    (dict "id" "nt" "name" "New Testament — ܕܝܬܩܐ ܚܕܬܐ" "desc" "From Syriac (Peshitta) and Greek (Nestle 1904)")
+  }}
+
+  {{ range $sections }}
+    {{ $sec := .id }}
+    {{ $hasBooks := false }}
+    {{ range site.Data.bible_books }}
+      {{ if eq .section $sec }}{{ $hasBooks = true }}{{ end }}
+    {{ end }}
+    {{ if $hasBooks }}
+    <div class="bible-section">
+      <h2>{{ .name }}</h2>
+      <p style="color:var(--text-secondary); font-size:.9rem; margin-bottom:.8rem;">{{ .desc }}</p>
+      <div class="bible-book-grid">
+        {{ range site.Data.bible_books }}
+          {{ if eq .section $sec }}
+          <a class="bible-book-card" href="/bible/{{ .id }}/">
+            <span class="book-hebrew">{{ .hebrew }}</span>
+            <span class="book-name">{{ .conventional }}</span>
+            <span class="book-chapters">{{ .chapters }} ch.</span>
+            <span class="book-langs">
+              {{ if .has_hebrew }}<abbr title="Hebrew">He</abbr>{{ end }}
+              {{ if .has_syriac }}<abbr title="Syriac">Syr</abbr>{{ end }}
+              {{ if .has_greek }}<abbr title="Greek">El</abbr>{{ end }}
+              {{ if .has_english }}<abbr title="English">En</abbr>{{ end }}
+            </span>
+          </a>
+          {{ end }}
+        {{ end }}
+      </div>
+    </div>
+    {{ end }}
+  {{ end }}
+</div>
+{{ partial "foot.html" . }}

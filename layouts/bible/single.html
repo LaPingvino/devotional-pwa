@@ -1,0 +1,112 @@
+{{ partial "head.html" (dict "Title" .Title "Lang" "en") }}
+{{ $book := .Params.book }}
+{{ $chapters := .Params.chapters }}
+<div class="bible-reader">
+  <div class="bible-sidebar">
+    <div class="bible-sidebar-header">
+      <a href="/bible/">&#8592; All Books</a>
+    </div>
+    <h3>{{ $book.conventional }}</h3>
+    <p class="book-hebrew-title">{{ $book.hebrew }}</p>
+    <div class="chapter-list">
+      {{ range $chapters }}
+      <a class="chapter-link" href="#ch{{ .chapter }}" data-ch="{{ .chapter }}">{{ .chapter }}</a>
+      {{ end }}
+    </div>
+  </div>
+
+  <div class="bible-main">
+    <div class="bible-controls">
+      <label><input type="checkbox" id="show-original" checked> Show original</label>
+      {{ if and $book.has_syriac $book.has_greek }}
+      <label><input type="checkbox" id="show-syriac" checked> Syriac</label>
+      <label><input type="checkbox" id="show-greek" checked> Greek</label>
+      {{ end }}
+      {{ if $book.has_english }}
+      <label><input type="checkbox" id="show-english" checked> English</label>
+      {{ end }}
+    </div>
+
+    {{ range $chapters }}
+    <section class="bible-chapter" id="ch{{ .chapter }}">
+      <h2>
+        {{ if .title }}{{ .title }}{{ else }}Chapter {{ .chapter }}{{ end }}
+      </h2>
+      {{ if .subtitle }}<p class="chapter-subtitle">{{ .subtitle }}</p>{{ end }}
+
+      <ol class="verse-list">
+        {{ range .verses }}
+        <li value="{{ .num }}" class="verse">
+          {{ if $.Params.book.has_hebrew }}
+            {{ with .he }}<span class="verse-he" dir="rtl">{{ . }}</span>{{ end }}
+          {{ end }}
+          {{ if $.Params.book.has_syriac }}
+            {{ with .syr }}<span class="verse-syr" dir="rtl">{{ . }}</span>{{ end }}
+          {{ end }}
+          {{ if $.Params.book.has_greek }}
+            {{ with .el }}<span class="verse-el">{{ . }}</span>{{ end }}
+          {{ end }}
+          {{ with .en }}<span class="verse-en">{{ . }}</span>{{ end }}
+        </li>
+        {{ end }}
+      </ol>
+
+      {{ with .commentary }}
+      <details class="chapter-commentary">
+        <summary>Annotations &amp; Root Connections</summary>
+        <div class="commentary-content">{{ . | markdownify }}</div>
+      </details>
+      {{ end }}
+    </section>
+    {{ end }}
+  </div>
+</div>
+
+<script>
+(function() {
+  const toggles = {
+    'show-original': ['.verse-he', '.verse-syr', '.verse-el'],
+    'show-syriac': ['.verse-syr'],
+    'show-greek': ['.verse-el'],
+    'show-english': ['.verse-en']
+  };
+
+  // Original toggle controls both Hebrew (OT) and Syriac+Greek (NT)
+  const origCb = document.getElementById('show-original');
+  const syrCb = document.getElementById('show-syriac');
+  const grCb = document.getElementById('show-greek');
+  const enCb = document.getElementById('show-english');
+
+  function applyVisibility() {
+    const showOrig = origCb ? origCb.checked : true;
+    document.querySelectorAll('.verse-he').forEach(el => el.style.display = showOrig ? '' : 'none');
+    if (syrCb) {
+      document.querySelectorAll('.verse-syr').forEach(el => el.style.display = (showOrig && syrCb.checked) ? '' : 'none');
+    }
+    if (grCb) {
+      document.querySelectorAll('.verse-el').forEach(el => el.style.display = (showOrig && grCb.checked) ? '' : 'none');
+    }
+    if (enCb) {
+      document.querySelectorAll('.verse-en').forEach(el => el.style.display = enCb.checked ? '' : 'none');
+    }
+  }
+
+  [origCb, syrCb, grCb, enCb].forEach(cb => {
+    if (cb) cb.addEventListener('change', applyVisibility);
+  });
+
+  // Chapter sidebar highlight
+  const links = document.querySelectorAll('.chapter-link');
+  const sections = document.querySelectorAll('.bible-chapter');
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        const ch = entry.target.id;
+        links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + ch));
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px' });
+  sections.forEach(s => observer.observe(s));
+})();
+</script>
+{{ partial "foot.html" . }}

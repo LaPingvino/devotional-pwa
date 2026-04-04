@@ -1,0 +1,17 @@
+{{/* Generate one page per book from assets/bible/{book}.json */}}
+{{ range site.Data.bible_books }}
+  {{ $book := . }}
+  {{ $dataFile := printf "bible/%s.json" .id }}
+  {{ with resources.Get $dataFile }}
+    {{ $data := . | transform.Unmarshal }}
+    {{ $.AddPage (dict
+      "path"    $book.id
+      "title"   (printf "%s — %s" $book.conventional $book.hebrew)
+      "kind"    "page"
+      "params"  (dict
+        "book"       $book
+        "chapters"   $data.chapters
+      )
+    ) }}
+  {{ end }}
+{{ end }}
