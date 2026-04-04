@@ -2495,67 +2495,12 @@ func (f *Fpdf) CellFormat(w, h float64, txtStr, borderStr string, ln int,
 				for _, uni := range []rune(txtStr) {
 					f.currentFont.usedRunes[int(uni)] = int(uni)
 				}
-				// Check if text contains combining marks that need kerning
-				hasCombining := false
-				for _, r := range txtStr {
-					if isCombiningMark(r) {
-						hasCombining = true
-						break
-					}
-				}
 				bt := (f.x + dx) * k
 				td := (f.h - (f.y + dy + .5*h + .3*f.fontSize)) * k
-				if hasCombining {
-					// Use TJ array with negative kerning before combining marks
-					// to overlay them on the previous base character
-					s.printf("BT %.2f %.2f Td [", bt, td)
-					runes := []rune(txtStr)
-					segStart := 0
-					for i := 0; i < len(runes); i++ {
-						if isCombiningMark(runes[i]) && i > 0 {
-							// Output segment before this combining mark
-							if segStart < i {
-								seg := string(runes[segStart:i])
-								s.printf("(%s)", f.escape(utf8toutf16(seg, false)))
-							}
-							// Find the width of the previous base character to kern back
-							prevWidth := 0
-							for j := i - 1; j >= 0; j-- {
-								if !isCombiningMark(runes[j]) {
-									intChar := int(runes[j])
-									if len(f.currentFont.Cw) > intChar && f.currentFont.Cw[intChar] > 0 && f.currentFont.Cw[intChar] != 65535 {
-										prevWidth = f.currentFont.Cw[intChar]
-									} else if f.currentFont.Desc.MissingWidth != 0 {
-										prevWidth = f.currentFont.Desc.MissingWidth
-									} else {
-										prevWidth = 500
-									}
-									break
-								}
-							}
-							// Collect all consecutive combining marks
-							cmStart := i
-							for i < len(runes) && isCombiningMark(runes[i]) {
-								i++
-							}
-							cmSeg := string(runes[cmStart:i])
-							// Kern back by the previous character's width, overlay combining marks,
-							// then kern forward to restore the text position
-							s.printf(" %d (%s) %d", prevWidth, f.escape(utf8toutf16(cmSeg, false)), -prevWidth)
-							segStart = i
-							i-- // loop will increment
-						}
-					}
-					// Output remaining segment
-					if segStart < len(runes) {
-						seg := string(runes[segStart:])
-						s.printf("(%s)", f.escape(utf8toutf16(seg, false)))
-					}
-					s.printf("] TJ ET")
-				} else {
-					txt2 = f.escape(utf8toutf16(txtStr, false))
-					s.printf("BT %.2f %.2f Td (%s)Tj ET", bt, td, txt2)
-				}
+				// Combining marks are pre-swapped before their base characters
+				// by reverseRTLRun, so no TJ kerning needed — simple Tj works.
+				txt2 = f.escape(utf8toutf16(txtStr, false))
+				s.printf("BT %.2f %.2f Td (%s)Tj ET", bt, td, txt2)
 			} else {
 
 				txt2 = strings.Replace(txtStr, "\\", "\\\\", -1)

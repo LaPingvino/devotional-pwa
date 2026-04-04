@@ -305,10 +305,20 @@ func reverseRTLRun(s string) string {
 	for l, r := 0, len(clusters)-1; l < r; l, r = l+1, r-1 {
 		clusters[l], clusters[r] = clusters[r], clusters[l]
 	}
+	// Swap combining marks to come BEFORE their base character.
+	// PDF renderers place combining marks at the current position (zero width),
+	// then the base character advances. So [harakat, base] renders the harakat
+	// on top of the base — no TJ kerning needed.
 	var b strings.Builder
 	for _, cl := range clusters {
-		for _, r := range cl {
-			b.WriteRune(r)
+		if len(cl) > 1 {
+			// Write combining marks first, then the base
+			for _, r := range cl[1:] {
+				b.WriteRune(r)
+			}
+			b.WriteRune(cl[0])
+		} else {
+			b.WriteRune(cl[0])
 		}
 	}
 	return b.String()
