@@ -420,10 +420,11 @@ func shapeTextLine(line string) string {
 
 // fontInfo tracks which fonts have been loaded into a gofpdf instance.
 type fontInfo struct {
-	bodyFont string
-	monoFont string
-	loaded   map[string]bool
-	langFont map[string]string // lang code -> preferred font family for this lang
+	bodyFont  string
+	latinFont string // always-available Latin font for metadata (language names, etc.)
+	monoFont  string
+	loaded    map[string]bool
+	langFont  map[string]string // lang code -> preferred font family for this lang
 }
 
 // langScriptFont maps language codes to their required Noto font family names.
@@ -741,6 +742,18 @@ func loadFonts(pdf *gofpdf.Fpdf, lang, fontDir string, runes map[rune]bool) *fon
 		}
 	}
 
+	// Latin font: always load NotoSerif for metadata text (language names,
+	// "Also in:" lists, etc.) even when bodyFont is a non-Latin script font.
+	if fi.bodyFont == "NotoSerif" || fi.bodyFont == "Helvetica" {
+		fi.latinFont = fi.bodyFont
+	} else {
+		if loadTTF("NotoSerif", "NotoSerif-Regular.ttf") {
+			fi.latinFont = "NotoSerif"
+		} else {
+			fi.latinFont = "Helvetica"
+		}
+	}
+
 	fi.monoFont = "Courier" // built-in monospace for phelps codes
 	return fi
 }
@@ -942,9 +955,9 @@ func renderPrayerSection(ctx *pdfCtx, prayers []Prayer, lang, phelpsBaseURL stri
 				}
 			}
 			if len(transLangs) > 0 {
-				// Use base Latin font — language codes are ASCII and the script-specific
-				// bodyFont (e.g. NotoNaskhArabic) does not contain Latin glyphs.
-				pdf.SetFont(fi.bodyFont, "", 8)
+				// Use Latin font — language names are ASCII/Latin and the script-specific
+				// bodyFont (e.g. NotoNaskhArabic) may not contain Latin glyphs.
+				pdf.SetFont(fi.latinFont, "", 8)
 				ctx.metaColor()
 				pdf.MultiCell(contentW, 4, "Also in: "+strings.Join(transLangs, ", "), "", "L", false)
 				ctx.bodyColor()
