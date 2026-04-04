@@ -625,6 +625,11 @@ p { margin-bottom: .5rem; }
   display: block; font-size: 1rem;
   color: var(--text);
 }
+.verse-ar {
+  display: block; direction: rtl; text-align: right;
+  font-size: 1.1rem; line-height: 1.9;
+  color: #1b5e20;
+}
 
 .chapter-commentary { margin-top: 1.5rem; }
 .chapter-commentary summary {

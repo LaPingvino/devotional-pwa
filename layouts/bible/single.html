@@ -25,6 +25,9 @@
       {{ if $book.has_english }}
       <label><input type="checkbox" id="show-english" checked> English</label>
       {{ end }}
+      {{ if $book.has_arabic }}
+      <label><input type="checkbox" id="show-arabic" checked> العربية</label>
+      {{ end }}
     </div>
 
     {{ range $chapters }}
@@ -47,6 +50,7 @@
             {{ with .el }}<span class="verse-el">{{ . }}</span>{{ end }}
           {{ end }}
           {{ with .en }}<span class="verse-en">{{ . }}</span>{{ end }}
+          {{ with .ar }}<span class="verse-ar" dir="rtl">{{ . }}</span>{{ end }}
         </li>
         {{ end }}
       </ol>
@@ -76,6 +80,7 @@
   const syrCb = document.getElementById('show-syriac');
   const grCb = document.getElementById('show-greek');
   const enCb = document.getElementById('show-english');
+  const arCb = document.getElementById('show-arabic');
 
   function applyVisibility() {
     const showOrig = origCb ? origCb.checked : true;
@@ -89,9 +94,12 @@
     if (enCb) {
       document.querySelectorAll('.verse-en').forEach(el => el.style.display = enCb.checked ? '' : 'none');
     }
+    if (arCb) {
+      document.querySelectorAll('.verse-ar').forEach(el => el.style.display = arCb.checked ? '' : 'none');
+    }
   }
 
-  [origCb, syrCb, grCb, enCb].forEach(cb => {
+  [origCb, syrCb, grCb, enCb, arCb].forEach(cb => {
     if (cb) cb.addEventListener('change', applyVisibility);
   });
 

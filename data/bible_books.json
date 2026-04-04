@@ -10,7 +10,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": true
+    "has_english": true,
+    "has_arabic": true
   },
   {
     "id": "shemot",
@@ -23,7 +24,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "vayikra",
@@ -36,7 +38,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "bamidbar",
@@ -49,7 +52,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "devarim",
@@ -62,7 +66,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "yehoshua",
@@ -75,7 +80,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "shoftim",
@@ -88,7 +94,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "shmuel-a",
@@ -101,7 +108,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "shmuel-b",
@@ -114,7 +122,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "melakhim-a",
@@ -127,7 +136,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "melakhim-b",
@@ -140,7 +150,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "yeshayahu",
@@ -153,7 +164,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "yirmeyahu",
@@ -166,7 +178,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "yechezkel",
@@ -179,7 +192,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "hoshea",
@@ -192,7 +206,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "yoel",
@@ -205,7 +220,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "amos",
@@ -218,7 +234,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "ovadyah",
@@ -231,7 +248,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "yonah",
@@ -244,7 +262,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "mikhah",
@@ -257,7 +276,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "nachum",
@@ -270,7 +290,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "chavakuk",
@@ -283,7 +304,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "tzefanyah",
@@ -296,7 +318,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "chaggai",
@@ -309,7 +332,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "zekharyah",
@@ -322,7 +346,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "malakhi",
@@ -335,7 +360,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "tehillim",
@@ -348,7 +374,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "mishlei",
@@ -361,7 +388,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "iyyov",
@@ -374,7 +402,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "shir-hashirim",
@@ -387,7 +416,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "rut",
@@ -400,7 +430,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "eikhah",
@@ -413,7 +444,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "kohelet",
@@ -426,7 +458,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "ester",
@@ -439,7 +472,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "daniel",
@@ -452,7 +486,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "ezra",
@@ -465,7 +500,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "nechemyah",
@@ -478,7 +514,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "divrei-hayamim-a",
@@ -491,7 +528,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "divrei-hayamim-b",
@@ -504,7 +542,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "matthew",
@@ -517,7 +556,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "mark",
@@ -530,7 +570,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "luke",
@@ -543,7 +584,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "john",
@@ -556,7 +598,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "acts",
@@ -569,7 +612,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "romans",
@@ -582,7 +626,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "1corinthians",
@@ -595,7 +640,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "2corinthians",
@@ -608,7 +654,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "galatians",
@@ -621,7 +668,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "ephesians",
@@ -634,7 +682,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "philippians",
@@ -647,7 +696,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "colossians",
@@ -660,7 +710,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "1thessalonians",
@@ -673,7 +724,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "2thessalonians",
@@ -686,7 +738,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "1timothy",
@@ -699,7 +752,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "2timothy",
@@ -712,7 +766,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "titus",
@@ -725,7 +780,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "philemon",
@@ -738,7 +794,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "hebrews",
@@ -751,7 +808,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "james",
@@ -764,7 +822,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "1peter",
@@ -777,7 +836,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "2peter",
@@ -790,7 +850,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "1john",
@@ -803,7 +864,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "2john",
@@ -816,7 +878,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "3john",
@@ -829,7 +892,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "jude",
@@ -842,7 +906,8 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   },
   {
     "id": "revelation",
@@ -855,6 +920,7 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false
+    "has_english": false,
+    "has_arabic": false
   }
 ]
