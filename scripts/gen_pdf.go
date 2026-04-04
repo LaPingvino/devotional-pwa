@@ -248,7 +248,7 @@ func shapeArabicRun(s string) string {
 				if lamAlef, isAlef := lamAlifTable[runes[j]]; isAlef {
 					pj := prevJoining(runes, i)
 					var lig rune
-					if pj == joinDual || pj == joinRight {
+					if pj == joinDual {
 						lig = lamAlef[1]
 					} else {
 						lig = lamAlef[0]
@@ -263,7 +263,7 @@ func shapeArabicRun(s string) string {
 		jt := arabicJoining(r)
 		pj := prevJoining(runes, i)
 		nj := nextJoining(runes, i)
-		connectsRight := pj == joinDual || pj == joinRight
+		connectsRight := pj == joinDual
 		connectsLeft := (jt == joinDual) && (nj == joinDual || nj == joinRight)
 		var formIdx int
 		switch {
