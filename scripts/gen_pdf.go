@@ -333,9 +333,7 @@ func shapeText(s string) string {
 	for _, line := range strings.Split(s, "\n") {
 		lines = append(lines, shapeTextLine(line))
 	}
-	result := strings.Join(lines, "\n")
-	// Fix harakat spacing for gofpdf (insert ZWNJ before combining marks)
-	return fixHarakatSpacing(result)
+	return strings.Join(lines, "\n")
 }
 
 func shapeTextLine(line string) string {
