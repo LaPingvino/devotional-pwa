@@ -547,7 +547,7 @@
   },
   {
     "id": "matthew",
-    "hebrew": "מתי",
+    "hebrew": "ܡܬܝ · Ματθαῖος",
     "conventional": "Matthew",
     "section": "nt",
     "section_name": "New Testament",
@@ -561,7 +561,7 @@
   },
   {
     "id": "mark",
-    "hebrew": "מרקוס",
+    "hebrew": "ܡܪܩܘܣ · Μᾶρκος",
     "conventional": "Mark",
     "section": "nt",
     "section_name": "New Testament",
@@ -575,7 +575,7 @@
   },
   {
     "id": "luke",
-    "hebrew": "לוקס",
+    "hebrew": "ܠܘܩܐ · Λουκᾶς",
     "conventional": "Luke",
     "section": "nt",
     "section_name": "New Testament",
@@ -589,7 +589,7 @@
   },
   {
     "id": "john",
-    "hebrew": "יוחנן",
+    "hebrew": "ܝܘܚܢܢ · Ἰωάννης",
     "conventional": "John",
     "section": "nt",
     "section_name": "New Testament",
@@ -603,7 +603,7 @@
   },
   {
     "id": "acts",
-    "hebrew": "מעשי השליחים",
+    "hebrew": "ܦܪܟܣܝܣ · Πράξεις",
     "conventional": "Acts",
     "section": "nt",
     "section_name": "New Testament",
@@ -617,7 +617,7 @@
   },
   {
     "id": "romans",
-    "hebrew": "רומים",
+    "hebrew": "ܪ̈ܗܘܡܝܐ · Ῥωμαίους",
     "conventional": "Romans",
     "section": "nt",
     "section_name": "New Testament",
@@ -631,7 +631,7 @@
   },
   {
     "id": "1corinthians",
-    "hebrew": "קורינתים א",
+    "hebrew": "ܩܘܪ̈ܢܬܝܐ ܐ · Κορινθίους Αʹ",
     "conventional": "1 Corinthians",
     "section": "nt",
     "section_name": "New Testament",
@@ -645,7 +645,7 @@
   },
   {
     "id": "2corinthians",
-    "hebrew": "קורינתים ב",
+    "hebrew": "ܩܘܪ̈ܢܬܝܐ ܒ · Κορινθίους Βʹ",
     "conventional": "2 Corinthians",
     "section": "nt",
     "section_name": "New Testament",
@@ -659,7 +659,7 @@
   },
   {
     "id": "galatians",
-    "hebrew": "גלטים",
+    "hebrew": "ܓܠܛ̈ܝܐ · Γαλάτας",
     "conventional": "Galatians",
     "section": "nt",
     "section_name": "New Testament",
@@ -673,7 +673,7 @@
   },
   {
     "id": "ephesians",
-    "hebrew": "אפסים",
+    "hebrew": "ܐܦ̈ܣܝܐ · Ἐφεσίους",
     "conventional": "Ephesians",
     "section": "nt",
     "section_name": "New Testament",
@@ -687,7 +687,7 @@
   },
   {
     "id": "philippians",
-    "hebrew": "פיליפים",
+    "hebrew": "ܦܝܠܝ̈ܦܣܝܐ · Φιλιππησίους",
     "conventional": "Philippians",
     "section": "nt",
     "section_name": "New Testament",
@@ -701,7 +701,7 @@
   },
   {
     "id": "colossians",
-    "hebrew": "קולוסים",
+    "hebrew": "ܩܘ̈ܠܣܝܐ · Κολοσσαεῖς",
     "conventional": "Colossians",
     "section": "nt",
     "section_name": "New Testament",
@@ -715,7 +715,7 @@
   },
   {
     "id": "1thessalonians",
-    "hebrew": "תסלוניקים א",
+    "hebrew": "ܬܣ̈ܠܘܢܝܩܝܐ ܐ · Θεσσαλονικεῖς Αʹ",
     "conventional": "1 Thessalonians",
     "section": "nt",
     "section_name": "New Testament",
@@ -729,7 +729,7 @@
   },
   {
     "id": "2thessalonians",
-    "hebrew": "תסלוניקים ב",
+    "hebrew": "ܬܣ̈ܠܘܢܝܩܝܐ ܒ · Θεσσαλονικεῖς Βʹ",
     "conventional": "2 Thessalonians",
     "section": "nt",
     "section_name": "New Testament",
@@ -743,7 +743,7 @@
   },
   {
     "id": "1timothy",
-    "hebrew": "טימותיאוס א",
+    "hebrew": "ܛܝܡܬܐܘܣ ܐ · Τιμόθεον Αʹ",
     "conventional": "1 Timothy",
     "section": "nt",
     "section_name": "New Testament",
@@ -757,7 +757,7 @@
   },
   {
     "id": "2timothy",
-    "hebrew": "טימותיאוס ב",
+    "hebrew": "ܛܝܡܬܐܘܣ ܒ · Τιμόθεον Βʹ",
     "conventional": "2 Timothy",
     "section": "nt",
     "section_name": "New Testament",
@@ -771,7 +771,7 @@
   },
   {
     "id": "titus",
-    "hebrew": "טיטוס",
+    "hebrew": "ܛܝܛܘܣ · Τίτον",
     "conventional": "Titus",
     "section": "nt",
     "section_name": "New Testament",
@@ -785,7 +785,7 @@
   },
   {
     "id": "philemon",
-    "hebrew": "פילימון",
+    "hebrew": "ܦܝܠܝܡܘܢ · Φιλήμονα",
     "conventional": "Philemon",
     "section": "nt",
     "section_name": "New Testament",
@@ -799,7 +799,7 @@
   },
   {
     "id": "hebrews",
-    "hebrew": "עברים",
+    "hebrew": "ܥܒܪ̈ܝܐ · Ἑβραίους",
     "conventional": "Hebrews",
     "section": "nt",
     "section_name": "New Testament",
@@ -813,7 +813,7 @@
   },
   {
     "id": "james",
-    "hebrew": "יעקב",
+    "hebrew": "ܝܥܩܘܒ · Ἰάκωβος",
     "conventional": "James",
     "section": "nt",
     "section_name": "New Testament",
@@ -827,7 +827,7 @@
   },
   {
     "id": "1peter",
-    "hebrew": "פטרוס א",
+    "hebrew": "ܦܛܪܘܣ ܐ · Πέτρου Αʹ",
     "conventional": "1 Peter",
     "section": "nt",
     "section_name": "New Testament",
@@ -841,7 +841,7 @@
   },
   {
     "id": "2peter",
-    "hebrew": "פטרוס ב",
+    "hebrew": "ܦܛܪܘܣ ܒ · Πέτρου Βʹ",
     "conventional": "2 Peter",
     "section": "nt",
     "section_name": "New Testament",
@@ -855,7 +855,7 @@
   },
   {
     "id": "1john",
-    "hebrew": "יוחנן א",
+    "hebrew": "ܝܘܚܢܢ ܐ · Ἰωάννου Αʹ",
     "conventional": "1 John",
     "section": "nt",
     "section_name": "New Testament",
@@ -869,7 +869,7 @@
   },
   {
     "id": "2john",
-    "hebrew": "יוחנן ב",
+    "hebrew": "ܝܘܚܢܢ ܒ · Ἰωάννου Βʹ",
     "conventional": "2 John",
     "section": "nt",
     "section_name": "New Testament",
@@ -883,7 +883,7 @@
   },
   {
     "id": "3john",
-    "hebrew": "יוחנן ג",
+    "hebrew": "ܝܘܚܢܢ ܓ · Ἰωάννου Γʹ",
     "conventional": "3 John",
     "section": "nt",
     "section_name": "New Testament",
@@ -897,7 +897,7 @@
   },
   {
     "id": "jude",
-    "hebrew": "יהודה",
+    "hebrew": "ܝܗܘܕܐ · Ἰούδας",
     "conventional": "Jude",
     "section": "nt",
     "section_name": "New Testament",
@@ -911,7 +911,7 @@
   },
   {
     "id": "revelation",
-    "hebrew": "חזון יוחנן",
+    "hebrew": "ܓܠܝܢܐ · Ἀποκάλυψις",
     "conventional": "Revelation",
     "section": "nt",
     "section_name": "New Testament",
