@@ -97,13 +97,13 @@
       </table>
 
       {{ with .commentary }}
-      <details class="chapter-commentary">
+      <details class="chapter-commentary commentary-en">
         <summary>Annotations &amp; Root Connections</summary>
         <div class="commentary-content">{{ . | markdownify }}</div>
       </details>
       {{ end }}
       {{ with .commentary_ar }}
-      <details class="chapter-commentary">
+      <details class="chapter-commentary commentary-ar" style="display:none;">
         <summary>التعليقات والجذور المشتركة</summary>
         <div class="commentary-content" dir="rtl">{{ . | markdownify }}</div>
       </details>
@@ -139,6 +139,10 @@
       // Activate clicked one
       this.classList.add('active');
       document.querySelectorAll('.il-' + lang).forEach(el => el.style.display = '');
+      // Switch commentary to match
+      document.querySelectorAll('.chapter-commentary').forEach(el => el.style.display = 'none');
+      const commClass = 'commentary-' + lang;
+      document.querySelectorAll('.' + commClass).forEach(el => el.style.display = '');
       // Update label
       document.getElementById('trans-label').textContent = this.textContent.trim();
       document.getElementById('trans-dropdown').removeAttribute('open');
