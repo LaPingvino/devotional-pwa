@@ -556,7 +556,7 @@
     "has_hebrew": false,
     "has_syriac": true,
     "has_greek": true,
-    "has_english": false,
+    "has_english": true,
     "has_arabic": false
   },
   {
