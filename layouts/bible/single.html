@@ -102,6 +102,12 @@
         <div class="commentary-content">{{ . | markdownify }}</div>
       </details>
       {{ end }}
+      {{ with .commentary_ar }}
+      <details class="chapter-commentary">
+        <summary>التعليقات والجذور المشتركة</summary>
+        <div class="commentary-content" dir="rtl">{{ . | markdownify }}</div>
+      </details>
+      {{ end }}
     </section>
     {{ end }}
   </main>
