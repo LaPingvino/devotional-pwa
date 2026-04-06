@@ -24,8 +24,8 @@
     "has_hebrew": true,
     "has_syriac": false,
     "has_greek": false,
-    "has_english": false,
-    "has_arabic": false
+    "has_english": true,
+    "has_arabic": true
   },
   {
     "id": "vayikra",
