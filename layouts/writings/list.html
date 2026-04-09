@@ -1,0 +1,24 @@
+{{ partial "head.html" (dict "Title" "Writings" "Lang" "en") }}
+<div class="main-content">
+  <h1>Writings</h1>
+  <p style="color:var(--text-secondary); margin-bottom:2rem;">
+    Sacred texts of the Bah&aacute;&rsquo;&iacute; Faith in multiple languages.
+  </p>
+
+  <div class="writings-grid">
+    {{ range site.Data.writings }}
+    {{ $wt := . }}
+    <div class="writing-card">
+      <h2><a href="/writings/{{ .key }}/">{{ .title }}</a></h2>
+      <p class="writing-author">{{ .author }}</p>
+      <p class="writing-lang-count">{{ len .langs }} language{{ if gt (len .langs) 1 }}s{{ end }}</p>
+      <div class="writing-lang-list">
+        {{ range .langs }}
+        <a href="/writings/{{ $wt.key }}/{{ .code }}/" class="lang-chip">{{ .name }}</a>
+        {{ end }}
+      </div>
+    </div>
+    {{ end }}
+  </div>
+</div>
+{{ partial "foot.html" . }}

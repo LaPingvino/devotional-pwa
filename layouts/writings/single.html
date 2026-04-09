@@ -1,0 +1,92 @@
+{{ $lang := .Params.langCode }}
+{{ $rtl := .Params.rtl }}
+{{ $entries := .Params.entries }}
+{{ $allLangs := .Params.allLangs }}
+{{ $key := .Params.writingKey }}
+
+{{ partial "head.html" (dict "Title" .Title "Lang" $lang "Params" (dict "rtl" $rtl)) }}
+<div class="page-body">
+
+  <aside class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-heading">{{ .Params.writingTitle }}</div>
+      <p style="padding:.2rem 1rem; font-size:.85rem; color:var(--text-secondary)">{{ .Params.author }}</p>
+    </div>
+
+    <div class="sidebar-section" style="margin-top:.5rem">
+      <div class="sidebar-heading">Navigate</div>
+      <div id="writing-toc" style="max-height:40vh; overflow-y:auto">
+        {{ range $entries }}
+        <a href="#{{ .phelps }}" style="display:block; padding:.25rem 1rem; font-size:.8rem; color:var(--text); text-decoration:none; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+          {{ if .name }}{{ .name }}{{ else }}{{ .phelps }}{{ end }}
+        </a>
+        {{ end }}
+      </div>
+    </div>
+
+    <div class="sidebar-section" style="margin-top:1rem">
+      <div class="sidebar-heading">Languages ({{ len $allLangs }})</div>
+      <div style="max-height:30vh; overflow-y:auto">
+        {{ range $allLangs }}
+        <a href="/writings/{{ $key }}/{{ .code }}/"
+           style="display:block; padding:.3rem 1rem; font-size:.85rem; color:var(--text); text-decoration:none;{{ if eq .code $lang }} font-weight:700; border-left:3px solid var(--accent);{{ else }} border-left:3px solid transparent;{{ end }}">
+          {{ .name }} <span style="color:var(--text-secondary); font-size:.8em">({{ .count }})</span>
+        </a>
+        {{ end }}
+      </div>
+    </div>
+
+    <div class="sidebar-section" style="margin-top:.5rem">
+      <a href="/writings/" style="padding:.4rem 1rem; display:block; font-size:.85rem; color:var(--text-secondary)">&#8592; All writings</a>
+    </div>
+  </aside>
+
+  <main class="main-content">
+    <h1>{{ .Params.writingTitle }}</h1>
+    <p style="color:var(--text-secondary); margin-bottom:1.5rem;">
+      {{ .Params.langName }} &middot; {{ .Params.author }} &middot; {{ len $entries }} sections
+    </p>
+
+    <div class="writing-body"{{ if $rtl }} dir="rtl"{{ end }}>
+      {{ range $entries }}
+      <section class="writing-entry" id="{{ .phelps }}">
+        {{ if .name }}
+        <h3 class="writing-entry-heading">
+          {{ .name }}
+          <a href="/phelps/?pin={{ .phelps }}" class="phelps-link" title="View in inventory">{{ .phelps }}</a>
+        </h3>
+        {{ end }}
+        <div class="writing-text">{{ .text | safeHTML }}</div>
+      </section>
+      {{ end }}
+    </div>
+  </main>
+
+</div>
+
+<style>
+.writing-body { max-width: 720px; }
+.writing-entry { margin-bottom: 2rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+.writing-entry:last-child { border-bottom: none; }
+.writing-entry-heading {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--accent-dark);
+  margin-bottom: .5rem;
+  display: flex;
+  align-items: baseline;
+  gap: .5rem;
+}
+.phelps-link {
+  font-size: .75rem;
+  font-weight: 400;
+  color: var(--text-secondary);
+  text-decoration: none;
+  font-family: monospace;
+}
+.phelps-link:hover { color: var(--accent); }
+.writing-text { font-size: 1rem; line-height: 1.8; }
+.writing-text p { margin-bottom: .8rem; }
+</style>
+
+{{ partial "foot.html" . }}

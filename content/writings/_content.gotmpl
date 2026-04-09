@@ -1,0 +1,30 @@
+{{/* Generate pages for each writing type and language from data/writings.json + assets/writings/{type}/{lang}.json */}}
+{{ range site.Data.writings }}
+  {{ $wt := . }}
+  {{ $key := .key }}
+
+  {{/* Generate one page per language for this writing type */}}
+  {{ range .langs }}
+    {{ $langInfo := . }}
+    {{ $dataFile := printf "writings/%s/%s.json" $key .code }}
+    {{ with resources.Get $dataFile }}
+      {{ $data := . | transform.Unmarshal }}
+      {{ $.AddPage (dict
+        "path"    (printf "%s/%s" $key $langInfo.code)
+        "title"   (printf "%s — %s" $wt.title $langInfo.name)
+        "kind"    "page"
+        "params"  (dict
+          "writingKey"   $key
+          "writingTitle" $wt.title
+          "author"       $wt.author
+          "langCode"     $langInfo.code
+          "langName"     $langInfo.name
+          "rtl"          $langInfo.rtl
+          "entryCount"   $langInfo.count
+          "entries"      $data.entries
+          "allLangs"     $wt.langs
+        )
+      ) }}
+    {{ end }}
+  {{ end }}
+{{ end }}
