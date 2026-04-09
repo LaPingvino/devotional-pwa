@@ -8,7 +8,7 @@
     {{ $prayers := $data.prayers }}
     {{ $prayerbooks := $data.prayerbooks }}
     {{ $.AddPage (dict
-      "path"    $lang
+      "path"    (lower $lang)
       "title"   $langInfo.name
       "kind"    "page"
       "params"  (dict

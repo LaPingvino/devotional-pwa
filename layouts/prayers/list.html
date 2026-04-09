@@ -34,7 +34,7 @@
   <div class="lang-grid" id="lang-grid">
     {{- $sorted := site.Data.languages -}}
     {{- range $sorted }}
-    <a class="lang-card" href="/prayers/{{ .code }}/"
+    <a class="lang-card" href="/prayers/{{ .code | lower }}/"
        data-name="{{ .name | lower }}"
        data-code="{{ .code | lower }}"
        data-count="{{ .prayer_count }}">

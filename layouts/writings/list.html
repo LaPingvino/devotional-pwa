@@ -14,7 +14,7 @@
       <p class="writing-lang-count">{{ len .langs }} language{{ if gt (len .langs) 1 }}s{{ end }}</p>
       <div class="writing-lang-list">
         {{ range .langs }}
-        <a href="/writings/{{ $wt.key }}/{{ .code }}/" class="lang-chip">{{ .name }}</a>
+        <a href="/writings/{{ $wt.key }}/{{ .code | lower }}/" class="lang-chip">{{ .name }}</a>
         {{ end }}
       </div>
     </div>

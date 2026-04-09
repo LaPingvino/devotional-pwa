@@ -10,7 +10,7 @@
     {{ with resources.Get $dataFile }}
       {{ $data := . | transform.Unmarshal }}
       {{ $.AddPage (dict
-        "path"    (printf "%s/%s" $key $langInfo.code)
+        "path"    (printf "%s/%s" $key (lower $langInfo.code))
         "title"   (printf "%s — %s" $wt.title $langInfo.name)
         "kind"    "page"
         "params"  (dict
