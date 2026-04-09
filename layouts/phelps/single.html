@@ -74,6 +74,21 @@
     </div>
     {{ end }}
 
+    {{/* Writing backlinks */}}
+    {{ with $sc.writing_refs }}
+    <div style="margin-bottom:.8rem;">
+      <div style="font-size:.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:.3rem;">Appears in:</div>
+      <div style="display:flex; flex-wrap:wrap; gap:.4rem;">
+        {{ range . }}
+        <a href="/writings/{{ .type }}/{{ .language | lower }}/#book-{{ $sc.code }}"
+           style="font-size:.78rem; padding:.2rem .5rem; background:var(--bg); border:1px solid var(--border); border-radius:12px; text-decoration:none; color:var(--text);">
+          {{ .type_name }} ({{ .lang_name }})
+        </a>
+        {{ end }}
+      </div>
+    </div>
+    {{ end }}
+
     {{/* Translation dropdown */}}
     {{ $transCount := len $sc.translations }}
     {{ if gt $transCount 0 }}
@@ -84,7 +99,7 @@
         <input type="search" class="lang-filter-input" placeholder="Filter languages…" autocomplete="off">
         {{ end }}
         <div class="lang-dropdown-list">
-          {{ range $sc.translations }}<a href="/prayers/{{ .language }}/#{{ $sc.code }}" data-code="{{ .language | lower }}" data-name="{{ .lang_name | lower }}">{{ .lang_name }}<span class="lang-code-badge">{{ .language }}</span></a>
+          {{ range $sc.translations }}<a href="/prayers/{{ .language | lower }}/#{{ $sc.code }}" data-code="{{ .language | lower }}" data-name="{{ .lang_name | lower }}">{{ .lang_name }}<span class="lang-code-badge">{{ .language }}</span></a>
           {{ end }}
         </div>
       </div>
