@@ -3,6 +3,20 @@
   {{ $wt := . }}
   {{ $key := .key }}
 
+  {{/* Section index: language picker for this writing type */}}
+  {{ $.AddPage (dict
+    "path"    $key
+    "title"   $wt.title
+    "kind"    "page"
+    "layout"  "writing-section"
+    "params"  (dict
+      "writingKey"   $key
+      "writingTitle" $wt.title
+      "author"       $wt.author
+      "allLangs"     $wt.langs
+    )
+  ) }}
+
   {{/* Generate one page per language for this writing type */}}
   {{ range .langs }}
     {{ $langInfo := . }}

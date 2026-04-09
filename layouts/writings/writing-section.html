@@ -1,0 +1,23 @@
+{{ partial "head.html" (dict "Title" .Params.writingTitle "Lang" "en") }}
+<div class="main-content">
+  <h1>{{ .Params.writingTitle }}</h1>
+  <p style="color:var(--text-secondary); margin-bottom:.25rem;">{{ .Params.author }}</p>
+  <p style="color:var(--text-secondary); margin-bottom:2rem;">
+    Available in {{ len .Params.allLangs }} language{{ if gt (len .Params.allLangs) 1 }}s{{ end }}. Choose a language to start reading.
+  </p>
+
+  <div class="lang-grid">
+    {{ $key := .Params.writingKey }}
+    {{ range .Params.allLangs }}
+    <a href="/writings/{{ $key }}/{{ .code | lower }}/" class="lang-card">
+      <span>{{ .name }}</span>
+      <span class="count">{{ .count }}</span>
+    </a>
+    {{ end }}
+  </div>
+
+  <p style="margin-top:2rem;">
+    <a href="/writings/" style="color:var(--text-secondary); font-size:.9rem;">&#8592; All writings</a>
+  </p>
+</div>
+{{ partial "foot.html" . }}
