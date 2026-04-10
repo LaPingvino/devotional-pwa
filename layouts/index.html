@@ -1,44 +1,44 @@
 {{ partial "head.html" (dict "Title" "Home" "Lang" "en") }}
 <div class="main-content">
-  <h1>Holy Writings</h1>
-  <p style="color:var(--text-secondary); margin-bottom:2rem;">
+  <h1 data-i18n="home_title">Holy Writings</h1>
+  <p style="color:var(--text-secondary); margin-bottom:2rem;" data-i18n="home_subtitle">
     A multilingual collection of sacred texts.
   </p>
 
   <div class="home-sections">
     <a href="/daily/" class="home-card">
-      <h2>Daily Devotions</h2>
-      <p>Random readings, obligatory prayer tracker, 95 Allah-u-Abh&aacute; counter, and Qiblih compass.</p>
+      <h2 data-i18n="daily_title">Daily Devotions</h2>
+      <p data-i18n="home_daily_desc">Random readings, obligatory prayer tracker, 95 Allah-u-Abhá counter, and Qiblih compass.</p>
     </a>
 
     <a href="/devotional/" class="home-card">
-      <h2>Devotional Program</h2>
-      <p>Build and share multilingual devotional programs with thematic suggestions for Bah&aacute;&rsquo;&iacute; months and Holy Days.</p>
+      <h2 data-i18n="dev_title">Devotional Program</h2>
+      <p data-i18n="home_program_desc">Build and share multilingual devotional programs with thematic suggestions.</p>
     </a>
 
     <a href="/prayers/" class="home-card">
-      <h2>Prayers</h2>
-      <p>Browse Bah&aacute;&rsquo;&iacute; prayers in {{ len site.Data.languages }} languages, organized by category and author.</p>
+      <h2 data-i18n="nav_prayers">Prayers</h2>
+      <p data-i18n="home_prayers_desc">Browse Bahá'í prayers organized by category and author.</p>
     </a>
 
     <a href="/writings/" class="home-card">
-      <h2>Writings</h2>
-      <p>Read the Hidden Words, Kit&aacute;b-i-Aqdas, Kit&aacute;b-i-&Iacute;q&aacute;n, Gleanings, and more in many languages.</p>
+      <h2 data-i18n="nav_writings">Writings</h2>
+      <p data-i18n="home_writings_desc">Read the Hidden Words, Kitáb-i-Aqdas, Kitáb-i-Íqán, Gleanings, and more.</p>
     </a>
 
     <a href="/quran/" class="home-card">
-      <h2>Qur&rsquo;an</h2>
-      <p>Read the Qur&rsquo;an in multiple translations with Arabic original and commentary.</p>
+      <h2 data-i18n="nav_quran">Qur'an</h2>
+      <p data-i18n="home_quran_desc">Read the Qur'an in multiple translations with Arabic original.</p>
     </a>
 
     <a href="/bible/" class="home-card">
-      <h2>Bible</h2>
-      <p>KJV and Van Dyck translations with Hebrew, Syriac, and Greek originals.</p>
+      <h2 data-i18n="nav_bible">Bible</h2>
+      <p data-i18n="home_bible_desc">KJV and Van Dyck translations with Hebrew, Syriac, and Greek originals.</p>
     </a>
 
     <a href="/phelps/" class="home-card">
-      <h2>Catalog</h2>
-      <p>Browse the Phelps index &mdash; a catalog of 29,000+ Bah&aacute;&rsquo;&iacute; Holy Writings.</p>
+      <h2 data-i18n="nav_catalog">Catalog</h2>
+      <p data-i18n="home_catalog_desc">Browse the Phelps index — a catalog of 29,000+ Bahá'í Holy Writings.</p>
     </a>
   </div>
 </div>

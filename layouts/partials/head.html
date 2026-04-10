@@ -14,32 +14,71 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="apple-touch-icon" href="/ios/180.png">
+  <script>
+  // UI i18n — load translations and apply to data-i18n elements
+  (function(){
+    var lang = localStorage.getItem('hw_ui_lang') || navigator.language || 'en';
+    // Normalize: zh-CN → zh-Hans, zh-TW → zh-Hant, etc.
+    if (lang === 'zh-CN' || lang === 'zh') lang = 'zh-Hans';
+    if (lang === 'zh-TW' || lang === 'zh-HK') lang = 'zh-Hant';
+    var base = lang.split('-')[0];
+    window.__uiLang = lang;
+    window.__t = function(k) { return k; }; // stub until loaded
+
+    fetch('/data/i18n.json').then(function(r) { return r.json(); }).then(function(T) {
+      window.__i18n = T;
+      window.__t = function(key) {
+        if (T[lang] && T[lang][key]) return T[lang][key];
+        if (T[base] && T[base][key]) return T[base][key];
+        return (T['en'] && T['en'][key]) || key;
+      };
+      function translatePage() {
+        document.querySelectorAll('[data-i18n]').forEach(function(el) {
+          var v = window.__t(el.getAttribute('data-i18n'));
+          if (v) el.textContent = v;
+        });
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(function(el) {
+          var v = window.__t(el.getAttribute('data-i18n-placeholder'));
+          if (v) el.placeholder = v;
+        });
+      }
+      window.__translatePage = translatePage;
+      window.__setUiLang = function(code) {
+        lang = code; base = code.split('-')[0];
+        window.__uiLang = code;
+        localStorage.setItem('hw_ui_lang', code);
+        translatePage();
+      };
+      translatePage();
+    }).catch(function(){});
+  })();
+  </script>
 </head>
 <body>
 <header class="site-header">
   <a href="/" class="title">{{ site.Title }}</a>
   <button class="nav-toggle" id="nav-toggle" aria-label="Menu">&#x2630;</button>
   <nav id="site-nav">
-    <a href="/daily/">Daily</a>
-    <a href="/devotional/">Program</a>
-    <a href="/prayers/">Prayers</a>
+    <a href="/daily/" data-i18n="nav_daily">Daily</a>
+    <a href="/devotional/" data-i18n="nav_program">Program</a>
+    <a href="/prayers/" data-i18n="nav_prayers">Prayers</a>
     <div class="nav-dropdown">
-      <a href="/writings/" class="nav-dropdown-toggle">Writings <span class="caret">▾</span></a>
+      <a href="/writings/" class="nav-dropdown-toggle"><span data-i18n="nav_writings">Writings</span> <span class="caret">▾</span></a>
       <div class="nav-dropdown-menu">
-        <a href="/writings/hidden-words/">Hidden Words</a>
+        <a href="/writings/hidden-words/" data-i18n="writing_hidden_words">Hidden Words</a>
         <a href="/writings/aqdas/">Kitáb-i-Aqdas</a>
         <a href="/writings/iqan/">Kitáb-i-Íqán</a>
-        <a href="/writings/gleanings/">Gleanings</a>
-        <a href="/writings/pm/">Prayers &amp; Meditations</a>
-        <a href="/writings/saq/">Some Answered Questions</a>
-        <a href="/writings/tablets/">Tablets of Bahá'u'lláh</a>
-        <a href="/writings/days/">Days of Remembrance</a>
-        <a href="/writings/ridvan/">Ridván Messages</a>
+        <a href="/writings/gleanings/" data-i18n="writing_gleanings">Gleanings</a>
+        <a href="/writings/pm/" data-i18n="writing_pm">Prayers &amp; Meditations</a>
+        <a href="/writings/saq/" data-i18n="writing_saq">Some Answered Questions</a>
+        <a href="/writings/tablets/" data-i18n="writing_tablets">Tablets of Bahá'u'lláh</a>
+        <a href="/writings/days/" data-i18n="writing_days">Days of Remembrance</a>
+        <a href="/writings/ridvan/" data-i18n="writing_ridvan">Ridván Messages</a>
       </div>
     </div>
-    <a href="/quran/">Qur'an</a>
-    <a href="/bible/">Bible</a>
-    <a href="/phelps/">Catalog</a>
+    <a href="/quran/" data-i18n="nav_quran">Qur'an</a>
+    <a href="/bible/" data-i18n="nav_bible">Bible</a>
+    <a href="/phelps/" data-i18n="nav_catalog">Catalog</a>
   </nav>
 </header>
 <script>
