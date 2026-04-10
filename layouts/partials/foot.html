@@ -5,6 +5,24 @@
 </footer>
 <script>
 if('serviceWorker' in navigator){navigator.serviceWorker.register('/sw.js').catch(function(){})}
+
+// PWA install prompt
+(function(){
+  var deferredPrompt;
+  var btn = document.getElementById('pwa-install');
+  if (!btn) return;
+  window.addEventListener('beforeinstallprompt', function(e) {
+    e.preventDefault();
+    deferredPrompt = e;
+    btn.style.display = '';
+  });
+  btn.addEventListener('click', function() {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(function() { deferredPrompt = null; btn.style.display = 'none'; });
+  });
+  window.addEventListener('appinstalled', function() { btn.style.display = 'none'; });
+})();
 </script>
 </body>
 </html>

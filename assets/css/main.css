@@ -59,6 +59,20 @@ body {
 }
 .site-header nav a:hover { opacity: 1; }
 
+/* PWA install button — only shown when installable */
+.pwa-install-btn {
+  background: none;
+  border: 1px solid rgba(255,255,255,.4);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: .2rem .5rem;
+  line-height: 1;
+  opacity: .85;
+}
+.pwa-install-btn:hover { opacity: 1; border-color: #fff; }
+
 /* UI language picker */
 .ui-lang-picker { position: relative; }
 .ui-lang-btn {
