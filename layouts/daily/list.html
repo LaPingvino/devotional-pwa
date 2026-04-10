@@ -466,7 +466,7 @@
   function selectLang(code) {
     selectedLang = code;
     const lang = allLanguages.find(l => l.code === code);
-    selectedRtl = lang?.rtl || false;
+    selectedRtl = lang ? lang.rtl : false;
     langLabel.textContent = lang ? lang.name + ' (' + (lang.prayer_count || 0) + ')' : code;
     localStorage.setItem('hw_daily_lang', code);
     // Update active state
@@ -738,7 +738,7 @@
 
   function loadObligatoryText() {
     const el = $('oblig-content');
-    const type = document.querySelector('input[name="oblig"]:checked')?.value;
+    const oblEl = document.querySelector('input[name="oblig"]:checked'); const type = oblEl ? oblEl.value : null;
     if (!type || !prayerData || !prayerData.prayers) {
       el.innerHTML = '';
       return;

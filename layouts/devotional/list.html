@@ -531,7 +531,7 @@
     langList.querySelectorAll('a').forEach(a => a.classList.toggle('active', a.dataset.code === code));
     langDropdown.removeAttribute('open');
     renderItems();
-    if ($('suggestions-panel')?.open) renderSuggestions();
+    var sp = $('suggestions-panel'); if (sp && sp.open) renderSuggestions();
   }
 
   async function init() {
@@ -660,7 +660,7 @@
   async function renderItems() {
     const container = $('dev-items');
     const lang = selectedLang;
-    const rtl = allLanguages.find(l => l.code === lang)?.rtl || false;
+    const rtlLang = allLanguages.find(l => l.code === lang); const rtl = rtlLang ? rtlLang.rtl : false;
 
     if (codes.length === 0) {
       container.innerHTML = '';
@@ -697,7 +697,7 @@
       const r = item.resolved;
       const textHtml = r ? r.text : '<span class="dev-item-na">Not available in ' + item.useLang + '</span>';
       const meta = r ? (r.category || '') + (r.name ? ' — ' + r.name : '') : '';
-      const isRtl = allLanguages.find(l => l.code === item.useLang)?.rtl;
+      const isRtlLang = allLanguages.find(l => l.code === item.useLang); const isRtl = isRtlLang && isRtlLang.rtl;
       const lockLabel = item.lang ? item.lang.toUpperCase() : '\u{1F310}';
       const lockTitle = item.lang ? 'Locked to ' + item.lang + ' (click to unlock)' : 'Using global language (click to lock to ' + lang + ')';
 
@@ -1006,7 +1006,7 @@
       matching.sort((a, b) => (b.translations || []).length - (a.translations || []).length);
 
       listEl.innerHTML = '';
-      const isRtl = allLanguages.find(l => l.code === lang)?.rtl;
+      const isRtlW = allLanguages.find(l => l.code === lang); const isRtl = isRtlW && isRtlW.rtl;
       matching.forEach(p => {
         const item = document.createElement('details');
         item.className = 'sug-item' + (p.hasLocal ? '' : ' sug-item-nolocal');
