@@ -320,13 +320,38 @@
 .no-print {}
 @media print {
   .site-header, .dev-toolbar, .dev-add-row, .dev-controls,
-  .dev-item-drag, .dev-item-remove, #builder-panel .dev-hint,
-  #shared-banner, .no-print, footer { display: none !important; }
-  .dev-item { break-inside: avoid; border: none; box-shadow: none; border-radius: 0; padding: .8rem 0; }
-  .dev-item-text { max-height: none; overflow: visible; }
-  .dev-page { max-width: 100%; padding: 0; }
-  .dev-star-sep .nine-star { color: #333; }
+  .dev-item-drag, .dev-item-remove, .dev-item-lock,
+  .dev-item-code, #builder-panel .dev-hint,
+  #shared-banner, .no-print, .dev-suggestions, footer { display: none !important; }
+
+  .dev-page { max-width: 100%; padding: 0; margin: 0; }
+  .dev-header { justify-content: center; margin-bottom: 1.5rem; }
+  .dev-header h1 { font-size: 1.8rem; text-align: center; width: 100%; }
+
+  .dev-item {
+    break-inside: avoid;
+    border: none;
+    box-shadow: none;
+    border-radius: 0;
+    padding: 1rem 0;
+    margin-bottom: 0;
+  }
+  .dev-item-header { display: none; }
+  .dev-item-text {
+    max-height: none;
+    overflow: visible;
+    font-size: 1.05rem;
+    line-height: 1.9;
+  }
+  .dev-item-text p { margin-bottom: .8rem; }
+
+  .dev-star-sep {
+    margin: .8rem 0;
+    font-size: 1.2rem;
+  }
+
   .print-only { display: block !important; }
+  #print-qr { margin-top: 3rem; }
 }
 .print-only { display: none; }
 #print-qr {
