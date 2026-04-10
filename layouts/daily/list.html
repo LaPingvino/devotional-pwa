@@ -9,6 +9,12 @@
       <summary id="daily-lang-label">English</summary>
       <div class="lang-dropdown-panel">
         <input type="search" class="lang-filter-input" id="daily-lang-filter" placeholder="Filter languages..." autocomplete="off">
+        <div class="lang-tier-bar" id="daily-lang-tiers">
+          <button class="tier-btn active" data-min="5">5+</button>
+          <button class="tier-btn" data-min="20">20+</button>
+          <button class="tier-btn" data-min="50">50+</button>
+          <button class="tier-btn" data-min="1">All</button>
+        </div>
         <div class="lang-dropdown-list" id="daily-lang-list"></div>
       </div>
     </details>
@@ -143,6 +149,24 @@
   display: flex;
   flex-direction: column;
 }
+.lang-tier-bar {
+  display: flex;
+  gap: .3rem;
+  padding: .3rem .4rem 0;
+}
+.tier-btn {
+  flex: 1;
+  padding: .15rem .3rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: .75rem;
+  cursor: pointer;
+  background: var(--bg);
+  color: var(--text-secondary);
+  text-align: center;
+}
+.tier-btn:hover { border-color: var(--accent); color: var(--accent); }
+.tier-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 .daily-header .lang-filter-input {
   margin: .4rem;
   padding: .3rem .5rem;
@@ -485,6 +509,7 @@
       a.href = '#';
       a.dataset.code = l.code;
       a.dataset.name = l.name.toLowerCase();
+      a.dataset.count = l.prayer_count || 0;
       const displayName = nameCounts[l.name] > 1 ? l.name + ' [' + l.code + ']' : l.name;
       a.innerHTML = displayName + '<span class="lang-code-badge">' + (l.prayer_count || 0) + '</span>';
       if (l.code === selectedLang) a.classList.add('active');
@@ -492,12 +517,28 @@
       langList.appendChild(a);
     });
 
-    // Filter input
-    langFilter.addEventListener('input', () => {
+    // Tier filter + text filter
+    let minPrayers = 5;
+    function filterLangs() {
       const q = langFilter.value.toLowerCase().trim();
       langList.querySelectorAll('a').forEach(a => {
-        a.style.display = (!q || a.dataset.name.includes(q) || a.dataset.code.includes(q)) ? '' : 'none';
+        const nameMatch = !q || a.dataset.name.includes(q) || a.dataset.code.includes(q);
+        const countOk = parseInt(a.dataset.count) >= minPrayers;
+        a.style.display = (nameMatch && countOk) ? '' : 'none';
       });
+    }
+
+    $('daily-lang-tiers').querySelectorAll('.tier-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        $('daily-lang-tiers').querySelectorAll('.tier-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        minPrayers = parseInt(btn.dataset.min);
+        filterLangs();
+      });
+    });
+
+    langFilter.addEventListener('input', () => {
+      filterLangs();
     });
 
     // Close dropdown on outside click
