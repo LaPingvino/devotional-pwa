@@ -353,7 +353,7 @@ func main() {
 
 	// 6. Writings (non-prayer texts: hidden_words, aqdas, iqan, etc.)
 	log.Println("→ writings...")
-	writingRefs := generateWritings(assetsDir, dataDir, langNames)
+	writingRefs := generateWritings(assetsDir, dataDir, staticDir, langNames)
 	log.Printf("  writing refs: %d base codes have backlinks", len(writingRefs))
 
 	// 7. Enrich phelps files with writing backlinks
@@ -488,7 +488,7 @@ var writingTypes = []struct {
 }
 
 // generateWritings returns a reverse index: base phelps code → []WritingRef
-func generateWritings(assetsDir, dataDir string, langNames map[string]string) map[string][]WritingRef {
+func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string]string) map[string][]WritingRef {
 	// Query all writing entries grouped by type and language
 	rows := doltQuery(`
 		SELECT type, language, phelps, COALESCE(name,''), text, COALESCE(source_id,'')
