@@ -288,24 +288,36 @@ a.entry-name:hover { text-decoration: underline; }
     });
   }
 
+  // Track which entry is at the top of the viewport using scroll events
+  // (more reliable than IntersectionObserver for "current reading position")
   if (allEntries.length > 0) {
-    const observer = new IntersectionObserver(entries => {
-      for (const entry of entries) {
-        if (entry.isIntersecting) {
-          currentVisibleId = entry.target.id;
-          // Highlight TOC
+    const entryArr = Array.from(allEntries);
+    let ticking = false;
+    function onScroll() {
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        ticking = false;
+        // Find the last entry whose top is at or above the viewport top + small offset
+        const offset = 80; // account for sticky header
+        let current = entryArr[0];
+        for (const el of entryArr) {
+          if (el.getBoundingClientRect().top <= offset) current = el;
+          else break;
+        }
+        if (current && current.id !== currentVisibleId) {
+          currentVisibleId = current.id;
           tocEntries.forEach(te => {
             const active = te.getAttribute('href') === '#' + currentVisibleId;
             te.style.borderLeftColor = active ? 'var(--accent)' : 'transparent';
             te.style.fontWeight = active ? '600' : '';
           });
-          // Update language links with current position
           updateLangLinks();
-          break;
         }
-      }
-    }, { rootMargin: '-10% 0px -80% 0px' });
-    allEntries.forEach(el => observer.observe(el));
+      });
+    }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll(); // initial
   }
 })();
 </script>
