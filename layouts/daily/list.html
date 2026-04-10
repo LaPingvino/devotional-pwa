@@ -30,10 +30,13 @@
   </section>
 
   <!-- Random prayer -->
-  <section class="daily-card" id="prayer-card">
+  <section class="daily-card expandable" id="prayer-card">
     <div class="card-header">
       <h2>Random Prayer</h2>
-      <button class="btn-refresh" id="btn-new-prayer" title="New random prayer">&#x21bb;</button>
+      <div class="card-btns">
+        <button class="btn-refresh" id="btn-new-prayer" title="New random prayer">&#x21bb;</button>
+        <button class="btn-expand" title="Full screen">&#x26F6;</button>
+      </div>
     </div>
     <div id="prayer-content" class="reading-content">
       <p class="placeholder">Select a language to begin</p>
@@ -42,10 +45,13 @@
   </section>
 
   <!-- Random writing excerpt -->
-  <section class="daily-card" id="writing-card">
+  <section class="daily-card expandable" id="writing-card">
     <div class="card-header">
       <h2>Random Writing</h2>
-      <button class="btn-refresh" id="btn-new-writing" title="New random excerpt">&#x21bb;</button>
+      <div class="card-btns">
+        <button class="btn-refresh" id="btn-new-writing" title="New random excerpt">&#x21bb;</button>
+        <button class="btn-expand" title="Full screen">&#x26F6;</button>
+      </div>
     </div>
     <div id="writing-content" class="reading-content">
       <p class="placeholder">Select a language to begin</p>
@@ -54,8 +60,13 @@
   </section>
 
   <!-- Obligatory Prayers -->
-  <section class="daily-card" id="obligatory-card">
-    <h2>Obligatory Prayer</h2>
+  <section class="daily-card expandable" id="obligatory-card">
+    <div class="card-header">
+      <h2>Obligatory Prayer</h2>
+      <div class="card-btns">
+        <button class="btn-expand" title="Full screen">&#x26F6;</button>
+      </div>
+    </div>
     <div class="oblig-select">
       <label><input type="radio" name="oblig" value="short"> Short</label>
       <label><input type="radio" name="oblig" value="medium"> Medium</label>
@@ -66,7 +77,7 @@
       <label><input type="checkbox" id="chk-oblig-noon"> Noon</label>
       <label><input type="checkbox" id="chk-oblig-evening"> Evening</label>
     </div>
-    <div id="oblig-content" class="reading-content"></div>
+    <div id="oblig-content" class="reading-content oblig-text"></div>
   </section>
 
   <!-- 95 Allah-u-Abha counter -->
@@ -216,7 +227,62 @@
   justify-content: space-between;
   margin-bottom: .6rem;
 }
-.card-header h2 { margin-bottom: 0; }
+.card-header h2 { margin-bottom: 0; flex: 1; }
+.card-btns { display: flex; gap: .3rem; }
+
+/* Full-screen expand mode */
+.daily-card.expanded {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 500;
+  border-radius: 0;
+  margin: 0;
+  padding: 1rem 1.5rem;
+  overflow-y: auto;
+  max-height: 100vh;
+}
+.daily-card.expanded .reading-content {
+  max-height: none;
+  font-size: 1.1rem;
+  line-height: 1.9;
+}
+.daily-card.expanded .btn-expand::after { content: ''; }
+.btn-expand {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 2rem;
+  height: 2rem;
+  font-size: .9rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color .15s, border-color .15s;
+}
+.btn-expand:hover { color: var(--accent); border-color: var(--accent); }
+
+/* Obligatory prayer styling */
+.oblig-text {
+  margin-top: .8rem;
+  padding-top: .8rem;
+  border-top: 1px solid var(--border);
+}
+.oblig-text h2, .oblig-text h3 {
+  font-size: 1rem;
+  color: var(--accent-dark);
+  margin: 1.2rem 0 .4rem;
+}
+.oblig-text h2:first-child, .oblig-text h3:first-child { margin-top: 0; }
+.oblig-text em, .oblig-text i {
+  display: block;
+  color: var(--text-secondary);
+  font-size: .85rem;
+  margin: .6rem 0;
+  padding-left: .8rem;
+  border-left: 2px solid var(--border);
+}
 
 /* Checkboxes */
 .check-row {
@@ -424,6 +490,20 @@
 
   // ── Helpers ──
   const $ = id => document.getElementById(id);
+
+  // Simple markdown→HTML (headers, bold, italic, paragraphs)
+  function renderMd(text) {
+    if (!text) return '';
+    return text
+      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+      .replace(/^# (.+)$/gm, '<h2>$1</h2>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+      .replace(/\n{2,}/g, '</p><p>')
+      .replace(/\n/g, '<br>')
+      .replace(/^/, '<p>').replace(/$/, '</p>');
+  }
   const today = () => new Date().toISOString().slice(0, 10);
   const storageKey = key => 'hw_daily_' + today() + '_' + key;
 
@@ -555,6 +635,22 @@
     if (initLang) langLabel.textContent = initLang.name + ' (' + (initLang.prayer_count || 0) + ')';
 
     if (allLanguages.length > 0) loadContent();
+
+    // Expand/collapse buttons on cards
+    document.querySelectorAll('.btn-expand').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        var card = btn.closest('.daily-card');
+        card.classList.toggle('expanded');
+        btn.textContent = card.classList.contains('expanded') ? '\u2716' : '\u26F6';
+      });
+    });
+    // Escape key closes expanded card
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') {
+        var exp = document.querySelector('.daily-card.expanded');
+        if (exp) { exp.classList.remove('expanded'); exp.querySelector('.btn-expand').textContent = '\u26F6'; }
+      }
+    });
   }
 
   // ── Load prayer + writing content ──
@@ -747,7 +843,7 @@
     const prayer = prayerData.prayers.find(p => p.phelps === code);
     if (prayer) {
       const rtl = selectedRtl;
-      el.innerHTML = prayer.text || '';
+      el.innerHTML = renderMd(prayer.text || '');
       if (rtl) el.setAttribute('dir', 'rtl'); else el.removeAttribute('dir');
     } else {
       el.innerHTML = '<p class="placeholder">Not available in this language</p>';
