@@ -283,6 +283,7 @@
   border-top: 1px solid var(--border);
 }
 .sug-item-text p { margin-bottom: .4rem; }
+.sug-item-nolocal { opacity: .7; }
 .sug-item-langs { font-size: .65rem; color: var(--text-secondary); background: var(--bg); border-radius: 8px; padding: .1rem .3rem; white-space: nowrap; }
 .sug-item-code { font-family: monospace; font-size: .75rem; color: var(--text-secondary); }
 .sug-item-add {
@@ -852,16 +853,20 @@
 
       listEl.innerHTML = '<p style="color:var(--text-secondary);font-size:.85rem">Loading...</p>';
 
-      const pMap = await getPrayerMap(lang);
+      // Always select from English (canonical categories + translation counts)
+      const enMap = await getPrayerMap('en');
+      const localMap = lang !== 'en' ? await getPrayerMap(lang) : enMap;
       const matching = [];
-      for (const p of Object.values(pMap)) {
+      for (const p of Object.values(enMap)) {
         if (tab.cats.includes(p.category) && p.source !== 'llm-translation') {
-          matching.push(p);
+          // Use local language text if available, fall back to English
+          const local = localMap[p.phelps];
+          matching.push({ ...p, text: local ? local.text : p.text, hasLocal: !!local });
         }
       }
 
       if (matching.length === 0) {
-        listEl.innerHTML = '<p style="color:var(--text-secondary);font-size:.85rem">No prayers found for this theme in ' + lang + '</p>';
+        listEl.innerHTML = '<p style="color:var(--text-secondary);font-size:.85rem">No prayers found for this theme</p>';
         return;
       }
 
@@ -872,12 +877,12 @@
       const isRtl = allLanguages.find(l => l.code === lang)?.rtl;
       matching.forEach(p => {
         const item = document.createElement('details');
-        item.className = 'sug-item';
+        item.className = 'sug-item' + (p.hasLocal ? '' : ' sug-item-nolocal');
         const inProgram = codes.some(i => i.code === p.phelps);
         const tCount = (p.translations || []).length;
         item.innerHTML = `
           <summary class="sug-item-header">
-            <span class="sug-item-name">${p.name || p.category}</span>
+            <span class="sug-item-name">${p.name || p.category}${p.hasLocal ? '' : ' <span style="font-size:.7em;color:var(--text-secondary)">(en)</span>'}</span>
             <span class="sug-item-langs" title="${tCount} languages">${tCount}L</span>
             <span class="sug-item-code">${p.phelps}</span>
             <button class="sug-item-add${inProgram ? ' added' : ''}">${inProgram ? '\u2713' : '+'}</button>
