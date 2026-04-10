@@ -134,6 +134,38 @@ var bookOrder = []struct {
 	{"revelation", "Ἀποκάλυψις", "Revelation", "nt", "New Testament"},
 }
 
+// Hebrew transliteration filenames → English book IDs
+var hebrewToEnglish = map[string]string{
+	// Torah
+	"bereshit": "genesis", "shemot": "exodus", "vayikra": "leviticus",
+	"bamidbar": "numbers", "devarim": "deuteronomy",
+	// Nevi'im
+	"yehoshua": "joshua", "shoftim": "judges",
+	"shmuel-a": "1-samuel", "shmuel-b": "2-samuel",
+	"melakhim-a": "1-kings", "melakhim-b": "2-kings",
+	"yeshayahu": "isaiah", "yirmeyahu": "jeremiah", "yechezkel": "ezekiel",
+	"hoshea": "hosea", "yoel": "joel", "amos": "amos",
+	"ovadyah": "obadiah", "yonah": "jonah", "mikhah": "micah",
+	"nachum": "nahum", "chavakuk": "habakkuk", "tzefanyah": "zephaniah",
+	"chaggai": "haggai", "zekharyah": "zechariah", "malakhi": "malachi",
+	// Ketuvim
+	"tehillim": "psalms", "mishlei": "proverbs", "iyyov": "job",
+	"shir-hashirim": "song-of-solomon", "rut": "ruth",
+	"eikhah": "lamentations", "kohelet": "ecclesiastes",
+	"ester": "esther", "daniel": "daniel", "ezra": "ezra",
+	"nechemyah": "nehemiah",
+	"divrei-hayamim-a": "1-chronicles", "divrei-hayamim-b": "2-chronicles",
+}
+
+// Build reverse map: English → Hebrew filename
+var englishToHebrew = func() map[string]string {
+	m := make(map[string]string, len(hebrewToEnglish))
+	for he, en := range hebrewToEnglish {
+		m[en] = he
+	}
+	return m
+}()
+
 var verseRe = regexp.MustCompile(`^(\d+)\.\s+(.+)`)
 var verseReArabicNums = regexp.MustCompile(`^([٠-٩]+)\.\s+(.+)`)
 
@@ -257,11 +289,15 @@ func main() {
 				hasAr = len(chs) > 0
 			}
 		}
-		// Hebrew (OT only, optional)
+		// Hebrew (OT only, optional) — files use Hebrew transliteration names
+		heFileID := b.id
+		if hid, ok := englishToHebrew[b.id]; ok {
+			heFileID = hid
+		}
 		if b.section != "nt" {
 			if dirs, ok := langDirs["he"]; ok {
 				if d, ok2 := dirs[b.section]; ok2 {
-					chs := findChapters(d, b.id)
+					chs := findChapters(d, heFileID)
 					if len(chs) > maxCh {
 						maxCh = len(chs)
 					}
@@ -335,13 +371,17 @@ func main() {
 
 			allVerseNums := map[int]bool{}
 
-			// Hebrew
+			// Hebrew — use Hebrew transliteration filename
 			heVerses := map[int]string{}
+			heFileID := book.ID
+			if hid, ok := englishToHebrew[book.ID]; ok {
+				heFileID = hid
+			}
 			if book.HasHebrew {
 				sec := book.Section
 				if dirs, ok := langDirs["he"]; ok {
 					if d, ok2 := dirs[sec]; ok2 {
-						path := filepath.Join(d, fmt.Sprintf("%s-%02d.md", book.ID, ch))
+						path := filepath.Join(d, fmt.Sprintf("%s-%02d.md", heFileID, ch))
 						title, subtitle, vlines := parseChapter(path)
 						if cd.Title == "" {
 							cd.Title = title
