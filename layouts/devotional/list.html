@@ -161,6 +161,18 @@
   color: var(--text-secondary);
   flex: 1;
 }
+.dev-item-lock {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: .1rem .4rem;
+  font-size: .7rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+.dev-item-lock:hover { border-color: var(--accent); color: var(--accent); }
+.dev-item-lock.locked { background: var(--accent); color: #fff; border-color: var(--accent); }
 .dev-item-remove {
   background: none;
   border: none;
@@ -345,24 +357,30 @@
   const $ = id => document.getElementById(id);
 
   // ── Devotional storage ──
+  // Items are {code, lang?} objects. Plain strings from old format are auto-upgraded.
   const STORAGE_KEY = 'hw_devotional_codes';
+  function normalizeItem(item) {
+    if (typeof item === 'string') return { code: item };
+    return { code: item.code, lang: item.lang || undefined };
+  }
   function getCodes() {
-    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]').map(normalizeItem); } catch { return []; }
   }
-  function saveCodes(codes) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(codes));
+  function saveCodes(items) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   }
+  function hasCode(code) { return getCodes().some(i => i.code === code); }
   // Global helper for "add to devotional" buttons across the site
   window.hwDevotional = {
     add(code) {
-      const codes = getCodes();
-      if (!codes.includes(code)) { codes.push(code); saveCodes(codes); }
+      const items = getCodes();
+      if (!items.some(i => i.code === code)) { items.push({ code }); saveCodes(items); }
     },
     remove(code) {
-      saveCodes(getCodes().filter(c => c !== code));
+      saveCodes(getCodes().filter(i => i.code !== code));
     },
-    has(code) { return getCodes().includes(code); },
-    codes: getCodes
+    has(code) { return hasCode(code); },
+    codes() { return getCodes().map(i => i.code); }
   };
 
   // ── Determine mode: shared (hash codes) or builder (localStorage) ──
@@ -371,16 +389,23 @@
 
   function parseHash() {
     const h = location.hash.replace('#', '').trim();
-    if (h) {
-      return h.split(',').map(c => c.trim().toUpperCase()).filter(Boolean);
-    }
-    return [];
+    if (!h) return [];
+    return h.split(',').map(s => {
+      const parts = s.trim().split(':');
+      const code = parts[0].toUpperCase();
+      const lang = parts[1] ? parts[1].toLowerCase() : undefined;
+      return code ? { code, lang } : null;
+    }).filter(Boolean);
   }
 
-  const hashCodes = parseHash();
-  if (hashCodes.length > 0) {
+  function codesToHash(items) {
+    return items.map(i => i.lang ? i.code + ':' + i.lang : i.code).join(',');
+  }
+
+  const hashItems = parseHash();
+  if (hashItems.length > 0) {
     isShared = true;
-    codes = hashCodes;
+    codes = hashItems;
     $('shared-banner').style.display = '';
     $('builder-panel').style.display = 'none';
     $('add-row').style.display = 'none';
@@ -498,9 +523,10 @@
     container.innerHTML = '<p style="color:var(--text-secondary)">Loading...</p>';
 
     const items = [];
-    for (const code of codes) {
-      const resolved = await resolveCode(code, lang);
-      items.push({ code, resolved });
+    for (const entry of codes) {
+      const useLang = entry.lang || lang;
+      const resolved = await resolveCode(entry.code, useLang);
+      items.push({ code: entry.code, lang: entry.lang, useLang, resolved });
     }
 
     container.innerHTML = '';
@@ -520,17 +546,35 @@
       div.draggable = true;
 
       const r = item.resolved;
-      const textHtml = r ? r.text : '<span class="dev-item-na">Not available in this language</span>';
+      const textHtml = r ? r.text : '<span class="dev-item-na">Not available in ' + item.useLang + '</span>';
       const meta = r ? (r.category || '') + (r.name ? ' — ' + r.name : '') : '';
+      const isRtl = allLanguages.find(l => l.code === item.useLang)?.rtl;
+      const lockLabel = item.lang ? item.lang.toUpperCase() : '\u{1F310}';
+      const lockTitle = item.lang ? 'Locked to ' + item.lang + ' (click to unlock)' : 'Using global language (click to lock to ' + lang + ')';
 
       div.innerHTML = `
         <div class="dev-item-header no-print">
           <span class="dev-item-drag" title="Drag to reorder">&#x2630;</span>
           <span class="dev-item-code">${item.code}</span>
           <span class="dev-item-meta">${meta}</span>
+          <button class="dev-item-lock${item.lang ? ' locked' : ''}" title="${lockTitle}">${lockLabel}</button>
           ${!isShared ? '<button class="dev-item-remove" title="Remove">&times;</button>' : ''}
         </div>
-        <div class="dev-item-text"${rtl ? ' dir="rtl"' : ''}>${textHtml}</div>`;
+        <div class="dev-item-text"${isRtl ? ' dir="rtl"' : ''}>${textHtml}</div>`;
+
+      // Lock/unlock language button
+      const lockBtn = div.querySelector('.dev-item-lock');
+      if (lockBtn) {
+        lockBtn.addEventListener('click', () => {
+          if (codes[idx].lang) {
+            delete codes[idx].lang; // unlock
+          } else {
+            codes[idx].lang = lang; // lock to current global language
+          }
+          if (!isShared) saveCodes(codes);
+          renderItems();
+        });
+      }
 
       // Remove button
       const removeBtn = div.querySelector('.dev-item-remove');
@@ -571,7 +615,7 @@
   // ── Share button ──
   $('btn-share').addEventListener('click', () => {
     if (codes.length === 0) { alert('Add some prayers first!'); return; }
-    const url = location.origin + '/devotional/#' + codes.join(',');
+    const url = location.origin + '/devotional/#' + codesToHash(codes);
     navigator.clipboard.writeText(url).then(() => {
       $('btn-share').textContent = 'Copied!';
       setTimeout(() => { $('btn-share').textContent = 'Share link'; }, 2000);
@@ -583,7 +627,7 @@
   // ── Print button ──
   $('btn-print').addEventListener('click', () => {
     // Generate QR code for print
-    const url = location.origin + '/devotional/#' + codes.join(',');
+    const url = location.origin + '/devotional/#' + codesToHash(codes);
     const qrDiv = $('print-qr');
     qrDiv.innerHTML = '';
     const label = document.createElement('p');
@@ -612,8 +656,8 @@
     const input = $('add-code');
     const code = input.value.trim().toUpperCase();
     if (!code) return;
-    if (!codes.includes(code)) {
-      codes.push(code);
+    if (!codes.some(i => i.code === code)) {
+      codes.push({ code });
       if (!isShared) saveCodes(codes);
     }
     input.value = '';
@@ -819,18 +863,18 @@
         }
         const item = document.createElement('div');
         item.className = 'sug-item';
-        const inProgram = codes.includes(p.phelps);
+        const inProgram = codes.some(i => i.code === p.phelps);
         item.innerHTML = `
           <span class="sug-item-name">${p.name || p.category}</span>
           <span class="sug-item-code">${p.phelps}</span>
           <button class="sug-item-add${inProgram ? ' added' : ''}">${inProgram ? '\u2713' : '+'}</button>`;
         const btn = item.querySelector('.sug-item-add');
         btn.addEventListener('click', () => {
-          if (codes.includes(p.phelps)) {
-            codes = codes.filter(c => c !== p.phelps);
+          if (codes.some(i => i.code === p.phelps)) {
+            codes = codes.filter(i => i.code !== p.phelps);
             btn.textContent = '+'; btn.classList.remove('added');
           } else {
-            codes.push(p.phelps);
+            codes.push({ code: p.phelps });
             btn.textContent = '\u2713'; btn.classList.add('added');
           }
           if (!isShared) saveCodes(codes);
@@ -845,7 +889,7 @@
       addAll.textContent = 'Add all ' + matching.length + ' prayers';
       addAll.addEventListener('click', () => {
         matching.forEach(p => {
-          if (!codes.includes(p.phelps)) codes.push(p.phelps);
+          if (!codes.some(i => i.code === p.phelps)) codes.push({ code: p.phelps });
         });
         if (!isShared) saveCodes(codes);
         renderItems();
