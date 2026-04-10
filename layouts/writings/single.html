@@ -3,6 +3,7 @@
 {{ $entries := .Params.entries }}
 {{ $allLangs := .Params.allLangs }}
 {{ $key := .Params.writingKey }}
+{{ $showNames := .Params.showNames }}
 
 {{ partial "head.html" (dict "Title" .Title "Lang" $lang "Params" (dict "rtl" $rtl)) }}
 <div class="page-body">
@@ -68,6 +69,7 @@
         <section class="writing-entry" id="{{ .phelps }}" data-order="{{ .order }}">
           <div class="writing-entry-label">
             <span class="entry-num">{{ $bookIdx }}</span>
+            {{ if and $showNames .name }}<span class="entry-name">{{ .name }}</span>{{ end }}
           </div>
           <div class="writing-text">{{ .text | safeHTML }}</div>
         </section>
@@ -110,6 +112,11 @@
   border-radius: 4px;
   min-width: 2em;
   text-align: center;
+}
+.entry-name {
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--accent-dark);
 }
 .phelps-link {
   font-size: .7rem;
