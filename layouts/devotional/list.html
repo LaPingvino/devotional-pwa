@@ -355,6 +355,11 @@
   line-height: 1;
 }
 
+/* Phelps code — print only */
+.dev-item-pin {
+  display: none;
+}
+
 /* Print styles */
 .no-print {}
 @media print {
@@ -376,6 +381,14 @@
     margin-bottom: 0;
   }
   .dev-item-header { display: none; }
+  .dev-item-pin {
+    display: block;
+    text-align: right;
+    font-family: monospace;
+    font-size: .65rem;
+    color: #999;
+    margin-top: .2rem;
+  }
   .dev-item-text {
     max-height: none;
     overflow: visible;
@@ -696,7 +709,8 @@
           <button class="dev-item-lock${item.lang ? ' locked' : ''}" title="${lockTitle}">${lockLabel}</button>
           ${!isShared ? '<button class="dev-item-remove" title="Remove">&times;</button>' : ''}
         </div>
-        <div class="dev-item-text"${isRtl ? ' dir="rtl"' : ''}>${textHtml}</div>`;
+        <div class="dev-item-text"${isRtl ? ' dir="rtl"' : ''}>${textHtml}</div>
+        <div class="dev-item-pin">${item.code}</div>`;
 
       // Lock/unlock language button
       const lockBtn = div.querySelector('.dev-item-lock');
