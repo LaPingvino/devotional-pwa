@@ -62,10 +62,12 @@
         </h2>
         {{ end }}
 
+        {{ $bookIdx := 0 }}
         {{ range .entries }}
-        <section class="writing-entry" id="{{ .phelps }}">
+        {{ $bookIdx = add $bookIdx 1 }}
+        <section class="writing-entry" id="{{ .phelps }}" data-order="{{ .order }}">
           <div class="writing-entry-label">
-            <span class="entry-num">{{ .order }}</span>
+            <span class="entry-num">{{ $bookIdx }}</span>
           </div>
           <div class="writing-text">{{ .text | safeHTML }}</div>
         </section>
