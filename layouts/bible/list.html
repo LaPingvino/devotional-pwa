@@ -1,15 +1,15 @@
 {{ partial "head.html" (dict "Title" "Bible" "Lang" "en") }}
 <div class="main-content">
-  <h1>Bible — Root-Recovery Translation</h1>
+  <h1>Bible</h1>
   <p style="color:var(--text-secondary); margin-bottom:1.5rem;">
-    Translated from Hebrew (Tanakh) and Syriac &amp; Greek (New Testament), restoring the original root meanings.
+    English (KJV) and Arabic (Van Dyck 1865) — Tanakh ordering.
   </p>
 
   {{ $sections := slice
     (dict "id" "torah" "name" "Torah — תורה" "desc" "The Five Books of Moses")
     (dict "id" "neviim" "name" "Nevi'im — נביאים" "desc" "The Prophets")
     (dict "id" "ketuvim" "name" "Ketuvim — כתובים" "desc" "The Writings")
-    (dict "id" "nt" "name" "New Testament — ܕܝܬܩܐ ܚܕܬܐ" "desc" "From Syriac (Peshitta) and Greek (Nestle 1904)")
+    (dict "id" "nt" "name" "New Testament" "desc" "The Gospels, Acts, Epistles, and Revelation")
   }}
 
   {{ range $sections }}
