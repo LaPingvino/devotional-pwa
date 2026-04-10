@@ -257,16 +257,33 @@
   gap: .4rem;
 }
 .sug-item {
-  display: flex;
-  align-items: center;
-  gap: .5rem;
-  padding: .3rem .5rem;
   border: 1px solid var(--border);
   border-radius: 6px;
   font-size: .85rem;
   background: var(--bg);
 }
+.sug-item-header {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .3rem .5rem;
+  cursor: pointer;
+  list-style: none;
+}
+.sug-item-header::-webkit-details-marker { display: none; }
+.sug-item-header::before { content: '\25b6'; font-size: .6em; color: var(--text-secondary); flex-shrink: 0; }
+.sug-item[open] .sug-item-header::before { content: '\25bc'; }
 .sug-item-name { flex: 1; }
+.sug-item-text {
+  padding: .3rem .8rem .6rem;
+  font-size: .85rem;
+  line-height: 1.6;
+  max-height: 250px;
+  overflow-y: auto;
+  border-top: 1px solid var(--border);
+}
+.sug-item-text p { margin-bottom: .4rem; }
+.sug-item-langs { font-size: .65rem; color: var(--text-secondary); background: var(--bg); border-radius: 8px; padding: .1rem .3rem; white-space: nowrap; }
 .sug-item-code { font-family: monospace; font-size: .75rem; color: var(--text-secondary); }
 .sug-item-add {
   background: none;
@@ -838,7 +855,7 @@
       const pMap = await getPrayerMap(lang);
       const matching = [];
       for (const p of Object.values(pMap)) {
-        if (tab.cats.includes(p.category)) {
+        if (tab.cats.includes(p.category) && p.source !== 'llm-translation') {
           matching.push(p);
         }
       }
@@ -848,28 +865,27 @@
         return;
       }
 
-      // Sort by category then name
-      matching.sort((a, b) => (a.category + a.phelps).localeCompare(b.category + b.phelps));
+      // Sort by number of translations (most widely available first)
+      matching.sort((a, b) => (b.translations || []).length - (a.translations || []).length);
 
       listEl.innerHTML = '';
-      let lastCat = '';
+      const isRtl = allLanguages.find(l => l.code === lang)?.rtl;
       matching.forEach(p => {
-        if (p.category !== lastCat) {
-          lastCat = p.category;
-          const catEl = document.createElement('div');
-          catEl.style.cssText = 'font-size:.75rem;font-weight:600;color:var(--text-secondary);margin-top:.4rem;';
-          catEl.textContent = lastCat;
-          listEl.appendChild(catEl);
-        }
-        const item = document.createElement('div');
+        const item = document.createElement('details');
         item.className = 'sug-item';
         const inProgram = codes.some(i => i.code === p.phelps);
+        const tCount = (p.translations || []).length;
         item.innerHTML = `
-          <span class="sug-item-name">${p.name || p.category}</span>
-          <span class="sug-item-code">${p.phelps}</span>
-          <button class="sug-item-add${inProgram ? ' added' : ''}">${inProgram ? '\u2713' : '+'}</button>`;
+          <summary class="sug-item-header">
+            <span class="sug-item-name">${p.name || p.category}</span>
+            <span class="sug-item-langs" title="${tCount} languages">${tCount}L</span>
+            <span class="sug-item-code">${p.phelps}</span>
+            <button class="sug-item-add${inProgram ? ' added' : ''}">${inProgram ? '\u2713' : '+'}</button>
+          </summary>
+          <div class="sug-item-text"${isRtl ? ' dir="rtl"' : ''}>${p.text || ''}</div>`;
         const btn = item.querySelector('.sug-item-add');
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', e => {
+          e.stopPropagation();
           if (codes.some(i => i.code === p.phelps)) {
             codes = codes.filter(i => i.code !== p.phelps);
             btn.textContent = '+'; btn.classList.remove('added');
