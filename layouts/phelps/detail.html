@@ -96,7 +96,7 @@
     const phelpsSlug = slug.toLowerCase();
     let phelpsData = null;
     try {
-      const pRes = await fetch(`/phelps/${phelpsSlug}.json`);
+      const pRes = await fetch(`/data/phelps/${phelpsSlug}.json`);
       if (pRes.ok) phelpsData = await pRes.json();
     } catch (_) {}
 
