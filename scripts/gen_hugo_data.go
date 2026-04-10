@@ -226,10 +226,14 @@ func main() {
 				prayers[i].BookCats = bc
 			}
 		}
-		writeJSON(filepath.Join(assetsDir, "prayers", lang.Code+".json"), LangFile{
+		langFile := LangFile{
 			Prayers:     prayers,
 			Prayerbooks: prayerbooks,
-		})
+		}
+		writeJSON(filepath.Join(assetsDir, "prayers", lang.Code+".json"), langFile)
+		// Also write to static/ for client-side JS fetch (daily devotions page)
+		must(os.MkdirAll(filepath.Join(staticDir, "prayers"), 0755))
+		writeJSON(filepath.Join(staticDir, "prayers", lang.Code+".json"), langFile)
 	}
 
 	// 3. Group phelps codes by base PIN (strips trailing 3-char alpha mnemonic suffix)
@@ -575,7 +579,12 @@ func generateWritings(assetsDir, dataDir string, langNames map[string]string) ma
 				Count: len(entries),
 				RTL:   rtlLangs[lang],
 			})
-			writeJSON(filepath.Join(outDir, lang+".json"), WritingLangFile{Books: books})
+			wlf := WritingLangFile{Books: books}
+			writeJSON(filepath.Join(outDir, lang+".json"), wlf)
+			// Also write to static/ for client-side JS fetch (daily devotions page)
+			staticWritDir := filepath.Join(staticDir, "writings", wt.Key)
+			must(os.MkdirAll(staticWritDir, 0755))
+			writeJSON(filepath.Join(staticWritDir, lang+".json"), wlf)
 		}
 		sort.Slice(wlangs, func(i, j int) bool { return wlangs[i].Name < wlangs[j].Name })
 

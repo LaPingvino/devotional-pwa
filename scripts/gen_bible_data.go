@@ -47,14 +47,16 @@ type ChapterData struct {
 }
 
 type Verse struct {
-	Num     int    `json:"num"`
+	Num     int      `json:"num"`
 	// Source languages
-	Hebrew  string `json:"he,omitempty"`
-	Syriac  string `json:"syr,omitempty"`
-	Greek   string `json:"el,omitempty"`
+	Hebrew  string   `json:"he,omitempty"`
+	Syriac  string   `json:"syr,omitempty"`
+	Greek   string   `json:"el,omitempty"`
 	// Translation languages
-	English string `json:"en,omitempty"`
-	Arabic  string `json:"ar,omitempty"`
+	English string   `json:"en,omitempty"`
+	Arabic  string   `json:"ar,omitempty"`
+	// KJV marginal notes extracted from {note: text} markers
+	Notes   []string `json:"notes,omitempty"`
 }
 
 // Canonical book ordering — Tanakh order, then New Testament.
@@ -179,6 +181,26 @@ var englishToGreek = map[string]string{
 	"1-john":            "1john",
 	"2-john":            "2john",
 	"3-john":            "3john",
+}
+
+var braceRe = regexp.MustCompile(`\{([^}]+)\}`)
+
+// processKJVBraces extracts {implied words} and {note: explanation} from KJV text.
+// Returns: cleaned HTML text, list of marginal notes.
+// Implied words → <i>word</i>, marginal notes → superscript footnote marker.
+func processKJVBraces(text string) (string, []string) {
+	var notes []string
+	result := braceRe.ReplaceAllStringFunc(text, func(m string) string {
+		inner := m[1 : len(m)-1]
+		if idx := strings.Index(inner, ":"); idx > 0 {
+			// Marginal note: {word: Heb. expansion}
+			notes = append(notes, strings.TrimSpace(inner))
+			return "<sup class=\"note-ref\">" + strconv.Itoa(len(notes)) + "</sup>"
+		}
+		// Implied word: {was}
+		return "<i>" + inner + "</i>"
+	})
+	return result, notes
 }
 
 var verseRe = regexp.MustCompile(`^(\d+)\.\s+(.+)`)
@@ -511,7 +533,9 @@ func main() {
 					v.Greek = t
 				}
 				if t, ok := enVerses[n]; ok {
-					v.English = t
+					processed, notes := processKJVBraces(t)
+					v.English = processed
+					v.Notes = notes
 				}
 				if t, ok := arVerses[n]; ok {
 					v.Arabic = t

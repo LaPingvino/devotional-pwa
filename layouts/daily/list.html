@@ -1,0 +1,756 @@
+{{ partial "head.html" (dict "Title" .Title "Lang" "en" "Params" (dict "description" "Daily Bahá'í devotional practice")) }}
+
+<div class="daily-page">
+
+  <!-- Language selector -->
+  <div class="daily-header">
+    <h1>Daily Devotions</h1>
+    <div class="lang-select-wrap">
+      <label for="daily-lang">Language:</label>
+      <select id="daily-lang"></select>
+    </div>
+  </div>
+
+  <!-- Morning / Evening checkboxes -->
+  <section class="daily-card" id="checklist-card">
+    <h2>Daily Reading</h2>
+    <div class="check-row">
+      <label><input type="checkbox" id="chk-morning"> Morning reading</label>
+      <label><input type="checkbox" id="chk-evening"> Evening reading</label>
+    </div>
+  </section>
+
+  <!-- Random prayer -->
+  <section class="daily-card" id="prayer-card">
+    <div class="card-header">
+      <h2>Random Prayer</h2>
+      <button class="btn-refresh" id="btn-new-prayer" title="New random prayer">&#x21bb;</button>
+    </div>
+    <div id="prayer-content" class="reading-content">
+      <p class="placeholder">Select a language to begin</p>
+    </div>
+    <div id="prayer-meta" class="reading-meta"></div>
+  </section>
+
+  <!-- Random writing excerpt -->
+  <section class="daily-card" id="writing-card">
+    <div class="card-header">
+      <h2>Random Writing</h2>
+      <button class="btn-refresh" id="btn-new-writing" title="New random excerpt">&#x21bb;</button>
+    </div>
+    <div id="writing-content" class="reading-content">
+      <p class="placeholder">Select a language to begin</p>
+    </div>
+    <div id="writing-meta" class="reading-meta"></div>
+  </section>
+
+  <!-- Obligatory Prayers -->
+  <section class="daily-card" id="obligatory-card">
+    <h2>Obligatory Prayer</h2>
+    <div class="oblig-select">
+      <label><input type="radio" name="oblig" value="short"> Short</label>
+      <label><input type="radio" name="oblig" value="medium"> Medium</label>
+      <label><input type="radio" name="oblig" value="long"> Long</label>
+    </div>
+    <div id="oblig-checks" class="check-row" style="display:none">
+      <label><input type="checkbox" id="chk-oblig-morning"> Morning</label>
+      <label><input type="checkbox" id="chk-oblig-noon"> Noon</label>
+      <label><input type="checkbox" id="chk-oblig-evening"> Evening</label>
+    </div>
+    <div id="oblig-content" class="reading-content"></div>
+  </section>
+
+  <!-- 95 Allah-u-Abha counter -->
+  <section class="daily-card" id="abha-card">
+    <h2>Allah-u-Abha</h2>
+    <p class="abha-subtitle">95 times daily</p>
+    <div class="abha-counter-wrap">
+      <button class="abha-btn" id="abha-btn">
+        <span class="abha-count" id="abha-count">0</span>
+        <span class="abha-label">/ 95</span>
+      </button>
+    </div>
+    <div class="abha-controls">
+      <button class="btn-small" id="abha-undo">Undo</button>
+      <button class="btn-small" id="abha-reset">Reset</button>
+    </div>
+    <div id="abha-done" class="abha-done" style="display:none">Complete!</div>
+  </section>
+
+  <!-- Qiblih compass -->
+  <section class="daily-card" id="qiblih-card">
+    <h2>Qiblih</h2>
+    <p class="qiblih-subtitle">Direction of Bahji, Acre</p>
+    <div class="compass-wrap">
+      <div class="compass" id="compass">
+        <div class="compass-rose" id="compass-rose">
+          <div class="compass-n">N</div>
+          <div class="compass-needle" id="compass-needle"></div>
+        </div>
+      </div>
+      <div id="qiblih-bearing" class="bearing-text"></div>
+      <div id="qiblih-status" class="compass-status">Tap to find direction</div>
+      <button class="btn-small" id="qiblih-btn">Find Qiblih</button>
+    </div>
+  </section>
+
+</div>
+
+<style>
+.daily-page {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+.daily-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin-bottom: 1.5rem;
+}
+.daily-header h1 { font-size: 1.5rem; margin: 0; }
+.lang-select-wrap {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .9rem;
+}
+.lang-select-wrap select {
+  padding: .3rem .5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: .9rem;
+  max-width: 200px;
+}
+
+/* Cards */
+.daily-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem 1.2rem;
+  margin-bottom: 1rem;
+}
+.daily-card h2 {
+  font-size: 1.1rem;
+  margin: 0 0 .6rem;
+  color: var(--accent-dark);
+}
+.card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: .6rem;
+}
+.card-header h2 { margin-bottom: 0; }
+
+/* Checkboxes */
+.check-row {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+.check-row label {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .95rem;
+  cursor: pointer;
+}
+.check-row input[type="checkbox"] {
+  width: 1.2rem;
+  height: 1.2rem;
+  accent-color: var(--accent);
+}
+
+/* Reading content */
+.reading-content {
+  font-size: .95rem;
+  line-height: 1.7;
+  max-height: 400px;
+  overflow-y: auto;
+  margin-bottom: .5rem;
+}
+.reading-content p { margin-bottom: .6rem; }
+.reading-meta {
+  font-size: .8rem;
+  color: var(--text-secondary);
+}
+.reading-meta a { color: var(--accent); text-decoration: none; }
+.reading-meta a:hover { text-decoration: underline; }
+.placeholder { color: var(--text-secondary); font-style: italic; }
+
+/* Buttons */
+.btn-refresh {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 2rem;
+  height: 2rem;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color .15s, border-color .15s;
+}
+.btn-refresh:hover { color: var(--accent); border-color: var(--accent); }
+.btn-small {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: .2rem .6rem;
+  font-size: .8rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+.btn-small:hover { color: var(--accent); border-color: var(--accent); }
+
+/* Obligatory prayer */
+.oblig-select {
+  display: flex;
+  gap: 1.2rem;
+  margin-bottom: .5rem;
+  flex-wrap: wrap;
+}
+.oblig-select label {
+  display: flex;
+  align-items: center;
+  gap: .3rem;
+  font-size: .95rem;
+  cursor: pointer;
+}
+.oblig-select input[type="radio"] { accent-color: var(--accent); }
+
+/* Allah-u-Abha counter */
+.abha-subtitle, .qiblih-subtitle {
+  font-size: .85rem;
+  color: var(--text-secondary);
+  margin-top: -.3rem;
+  margin-bottom: .8rem;
+}
+.abha-counter-wrap {
+  display: flex;
+  justify-content: center;
+  margin: .5rem 0;
+}
+.abha-btn {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  border: 3px solid var(--accent);
+  background: var(--surface);
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  transition: transform .1s, box-shadow .15s;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+.abha-btn:active { transform: scale(.95); }
+.abha-btn.done {
+  border-color: #4caf50;
+  background: #e8f5e9;
+}
+.abha-count {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+}
+.abha-btn.done .abha-count { color: #4caf50; }
+.abha-label {
+  font-size: .9rem;
+  color: var(--text-secondary);
+}
+.abha-controls {
+  display: flex;
+  justify-content: center;
+  gap: .5rem;
+  margin-top: .5rem;
+}
+.abha-done {
+  text-align: center;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #4caf50;
+  margin-top: .5rem;
+}
+
+/* Compass */
+.compass-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: .5rem;
+}
+.compass {
+  width: 160px;
+  height: 160px;
+  position: relative;
+}
+.compass-rose {
+  width: 100%;
+  height: 100%;
+  border: 2px solid var(--border);
+  border-radius: 50%;
+  position: relative;
+  transition: transform .3s ease;
+}
+.compass-n {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: .8rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+}
+.compass-needle {
+  position: absolute;
+  top: 15%;
+  left: 50%;
+  width: 4px;
+  height: 35%;
+  margin-left: -2px;
+  background: var(--accent);
+  border-radius: 2px;
+  transform-origin: bottom center;
+}
+.compass-needle::after {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-bottom: 10px solid var(--accent);
+}
+.bearing-text {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.compass-status {
+  font-size: .85rem;
+  color: var(--text-secondary);
+}
+</style>
+
+<script>
+(function() {
+  'use strict';
+
+  // ── Helpers ──
+  const $ = id => document.getElementById(id);
+  const today = () => new Date().toISOString().slice(0, 10);
+  const storageKey = key => 'hw_daily_' + today() + '_' + key;
+
+  function loadState(key, fallback) {
+    try {
+      const v = localStorage.getItem(storageKey(key));
+      return v !== null ? JSON.parse(v) : fallback;
+    } catch { return fallback; }
+  }
+  function saveState(key, val) {
+    try { localStorage.setItem(storageKey(key), JSON.stringify(val)); } catch {}
+  }
+
+  // Seeded PRNG (mulberry32) for daily-stable random selections
+  function mulberry32(seed) {
+    return function() {
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function dateSeed() {
+    const d = today();
+    let h = 0;
+    for (let i = 0; i < d.length; i++) h = (h * 31 + d.charCodeAt(i)) | 0;
+    return h;
+  }
+
+  // ── Language selector ──
+  const langSelect = $('daily-lang');
+  let allLanguages = [];
+  let writingsIndex = [];
+
+  async function init() {
+    // Load languages and writings index
+    const [langRes, writRes] = await Promise.all([
+      fetch('/data/languages.json'),
+      fetch('/data/writings.json')
+    ]);
+    allLanguages = await langRes.json();
+    writingsIndex = await writRes.json();
+
+    // Populate language dropdown — show languages with multiple prayers first
+    const sorted = [...allLanguages].sort((a, b) => {
+      if (a.code === 'en') return -1;
+      if (b.code === 'en') return 1;
+      return (b.prayer_count || 0) - (a.prayer_count || 0);
+    });
+    sorted.forEach(l => {
+      const opt = document.createElement('option');
+      opt.value = l.code;
+      opt.textContent = l.name + ' (' + (l.prayer_count || 0) + ')';
+      if (l.rtl) opt.dataset.rtl = '1';
+      langSelect.appendChild(opt);
+    });
+
+    // Restore saved language or default to English
+    const savedLang = localStorage.getItem('hw_daily_lang') || 'en';
+    langSelect.value = savedLang;
+    if (!langSelect.value) langSelect.value = 'en';
+
+    langSelect.addEventListener('change', () => {
+      localStorage.setItem('hw_daily_lang', langSelect.value);
+      loadContent();
+    });
+
+    // Init all sections
+    initChecklist();
+    initAbha();
+    initQiblih();
+    initObligatory();
+    loadContent();
+  }
+
+  // ── Load prayer + writing content ──
+  let prayerData = null;
+  let writingEntries = [];
+
+  async function loadContent() {
+    const lang = langSelect.value;
+    const rtl = langSelect.selectedOptions[0]?.dataset.rtl === '1';
+
+    // Fetch prayers
+    $('prayer-content').innerHTML = '<p class="placeholder">Loading...</p>';
+    $('writing-content').innerHTML = '<p class="placeholder">Loading...</p>';
+
+    try {
+      const pRes = await fetch('/data/prayers/' + lang.toLowerCase() + '.json');
+      if (pRes.ok) {
+        prayerData = await pRes.json();
+      } else {
+        prayerData = null;
+      }
+    } catch { prayerData = null; }
+
+    // Fetch available writings for this language
+    writingEntries = [];
+    for (const w of writingsIndex) {
+      const hasLang = w.langs.some(l => l.code === lang);
+      if (hasLang) {
+        try {
+          const wRes = await fetch('/data/writings/' + w.key + '/' + lang.toLowerCase() + '.json');
+          if (wRes.ok) {
+            const wData = await wRes.json();
+            if (wData.books) {
+              for (const book of wData.books) {
+                for (const entry of (book.entries || [])) {
+                  writingEntries.push({
+                    ...entry,
+                    writingKey: w.key,
+                    writingTitle: w.title,
+                    bookTitle: book.title || w.title,
+                    author: w.author
+                  });
+                }
+              }
+            }
+          }
+        } catch {}
+      }
+    }
+
+    showRandomPrayer(rtl);
+    showRandomWriting(rtl);
+    loadObligatoryText();
+  }
+
+  // ── Random prayer ──
+  function showRandomPrayer(rtl, forceNew) {
+    const el = $('prayer-content');
+    const meta = $('prayer-meta');
+    if (!prayerData || !prayerData.prayers || prayerData.prayers.length === 0) {
+      el.innerHTML = '<p class="placeholder">No prayers available in this language</p>';
+      meta.innerHTML = '';
+      return;
+    }
+    const prayers = prayerData.prayers;
+
+    // Use daily seed or force new
+    let idx;
+    if (forceNew) {
+      idx = Math.floor(Math.random() * prayers.length);
+      saveState('prayer_idx', idx);
+    } else {
+      idx = loadState('prayer_idx', null);
+      if (idx === null) {
+        const rng = mulberry32(dateSeed());
+        idx = Math.floor(rng() * prayers.length);
+        saveState('prayer_idx', idx);
+      }
+    }
+
+    const p = prayers[idx % prayers.length];
+    el.innerHTML = p.text || '';
+    if (rtl) el.setAttribute('dir', 'rtl'); else el.removeAttribute('dir');
+    const lang = langSelect.value.toLowerCase();
+    meta.innerHTML = (p.category ? p.category + ' &middot; ' : '') +
+      '<a href="/prayers/' + lang + '/#' + p.phelps + '">' + (p.phelps || '') + '</a>';
+  }
+
+  $('btn-new-prayer').addEventListener('click', () => {
+    const rtl = langSelect.selectedOptions[0]?.dataset.rtl === '1';
+    showRandomPrayer(rtl, true);
+  });
+
+  // ── Random writing ──
+  function showRandomWriting(rtl, forceNew) {
+    const el = $('writing-content');
+    const meta = $('writing-meta');
+    if (writingEntries.length === 0) {
+      el.innerHTML = '<p class="placeholder">No writings available in this language</p>';
+      meta.innerHTML = '';
+      return;
+    }
+
+    let idx;
+    if (forceNew) {
+      idx = Math.floor(Math.random() * writingEntries.length);
+      saveState('writing_idx', idx);
+    } else {
+      idx = loadState('writing_idx', null);
+      if (idx === null) {
+        const rng = mulberry32(dateSeed() + 777);
+        idx = Math.floor(rng() * writingEntries.length);
+        saveState('writing_idx', idx);
+      }
+    }
+
+    const w = writingEntries[idx % writingEntries.length];
+    // Truncate long texts to a reasonable excerpt
+    let text = w.text || '';
+    const maxLen = 3000;
+    if (text.length > maxLen) {
+      text = text.slice(0, maxLen) + '&hellip;';
+    }
+    el.innerHTML = text;
+    if (rtl) el.setAttribute('dir', 'rtl'); else el.removeAttribute('dir');
+    const lang = langSelect.value.toLowerCase();
+    meta.innerHTML = w.writingTitle + ' &middot; ' + w.author +
+      ' &middot; <a href="/writings/' + w.writingKey + '/' + lang + '/#' + w.phelps + '">' +
+      (w.name || w.phelps || '') + '</a>';
+  }
+
+  $('btn-new-writing').addEventListener('click', () => {
+    const rtl = langSelect.selectedOptions[0]?.dataset.rtl === '1';
+    showRandomWriting(rtl, true);
+  });
+
+  // ── Checklist ──
+  function initChecklist() {
+    const morning = $('chk-morning');
+    const evening = $('chk-evening');
+    morning.checked = loadState('morning', false);
+    evening.checked = loadState('evening', false);
+    morning.addEventListener('change', () => saveState('morning', morning.checked));
+    evening.addEventListener('change', () => saveState('evening', evening.checked));
+  }
+
+  // ── Obligatory prayers ──
+  const OBLIG_CODES = {
+    short: 'BH11209',
+    medium: 'BH03447',
+    long: 'BH00987'
+  };
+
+  function initObligatory() {
+    const saved = loadState('oblig_type', '');
+    if (saved) {
+      const radio = document.querySelector(`input[name="oblig"][value="${saved}"]`);
+      if (radio) radio.checked = true;
+      if (saved === 'medium') $('oblig-checks').style.display = '';
+    }
+
+    // Restore medium prayer checkboxes
+    $('chk-oblig-morning').checked = loadState('oblig_morning', false);
+    $('chk-oblig-noon').checked = loadState('oblig_noon', false);
+    $('chk-oblig-evening').checked = loadState('oblig_evening', false);
+
+    document.querySelectorAll('input[name="oblig"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        saveState('oblig_type', radio.value);
+        $('oblig-checks').style.display = radio.value === 'medium' ? '' : 'none';
+        loadObligatoryText();
+      });
+    });
+
+    ['morning', 'noon', 'evening'].forEach(t => {
+      $('chk-oblig-' + t).addEventListener('change', function() {
+        saveState('oblig_' + t, this.checked);
+      });
+    });
+  }
+
+  function loadObligatoryText() {
+    const el = $('oblig-content');
+    const type = document.querySelector('input[name="oblig"]:checked')?.value;
+    if (!type || !prayerData || !prayerData.prayers) {
+      el.innerHTML = '';
+      return;
+    }
+    const code = OBLIG_CODES[type];
+    const prayer = prayerData.prayers.find(p => p.phelps === code);
+    if (prayer) {
+      const rtl = langSelect.selectedOptions[0]?.dataset.rtl === '1';
+      el.innerHTML = prayer.text || '';
+      if (rtl) el.setAttribute('dir', 'rtl'); else el.removeAttribute('dir');
+    } else {
+      el.innerHTML = '<p class="placeholder">Not available in this language</p>';
+    }
+  }
+
+  // ── Allah-u-Abha counter ──
+  function initAbha() {
+    let count = loadState('abha', 0);
+    const btn = $('abha-btn');
+    const countEl = $('abha-count');
+    const doneEl = $('abha-done');
+
+    function render() {
+      countEl.textContent = count;
+      const done = count >= 95;
+      btn.classList.toggle('done', done);
+      doneEl.style.display = done ? '' : 'none';
+    }
+    render();
+
+    btn.addEventListener('click', () => {
+      if (count < 95) {
+        count++;
+        saveState('abha', count);
+        render();
+        // Haptic feedback
+        if (navigator.vibrate) navigator.vibrate(count >= 95 ? [50, 30, 50] : 15);
+      } else {
+        if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
+      }
+    });
+
+    $('abha-undo').addEventListener('click', () => {
+      if (count > 0) { count--; saveState('abha', count); render(); }
+    });
+
+    $('abha-reset').addEventListener('click', () => {
+      count = 0; saveState('abha', count); render();
+    });
+  }
+
+  // ── Qiblih compass ──
+  function initQiblih() {
+    const BAHJI = { lat: 32.9430, lng: 35.0924 };
+    const statusEl = $('qiblih-status');
+    const bearingEl = $('qiblih-bearing');
+    const needle = $('compass-needle');
+    const rose = $('compass-rose');
+    let userLat = null, userLng = null;
+    let deviceHeading = null;
+    let qiblihBearing = null;
+
+    function calcBearing(lat1, lng1, lat2, lng2) {
+      const toRad = d => d * Math.PI / 180;
+      const toDeg = r => r * 180 / Math.PI;
+      const dLng = toRad(lng2 - lng1);
+      const y = Math.sin(dLng) * Math.cos(toRad(lat2));
+      const x = Math.cos(toRad(lat1)) * Math.sin(toRad(lat2)) -
+                Math.sin(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.cos(dLng);
+      return (toDeg(Math.atan2(y, x)) + 360) % 360;
+    }
+
+    function updateCompass() {
+      if (qiblihBearing === null) return;
+
+      if (deviceHeading !== null) {
+        // Rotate rose so N points to real north, needle points to Qiblih
+        rose.style.transform = 'rotate(' + (-deviceHeading) + 'deg)';
+        needle.style.transform = 'rotate(' + qiblihBearing + 'deg)';
+        statusEl.textContent = 'Compass active';
+      } else {
+        // No device compass — just show bearing angle
+        rose.style.transform = '';
+        needle.style.transform = 'rotate(' + qiblihBearing + 'deg)';
+        statusEl.textContent = 'No compass sensor — showing bearing only';
+      }
+    }
+
+    function onPosition(pos) {
+      userLat = pos.coords.latitude;
+      userLng = pos.coords.longitude;
+      qiblihBearing = calcBearing(userLat, userLng, BAHJI.lat, BAHJI.lng);
+      bearingEl.textContent = Math.round(qiblihBearing) + '\u00b0 ' + compassDir(qiblihBearing);
+      updateCompass();
+
+      // Try device orientation
+      if (window.DeviceOrientationEvent) {
+        if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+          DeviceOrientationEvent.requestPermission().then(state => {
+            if (state === 'granted') {
+              window.addEventListener('deviceorientation', onOrientation, true);
+            }
+          }).catch(() => {});
+        } else {
+          window.addEventListener('deviceorientation', onOrientation, true);
+        }
+      }
+    }
+
+    function onOrientation(e) {
+      // webkitCompassHeading for iOS, alpha for Android
+      if (e.webkitCompassHeading !== undefined) {
+        deviceHeading = e.webkitCompassHeading;
+      } else if (e.alpha !== null) {
+        deviceHeading = (360 - e.alpha) % 360;
+      }
+      updateCompass();
+    }
+
+    function compassDir(deg) {
+      const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+      return dirs[Math.round(deg / 22.5) % 16];
+    }
+
+    $('qiblih-btn').addEventListener('click', () => {
+      if (!navigator.geolocation) {
+        statusEl.textContent = 'Geolocation not supported';
+        return;
+      }
+      statusEl.textContent = 'Finding your location...';
+      navigator.geolocation.getCurrentPosition(
+        onPosition,
+        err => { statusEl.textContent = 'Location error: ' + err.message; },
+        { enableHighAccuracy: true, timeout: 10000 }
+      );
+    });
+  }
+
+  // Start
+  init();
+})();
+</script>
+{{ partial "foot.html" . }}

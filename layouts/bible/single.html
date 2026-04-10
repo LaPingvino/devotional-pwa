@@ -86,7 +86,7 @@
 
           {{/* Translation columns */}}
           {{ if $.Params.book.has_english }}
-          <td class="il-trans il-en">{{ .en }}</td>
+          <td class="il-trans il-en">{{ .en | safeHTML }}{{ range $i, $n := .notes }}<span class="note-tooltip" data-note="{{ $n }}"></span>{{ end }}</td>
           {{ end }}
           {{ if $.Params.book.has_arabic }}
           <td class="il-trans il-ar" dir="rtl">{{ .ar }}</td>
@@ -113,8 +113,78 @@
   </main>
 </div>
 
+<style>
+/* KJV implied words */
+.il-en i { color: var(--text-secondary); font-style: italic; }
+/* KJV marginal note superscripts */
+.note-ref {
+  font-size: .65em;
+  color: var(--accent);
+  cursor: help;
+  position: relative;
+  margin: 0 1px;
+}
+/* Tooltip on hover — attached via JS to note-ref elements */
+.note-popup {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: .4rem .6rem;
+  font-size: .8rem;
+  font-style: normal;
+  font-weight: 400;
+  color: var(--text);
+  white-space: normal;
+  max-width: 280px;
+  min-width: 120px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+  z-index: 50;
+  pointer-events: none;
+  line-height: 1.4;
+}
+</style>
+
 <script>
 (function() {
+  // Wire up KJV note tooltips
+  document.querySelectorAll('.il-en').forEach(td => {
+    const notes = [];
+    td.querySelectorAll('.note-tooltip').forEach(el => {
+      notes.push(el.dataset.note);
+      el.remove();
+    });
+    if (notes.length === 0) return;
+    td.querySelectorAll('.note-ref').forEach((sup, i) => {
+      if (!notes[i]) return;
+      sup.style.position = 'relative';
+      sup.addEventListener('mouseenter', function() {
+        const popup = document.createElement('div');
+        popup.className = 'note-popup';
+        popup.textContent = notes[i];
+        this.appendChild(popup);
+      });
+      sup.addEventListener('mouseleave', function() {
+        const popup = this.querySelector('.note-popup');
+        if (popup) popup.remove();
+      });
+      // Touch support
+      sup.addEventListener('click', function(e) {
+        e.stopPropagation();
+        const existing = this.querySelector('.note-popup');
+        if (existing) { existing.remove(); return; }
+        const popup = document.createElement('div');
+        popup.className = 'note-popup';
+        popup.textContent = notes[i];
+        this.appendChild(popup);
+        setTimeout(() => popup.remove(), 4000);
+      });
+    });
+  });
+
   // Source language toggles (NT: Syriac/Greek)
   document.querySelectorAll('.source-opt').forEach(a => {
     a.addEventListener('click', function(e) {
