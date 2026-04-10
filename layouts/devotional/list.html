@@ -1090,226 +1090,33 @@
     langSelect.addEventListener('change', () => { if ($('suggestions-panel').open) renderSuggestions(); });
   }
 
-  // ── QR Code generator (minimal, no external deps) ──
-  // Uses alphanumeric mode for URLs — generates SVG
+  // ── QR Code generator (uses qrcode-generator library) ──
   function generateQR(text, container) {
-    // Simple QR: use a canvas-based approach via the QR matrix
-    // For reliability, use the well-known minimal QR encoder
-    const canvas = document.createElement('canvas');
-    canvas.width = 200;
-    canvas.height = 200;
-    container.appendChild(canvas);
-
-    // Minimal QR generation using the error correction polynomial approach
-    // For production simplicity, we'll encode as a data URL image using an inline encoder
-    const modules = qrEncode(text);
-    if (!modules) { container.innerHTML = '<p style="font-size:.8rem;color:var(--text-secondary)">QR generation failed</p>'; return; }
-    const ctx = canvas.getContext('2d');
-    const size = modules.length;
-    const scale = Math.floor(200 / size);
-    canvas.width = canvas.height = size * scale;
-    ctx.fillStyle = '#fff';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = '#000';
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        if (modules[y][x]) ctx.fillRect(x * scale, y * scale, scale, scale);
-      }
-    }
-  }
-
-  // ── Minimal QR Code encoder (version 1-10, byte mode, ECC L) ──
-  // Based on the QR code specification ISO/IEC 18004
-  function qrEncode(text) {
-    const data = new TextEncoder().encode(text);
-    // Version capacities for byte mode, ECC level L
-    const caps = [0,17,32,53,78,106,134,154,192,230,271,321,367,425,458,520,586,644,718,792,858];
-    let version = 0;
-    for (let v = 1; v <= 20; v++) { if (data.length <= caps[v]) { version = v; break; } }
-    if (!version) return null;
-
-    const size = version * 4 + 17;
-    const modules = Array.from({length: size}, () => Array(size).fill(false));
-    const reserved = Array.from({length: size}, () => Array(size).fill(false));
-
-    // Finder patterns
-    function finderPattern(cx, cy) {
-      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
-        const x = cx + dx, y = cy + dy;
-        if (x < 0 || x >= size || y < 0 || y >= size) continue;
-        const ring = Math.max(Math.abs(dx), Math.abs(dy));
-        modules[y][x] = ring !== 2;
-        reserved[y][x] = true;
-      }
-      // Separator
-      for (let i = -4; i <= 4; i++) {
-        for (const [dx, dy] of [[i, -4], [i, 4], [-4, i], [4, i]]) {
-          const x = cx + dx, y = cy + dy;
-          if (x >= 0 && x < size && y >= 0 && y < size) reserved[y][x] = true;
+    function render() {
+      var qr = qrcode(0, 'L');
+      qr.addData(text);
+      qr.make();
+      var size = qr.getModuleCount();
+      var scale = Math.max(4, Math.floor(200 / size));
+      var canvas = document.createElement('canvas');
+      canvas.width = canvas.height = size * scale;
+      var ctx = canvas.getContext('2d');
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#000';
+      for (var y = 0; y < size; y++) {
+        for (var x = 0; x < size; x++) {
+          if (qr.isDark(y, x)) ctx.fillRect(x * scale, y * scale, scale, scale);
         }
       }
+      container.appendChild(canvas);
     }
-    finderPattern(3, 3);
-    finderPattern(size - 4, 3);
-    finderPattern(3, size - 4);
-
-    // Timing patterns
-    for (let i = 8; i < size - 8; i++) {
-      modules[6][i] = modules[i][6] = i % 2 === 0;
-      reserved[6][i] = reserved[i][6] = true;
-    }
-
-    // Alignment patterns (version >= 2)
-    if (version >= 2) {
-      const positions = alignmentPositions(version);
-      for (const ay of positions) for (const ax of positions) {
-        if (reserved[ay][ax]) continue;
-        for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
-          const ring = Math.max(Math.abs(dx), Math.abs(dy));
-          modules[ay + dy][ax + dx] = ring !== 1;
-          reserved[ay + dy][ax + dx] = true;
-        }
-      }
-    }
-
-    // Reserve format info areas
-    for (let i = 0; i < 9; i++) {
-      reserved[8][i] = true;
-      reserved[i][8] = true;
-      if (i < 8) { reserved[8][size - 1 - i] = true; reserved[size - 1 - i][8] = true; }
-    }
-    modules[size - 8][8] = true; reserved[size - 8][8] = true; // dark module
-
-    // Reserve version info (version >= 7)
-    if (version >= 7) {
-      for (let i = 0; i < 6; i++) for (let j = 0; j < 3; j++) {
-        reserved[i][size - 11 + j] = true;
-        reserved[size - 11 + j][i] = true;
-      }
-    }
-
-    // Encode data
-    const bits = encodeData(data, version);
-
-    // Place data bits
-    let bitIdx = 0;
-    let upward = true;
-    for (let right = size - 1; right >= 1; right -= 2) {
-      if (right === 6) right = 5; // skip timing column
-      const col = [right, right - 1];
-      const rows = upward ? Array.from({length: size}, (_, i) => size - 1 - i) : Array.from({length: size}, (_, i) => i);
-      for (const row of rows) {
-        for (const c of col) {
-          if (!reserved[row][c]) {
-            if (bitIdx < bits.length) modules[row][c] = bits[bitIdx] === 1;
-            bitIdx++;
-          }
-        }
-      }
-      upward = !upward;
-    }
-
-    // Apply mask (pattern 0: (row + col) % 2 === 0)
-    for (let y = 0; y < size; y++) {
-      for (let x = 0; x < size; x++) {
-        if (!reserved[y][x] && (y + x) % 2 === 0) modules[y][x] = !modules[y][x];
-      }
-    }
-
-    // Write format info (ECC L, mask 0)
-    const formatBits = getFormatBits(0, 0); // ecl=L(01), mask=0
-    for (let i = 0; i < 15; i++) {
-      const bit = (formatBits >> (14 - i)) & 1;
-      // Horizontal
-      const hx = i < 8 ? (i < 6 ? i : i + 1) : size - 15 + i;
-      modules[8][hx] = !!bit;
-      // Vertical
-      const vy = i < 8 ? (i < 6 ? size - 1 - i : size - i) : 14 - i < 6 ? 14 - i : 15 - i;
-      modules[vy][8] = !!bit;
-    }
-
-    // Version info (version >= 7)
-    if (version >= 7) {
-      const vBits = getVersionBits(version);
-      for (let i = 0; i < 18; i++) {
-        const bit = (vBits >> i) & 1;
-        const row = Math.floor(i / 3), col = i % 3;
-        modules[row][size - 11 + col] = !!bit;
-        modules[size - 11 + col][row] = !!bit;
-      }
-    }
-
-    return modules;
-  }
-
-  function alignmentPositions(version) {
-    if (version === 1) return [];
-    const intervals = version === 32 ? 26 : Math.ceil((version * 4 + 4) / (Math.floor(version / 7) * 2 + 2)) * 2;
-    const last = version * 4 + 10;
-    const positions = [6];
-    for (let p = last; p > 6; p -= intervals) positions.unshift(p);
-    if (positions[0] !== 6) positions.unshift(6);
-    // Deduplicate
-    return [...new Set(positions)].sort((a, b) => a - b);
-  }
-
-  function encodeData(data, version) {
-    const caps = [0,17,32,53,78,106,134,154,192,230,271,321,367,425,458,520,586,644,718,792,858];
-    const totalBytes = caps[version] + (version >= 10 ? 2 : 0); // approximate
-    // ECC codewords per block for level L
-    const eccTable = [0,7,10,15,20,26,18,20,24,30,18,20,24,26,30,22,24,28,30,28,28];
-    const eccPerBlock = eccTable[version] || 20;
-    const totalCodewords = getDataCodewords(version);
-
-    // Byte mode header
-    const bits = [];
-    function pushBits(val, len) { for (let i = len - 1; i >= 0; i--) bits.push((val >> i) & 1); }
-    pushBits(0b0100, 4); // byte mode indicator
-    pushBits(data.length, version >= 10 ? 16 : 8); // character count
-    for (const b of data) pushBits(b, 8);
-    pushBits(0, 4); // terminator (up to 4 bits)
-    // Pad to byte boundary
-    while (bits.length % 8 !== 0) bits.push(0);
-    // Pad codewords
-    const padBytes = [0b11101100, 0b00010001];
-    let pi = 0;
-    while (bits.length < totalCodewords * 8) {
-      pushBits(padBytes[pi % 2], 8);
-      pi++;
-    }
-
-    return bits;
-  }
-
-  function getDataCodewords(version) {
-    // Total codewords minus ECC codewords for level L
-    const total = [0,26,44,70,100,134,172,196,242,292,346,404,466,532,581,655,733,815,901,991,1085];
-    const ecc = [0,7,10,15,20,26,36,40,48,60,72,80,96,104,120,132,144,168,180,196,224];
-    return (total[version] || 0) - (ecc[version] || 0);
-  }
-
-  function getFormatBits(ecl, mask) {
-    // Format string = ecl(2 bits) + mask(3 bits) → 5 data bits + 10 ECC bits, XOR with 101010000010010
-    let data = (ecl << 3) | mask;
-    let bits = data << 10;
-    // Polynomial division by 10100110111
-    const gen = 0b10100110111;
-    for (let i = 14; i >= 10; i--) {
-      if (bits & (1 << i)) bits ^= gen << (i - 10);
-    }
-    bits = (data << 10) | bits;
-    return bits ^ 0b101010000010010;
-  }
-
-  function getVersionBits(version) {
-    // Version info = 6 data bits + 12 ECC bits
-    let data = version;
-    let bits = data << 12;
-    const gen = 0b1111100100101;
-    for (let i = 17; i >= 12; i--) {
-      if (bits & (1 << i)) bits ^= gen << (i - 12);
-    }
-    return (data << 12) | bits;
+    if (typeof qrcode === 'function') { render(); return; }
+    var s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js';
+    s.onload = render;
+    s.onerror = function() { container.innerHTML = '<p style="font-size:.8rem;color:var(--text-secondary)">QR generation failed</p>'; };
+    document.head.appendChild(s);
   }
 
   init();
