@@ -796,10 +796,24 @@ func loadFonts(pdf *gofpdf.Fpdf, lang, fontDir string, runes map[rune]bool) *fon
 
 	// Latin font: always load NotoSerif for metadata text (language names,
 	// "Also in:" lists, etc.) even when bodyFont is a non-Latin script font.
+	// When loading as secondary font, skip subsetting — the rune set contains
+	// non-Latin glyphs that produce a broken subset from the Latin-only font.
 	if fi.bodyFont == "NotoSerif" || fi.bodyFont == "Helvetica" {
 		fi.latinFont = fi.bodyFont
 	} else {
-		if loadTTF("NotoSerif", "NotoSerif-Regular.ttf") {
+		path := findFont("NotoSerif-Regular.ttf")
+		if path != "" && !fi.loaded["NotoSerif"] {
+			data, err := os.ReadFile(path)
+			if err == nil {
+				pdf.AddUTF8FontFromBytes("NotoSerif", "", data)
+				zeroCombiningMarkWidths(pdf)
+				fi.loaded["NotoSerif"] = true
+				fi.latinFont = "NotoSerif"
+				fmt.Fprintf(os.Stderr, "  font: NotoSerif ← %s (unsubsetted, latin fallback)\n", filepath.Base(path))
+			} else {
+				fi.latinFont = "Helvetica"
+			}
+		} else if fi.loaded["NotoSerif"] {
 			fi.latinFont = "NotoSerif"
 		} else {
 			fi.latinFont = "Helvetica"
