@@ -4,11 +4,11 @@
 
   <!-- Language selector -->
   <div class="daily-header">
-    <h1>Daily Devotions</h1>
+    <h1 data-i18n="daily_title">Daily Devotions</h1>
     <details class="lang-dropdown" id="daily-lang-dropdown">
       <summary id="daily-lang-label">English</summary>
       <div class="lang-dropdown-panel">
-        <input type="search" class="lang-filter-input" id="daily-lang-filter" placeholder="Filter languages..." autocomplete="off">
+        <input type="search" class="lang-filter-input" id="daily-lang-filter" placeholder="Filter languages..." autocomplete="off" data-i18n-placeholder="filter_languages">
         <div class="lang-tier-bar" id="daily-lang-tiers">
           <button class="tier-btn active" data-min="5">5+</button>
           <button class="tier-btn" data-min="20">20+</button>
@@ -22,17 +22,17 @@
 
   <!-- Morning / Evening checkboxes -->
   <section class="daily-card" id="checklist-card">
-    <h2>Daily Reading</h2>
+    <h2 data-i18n="daily_reading">Daily Reading</h2>
     <div class="check-row">
-      <label><input type="checkbox" id="chk-morning"> Morning reading</label>
-      <label><input type="checkbox" id="chk-evening"> Evening reading</label>
+      <label><input type="checkbox" id="chk-morning"> <span data-i18n="daily_morning">Morning reading</span></label>
+      <label><input type="checkbox" id="chk-evening"> <span data-i18n="daily_evening">Evening reading</span></label>
     </div>
   </section>
 
   <!-- Random prayer -->
   <section class="daily-card expandable" id="prayer-card">
     <div class="card-header">
-      <h2>Random Prayer</h2>
+      <h2 data-i18n="daily_random_prayer">Random Prayer</h2>
       <div class="card-btns">
         <button class="btn-refresh" id="btn-new-prayer" title="New random prayer">&#x21bb;</button>
         <button class="btn-expand" title="Full screen">&#x26F6;</button>
@@ -47,7 +47,7 @@
   <!-- Random writing excerpt -->
   <section class="daily-card expandable" id="writing-card">
     <div class="card-header">
-      <h2>Random Writing</h2>
+      <h2 data-i18n="daily_random_writing">Random Writing</h2>
       <div class="card-btns">
         <button class="btn-refresh" id="btn-new-writing" title="New random excerpt">&#x21bb;</button>
         <button class="btn-expand" title="Full screen">&#x26F6;</button>
@@ -62,28 +62,28 @@
   <!-- Obligatory Prayers -->
   <section class="daily-card expandable" id="obligatory-card">
     <div class="card-header">
-      <h2>Obligatory Prayer</h2>
+      <h2 data-i18n="daily_obligatory">Obligatory Prayer</h2>
       <div class="card-btns">
         <button class="btn-expand" title="Full screen">&#x26F6;</button>
       </div>
     </div>
     <div class="oblig-select">
-      <label><input type="radio" name="oblig" value="short"> Short</label>
-      <label><input type="radio" name="oblig" value="medium"> Medium</label>
-      <label><input type="radio" name="oblig" value="long"> Long</label>
+      <label><input type="radio" name="oblig" value="short"> <span data-i18n="daily_oblig_short">Short</span></label>
+      <label><input type="radio" name="oblig" value="medium"> <span data-i18n="daily_oblig_medium">Medium</span></label>
+      <label><input type="radio" name="oblig" value="long"> <span data-i18n="daily_oblig_long">Long</span></label>
     </div>
     <div id="oblig-checks" class="check-row" style="display:none">
-      <label><input type="checkbox" id="chk-oblig-morning"> Morning</label>
-      <label><input type="checkbox" id="chk-oblig-noon"> Noon</label>
-      <label><input type="checkbox" id="chk-oblig-evening"> Evening</label>
+      <label><input type="checkbox" id="chk-oblig-morning"> <span data-i18n="daily_oblig_morning">Morning</span></label>
+      <label><input type="checkbox" id="chk-oblig-noon"> <span data-i18n="daily_oblig_noon">Noon</span></label>
+      <label><input type="checkbox" id="chk-oblig-evening"> <span data-i18n="daily_oblig_evening">Evening</span></label>
     </div>
     <div id="oblig-content" class="reading-content oblig-text"></div>
   </section>
 
   <!-- 95 Allah-u-Abha counter -->
   <section class="daily-card" id="abha-card">
-    <h2>Allah-u-Abha</h2>
-    <p class="abha-subtitle">95 times daily</p>
+    <h2 data-i18n="daily_abha_title">Allah-u-Abha</h2>
+    <p class="abha-subtitle" data-i18n="daily_abha_subtitle">95 times daily</p>
     <div class="abha-counter-wrap">
       <button class="abha-btn" id="abha-btn">
         <span class="abha-count" id="abha-count">0</span>
@@ -91,16 +91,16 @@
       </button>
     </div>
     <div class="abha-controls">
-      <button class="btn-small" id="abha-undo">Undo</button>
-      <button class="btn-small" id="abha-reset">Reset</button>
+      <button class="btn-small" id="abha-undo" data-i18n="undo">Undo</button>
+      <button class="btn-small" id="abha-reset" data-i18n="reset">Reset</button>
     </div>
-    <div id="abha-done" class="abha-done" style="display:none">Complete!</div>
+    <div id="abha-done" class="abha-done" style="display:none" data-i18n="complete">Complete!</div>
   </section>
 
   <!-- Qiblih compass -->
   <section class="daily-card" id="qiblih-card">
-    <h2>Qiblih</h2>
-    <p class="qiblih-subtitle">Direction of Bahji, Acre</p>
+    <h2 data-i18n="daily_qiblih_title">Qiblih</h2>
+    <p class="qiblih-subtitle" data-i18n="daily_qiblih_subtitle">Direction of Bahji, Acre</p>
     <div class="compass-wrap">
       <div class="compass" id="compass">
         <div class="compass-rose" id="compass-rose">
@@ -109,8 +109,8 @@
         </div>
       </div>
       <div id="qiblih-bearing" class="bearing-text"></div>
-      <div id="qiblih-status" class="compass-status">Tap to find direction</div>
-      <button class="btn-small" id="qiblih-btn">Find Qiblih</button>
+      <div id="qiblih-status" class="compass-status" data-i18n="daily_qiblih_tap">Tap to find direction</div>
+      <button class="btn-small" id="qiblih-btn" data-i18n="daily_qiblih_find">Find Qiblih</button>
       <div id="qiblih-map" style="width:100%;height:300px;margin-top:.5rem;border-radius:8px;display:none"></div>
     </div>
   </section>

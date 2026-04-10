@@ -3,12 +3,12 @@
 <div class="dev-page" id="dev-page">
 
   <div class="dev-header">
-    <h1 id="dev-title">Devotional Program</h1>
+    <h1 id="dev-title" data-i18n="dev_title">Devotional Program</h1>
     <div class="dev-controls">
       <details class="lang-dropdown" id="dev-lang-dropdown">
         <summary id="dev-lang-label">English</summary>
         <div class="lang-dropdown-panel">
-          <input type="search" class="lang-filter-input" id="dev-lang-filter" placeholder="Filter languages..." autocomplete="off">
+          <input type="search" class="lang-filter-input" id="dev-lang-filter" placeholder="Filter languages..." autocomplete="off" data-i18n-placeholder="filter_languages">
           <div class="lang-tier-bar" id="dev-lang-tiers">
             <button class="tier-btn active" data-min="5">5+</button>
             <button class="tier-btn" data-min="20">20+</button>
@@ -24,9 +24,9 @@
   <!-- Builder mode: shown when no hash codes -->
   <div id="builder-panel">
     <div class="dev-toolbar">
-      <button class="btn-action" id="btn-share" title="Copy shareable link">Share link</button>
-      <button class="btn-action" id="btn-print" title="Print / save as PDF">Print</button>
-      <button class="btn-action btn-danger" id="btn-clear" title="Clear all">Clear</button>
+      <button class="btn-action" id="btn-share" title="Copy shareable link" data-i18n="dev_share">Share link</button>
+      <button class="btn-action" id="btn-print" title="Print / save as PDF" data-i18n="dev_print">Print</button>
+      <button class="btn-action btn-danger" id="btn-clear" title="Clear all" data-i18n="dev_clear">Clear</button>
     </div>
     <p class="dev-hint" id="empty-hint">
       Browse <a href="/prayers/">prayers</a> or <a href="/writings/">writings</a> and use the
@@ -38,8 +38,8 @@
   <div id="shared-banner" style="display:none">
     <p class="dev-hint">
       This devotional program was shared with you.
-      <button class="btn-action btn-small" id="btn-save-local">Save to my devotionals</button>
-      <button class="btn-action btn-small" id="btn-edit">Edit</button>
+      <button class="btn-action btn-small" id="btn-save-local" data-i18n="dev_save_local">Save to my devotionals</button>
+      <button class="btn-action btn-small" id="btn-edit" data-i18n="dev_edit">Edit</button>
     </p>
   </div>
 
@@ -49,7 +49,7 @@
   <!-- Thematic suggestions -->
   <details class="dev-suggestions" id="suggestions-panel">
     <summary class="suggestions-toggle">
-      <span id="suggestions-title">Suggestions</span>
+      <span id="suggestions-title" data-i18n="dev_suggestions">Suggestions</span>
     </summary>
     <div class="suggestions-body">
       <div class="suggestions-tabs" id="suggestions-tabs"></div>

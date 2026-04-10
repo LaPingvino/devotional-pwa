@@ -29,12 +29,12 @@
       <div id="cat-list"></div>
     </div>
     <div class="sidebar-section" style="margin-top:1rem">
-      <div class="sidebar-heading">Download</div>
+      <div class="sidebar-heading" data-i18n="download">Download</div>
       <a href="/downloads/prayers_{{ $lang }}.pdf" class="dl-link" download>PDF</a>
       <a href="/downloads/prayers_{{ $lang }}.epub" class="dl-link" download>EPUB</a>
     </div>
     <div class="sidebar-section" style="margin-top:.5rem">
-      <a href="/" style="padding:.4rem 1rem; display:block; font-size:.85rem; color:var(--text-secondary)">← All languages</a>
+      <a href="/" style="padding:.4rem 1rem; display:block; font-size:.85rem; color:var(--text-secondary)" data-i18n="nav_all_languages">← All languages</a>
     </div>
   </aside>
 
@@ -74,7 +74,7 @@
         {{ with .translations }}
         {{ $transCount := len . }}
         <div class="prayer-translations">
-          <span class="trans-label">Also in:</span>
+          <span class="trans-label" data-i18n="also_in">Also in:</span>
           <details class="lang-dropdown">
             <summary>{{ $transCount }} language{{ if gt $transCount 1 }}s{{ end }}</summary>
             <div class="lang-dropdown-panel">
