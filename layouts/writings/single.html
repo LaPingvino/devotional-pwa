@@ -4,6 +4,9 @@
 {{ $allLangs := .Params.allLangs }}
 {{ $key := .Params.writingKey }}
 {{ $showNames := .Params.showNames }}
+{{ $multiBook := gt (len $entries) 1 }}
+{{/* Single-book types where each entry has its own Phelps code get per-entry inventory links */}}
+{{ $singleBook := not $multiBook }}
 
 {{ partial "head.html" (dict "Title" .Title "Lang" $lang "Params" (dict "rtl" $rtl)) }}
 <div class="page-body">
@@ -21,11 +24,22 @@
                style="width:100%; padding:.3rem .5rem; border:1px solid var(--border); border-radius:4px; font-size:.85rem; background:var(--bg); color:var(--text);">
       </div>
       <div id="writing-toc" style="max-height:40vh; overflow-y:auto">
-        {{ range $entries }}
-        <a href="#book-{{ .base }}" class="toc-book" data-base="{{ .base }}">
-          {{ if .title }}{{ .title }}{{ else }}{{ .base }}{{ end }}
-          <span class="toc-count">{{ len .entries }}</span>
-        </a>
+        {{ if $multiBook }}
+          {{/* Multi-book: show book titles */}}
+          {{ range $entries }}
+          <a href="#book-{{ .base }}" class="toc-book" data-base="{{ .base }}">
+            {{ if .title }}{{ .title }}{{ else }}{{ .base }}{{ end }}
+            <span class="toc-count">{{ len .entries }}</span>
+          </a>
+          {{ end }}
+        {{ else if $showNames }}
+          {{/* Single book with named entries: show entry titles as TOC */}}
+          {{ range (index $entries 0).entries }}
+          <a href="#{{ .phelps }}" class="toc-entry">
+            <span class="toc-entry-num">{{ .order }}</span>
+            <span class="toc-entry-name">{{ .name }}</span>
+          </a>
+          {{ end }}
         {{ end }}
       </div>
     </div>
@@ -56,11 +70,11 @@
     <div class="writing-body"{{ if $rtl }} dir="rtl"{{ end }}>
       {{ range $entries }}
       <div class="writing-book" id="book-{{ .base }}" data-count="{{ len .entries }}">
-        {{ if gt (len $entries) 1 }}
+        {{ if $multiBook }}
         <div class="writing-book-header">
           <h2 class="writing-book-heading">
             {{ if .title }}{{ .title }}{{ else }}{{ .base }}{{ end }}
-            {{ with .base }}<a href="/phelps/?pin={{ . }}" class="phelps-link" title="View in inventory">{{ . }}</a>{{ end }}
+            {{ with .base }}<a href="/phelps/{{ . | lower }}/" class="phelps-link" title="View in inventory">{{ . }}</a>{{ end }}
           </h2>
           <input type="number" class="book-goto" min="1" max="{{ len .entries }}" placeholder="Go to #…"
                  title="Jump to verse number within this section">
@@ -74,6 +88,7 @@
           <div class="writing-entry-label">
             <span class="entry-num">{{ $bookIdx }}</span>
             {{ if and $showNames .name }}<span class="entry-name">{{ .name }}</span>{{ end }}
+            {{ if $singleBook }}<a href="/phelps/{{ .phelps | lower }}/" class="phelps-link" title="View in inventory">{{ .phelps }}</a>{{ end }}
           </div>
           <div class="writing-text">{{ .text | safeHTML }}</div>
         </section>
@@ -123,6 +138,7 @@
   align-items: baseline;
   gap: .5rem;
   margin-bottom: .3rem;
+  flex-wrap: wrap;
 }
 .entry-num {
   font-size: .75rem;
@@ -173,6 +189,31 @@
   min-width: 1.5em;
   text-align: center;
 }
+.toc-entry {
+  display: flex;
+  align-items: baseline;
+  gap: .4rem;
+  padding: .25rem 1rem;
+  font-size: .8rem;
+  color: var(--text);
+  text-decoration: none;
+  border-left: 3px solid transparent;
+  line-height: 1.3;
+}
+.toc-entry:hover { background: #fff3ef; }
+.toc-entry-num {
+  font-family: monospace;
+  font-size: .7rem;
+  color: var(--text-secondary);
+  min-width: 1.8em;
+  text-align: right;
+  flex-shrink: 0;
+}
+.toc-entry-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .sidebar-lang {
   display: block;
   padding: .3rem 1rem;
@@ -204,8 +245,7 @@
     input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); jump(); }});
   });
 
-  // Sidebar global "Go to #" — for single-book types this is the only input;
-  // for multi-book types it counts across all entries
+  // Sidebar global "Go to #"
   const gotoInput = document.getElementById('goto-section');
   const allEntries = document.querySelectorAll('.writing-entry');
   if (gotoInput && allEntries.length) {
@@ -224,6 +264,24 @@
   const hash = parseInt(location.hash.replace('#', ''));
   if (hash >= 1 && hash <= allEntries.length) {
     setTimeout(() => allEntries[hash - 1].scrollIntoView({ block: 'start' }), 100);
+  }
+
+  // Highlight active TOC entry on scroll
+  const tocEntries = document.querySelectorAll('.toc-entry');
+  if (tocEntries.length > 0 && allEntries.length > 0) {
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        if (entry.isIntersecting) {
+          const id = entry.target.id;
+          tocEntries.forEach(te => {
+            te.style.borderLeftColor = te.getAttribute('href') === '#' + id ? 'var(--accent)' : 'transparent';
+            te.style.fontWeight = te.getAttribute('href') === '#' + id ? '600' : '';
+          });
+          break;
+        }
+      }
+    }, { rootMargin: '-10% 0px -80% 0px' });
+    allEntries.forEach(el => observer.observe(el));
   }
 })();
 </script>
