@@ -37,6 +37,17 @@
   <!-- Program items -->
   <div id="dev-items" class="dev-items"></div>
 
+  <!-- Thematic suggestions -->
+  <details class="dev-suggestions" id="suggestions-panel">
+    <summary class="suggestions-toggle">
+      <span id="suggestions-title">Suggestions</span>
+    </summary>
+    <div class="suggestions-body">
+      <div class="suggestions-tabs" id="suggestions-tabs"></div>
+      <div class="suggestions-list" id="suggestions-list"></div>
+    </div>
+  </details>
+
   <!-- Add by code -->
   <div class="dev-add-row" id="add-row">
     <input type="text" id="add-code" placeholder="Add Phelps code (e.g. BH00074BLE)" class="add-input">
@@ -190,6 +201,84 @@
   color: var(--text);
 }
 
+/* Suggestions panel */
+.dev-suggestions {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+.suggestions-toggle {
+  padding: .8rem 1rem;
+  cursor: pointer;
+  font-size: .95rem;
+  font-weight: 600;
+  color: var(--accent-dark);
+  list-style: none;
+}
+.suggestions-toggle::-webkit-details-marker { display: none; }
+.suggestions-toggle::before { content: '\25b6 '; font-size: .7em; }
+.dev-suggestions[open] .suggestions-toggle::before { content: '\25bc '; }
+.suggestions-body { padding: 0 1rem .8rem; }
+.suggestions-tabs {
+  display: flex;
+  gap: .3rem;
+  flex-wrap: wrap;
+  margin-bottom: .6rem;
+}
+.sug-tab {
+  padding: .25rem .6rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: .8rem;
+  cursor: pointer;
+  background: var(--bg);
+  color: var(--text);
+  transition: background .15s, border-color .15s;
+}
+.sug-tab:hover { border-color: var(--accent); }
+.sug-tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.sug-tab.highlight { border-color: var(--accent); font-weight: 600; }
+.suggestions-list {
+  display: flex;
+  flex-direction: column;
+  gap: .4rem;
+}
+.sug-item {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .3rem .5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: .85rem;
+  background: var(--bg);
+}
+.sug-item-name { flex: 1; }
+.sug-item-code { font-family: monospace; font-size: .75rem; color: var(--text-secondary); }
+.sug-item-add {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: .15rem .4rem;
+  font-size: .8rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+.sug-item-add:hover { color: var(--accent); border-color: var(--accent); }
+.sug-item-add.added { color: var(--accent); border-color: var(--accent); }
+.sug-add-all {
+  margin-top: .4rem;
+  padding: .3rem .8rem;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: none;
+  color: var(--accent);
+  font-size: .85rem;
+  cursor: pointer;
+}
+.sug-add-all:hover { background: var(--accent); color: #fff; }
+
 /* Nine-pointed star separator */
 .dev-star-sep {
   text-align: center;
@@ -335,6 +424,7 @@
     });
 
     renderItems();
+    initSuggestions();
   }
 
   // ── Fetch prayer data for a language ──
@@ -550,6 +640,227 @@
     $('add-row').style.display = '';
     renderItems();
   });
+
+  // ── Bahá'í Calendar + Thematic Suggestions ──
+  const BADI_MONTHS = [
+    { name: 'Bahá', en: 'Splendour', cats: ['Praise and Gratitude', 'Spiritual Growth', 'Nearness to God'] },
+    { name: 'Jalál', en: 'Glory', cats: ['Praise and Gratitude', 'Steadfastness', 'Trust in God'] },
+    { name: 'Jamál', en: 'Beauty', cats: ['Praise and Gratitude', 'Spiritual Growth', 'Nearness to God'] },
+    { name: '\u2018Aẓamat', en: 'Grandeur', cats: ['Praise and Gratitude', 'Firmness in the Covenant', 'Triumph of the Cause'] },
+    { name: 'Núr', en: 'Light', cats: ['Enlightenment', 'Guidance', 'Teaching'] },
+    { name: 'Raḥmat', en: 'Mercy', cats: ['Forgiveness', 'Healing', 'Humanity'] },
+    { name: 'Kalimát', en: 'Words', cats: ['Teaching', 'Guidance', 'Firmness in the Covenant'] },
+    { name: 'Kamál', en: 'Perfection', cats: ['Spiritual Growth', 'Detachment', 'Steadfastness'] },
+    { name: 'Asmá\u2019', en: 'Names', cats: ['Praise and Gratitude', 'Nearness to God', 'Trust in God'] },
+    { name: '\u2018Izzat', en: 'Might', cats: ['Aid and Assistance', 'Protection', 'Steadfastness'] },
+    { name: 'Mashíyyat', en: 'Will', cats: ['Tests and Difficulties', 'Trust in God', 'Detachment'] },
+    { name: '\u2018Ilm', en: 'Knowledge', cats: ['Enlightenment', 'Guidance', 'Children'] },
+    { name: 'Qudrat', en: 'Power', cats: ['Aid and Assistance', 'Triumph of the Cause', 'Steadfastness'] },
+    { name: 'Qawl', en: 'Speech', cats: ['Teaching', 'Gatherings', 'Unity'] },
+    { name: 'Masá\u2019il', en: 'Questions', cats: ['Guidance', 'Spiritual Growth', 'Enlightenment'] },
+    { name: 'Sharaf', en: 'Honour', cats: ['Service', 'Humanity', 'Justice'] },
+    { name: 'Sulṭán', en: 'Sovereignty', cats: ['Firmness in the Covenant', 'Triumph of the Cause', 'Tablets of Visitation'] },
+    { name: 'Mulk', en: 'Dominion', cats: ['Praise and Gratitude', 'Spiritual Assembly', 'Unity'] },
+    { name: '\u2018Alá\u2019', en: 'Loftiness', cats: ['The Fast', 'Nearness to God', 'Detachment'] },
+  ];
+  const AYYAM_I_HA = { name: 'Ayyám-i-Há', en: 'Intercalary Days', cats: ['Intercalary Days', 'Gatherings', 'Humanity', 'Fund'] };
+
+  const HOLY_DAYS = [
+    { name: 'Naw-Rúz', month: 3, day: 20, cats: ['Naw-Rúz', 'Praise and Gratitude'] },
+    { name: 'Riḍván (1st day)', month: 4, day: 21, cats: ['Ridván', 'Praise and Gratitude', 'Firmness in the Covenant'] },
+    { name: 'Riḍván (9th day)', month: 4, day: 29, cats: ['Ridván', 'Praise and Gratitude'] },
+    { name: 'Riḍván (12th day)', month: 5, day: 2, cats: ['Ridván', 'Praise and Gratitude', 'Unity'] },
+    { name: 'Declaration of the Báb', month: 5, day: 23, cats: ['Declaration of the Báb', 'Tablets of Visitation'] },
+    { name: 'Ascension of Bahá\u2019u\u2019lláh', month: 5, day: 29, cats: ['Ascension of Bahá\u2019u\u2019lláh', 'Tablets of Visitation'] },
+    { name: 'Martyrdom of the Báb', month: 7, day: 9, cats: ['Martyrdom of the Báb', 'Tablets of Visitation', 'Sacrifice'] },
+    { name: 'Birth of the Báb', month: 10, day: null, cats: ['Birth of The Báb', 'Praise and Gratitude'] },
+    { name: 'Birth of Bahá\u2019u\u2019lláh', month: 10, day: null, cats: ['Birth of Bahá\u2019u\u2019lláh', 'Praise and Gratitude'] },
+    { name: 'Day of the Covenant', month: 11, day: 25, cats: ['Firmness in the Covenant', 'Praise and Gratitude'] },
+    { name: 'Ascension of \u2018Abdu\u2019l-Bahá', month: 11, day: 28, cats: ['Tablets of Visitation', 'Departed'] },
+  ];
+
+  const SPECIAL_THEMES = [
+    { name: 'Morning Devotions', cats: ['Morning', 'Praise and Gratitude'] },
+    { name: 'Evening Devotions', cats: ['Evening', 'Praise and Gratitude'] },
+    { name: 'Healing', cats: ['Healing', 'Aid and Assistance', 'Tests and Difficulties'] },
+    { name: 'Children', cats: ['Children', 'Families', 'Youth'] },
+    { name: 'Unity', cats: ['Unity', 'Gatherings', 'Humanity'] },
+    { name: 'Marriage', cats: ['Marriage', 'Families'] },
+    { name: 'Departed', cats: ['Departed', 'Tablets of Visitation'] },
+    { name: 'Teaching', cats: ['Teaching', 'Triumph of the Cause', 'Service'] },
+    { name: 'Tests & Difficulties', cats: ['Tests and Difficulties', 'Trust in God', 'Aid and Assistance'] },
+    { name: 'Nineteen Day Feast', cats: ['Gatherings', 'Unity', 'Spiritual Assembly', 'Praise and Gratitude'] },
+  ];
+
+  // Simplified Badí' calendar: Naw-Rúz = March 20
+  function getBadiDate(d) {
+    const y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
+    // Days since Naw-Rúz (March 20)
+    const nawRuz = new Date(y, 2, 20); // March 20
+    let diff = Math.floor((d - nawRuz) / 86400000);
+    if (diff < 0) {
+      // Before Naw-Rúz this year → use previous year's calendar
+      const prevNawRuz = new Date(y - 1, 2, 20);
+      diff = Math.floor((d - prevNawRuz) / 86400000);
+    }
+    // 19 months × 19 days = 361, then Ayyám-i-Há (4-5 days), then month 19 ('Alá')
+    if (diff < 342) { // months 1-18 (0-341)
+      return { month: Math.floor(diff / 19), day: (diff % 19) + 1, ayyamiha: false };
+    } else if (diff < 346 + (isLeapBadi(y) ? 1 : 0)) { // Ayyám-i-Há
+      return { month: -1, day: diff - 341, ayyamiha: true };
+    } else { // Month 19: 'Alá' (The Fast)
+      const alaStart = 346 + (isLeapBadi(y) ? 1 : 0);
+      return { month: 18, day: diff - alaStart + 1, ayyamiha: false };
+    }
+  }
+  function isLeapBadi(gregYear) {
+    // Simplified: Bahá'í leap years roughly follow Gregorian
+    const ny = gregYear + 1; // next Naw-Rúz year
+    return (ny % 4 === 0 && (ny % 100 !== 0 || ny % 400 === 0));
+  }
+
+  function initSuggestions() {
+    const tabsEl = $('suggestions-tabs');
+    const listEl = $('suggestions-list');
+    const titleEl = $('suggestions-title');
+
+    // Determine current Bahá'í month and any active holy day
+    const now = new Date();
+    const badi = getBadiDate(now);
+    const gMonth = now.getMonth() + 1, gDay = now.getDate();
+
+    // Check for holy day (within ±1 day)
+    let activeHolyDay = null;
+    for (const hd of HOLY_DAYS) {
+      if (hd.month === gMonth && hd.day && Math.abs(hd.day - gDay) <= 1) {
+        activeHolyDay = hd;
+        break;
+      }
+    }
+
+    // Build tabs
+    const tabs = [];
+    // Current month tab (highlighted)
+    if (badi.ayyamiha) {
+      tabs.push({ label: AYYAM_I_HA.name + ' (now)', cats: AYYAM_I_HA.cats, highlight: true });
+    } else if (badi.month >= 0 && badi.month < 19) {
+      const bm = BADI_MONTHS[badi.month];
+      tabs.push({ label: bm.name + ' — ' + bm.en + ' (now)', cats: bm.cats, highlight: true });
+    }
+    // Active holy day
+    if (activeHolyDay) {
+      tabs.push({ label: activeHolyDay.name, cats: activeHolyDay.cats, highlight: true });
+    }
+    // Holy days
+    HOLY_DAYS.forEach(hd => {
+      if (hd !== activeHolyDay) tabs.push({ label: hd.name, cats: hd.cats });
+    });
+    // Special themes
+    SPECIAL_THEMES.forEach(st => tabs.push({ label: st.name, cats: st.cats }));
+    // All months
+    BADI_MONTHS.forEach((bm, i) => {
+      if (!(badi.month === i && !badi.ayyamiha)) {
+        tabs.push({ label: bm.name + ' — ' + bm.en, cats: bm.cats });
+      }
+    });
+    tabs.push({ label: AYYAM_I_HA.name, cats: AYYAM_I_HA.cats });
+
+    // Update title with current context
+    if (badi.ayyamiha) {
+      titleEl.textContent = 'Suggestions — ' + AYYAM_I_HA.name;
+    } else if (badi.month >= 0 && badi.month < 19) {
+      titleEl.textContent = 'Suggestions — Month of ' + BADI_MONTHS[badi.month].name;
+    }
+
+    let activeTab = 0;
+    function renderTabs() {
+      tabsEl.innerHTML = '';
+      tabs.forEach((tab, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'sug-tab' + (i === activeTab ? ' active' : '') + (tab.highlight ? ' highlight' : '');
+        btn.textContent = tab.label;
+        btn.addEventListener('click', () => { activeTab = i; renderTabs(); renderSuggestions(); });
+        tabsEl.appendChild(btn);
+      });
+    }
+
+    async function renderSuggestions() {
+      const tab = tabs[activeTab];
+      if (!tab) return;
+      const lang = langSelect.value || 'en';
+
+      listEl.innerHTML = '<p style="color:var(--text-secondary);font-size:.85rem">Loading...</p>';
+
+      const pMap = await getPrayerMap(lang);
+      const matching = [];
+      for (const p of Object.values(pMap)) {
+        if (tab.cats.includes(p.category)) {
+          matching.push(p);
+        }
+      }
+
+      if (matching.length === 0) {
+        listEl.innerHTML = '<p style="color:var(--text-secondary);font-size:.85rem">No prayers found for this theme in ' + lang + '</p>';
+        return;
+      }
+
+      // Sort by category then name
+      matching.sort((a, b) => (a.category + a.phelps).localeCompare(b.category + b.phelps));
+
+      listEl.innerHTML = '';
+      let lastCat = '';
+      matching.forEach(p => {
+        if (p.category !== lastCat) {
+          lastCat = p.category;
+          const catEl = document.createElement('div');
+          catEl.style.cssText = 'font-size:.75rem;font-weight:600;color:var(--text-secondary);margin-top:.4rem;';
+          catEl.textContent = lastCat;
+          listEl.appendChild(catEl);
+        }
+        const item = document.createElement('div');
+        item.className = 'sug-item';
+        const inProgram = codes.includes(p.phelps);
+        item.innerHTML = `
+          <span class="sug-item-name">${p.name || p.category}</span>
+          <span class="sug-item-code">${p.phelps}</span>
+          <button class="sug-item-add${inProgram ? ' added' : ''}">${inProgram ? '\u2713' : '+'}</button>`;
+        const btn = item.querySelector('.sug-item-add');
+        btn.addEventListener('click', () => {
+          if (codes.includes(p.phelps)) {
+            codes = codes.filter(c => c !== p.phelps);
+            btn.textContent = '+'; btn.classList.remove('added');
+          } else {
+            codes.push(p.phelps);
+            btn.textContent = '\u2713'; btn.classList.add('added');
+          }
+          if (!isShared) saveCodes(codes);
+          renderItems();
+        });
+        listEl.appendChild(item);
+      });
+
+      // "Add all" button
+      const addAll = document.createElement('button');
+      addAll.className = 'sug-add-all';
+      addAll.textContent = 'Add all ' + matching.length + ' prayers';
+      addAll.addEventListener('click', () => {
+        matching.forEach(p => {
+          if (!codes.includes(p.phelps)) codes.push(p.phelps);
+        });
+        if (!isShared) saveCodes(codes);
+        renderItems();
+        renderSuggestions();
+      });
+      listEl.appendChild(addAll);
+    }
+
+    renderTabs();
+    // Auto-load first tab
+    renderSuggestions();
+
+    // Re-render suggestions when language changes
+    langSelect.addEventListener('change', () => { if ($('suggestions-panel').open) renderSuggestions(); });
+  }
 
   // ── QR Code generator (minimal, no external deps) ──
   // Uses alphanumeric mode for URLs — generates SVG
