@@ -38,6 +38,9 @@
   </nav>
 </header>
 <script>
-document.getElementById('nav-toggle').addEventListener('click',function(){document.getElementById('site-nav').classList.toggle('open')});
-document.querySelectorAll('.nav-dropdown-toggle').forEach(function(t){t.addEventListener('click',function(e){if(window.innerWidth<=900){e.preventDefault();t.closest('.nav-dropdown').classList.toggle('open')}})});
+document.addEventListener('DOMContentLoaded',function(){
+  var tog=document.getElementById('nav-toggle');
+  if(tog)tog.addEventListener('click',function(){document.getElementById('site-nav').classList.toggle('open')});
+  document.querySelectorAll('.nav-dropdown-toggle').forEach(function(t){t.addEventListener('click',function(e){if(window.innerWidth<=600){e.preventDefault();t.closest('.nav-dropdown').classList.toggle('open')}})});
+});
 </script>
