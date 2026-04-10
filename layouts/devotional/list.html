@@ -5,10 +5,19 @@
   <div class="dev-header">
     <h1 id="dev-title">Devotional Program</h1>
     <div class="dev-controls">
-      <div class="lang-select-wrap">
-        <label for="dev-lang">Language:</label>
-        <select id="dev-lang"></select>
-      </div>
+      <details class="lang-dropdown" id="dev-lang-dropdown">
+        <summary id="dev-lang-label">English</summary>
+        <div class="lang-dropdown-panel">
+          <input type="search" class="lang-filter-input" id="dev-lang-filter" placeholder="Filter languages..." autocomplete="off">
+          <div class="lang-tier-bar" id="dev-lang-tiers">
+            <button class="tier-btn active" data-min="5">5+</button>
+            <button class="tier-btn" data-min="20">20+</button>
+            <button class="tier-btn" data-min="50">50+</button>
+            <button class="tier-btn" data-min="1">All</button>
+          </div>
+          <div class="lang-dropdown-list" id="dev-lang-list"></div>
+        </div>
+      </details>
     </div>
   </div>
 
@@ -79,21 +88,51 @@
   align-items: center;
   gap: .8rem;
 }
-.lang-select-wrap {
-  display: flex;
-  align-items: center;
-  gap: .4rem;
-  font-size: .9rem;
-}
-.lang-select-wrap select {
-  padding: .3rem .5rem;
+/* Language dropdown */
+.dev-controls .lang-dropdown { position: relative; }
+.dev-controls .lang-dropdown summary {
+  padding: .3rem .8rem;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--surface);
-  color: var(--text);
   font-size: .9rem;
-  max-width: 200px;
+  cursor: pointer;
+  list-style: none;
 }
+.dev-controls .lang-dropdown summary::-webkit-details-marker { display: none; }
+.dev-controls .lang-dropdown-panel {
+  position: absolute;
+  right: 0; top: 100%; margin-top: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  width: 280px; max-height: 400px;
+  overflow: hidden; z-index: 50;
+  display: flex; flex-direction: column;
+}
+.dev-controls .lang-filter-input {
+  margin: .4rem; padding: .3rem .5rem;
+  border: 1px solid var(--border); border-radius: 4px;
+  font-size: .85rem; background: var(--bg); color: var(--text);
+}
+.dev-controls .lang-tier-bar {
+  display: flex; gap: .3rem; padding: .3rem .4rem 0;
+}
+.dev-controls .tier-btn {
+  flex: 1; padding: .15rem .3rem; border: 1px solid var(--border); border-radius: 4px;
+  font-size: .75rem; cursor: pointer; background: var(--bg); color: var(--text-secondary); text-align: center;
+}
+.dev-controls .tier-btn:hover { border-color: var(--accent); color: var(--accent); }
+.dev-controls .tier-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.dev-controls .lang-dropdown-list { overflow-y: auto; max-height: 300px; }
+.dev-controls .lang-dropdown-list a {
+  display: flex; justify-content: space-between; padding: .3rem .6rem;
+  font-size: .85rem; color: var(--text); text-decoration: none; cursor: pointer;
+}
+.dev-controls .lang-dropdown-list a:hover { background: #fff3ef; }
+.dev-controls .lang-dropdown-list a.active { font-weight: 700; color: var(--accent); }
+.dev-controls .lang-code-badge { font-size: .7rem; color: var(--text-secondary); font-family: monospace; }
 
 /* Toolbar */
 .dev-toolbar {
@@ -456,11 +495,31 @@
     codes = getCodes();
   }
 
-  // ── Language selector ──
-  const langSelect = $('dev-lang');
+  // ── Language selector (filterable dropdown with tiers) ──
+  const langDropdown = $('dev-lang-dropdown');
+  const langLabel = $('dev-lang-label');
+  const langList = $('dev-lang-list');
+  const langFilter = $('dev-lang-filter');
+  // Shim for code that references langSelect
+  const langSelect = {
+    get value() { return selectedLang; },
+    addEventListener() {} // no-op; selectLang() triggers re-renders directly
+  };
+  let selectedLang = localStorage.getItem('hw_devotional_lang') || 'en';
   let allLanguages = [];
   let prayerCache = {}; // lang → {phelps → prayer}
   let writingCache = {}; // `${key}/${lang}` → {phelps → entry}
+
+  function selectLang(code) {
+    selectedLang = code;
+    const lang = allLanguages.find(l => l.code === code);
+    langLabel.textContent = lang ? lang.name + ' (' + (lang.prayer_count || 0) + ')' : code;
+    localStorage.setItem('hw_devotional_lang', code);
+    langList.querySelectorAll('a').forEach(a => a.classList.toggle('active', a.dataset.code === code));
+    langDropdown.removeAttribute('open');
+    renderItems();
+    if ($('suggestions-panel')?.open) renderSuggestions();
+  }
 
   async function init() {
     const [langRes, writRes] = await Promise.all([
@@ -470,24 +529,58 @@
     allLanguages = await langRes.json();
     window._writingsIndex = await writRes.json();
 
+    // Populate dropdown — alphabetical, English first
     const sorted = [...allLanguages].sort((a, b) => {
       if (a.code === 'en') return -1;
       if (b.code === 'en') return 1;
-      return (b.prayer_count || 0) - (a.prayer_count || 0);
+      return a.name.localeCompare(b.name);
     });
+    const nameCounts = {};
+    sorted.forEach(l => { nameCounts[l.name] = (nameCounts[l.name] || 0) + 1; });
+
     sorted.forEach(l => {
-      const opt = document.createElement('option');
-      opt.value = l.code;
-      opt.textContent = l.name + (l.prayer_count ? ' (' + l.prayer_count + ')' : '');
-      if (l.rtl) opt.dataset.rtl = '1';
-      langSelect.appendChild(opt);
+      const a = document.createElement('a');
+      a.href = '#';
+      a.dataset.code = l.code;
+      a.dataset.name = l.name.toLowerCase();
+      a.dataset.count = l.prayer_count || 0;
+      const displayName = nameCounts[l.name] > 1 ? l.name + ' [' + l.code + ']' : l.name;
+      a.innerHTML = displayName + '<span class="lang-code-badge">' + (l.prayer_count || 0) + '</span>';
+      if (l.code === selectedLang) a.classList.add('active');
+      a.addEventListener('click', e => { e.preventDefault(); selectLang(l.code); });
+      langList.appendChild(a);
     });
 
-    const saved = localStorage.getItem('hw_devotional_lang') || 'en';
-    langSelect.value = saved || 'en';
+    // Tier filter + text filter
+    let minPrayers = 5;
+    function filterLangs() {
+      const q = langFilter.value.toLowerCase().trim();
+      langList.querySelectorAll('a').forEach(a => {
+        const nameMatch = !q || a.dataset.name.includes(q) || a.dataset.code.includes(q);
+        const countOk = parseInt(a.dataset.count) >= minPrayers;
+        a.style.display = (nameMatch && countOk) ? '' : 'none';
+      });
+    }
+    $('dev-lang-tiers').querySelectorAll('.tier-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        $('dev-lang-tiers').querySelectorAll('.tier-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        minPrayers = parseInt(btn.dataset.min);
+        filterLangs();
+      });
+    });
+    langFilter.addEventListener('input', filterLangs);
+    document.addEventListener('click', e => { if (!langDropdown.contains(e.target)) langDropdown.removeAttribute('open'); });
+    langDropdown.addEventListener('toggle', () => {
+      if (langDropdown.open) { langFilter.value = ''; langFilter.focus(); filterLangs(); }
+    });
 
-    langSelect.addEventListener('change', () => {
-      localStorage.setItem('hw_devotional_lang', langSelect.value);
+    // Set initial label
+    const initLang = allLanguages.find(l => l.code === selectedLang);
+    if (initLang) langLabel.textContent = initLang.name + ' (' + (initLang.prayer_count || 0) + ')';
+
+    // Replaced old langSelect.addEventListener('change', ...) —
+    // selectLang() now calls renderItems() directly
       renderItems();
     });
 
@@ -553,8 +646,8 @@
   // ── Render all items ──
   async function renderItems() {
     const container = $('dev-items');
-    const lang = langSelect.value;
-    const rtl = langSelect.selectedOptions[0]?.dataset.rtl === '1';
+    const lang = selectedLang;
+    const rtl = allLanguages.find(l => l.code === lang)?.rtl || false;
 
     if (codes.length === 0) {
       container.innerHTML = '';
