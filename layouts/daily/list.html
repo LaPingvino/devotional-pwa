@@ -91,6 +91,7 @@
       <div id="qiblih-bearing" class="bearing-text"></div>
       <div id="qiblih-status" class="compass-status">Tap to find direction</div>
       <button class="btn-small" id="qiblih-btn">Find Qiblih</button>
+      <div id="qiblih-map" style="width:100%;height:300px;margin-top:.5rem;border-radius:8px;display:none"></div>
     </div>
   </section>
 
@@ -389,15 +390,25 @@
   let writingsIndex = [];
 
   async function init() {
-    // Load languages and writings index
-    const [langRes, writRes] = await Promise.all([
-      fetch('/data/languages.json'),
-      fetch('/data/writings.json')
-    ]);
-    allLanguages = await langRes.json();
-    writingsIndex = await writRes.json();
+    // Init standalone sections first (don't depend on language data)
+    initChecklist();
+    initAbha();
+    initQiblih();
+    initObligatory();
 
-    // Populate language dropdown — show languages with multiple prayers first
+    // Load languages and writings index
+    try {
+      const [langRes, writRes] = await Promise.all([
+        fetch('/data/languages.json'),
+        fetch('/data/writings.json')
+      ]);
+      if (langRes.ok) allLanguages = await langRes.json();
+      if (writRes.ok) writingsIndex = await writRes.json();
+    } catch (e) {
+      console.warn('Failed to load language/writing data:', e);
+    }
+
+    // Populate language dropdown
     const sorted = [...allLanguages].sort((a, b) => {
       if (a.code === 'en') return -1;
       if (b.code === 'en') return 1;
@@ -421,12 +432,7 @@
       loadContent();
     });
 
-    // Init all sections
-    initChecklist();
-    initAbha();
-    initQiblih();
-    initObligatory();
-    loadContent();
+    if (allLanguages.length > 0) loadContent();
   }
 
   // ── Load prayer + writing content ──
@@ -699,12 +705,69 @@
       }
     }
 
+    function showMap(lat, lng) {
+      const mapEl = $('qiblih-map');
+      mapEl.style.display = '';
+      // Dynamically load Leaflet CSS + JS
+      if (!document.getElementById('leaflet-css')) {
+        const link = document.createElement('link');
+        link.id = 'leaflet-css';
+        link.rel = 'stylesheet';
+        link.href = 'https://unpkg.com/leaflet@1.9/dist/leaflet.css';
+        document.head.appendChild(link);
+      }
+      function initMap() {
+        const map = L.map(mapEl).fitBounds([[lat, lng], [BAHJI.lat, BAHJI.lng]], { padding: [30, 30] });
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          attribution: '&copy; OSM contributors',
+          maxZoom: 18
+        }).addTo(map);
+        // Great circle approximation: intermediate points along the bearing
+        const points = [];
+        const steps = 50;
+        for (let i = 0; i <= steps; i++) {
+          const f = i / steps;
+          const p = intermediatePoint(lat, lng, BAHJI.lat, BAHJI.lng, f);
+          points.push([p.lat, p.lng]);
+        }
+        L.polyline(points, { color: '#ff7954', weight: 2, dashArray: '6,4' }).addTo(map);
+        L.marker([lat, lng]).addTo(map).bindPopup('You');
+        L.marker([BAHJI.lat, BAHJI.lng]).addTo(map).bindPopup('Bahji');
+      }
+      if (window.L) { initMap(); } else {
+        const script = document.createElement('script');
+        script.src = 'https://unpkg.com/leaflet@1.9/dist/leaflet.js';
+        script.onload = initMap;
+        document.head.appendChild(script);
+      }
+    }
+
+    // Great circle intermediate point
+    function intermediatePoint(lat1, lng1, lat2, lng2, f) {
+      const toRad = d => d * Math.PI / 180;
+      const toDeg = r => r * 180 / Math.PI;
+      const phi1 = toRad(lat1), lam1 = toRad(lng1);
+      const phi2 = toRad(lat2), lam2 = toRad(lng2);
+      const d = 2 * Math.asin(Math.sqrt(
+        Math.pow(Math.sin((phi2 - phi1) / 2), 2) +
+        Math.cos(phi1) * Math.cos(phi2) * Math.pow(Math.sin((lam2 - lam1) / 2), 2)
+      ));
+      if (d === 0) return { lat: lat1, lng: lng1 };
+      const a = Math.sin((1 - f) * d) / Math.sin(d);
+      const b = Math.sin(f * d) / Math.sin(d);
+      const x = a * Math.cos(phi1) * Math.cos(lam1) + b * Math.cos(phi2) * Math.cos(lam2);
+      const y = a * Math.cos(phi1) * Math.sin(lam1) + b * Math.cos(phi2) * Math.sin(lam2);
+      const z = a * Math.sin(phi1) + b * Math.sin(phi2);
+      return { lat: toDeg(Math.atan2(z, Math.sqrt(x * x + y * y))), lng: toDeg(Math.atan2(y, x)) };
+    }
+
     function onPosition(pos) {
       userLat = pos.coords.latitude;
       userLng = pos.coords.longitude;
       qiblihBearing = calcBearing(userLat, userLng, BAHJI.lat, BAHJI.lng);
       bearingEl.textContent = Math.round(qiblihBearing) + '\u00b0 ' + compassDir(qiblihBearing);
       updateCompass();
+      showMap(userLat, userLng);
 
       // Try device orientation
       if (window.DeviceOrientationEvent) {

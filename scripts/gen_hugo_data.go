@@ -160,6 +160,7 @@ func main() {
 	log.Println("→ languages...")
 	langs := queryLanguages()
 	writeJSON(filepath.Join(dataDir, "languages.json"), langs)
+	writeJSON(filepath.Join(staticDir, "languages.json"), langs)
 	log.Printf("  %d languages", len(langs))
 
 	// Build lang name lookup from ALL languages (not just prayer languages)
@@ -599,6 +600,7 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 	}
 
 	writeJSON(filepath.Join(dataDir, "writings.json"), writingsIndex)
+	writeJSON(filepath.Join(staticDir, "writings.json"), writingsIndex)
 	log.Printf("  %d writing types total", len(writingsIndex))
 
 	// Build reverse index: base phelps code → writing refs (deduped by type+lang)
