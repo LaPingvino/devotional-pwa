@@ -55,12 +55,16 @@
 
     <div class="writing-body"{{ if $rtl }} dir="rtl"{{ end }}>
       {{ range $entries }}
-      <div class="writing-book" id="book-{{ .base }}">
+      <div class="writing-book" id="book-{{ .base }}" data-count="{{ len .entries }}">
         {{ if gt (len $entries) 1 }}
-        <h2 class="writing-book-heading">
-          {{ if .title }}{{ .title }}{{ else }}{{ .base }}{{ end }}
-          <a href="/phelps/?pin={{ .base }}" class="phelps-link" title="View in inventory">{{ .base }}</a>
-        </h2>
+        <div class="writing-book-header">
+          <h2 class="writing-book-heading">
+            {{ if .title }}{{ .title }}{{ else }}{{ .base }}{{ end }}
+            {{ with .base }}<a href="/phelps/?pin={{ . }}" class="phelps-link" title="View in inventory">{{ . }}</a>{{ end }}
+          </h2>
+          <input type="number" class="book-goto" min="1" max="{{ len .entries }}" placeholder="Go to #…"
+                 title="Jump to verse number within this section">
+        </div>
         {{ end }}
 
         {{ $bookIdx := 0 }}
@@ -84,16 +88,34 @@
 <style>
 .writing-body { max-width: 720px; }
 .writing-book { margin-bottom: 3rem; }
+.writing-book-header {
+  display: flex;
+  align-items: baseline;
+  gap: .75rem;
+  margin-bottom: 1rem;
+  padding-bottom: .5rem;
+  border-bottom: 2px solid var(--accent);
+  flex-wrap: wrap;
+}
+.book-goto {
+  width: 5rem;
+  padding: .2rem .4rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: .8rem;
+  background: var(--bg);
+  color: var(--text);
+  flex-shrink: 0;
+}
 .writing-book-heading {
   font-size: 1.3rem;
   font-weight: 700;
   color: var(--text);
-  margin-bottom: 1rem;
-  padding-bottom: .5rem;
-  border-bottom: 2px solid var(--accent);
+  margin: 0;
   display: flex;
   align-items: baseline;
   gap: .5rem;
+  flex: 1;
 }
 .writing-entry { margin-bottom: 1.5rem; }
 .writing-entry-label {
@@ -167,24 +189,42 @@
 </style>
 
 <script>
-// Jump to section by number
-const gotoInput = document.getElementById('goto-section');
-const allEntries = document.querySelectorAll('.writing-entry');
-if (gotoInput && allEntries.length) {
-  gotoInput.max = allEntries.length;
-  gotoInput.addEventListener('change', jump);
-  gotoInput.addEventListener('keydown', e => { if (e.key === 'Enter') jump(); });
-  function jump() {
-    const n = parseInt(gotoInput.value);
-    if (n >= 1 && n <= allEntries.length) {
-      allEntries[n - 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
+(function() {
+  // Per-book "Go to #" inputs
+  document.querySelectorAll('.book-goto').forEach(input => {
+    const book = input.closest('.writing-book');
+    const entries = book.querySelectorAll('.writing-entry');
+    function jump() {
+      const n = parseInt(input.value);
+      if (n >= 1 && n <= entries.length) {
+        entries[n - 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
     }
+    input.addEventListener('change', jump);
+    input.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); jump(); }});
+  });
+
+  // Sidebar global "Go to #" — for single-book types this is the only input;
+  // for multi-book types it counts across all entries
+  const gotoInput = document.getElementById('goto-section');
+  const allEntries = document.querySelectorAll('.writing-entry');
+  if (gotoInput && allEntries.length) {
+    gotoInput.max = allEntries.length;
+    function globalJump() {
+      const n = parseInt(gotoInput.value);
+      if (n >= 1 && n <= allEntries.length) {
+        allEntries[n - 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+    gotoInput.addEventListener('change', globalJump);
+    gotoInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); globalJump(); }});
   }
-  // Also handle hash on load: #42 → scroll to entry 42
+
+  // Handle hash on load: #42 → scroll to entry 42
   const hash = parseInt(location.hash.replace('#', ''));
   if (hash >= 1 && hash <= allEntries.length) {
     setTimeout(() => allEntries[hash - 1].scrollIntoView({ block: 'start' }), 100);
   }
-}
+})();
 </script>
 {{ partial "foot.html" . }}
