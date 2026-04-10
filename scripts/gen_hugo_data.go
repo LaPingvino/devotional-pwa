@@ -100,8 +100,17 @@ type SubCode struct {
 	WordCount     string    `json:"word_count,omitempty"`
 	Subjects      string    `json:"subjects,omitempty"`
 	Notes         string    `json:"notes,omitempty"`
-	FullTextParts []string  `json:"full_text_parts,omitempty"` // English full text chunks from inventory_fulltext
-	Translations  []LangRef `json:"translations"` // languages that have this code; no text here
+	FullTextParts []string      `json:"full_text_parts,omitempty"` // English full text chunks from inventory_fulltext
+	Translations  []LangRef    `json:"translations"`              // languages that have this code; no text here
+	WritingRefs   []WritingRef `json:"writing_refs,omitempty"`    // writings pages containing this code
+}
+
+// WritingRef links to a writings page where this code appears
+type WritingRef struct {
+	Type     string `json:"type"`      // writing type key (e.g. "tablets", "hidden-words")
+	TypeName string `json:"type_name"` // display name
+	Language string `json:"language"`  // language code
+	LangName string `json:"lang_name"` // language display name
 }
 
 // PhelpsFile is written to assets/phelps/{base_pin}.json; groups all sub-codes.
@@ -112,16 +121,17 @@ type PhelpsFile struct {
 
 // InventoryEntry for the concordance JSON served to the client
 type InventoryEntry struct {
-	PIN              string `json:"pin"`
-	Title            string `json:"title,omitempty"`
-	FirstLine        string `json:"first_line"`
-	FirstLineOrig    string `json:"first_line_orig,omitempty"`
-	Language         string `json:"language,omitempty"`
-	WordCount        string `json:"word_count,omitempty"`
-	Subjects         string `json:"subjects,omitempty"`
-	Notes            string `json:"notes,omitempty"`
-	Prefix           string `json:"prefix"`
-	TranslationCount int    `json:"translations,omitempty"` // number of translated versions
+	PIN              string    `json:"pin"`
+	Title            string    `json:"title,omitempty"`
+	FirstLine        string    `json:"first_line"`
+	FirstLineOrig    string    `json:"first_line_orig,omitempty"`
+	Language         string    `json:"language,omitempty"`
+	WordCount        string    `json:"word_count,omitempty"`
+	Subjects         string    `json:"subjects,omitempty"`
+	Notes            string    `json:"notes,omitempty"`
+	Prefix           string    `json:"prefix"`
+	TranslationCount int       `json:"translations,omitempty"` // number of translated versions
+	Langs            []LangRef `json:"langs,omitempty"`        // language refs for translated versions
 }
 
 var rtlLangs = map[string]bool{
@@ -136,11 +146,12 @@ func main() {
 	dataDir := filepath.Join(*outDir, "data")
 	assetsDir := filepath.Join(*outDir, "assets")
 	staticDir := filepath.Join(*outDir, "static", "data")
+	staticPhelpsDir := filepath.Join(*outDir, "static", "data", "phelps")
 	for _, dir := range []string{
 		dataDir,
 		filepath.Join(assetsDir, "prayers"),
-		filepath.Join(assetsDir, "phelps"),
 		staticDir,
+		staticPhelpsDir,
 	} {
 		must(os.MkdirAll(dir, 0755))
 	}
@@ -151,10 +162,17 @@ func main() {
 	writeJSON(filepath.Join(dataDir, "languages.json"), langs)
 	log.Printf("  %d languages", len(langs))
 
-	// Build lang name lookup for LangRef construction
+	// Build lang name lookup from ALL languages (not just prayer languages)
 	langNames := map[string]string{}
 	for _, l := range langs {
 		langNames[l.Code] = l.Name
+	}
+	// Also load names for languages that only have writings (no prayers)
+	allLangRows := doltQuery(`SELECT langcode, name FROM languages WHERE inlang='en'`)
+	for _, row := range allLangRows[1:] {
+		if len(row) >= 2 && langNames[row[0]] == "" {
+			langNames[row[0]] = row[1]
+		}
 	}
 
 	// 2a. First pass: one bulk query for all prayers across all languages
@@ -184,8 +202,9 @@ func main() {
 
 	// 2b. Second pass: write per-language JSON with "Also in:" translation lists + prayerbooks
 	log.Println("→ loading all prayerbook category assignments (single query)...")
-	allBookCats, allPrayerbooks := queryAllBookCats(allPrayers)
-	log.Printf("  book_cats loaded for %d languages", len(allBookCats))
+	allBookCats, allPrayerbooks, allBooks := queryAllBookCats(allPrayers)
+	log.Printf("  book_cats loaded for %d languages, %d total prayerbooks", len(allBookCats), len(allBooks))
+	writeJSON(filepath.Join(dataDir, "prayerbooks.json"), allBooks)
 
 	log.Println("→ prayers by language (pass 2: writing)...")
 	for _, lang := range langs {
@@ -234,7 +253,11 @@ func main() {
 	invMap := map[string]InventoryEntry{}
 	invBasePINMap := map[string][]string{} // basePin → sorted list of full inventory codes
 	for i, e := range inventory {
-		inventory[i].TranslationCount = len(phelpsLangs[e.PIN])
+		langs := phelpsLangs[e.PIN]
+		inventory[i].TranslationCount = len(langs)
+		if len(langs) > 0 {
+			inventory[i].Langs = langs
+		}
 		invMap[e.PIN] = inventory[i]
 		base := basePINKey(e.PIN)
 		invBasePINMap[base] = append(invBasePINMap[base], e.PIN)
@@ -244,16 +267,7 @@ func main() {
 	}
 	writeJSON(filepath.Join(staticDir, "inventory.json"), inventory)
 
-	// Clear stale phelps files (keyed by base PIN, prayer-based only)
-	phelpsDir := filepath.Join(assetsDir, "phelps")
-	if entries, err := os.ReadDir(phelpsDir); err == nil {
-		for _, e := range entries {
-			base := strings.ToUpper(strings.TrimSuffix(e.Name(), ".json"))
-			if _, ok := basePINMap[base]; !ok {
-				os.Remove(filepath.Join(phelpsDir, e.Name()))
-			}
-		}
-	}
+
 
 	// 5. Write phelps files grouped by base PIN (lang refs only, no prayer text)
 	// Only generate static pages for PINs that have at least one matching prayer.
@@ -306,10 +320,319 @@ func main() {
 			SubCodes: subcodes,
 		}
 		safe := strings.ToLower(base)
-		writeJSON(filepath.Join(assetsDir, "phelps", safe+".json"), pf)
+		// Write to static/ for client-side JS rendering via detail.html
+		writeJSON(filepath.Join(staticPhelpsDir, safe+".json"), pf)
+	}
+
+	// 6. Writings (non-prayer texts: hidden_words, aqdas, iqan, etc.)
+	log.Println("→ writings...")
+	writingRefs := generateWritings(assetsDir, dataDir, langNames)
+	log.Printf("  writing refs: %d base codes have backlinks", len(writingRefs))
+
+	// 7. Enrich phelps files with writing backlinks
+	if len(writingRefs) > 0 {
+		log.Println("→ enriching phelps files with writing backlinks...")
+		enriched := 0
+
+		// Collect all base codes that have phelps files (from prayers + inventory)
+		allBases := map[string]bool{}
+		for base := range basePINMap {
+			allBases[base] = true
+		}
+		for base := range invBasePINMap {
+			allBases[base] = true
+		}
+
+		for base := range allBases {
+			safe := strings.ToLower(base)
+			path := filepath.Join(staticPhelpsDir, safe+".json")
+			data, err := os.ReadFile(path)
+			if err != nil {
+				continue
+			}
+			var pf PhelpsFile
+			if err := json.Unmarshal(data, &pf); err != nil {
+				continue
+			}
+			changed := false
+			for i, sc := range pf.SubCodes {
+				codeBase := writingBaseCode(sc.Code)
+				if refs, ok := writingRefs[codeBase]; ok {
+					pf.SubCodes[i].WritingRefs = refs
+					changed = true
+				}
+			}
+			if changed {
+				writeJSON(path, pf)
+				enriched++
+			}
+		}
+		log.Printf("  enriched %d phelps files", enriched)
+
+		// 8. Create phelps files for writing-only base codes that don't have one yet
+		log.Println("→ creating phelps files for writing-only codes...")
+		created := 0
+		for base, refs := range writingRefs {
+			safe := strings.ToLower(base)
+			path := filepath.Join(staticPhelpsDir, safe+".json")
+			if _, err := os.Stat(path); err == nil {
+				continue // already exists
+			}
+			// Look up inventory metadata if available
+			inv := invMap[base]
+			pf := PhelpsFile{
+				PIN: base,
+				SubCodes: []SubCode{{
+					Code:          base,
+					Title:         inv.Title,
+					FirstLine:     inv.FirstLine,
+					FirstLineOrig: inv.FirstLineOrig,
+					Language:      inv.Language,
+					WordCount:     inv.WordCount,
+					Subjects:      inv.Subjects,
+					Notes:         inv.Notes,
+					Translations:  []LangRef{},
+					WritingRefs:   refs,
+				}},
+			}
+			writeJSON(path, pf)
+			writeJSON(filepath.Join(staticPhelpsDir, safe+".json"), pf)
+			created++
+		}
+		log.Printf("  created %d writing-only phelps files", created)
 	}
 
 	log.Println("Done!")
+}
+
+// WritingType metadata for the writings index
+type WritingType struct {
+	Key       string          `json:"key"`
+	Title     string          `json:"title"`
+	Author    string          `json:"author"`
+	ShowNames bool            `json:"show_names,omitempty"`
+	Langs     []WritingLang   `json:"langs"`
+}
+
+type WritingLang struct {
+	Code  string `json:"code"`
+	Name  string `json:"name"`
+	Count int    `json:"count"`
+	RTL   bool   `json:"rtl,omitempty"`
+}
+
+// WritingEntry is one paragraph/verse/section in a writing
+type WritingEntry struct {
+	Phelps string `json:"phelps"`
+	Name   string `json:"name,omitempty"`
+	Text   string `json:"text"`
+	Order  int    `json:"order"`
+}
+
+// WritingBook groups entries under a book/tablet heading
+type WritingBook struct {
+	Base    string         `json:"base"`              // base Phelps code (e.g. BH02324)
+	Title   string         `json:"title"`             // book/tablet title from first entry's name
+	Entries []WritingEntry `json:"entries"`
+}
+
+// WritingLangFile is written to assets/writings/{type}/{lang}.json
+type WritingLangFile struct {
+	Books []WritingBook `json:"books"`
+}
+
+var writingTypes = []struct {
+	Key        string
+	Title      string
+	Author     string
+	DBType     string
+	SingleBook bool // treat all entries as one book (don't group by base code)
+	ShowNames  bool // show entry names in the UI (useful for SAQ titles, Gleanings Roman numerals)
+}{
+	{"hidden-words", "The Hidden Words", "Bahá'u'lláh", "hidden_words", false, false},
+	{"aqdas", "Kitáb-i-Aqdas", "Bahá'u'lláh", "aqdas", true, false},
+	{"iqan", "Kitáb-i-Íqán", "Bahá'u'lláh", "iqan", true, false},
+	{"gleanings", "Gleanings", "Bahá'u'lláh", "gleanings", true, true},
+	{"pm", "Prayers & Meditations", "Bahá'u'lláh", "pm", true, false},
+	{"saq", "Some Answered Questions", "'Abdu'l-Bahá", "saq", true, true},
+	{"tablets", "Tablets of Bahá'u'lláh", "Bahá'u'lláh", "tablets", false, false},
+	{"days", "Days of Remembrance", "Bahá'u'lláh", "days_remembrance", true, true},
+	{"ridvan", "Ridván Messages", "Universal House of Justice", "ridvan", true, true},
+}
+
+// generateWritings returns a reverse index: base phelps code → []WritingRef
+func generateWritings(assetsDir, dataDir string, langNames map[string]string) map[string][]WritingRef {
+	// Query all writing entries grouped by type and language
+	rows := doltQuery(`
+		SELECT type, language, phelps, COALESCE(name,''), text, COALESCE(source_id,'')
+		FROM writings
+		WHERE type IS NOT NULL AND type <> 'prayer'
+		  AND phelps IS NOT NULL AND phelps <> ''
+		ORDER BY type, language, CAST(REGEXP_REPLACE(source_id, '[^0-9]', '') AS UNSIGNED), phelps
+	`)
+
+	// Group: dbType → lang → []WritingEntry
+	typeData := map[string]map[string][]WritingEntry{}
+	for _, row := range rows[1:] {
+		if len(row) < 6 {
+			continue
+		}
+		dbType, lang, phelps, name, text := row[0], row[1], row[2], row[3], row[4]
+		_ = row[5] // source_id used for ORDER BY only
+		if typeData[dbType] == nil {
+			typeData[dbType] = map[string][]WritingEntry{}
+		}
+		typeData[dbType][lang] = append(typeData[dbType][lang], WritingEntry{
+			Phelps: phelps,
+			Name:   name,
+			Text:   text,
+			Order:  len(typeData[dbType][lang]) + 1,
+		})
+	}
+
+	var writingsIndex []WritingType
+	for _, wt := range writingTypes {
+		langData := typeData[wt.DBType]
+		if len(langData) == 0 {
+			continue
+		}
+
+		// Create output directory
+		outDir := filepath.Join(assetsDir, "writings", wt.Key)
+		must(os.MkdirAll(outDir, 0755))
+
+		var wlangs []WritingLang
+		for lang, entries := range langData {
+			name := langNames[lang]
+			if name == "" {
+				name = lang
+			}
+
+			// Group entries into books
+			var books []WritingBook
+			if wt.SingleBook {
+				// All entries in one book
+				books = []WritingBook{{
+					Base:    "",
+					Title:   wt.Title,
+					Entries: entries,
+				}}
+			} else {
+				// Group by base Phelps code
+				bookMap := map[string]*WritingBook{}
+				var bookOrder []string
+				for _, e := range entries {
+					base := writingBaseCode(e.Phelps)
+					if bk, ok := bookMap[base]; ok {
+						bk.Entries = append(bk.Entries, e)
+					} else {
+						// Strip trailing number to get book title
+						// "Persian Hidden Word 1" → "Persian Hidden Words"
+						// "Lawḥ-i-Karmil (Tablet of Carmel)" → unchanged
+						title := strings.TrimRight(e.Name, " 0123456789")
+						if title != e.Name && !strings.HasSuffix(title, "s") {
+							title += "s" // pluralize: "Persian Hidden Word" → "Persian Hidden Words"
+						}
+						bookMap[base] = &WritingBook{
+							Base:    base,
+							Title:   title,
+							Entries: []WritingEntry{e},
+						}
+						bookOrder = append(bookOrder, base)
+					}
+				}
+				for _, base := range bookOrder {
+					books = append(books, *bookMap[base])
+				}
+			}
+
+			wlangs = append(wlangs, WritingLang{
+				Code:  lang,
+				Name:  name,
+				Count: len(entries),
+				RTL:   rtlLangs[lang],
+			})
+			writeJSON(filepath.Join(outDir, lang+".json"), WritingLangFile{Books: books})
+		}
+		sort.Slice(wlangs, func(i, j int) bool { return wlangs[i].Name < wlangs[j].Name })
+
+		writingsIndex = append(writingsIndex, WritingType{
+			Key:       wt.Key,
+			Title:     wt.Title,
+			Author:    wt.Author,
+			ShowNames: wt.ShowNames,
+			Langs:     wlangs,
+		})
+		log.Printf("  %s: %d languages", wt.Key, len(wlangs))
+	}
+
+	writeJSON(filepath.Join(dataDir, "writings.json"), writingsIndex)
+	log.Printf("  %d writing types total", len(writingsIndex))
+
+	// Build reverse index: base phelps code → writing refs (deduped by type+lang)
+	reverseIdx := map[string][]WritingRef{}
+	for _, wt := range writingTypes {
+		langData := typeData[wt.DBType]
+		for lang, entries := range langData {
+			// Collect unique base codes in this lang
+			bases := map[string]bool{}
+			for _, e := range entries {
+				bases[writingBaseCode(e.Phelps)] = true
+			}
+			langName := langNames[lang]
+			if langName == "" {
+				langName = lang
+			}
+			ref := WritingRef{
+				Type:     wt.Key,
+				TypeName: wt.Title,
+				Language: lang,
+				LangName: langName,
+			}
+			for base := range bases {
+				reverseIdx[base] = append(reverseIdx[base], ref)
+			}
+		}
+	}
+	return reverseIdx
+}
+
+// writingBaseCode extracts the book-level code from a writing phelps code.
+// BH02324005 → BH02324, BH00386A01 → BH00386, BH00001042 → BH00001,
+// BH00001G037 → BH00001, BH00113P01 → BH00113, UHR2024 → UHR2024
+// Strategy: the base is always the first 7 chars IF char 8+ is a non-letter
+// or a single letter followed by digits.
+func writingBaseCode(pin string) string {
+	if len(pin) <= 7 {
+		return pin
+	}
+	// Everything after position 7 is the suffix
+	// If it starts with a letter (A, P, G, K, S, etc.) followed by digits → strip all
+	// If it's all digits → strip all
+	// This covers: A01 (HW Arabic), P01 (HW Persian), G037 (Gleanings), 001 (Aqdas/Iqan/Tablets)
+	suffix := pin[7:]
+	if len(suffix) > 0 {
+		first := suffix[0]
+		if first >= '0' && first <= '9' {
+			// Numeric suffix → base is first 7
+			return pin[:7]
+		}
+		if first >= 'A' && first <= 'Z' && len(suffix) > 1 {
+			// Alpha prefix + rest → check if rest is digits
+			rest := suffix[1:]
+			allDigits := true
+			for _, c := range rest {
+				if c < '0' || c > '9' {
+					allDigits = false
+					break
+				}
+			}
+			if allDigits {
+				return pin[:7]
+			}
+		}
+	}
+	return pin
 }
 
 func doltQuery(query string) [][]string {
@@ -334,6 +657,7 @@ func queryLanguages() []Language {
 		FROM languages l
 		LEFT JOIN writings w ON w.language = l.langcode
 		    AND w.phelps IS NOT NULL AND w.phelps <> ''
+		    AND (w.type IS NULL OR w.type = 'prayer')
 		WHERE l.inlang = 'en'
 		GROUP BY l.langcode, l.name
 		HAVING cnt > 0
@@ -369,6 +693,7 @@ func queryAllPrayers() map[string][]Prayer {
 		    ON pbs.phelps_code = w.phelps
 		    AND pbs.source_language = w.language
 		WHERE w.phelps IS NOT NULL AND w.phelps <> ''
+		  AND (w.type IS NULL OR w.type = 'prayer')
 		ORDER BY w.language,
 		         CASE w.source WHEN 'bahaiprayers.net' THEN 0 ELSE 1 END,
 		         COALESCE(pbs.category_order,9999),
@@ -542,11 +867,26 @@ func buildLangBookCats(pbIndex map[string][]prayerBookEntry, langPhelps []string
 
 // queryAllBookCats is the public entry point: loads PBS once, then builds
 // per-language maps using the already-collected allPrayers data.
+// Also returns the global sorted list of all prayerbooks.
 func queryAllBookCats(allPrayers map[string][]Prayer) (
 	langBookCats map[string]map[string]map[string]BookCat,
 	langBooks map[string][]BookRef,
+	globalBooks []BookRef,
 ) {
-	pbIndex, _ := loadPrayerBookStructure()
+	pbIndex, bookNames := loadPrayerBookStructure()
+
+	// Build sorted global prayerbook list
+	allCodes := make([]string, 0, len(bookNames))
+	for code := range bookNames {
+		allCodes = append(allCodes, code)
+	}
+	sort.Slice(allCodes, func(i, j int) bool {
+		return bookNames[allCodes[i]] < bookNames[allCodes[j]]
+	})
+	globalBooks = make([]BookRef, 0, len(allCodes))
+	for _, code := range allCodes {
+		globalBooks = append(globalBooks, BookRef{Code: code, Name: bookNames[code]})
+	}
 
 	langBookCats = map[string]map[string]map[string]BookCat{}
 	langBooks = map[string][]BookRef{}
@@ -562,11 +902,25 @@ func queryAllBookCats(allPrayers map[string][]Prayer) (
 		if len(bc) > 0 {
 			langBookCats[lang] = bc
 		}
+		// Always ensure the English prayerbook is available as an option,
+		// even if none of this language's prayers have an English category yet.
+		if enName, ok := bookNames["en"]; ok {
+			hasEn := false
+			for _, b := range bks {
+				if b.Code == "en" {
+					hasEn = true
+					break
+				}
+			}
+			if !hasEn {
+				bks = append([]BookRef{{Code: "en", Name: enName}}, bks...)
+			}
+		}
 		if len(bks) > 0 {
 			langBooks[lang] = bks
 		}
 	}
-	return langBookCats, langBooks
+	return langBookCats, langBooks, globalBooks
 }
 
 func queryInventory() []InventoryEntry {
