@@ -40,84 +40,149 @@
     return p;
   }
 
-  let allEntries = null;
-  async function loadEntries() {
-    if (allEntries) return allEntries;
-    const res = await fetch('/data/inventory.json');
-    allEntries = await res.json();
-    return allEntries;
+  function renderTranslations(translations) {
+    if (!translations || translations.length === 0) return '';
+    const count = translations.length;
+    const links = translations.map(t =>
+      `<a href="/prayers/${t.language.toLowerCase()}/#" data-code="${t.language.toLowerCase()}" data-name="${t.lang_name.toLowerCase()}">${t.lang_name}<span class="lang-code-badge">${t.language}</span></a>`
+    ).join('\n');
+    const filter = count > 6 ? `<input type="search" class="lang-filter-input" placeholder="Filter languages…" autocomplete="off">` : '';
+    return `
+      <details class="lang-dropdown">
+        <summary>${count} translation${count === 1 ? '' : 's'}</summary>
+        <div class="lang-dropdown-panel">
+          ${filter}
+          <div class="lang-dropdown-list">${links}</div>
+        </div>
+      </details>`;
   }
 
-  function renderEntry(e) {
-    const author = authorFromPin(e.pin);
+  function renderWritingRefs(refs) {
+    if (!refs || refs.length === 0) return '';
+    const chips = refs.map(r =>
+      `<a href="/writings/${r.type}/${r.language.toLowerCase()}/" style="font-size:.78rem; padding:.2rem .5rem; background:var(--bg); border:1px solid var(--border); border-radius:12px; text-decoration:none; color:var(--text);">${r.type_name} (${r.lang_name})</a>`
+    ).join('');
+    return `
+      <div style="margin-bottom:.8rem;">
+        <div style="font-size:.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:.3rem;">Appears in:</div>
+        <div style="display:flex; flex-wrap:wrap; gap:.4rem;">${chips}</div>
+      </div>`;
+  }
+
+  function renderSubcode(sc, multi) {
     const parts = [];
-    if (author) parts.push(`<span class="author-badge">${author}</span>`);
-    if (e.language) parts.push(`<span class="meta-badge">${e.language}</span>`);
-    if (e.word_count) parts.push(`<span class="meta-badge">${e.word_count} words</span>`);
+    if (sc.language) parts.push(`<span class="meta-badge">${sc.language}</span>`);
+    if (sc.word_count) parts.push(`<span class="meta-badge">${sc.word_count} words</span>`);
 
     return `
-      <div class="subcode-section" id="${e.pin.slice(-3).toLowerCase()}"
+      <div class="subcode-section"${sc.anchor ? ` id="${sc.anchor}"` : ''}
            style="margin-bottom:2rem; border:1px solid var(--border); border-radius:8px; padding:1rem;">
-        <div style="font-family:monospace; font-size:1rem; font-weight:700; color:var(--accent); margin-bottom:.5rem;">
-          ${e.pin}
-        </div>
-        ${e.title ? `<div style="font-size:1rem; font-weight:600; margin-bottom:.3rem">${e.title}</div>` : ''}
-        ${e.first_line ? `<div style="color:var(--text-secondary); font-style:italic; font-size:.9rem; margin-bottom:.3rem">"${e.first_line}"</div>` : ''}
-        ${e.first_line_orig ? `<div style="font-size:.85rem; color:var(--text-secondary); margin-bottom:.3rem">${e.first_line_orig}</div>` : ''}
+        ${multi ? `<div style="font-family:monospace; font-size:1rem; font-weight:700; color:var(--accent); margin-bottom:.5rem;">
+          ${sc.code}${sc.anchor ? ` <a href="#${sc.anchor}" style="font-size:.75rem; opacity:.5; font-weight:400">#${sc.anchor}</a>` : ''}
+        </div>` : ''}
+        ${sc.title ? `<div style="font-size:1rem; font-weight:600; margin-bottom:.3rem">${sc.title}</div>` : ''}
+        ${sc.first_line ? `<div style="color:var(--text-secondary); font-style:italic; font-size:.9rem; margin-bottom:.3rem">"${sc.first_line}"</div>` : ''}
+        ${sc.first_line_orig ? `<div style="font-size:.85rem; color:var(--text-secondary); margin-bottom:.3rem">${sc.first_line_orig}</div>` : ''}
         <div style="display:flex; flex-wrap:wrap; gap:.4rem; font-size:.8rem; margin-bottom:.6rem;">${parts.join('')}</div>
-        ${e.subjects ? `<div class="meta-badge" style="display:block; margin-bottom:.6rem; font-size:.75rem">${e.subjects}</div>` : ''}
-        ${e.notes ? `<div style="font-size:.8rem; color:var(--text-secondary); background:var(--surface); border-radius:4px; padding:.5rem; margin-bottom:.6rem;">${e.notes}</div>` : ''}
-        <div style="font-size:.8rem; color:var(--text-secondary);">
-          ${e.translations ? `${e.translations} translation${e.translations === 1 ? '' : 's'} — ` : 'No translations yet — '}
-          <a href="/phelps/?pin=${basePIN(e.pin)}" style="color:var(--accent)">Search inventory</a>
-        </div>
+        ${sc.subjects ? `<div class="meta-badge" style="display:block; margin-bottom:.6rem; font-size:.75rem">${sc.subjects}</div>` : ''}
+        ${sc.notes ? `<div style="font-size:.8rem; color:var(--text-secondary); background:var(--surface); border-radius:4px; padding:.5rem; margin-bottom:.6rem;">${sc.notes}</div>` : ''}
+        ${renderWritingRefs(sc.writing_refs)}
+        ${renderTranslations(sc.translations)}
       </div>`;
   }
 
   try {
-    const entries = await loadEntries();
-
-    // Find all entries whose base PIN matches slug
-    const matching = entries.filter(e => basePIN(e.pin) === slug);
+    // Try loading the rich phelps JSON first (has subcodes, translations, writing_refs)
+    const phelpsSlug = slug.toLowerCase();
+    let phelpsData = null;
+    try {
+      const pRes = await fetch(`/phelps/${phelpsSlug}.json`);
+      if (pRes.ok) phelpsData = await pRes.json();
+    } catch (_) {}
 
     const root = document.getElementById('detail-root');
 
-    if (matching.length === 0) {
+    if (phelpsData && phelpsData.subcodes && phelpsData.subcodes.length > 0) {
+      // Rich render from phelps JSON
+      const multi = phelpsData.subcodes.length > 1;
+      const author = authorFromPin(slug);
       root.innerHTML = `
-        <h1 style="font-family:monospace; color:var(--accent)">${slug}</h1>
-        <p style="color:var(--text-secondary); margin-bottom:1rem;">
-          This code was not found in the Phelps inventory.
-        </p>
-        <p><a href="/phelps/" style="color:var(--accent)">← Inventory</a> &nbsp;
-           <a href="/" style="color:var(--accent)">← All languages</a></p>`;
-      return;
-    }
+        <div style="margin-bottom:1.5rem;">
+          <div style="display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap;">
+            <span style="font-family:monospace; font-size:1.4rem; font-weight:700; color:var(--accent)">${slug}</span>
+            ${author ? `<span class="author-badge">${author}</span>` : ''}
+          </div>
+          <div style="margin-top:.4rem; font-size:.85rem; color:var(--text-secondary)">
+            ${multi ? phelpsData.subcodes.length + ' passages · ' : ''}
+            <a href="/phelps/" style="color:var(--accent)">← Inventory</a>
+          </div>
+        </div>
+        ${phelpsData.subcodes.map(sc => renderSubcode(sc, multi)).join('')}
+        <p style="margin-top:1.5rem; font-size:.85rem; color:var(--text-secondary)">
+          <a href="/">← All languages</a>
+        </p>`;
+    } else {
+      // Fallback: load from inventory.json
+      const res = await fetch('/data/inventory.json');
+      const entries = await res.json();
+      const matching = entries.filter(e => basePIN(e.pin) === slug);
 
-    const author = authorFromPin(slug);
-    root.innerHTML = `
-      <div style="margin-bottom:1.5rem;">
-        <div style="display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap;">
-          <span style="font-family:monospace; font-size:1.4rem; font-weight:700; color:var(--accent)">${slug}</span>
-          ${author ? `<span class="author-badge">${author}</span>` : ''}
+      if (matching.length === 0) {
+        root.innerHTML = `
+          <h1 style="font-family:monospace; color:var(--accent)">${slug}</h1>
+          <p style="color:var(--text-secondary); margin-bottom:1rem;">
+            This code was not found in the Phelps inventory.
+          </p>
+          <p><a href="/phelps/" style="color:var(--accent)">← Inventory</a> &nbsp;
+             <a href="/" style="color:var(--accent)">← All languages</a></p>`;
+        return;
+      }
+
+      // Basic render from inventory data
+      const author = authorFromPin(slug);
+      root.innerHTML = `
+        <div style="margin-bottom:1.5rem;">
+          <div style="display:flex; align-items:baseline; gap:.6rem; flex-wrap:wrap;">
+            <span style="font-family:monospace; font-size:1.4rem; font-weight:700; color:var(--accent)">${slug}</span>
+            ${author ? `<span class="author-badge">${author}</span>` : ''}
+          </div>
+          <div style="margin-top:.4rem; font-size:.85rem; color:var(--text-secondary)">
+            ${matching.length > 1 ? matching.length + ' passages · ' : ''}
+            <a href="/phelps/" style="color:var(--accent)">← Inventory</a>
+          </div>
         </div>
-        <div style="margin-top:.4rem; font-size:.85rem; color:var(--text-secondary)">
-          ${matching.length > 1 ? matching.length + ' passages · ' : ''}
-          <a href="/phelps/" style="color:var(--accent)">← Inventory</a>
-        </div>
-      </div>
-      ${matching.map(renderEntry).join('')}
-      <p style="margin-top:1.5rem; font-size:.85rem; color:var(--text-secondary)">
-        <a href="/">← All languages</a>
-      </p>`;
+        ${matching.map(e => renderSubcode({
+          code: e.pin, anchor: '', title: e.title, first_line: e.first_line,
+          first_line_orig: e.first_line_orig, language: e.language,
+          word_count: e.word_count, subjects: e.subjects, notes: e.notes,
+          translations: e.langs || [], writing_refs: []
+        }, matching.length > 1)).join('')}
+        <p style="margin-top:1.5rem; font-size:.85rem; color:var(--text-secondary)">
+          <a href="/">← All languages</a>
+        </p>`;
+    }
 
     // Scroll to hash anchor if present
     if (hashSuffix) {
       const target = document.getElementById(hashSuffix.toLowerCase());
       if (target) target.scrollIntoView({ behavior: 'smooth' });
     }
+
+    // Wire up language filter inputs
+    document.querySelectorAll('.lang-dropdown').forEach(dd => {
+      const input = dd.querySelector('.lang-filter-input');
+      if (!input) return;
+      const links = Array.from(dd.querySelectorAll('.lang-dropdown-list a'));
+      input.addEventListener('input', () => {
+        const q = input.value.toLowerCase().trim();
+        links.forEach(a => {
+          a.style.display = (!q || a.dataset.code.includes(q) || a.dataset.name.includes(q)) ? '' : 'none';
+        });
+      });
+    });
   } catch (err) {
     document.getElementById('detail-root').innerHTML =
-      `<p style="color:var(--text-secondary)">Error loading inventory data. <a href="/phelps/">← Back</a></p>`;
+      `<p style="color:var(--text-secondary)">Error loading data. <a href="/phelps/">← Back</a></p>`;
   }
 })();
 </script>
