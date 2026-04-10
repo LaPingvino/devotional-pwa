@@ -60,11 +60,9 @@
 
         {{ range .entries }}
         <section class="writing-entry" id="{{ .phelps }}">
-          {{ if .name }}
           <div class="writing-entry-label">
-            <span class="entry-name">{{ .name }}</span>
+            <span class="entry-num">{{ .order }}</span>
           </div>
-          {{ end }}
           <div class="writing-text">{{ .text | safeHTML }}</div>
         </section>
         {{ end }}
@@ -96,10 +94,16 @@
   gap: .5rem;
   margin-bottom: .3rem;
 }
-.entry-name {
-  font-size: .85rem;
+.entry-num {
+  font-size: .75rem;
   font-weight: 600;
-  color: var(--accent-dark);
+  color: var(--text-secondary);
+  font-family: monospace;
+  background: var(--bg);
+  padding: .1rem .4rem;
+  border-radius: 4px;
+  min-width: 2em;
+  text-align: center;
 }
 .phelps-link {
   font-size: .7rem;
