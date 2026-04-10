@@ -1546,9 +1546,9 @@ td{padding:2px 6px;border-bottom:1px solid #eee}
 
 func generateIndex(dbPath, source, title string) string {
 	countRows := doltCSV(dbPath, fmt.Sprintf(
-		"SELECT phelps, COUNT(DISTINCT language) as lc FROM writings WHERE source='%s' AND phelps IS NOT NULL AND phelps <> '' GROUP BY phelps ORDER BY phelps", source))
+		"SELECT phelps, COUNT(DISTINCT language) as lc FROM writings WHERE source='%s' AND phelps IS NOT NULL AND phelps <> '' AND (type IS NULL OR type = 'prayer') GROUP BY phelps ORDER BY phelps", source))
 	enRows := doltCSV(dbPath, fmt.Sprintf(
-		"SELECT phelps, text FROM writings WHERE source='%s' AND language='en' AND phelps IS NOT NULL ORDER BY phelps", source))
+		"SELECT phelps, text FROM writings WHERE source='%s' AND language='en' AND phelps IS NOT NULL AND (type IS NULL OR type = 'prayer') ORDER BY phelps", source))
 	enText := map[string]string{}
 	for _, r := range enRows {
 		if len(r) >= 2 {
@@ -1581,7 +1581,7 @@ func generateIndex(dbPath, source, title string) string {
 
 func queryTranslations(dbPath, source string) map[string][]string {
 	rows := doltCSV(dbPath, fmt.Sprintf(
-		"SELECT phelps, language FROM writings WHERE source='%s' AND phelps IS NOT NULL AND phelps <> '' ORDER BY phelps, language", source))
+		"SELECT phelps, language FROM writings WHERE source='%s' AND phelps IS NOT NULL AND phelps <> '' AND (type IS NULL OR type = 'prayer') ORDER BY phelps, language", source))
 	m := map[string][]string{}
 	for _, row := range rows {
 		if len(row) < 2 || strings.HasSuffix(row[1], "-translit") {
@@ -1604,6 +1604,7 @@ LEFT JOIN prayer_book_structure pbs
     ON pbs.phelps_code = w.phelps AND pbs.source_language = 'en'
 WHERE w.language = '%s' AND w.source = '%s'
     AND w.phelps IS NOT NULL AND w.phelps <> ''
+    AND (w.type IS NULL OR w.type = 'prayer')
 ORDER BY COALESCE(pbs.category_order,9999),
          COALESCE(pbs.order_in_category,9999),
          w.phelps
@@ -1642,6 +1643,7 @@ LEFT JOIN prayer_book_structure pbs
     ON pbs.phelps_code = w.phelps AND pbs.source_language = 'en'
 WHERE w.source = '%s'
     AND w.phelps IS NOT NULL AND w.phelps <> ''
+    AND (w.type IS NULL OR w.type = 'prayer')
 ORDER BY w.language,
          COALESCE(pbs.category_order,9999),
          COALESCE(pbs.order_in_category,9999),
@@ -1727,7 +1729,7 @@ func main() {
 	var langs []string
 	if *lang == "all" {
 		rows := doltCSV(*db, fmt.Sprintf(
-			"SELECT DISTINCT language FROM writings WHERE source='%s' AND phelps IS NOT NULL AND phelps <> '' ORDER BY language",
+			"SELECT DISTINCT language FROM writings WHERE source='%s' AND phelps IS NOT NULL AND phelps <> '' AND (type IS NULL OR type = 'prayer') ORDER BY language",
 			*source))
 		for _, row := range rows {
 			if len(row) > 0 && !strings.HasSuffix(row[0], "-translit") {
@@ -1911,8 +1913,13 @@ func main() {
 			}
 		}
 		if *epubMode || *bothMode {
-			// Split EPUBs by script family to stay under 25MB (CF Pages limit)
-			epubStyle := `<style>
+			combinedTitle := *title + " — All Languages"
+			var buf strings.Builder
+			buf.WriteString(`<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<title>` + template.HTMLEscapeString(combinedTitle) + `</title>
+<style>
 body { font-family: "Noto Serif", serif; font-size: 11pt; line-height: 1.7; }
 h2.cat { font-size: 14pt; margin-top: 2em; }
 h3.cat { font-size: 12pt; margin-top: 1.5em; }
@@ -1921,34 +1928,21 @@ h3.cat { font-size: 12pt; margin-top: 1.5em; }
 p.verse { margin-left: 1.5em; font-style: italic; }
 p.note { font-size: 9pt; color: #666; }
 .trans { font-size: 8pt; color: #bbb; font-style: italic; }
-</style>`
-			for _, split := range []struct {
-				sections []langSection
-				suffix   string
-				label    string
-			}{
-				{latinSections, "_latin", "Latin & European Scripts"},
-				{otherSections, "_other", "Asian & Other Scripts"},
-			} {
-				if len(split.sections) == 0 {
-					continue
-				}
-				splitTitle := *title + " — " + split.label
-				var buf strings.Builder
-				buf.WriteString(`<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>` +
-					template.HTMLEscapeString(splitTitle) + `</title>` + epubStyle +
-					`</head><body><h1>` + template.HTMLEscapeString(splitTitle) + `</h1>`)
-				includedLangs := map[string]bool{}
-				for _, ls := range split.sections {
-					includedLangs[ls.lang] = true
-				}
-				for _, ls := range split.sections {
-					docTitle := *title + " — " + ls.lname
-					buf.WriteString(generateHTML(ls.prayers, ls.lang, docTitle, *phelpsBase, translationsMap, false, true, includedLangs))
-				}
-				buf.WriteString("</body>\n</html>")
-				renderEPUB(buf.String(), outBase+split.suffix+".epub", "all"+split.suffix, splitTitle, "en")
+</style>
+</head>
+<body>
+<h1>` + template.HTMLEscapeString(combinedTitle) + `</h1>
+`)
+			includedLangs := map[string]bool{}
+			for _, ls := range allSections {
+				includedLangs[ls.lang] = true
 			}
+			for _, ls := range allSections {
+				docTitle := *title + " — " + ls.lname
+				buf.WriteString(generateHTML(ls.prayers, ls.lang, docTitle, *phelpsBase, translationsMap, false, true, includedLangs))
+			}
+			buf.WriteString("</body>\n</html>")
+			renderEPUB(buf.String(), outBase+".epub", "all", combinedTitle, "en")
 		}
 		return
 	}
