@@ -1,19 +1,2 @@
-{{/* Generate one cross-language page per base PIN by listing assets/phelps/ */}}
-{{ range readDir "assets/phelps" }}
-  {{ $filename := .Name }}
-  {{ $transFile := printf "phelps/%s" $filename }}
-  {{ with resources.Get $transFile }}
-    {{ $pf := . | transform.Unmarshal }}
-    {{ if $pf.subcodes }}
-      {{ $pin := $pf.pin | upper }}
-      {{ $.AddPage (dict
-        "path"   $pin
-        "kind"   "page"
-        "params" (dict
-          "pin"      $pin
-          "subcodes" $pf.subcodes
-        )
-      ) }}
-    {{ end }}
-  {{ end }}
-{{ end }}
+{{/* Phelps detail pages are rendered client-side by detail.html using /phelps/{slug}.json */}}
+{{/* No static pages generated — the _redirects file routes /phelps/:slug/ to detail/ */}}
