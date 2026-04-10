@@ -86,8 +86,8 @@
         {{ $bookIdx = add $bookIdx 1 }}
         <section class="writing-entry" id="{{ .phelps }}" data-order="{{ .order }}">
           <div class="writing-entry-label">
-            <span class="entry-num">{{ $bookIdx }}</span>
-            {{ if and $showNames .name }}<span class="entry-name">{{ .name }}</span>{{ end }}
+            <a href="#{{ .phelps }}" class="entry-num" title="Link to this section">{{ $bookIdx }}</a>
+            {{ if and $showNames .name }}<a href="#{{ .phelps }}" class="entry-name">{{ .name }}</a>{{ end }}
             {{ if $singleBook }}<a href="/phelps/{{ .phelps | lower }}/" class="phelps-link" title="View in inventory">{{ .phelps }}</a>{{ end }}
           </div>
           <div class="writing-text">{{ .text | safeHTML }}</div>
@@ -140,7 +140,7 @@
   margin-bottom: .3rem;
   flex-wrap: wrap;
 }
-.entry-num {
+a.entry-num {
   font-size: .75rem;
   font-weight: 600;
   color: var(--text-secondary);
@@ -150,12 +150,16 @@
   border-radius: 4px;
   min-width: 2em;
   text-align: center;
+  text-decoration: none;
 }
-.entry-name {
+a.entry-num:hover { color: var(--accent); background: #fff3ef; }
+a.entry-name {
   font-size: .85rem;
   font-weight: 600;
   color: var(--accent-dark);
+  text-decoration: none;
 }
+a.entry-name:hover { text-decoration: underline; }
 .phelps-link {
   font-size: .7rem;
   font-weight: 400;
@@ -260,23 +264,43 @@
     gotoInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); globalJump(); }});
   }
 
-  // Handle hash on load: #42 → scroll to entry 42
-  const hash = parseInt(location.hash.replace('#', ''));
-  if (hash >= 1 && hash <= allEntries.length) {
-    setTimeout(() => allEntries[hash - 1].scrollIntoView({ block: 'start' }), 100);
+  // Handle hash on load: #42 → scroll to entry 42, or #BH00238001 → scroll to element
+  const rawHash = location.hash.replace('#', '');
+  if (rawHash) {
+    const numHash = parseInt(rawHash);
+    if (numHash >= 1 && numHash <= allEntries.length) {
+      setTimeout(() => allEntries[numHash - 1].scrollIntoView({ block: 'start' }), 100);
+    } else {
+      const el = document.getElementById(rawHash);
+      if (el) setTimeout(() => el.scrollIntoView({ block: 'start' }), 100);
+    }
   }
 
-  // Highlight active TOC entry on scroll
+  // Track current visible entry for TOC highlighting + language link hashing
+  let currentVisibleId = '';
   const tocEntries = document.querySelectorAll('.toc-entry');
-  if (tocEntries.length > 0 && allEntries.length > 0) {
+  const langLinks = document.querySelectorAll('.sidebar-lang');
+
+  function updateLangLinks() {
+    langLinks.forEach(a => {
+      const base = a.href.split('#')[0];
+      a.href = currentVisibleId ? base + '#' + currentVisibleId : base;
+    });
+  }
+
+  if (allEntries.length > 0) {
     const observer = new IntersectionObserver(entries => {
       for (const entry of entries) {
         if (entry.isIntersecting) {
-          const id = entry.target.id;
+          currentVisibleId = entry.target.id;
+          // Highlight TOC
           tocEntries.forEach(te => {
-            te.style.borderLeftColor = te.getAttribute('href') === '#' + id ? 'var(--accent)' : 'transparent';
-            te.style.fontWeight = te.getAttribute('href') === '#' + id ? '600' : '';
+            const active = te.getAttribute('href') === '#' + currentVisibleId;
+            te.style.borderLeftColor = active ? 'var(--accent)' : 'transparent';
+            te.style.fontWeight = active ? '600' : '';
           });
+          // Update language links with current position
+          updateLangLinks();
           break;
         }
       }
