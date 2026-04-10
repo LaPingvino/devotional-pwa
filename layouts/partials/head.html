@@ -38,9 +38,36 @@
   </nav>
 </header>
 <script>
-document.addEventListener('DOMContentLoaded',function(){
+(function(){
+  var header=document.querySelector('.site-header');
   var tog=document.getElementById('nav-toggle');
-  if(tog)tog.addEventListener('click',function(){document.getElementById('site-nav').classList.toggle('open')});
-  document.querySelectorAll('.nav-dropdown-toggle').forEach(function(t){t.addEventListener('click',function(e){if(window.innerWidth<=600){e.preventDefault();t.closest('.nav-dropdown').classList.toggle('open')}})});
-});
+  var nav=document.getElementById('site-nav');
+
+  // Detect overflow: if nav wraps past header height, collapse to hamburger
+  function checkOverflow(){
+    header.classList.remove('collapsed');
+    nav.classList.remove('open');
+    // If header is taller than one row (56px + tolerance), nav is wrapping
+    if(header.scrollHeight>60){header.classList.add('collapsed')}
+  }
+  checkOverflow();
+  window.addEventListener('resize',checkOverflow);
+
+  // Hamburger toggle
+  if(tog&&nav){
+    tog.addEventListener('click',function(e){e.preventDefault();e.stopPropagation();nav.classList.toggle('open')});
+  }
+
+  // Dropdown toggle in collapsed mode
+  document.querySelectorAll('.nav-dropdown-toggle').forEach(function(t){
+    t.addEventListener('click',function(e){
+      if(header.classList.contains('collapsed')){e.preventDefault();e.stopPropagation();t.closest('.nav-dropdown').classList.toggle('open')}
+    });
+  });
+
+  // Close on outside tap
+  document.addEventListener('click',function(e){
+    if(nav&&nav.classList.contains('open')&&!nav.contains(e.target)&&e.target!==tog){nav.classList.remove('open')}
+  });
+})();
 </script>
