@@ -265,9 +265,32 @@ func main() {
 	for base := range invBasePINMap {
 		sort.Strings(invBasePINMap[base])
 	}
+	// 4b. Add uncategorized codes (TMP, X-codes, UH/UHR) from writings table
+	// These don't exist in the inventory table but should be searchable
+	log.Println("→ uncategorized codes (TMP, X, UH)...")
+	uncatCodes := queryUncategorized()
+	invPINs := map[string]bool{}
+	for _, e := range inventory {
+		invPINs[e.PIN] = true
+	}
+	added := 0
+	for _, e := range uncatCodes {
+		if invPINs[e.PIN] {
+			continue // already in inventory
+		}
+		langs := phelpsLangs[e.PIN]
+		e.TranslationCount = len(langs)
+		if len(langs) > 0 {
+			e.Langs = langs
+		}
+		inventory = append(inventory, e)
+		invMap[e.PIN] = e
+		invPINs[e.PIN] = true
+		added++
+	}
+	log.Printf("  %d uncategorized codes added to inventory", added)
+
 	writeJSON(filepath.Join(staticDir, "inventory.json"), inventory)
-
-
 
 	// 5. Write phelps files grouped by base PIN (lang refs only, no prayer text)
 	// Only generate static pages for PINs that have at least one matching prayer.
@@ -949,6 +972,57 @@ func queryInventory() []InventoryEntry {
 			Subjects:      row[6],
 			Notes:         row[7],
 			Prefix:        row[8],
+		})
+	}
+	return out
+}
+
+// queryUncategorized returns inventory entries for codes not in the inventory table:
+// TMP (unresolved), X-codes (XAB, XBH, XBB), UH/UHR (Universal House of Justice)
+func queryUncategorized() []InventoryEntry {
+	rows := doltQuery(`
+		SELECT phelps, COALESCE(name,''), COALESCE(LEFT(text,120),''),
+		       COALESCE(notes,''), COUNT(DISTINCT language) as lang_count
+		FROM writings
+		WHERE phelps IS NOT NULL AND phelps <> ''
+		  AND (phelps LIKE 'TMP%' OR phelps LIKE 'X%' OR phelps LIKE 'UH%')
+		GROUP BY phelps, name, LEFT(text,120), notes
+		ORDER BY phelps
+	`)
+	var out []InventoryEntry
+	for _, row := range rows[1:] {
+		if len(row) < 5 {
+			continue
+		}
+		// Determine prefix for categorization
+		prefix := "TMP"
+		pin := row[0]
+		if strings.HasPrefix(pin, "XAB") {
+			prefix = "XAB"
+		} else if strings.HasPrefix(pin, "XBH") {
+			prefix = "XBH"
+		} else if strings.HasPrefix(pin, "XBB") {
+			prefix = "XBB"
+		} else if strings.HasPrefix(pin, "UHR") {
+			prefix = "UHR"
+		} else if strings.HasPrefix(pin, "UH") {
+			prefix = "UH"
+		}
+		// Strip HTML from first line
+		firstLine := row[2]
+		firstLine = strings.ReplaceAll(firstLine, "<p>", "")
+		firstLine = strings.ReplaceAll(firstLine, "</p>", "")
+		firstLine = strings.ReplaceAll(firstLine, "<br>", " ")
+		// Trim to first sentence
+		if idx := strings.Index(firstLine, ". "); idx > 0 && idx < 100 {
+			firstLine = firstLine[:idx+1]
+		}
+		out = append(out, InventoryEntry{
+			PIN:       pin,
+			Title:     row[1],
+			FirstLine: firstLine,
+			Notes:     row[3],
+			Prefix:    prefix,
 		})
 	}
 	return out
