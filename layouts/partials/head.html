@@ -48,8 +48,45 @@
         window.__uiLang = code;
         localStorage.setItem('hw_ui_lang', code);
         translatePage();
+        // Update menu active state
+        var menu = document.getElementById('ui-lang-menu');
+        if (menu) menu.querySelectorAll('a').forEach(function(a) {
+          a.classList.toggle('active', a.dataset.lang === code);
+        });
       };
       translatePage();
+
+      // Populate UI language picker
+      var uiLangs = {
+        'en':'English','es':'Español','de':'Deutsch','fr':'Français',
+        'pt':'Português','nl':'Nederlands','pl':'Polski','it':'Italiano',
+        'ru':'Русский','ar':'العربية','fa':'فارسی','ja':'日本語','zh-Hans':'中文'
+      };
+      var menu = document.getElementById('ui-lang-menu');
+      var btn = document.getElementById('ui-lang-btn');
+      if (menu && btn) {
+        Object.keys(uiLangs).forEach(function(code) {
+          if (!T[code]) return;
+          var a = document.createElement('a');
+          a.href = '#';
+          a.dataset.lang = code;
+          a.textContent = uiLangs[code];
+          if (code === lang || code === base) a.classList.add('active');
+          a.addEventListener('click', function(e) {
+            e.preventDefault();
+            window.__setUiLang(code);
+            menu.classList.remove('open');
+          });
+          menu.appendChild(a);
+        });
+        btn.addEventListener('click', function(e) {
+          e.stopPropagation();
+          menu.classList.toggle('open');
+        });
+        document.addEventListener('click', function(e) {
+          if (!menu.contains(e.target) && e.target !== btn) menu.classList.remove('open');
+        });
+      }
     }).catch(function(){});
   })();
   </script>
@@ -57,6 +94,10 @@
 <body>
 <header class="site-header">
   <a href="/" class="title">{{ site.Title }}</a>
+  <div class="ui-lang-picker">
+    <button class="ui-lang-btn" id="ui-lang-btn" aria-label="UI Language" title="Interface language">&#x1F310;</button>
+    <div class="ui-lang-menu" id="ui-lang-menu"></div>
+  </div>
   <button class="nav-toggle" id="nav-toggle" aria-label="Menu">&#x2630;</button>
   <nav id="site-nav">
     <a href="/daily/" data-i18n="nav_daily">Daily</a>
