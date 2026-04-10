@@ -5,10 +5,13 @@
   <!-- Language selector -->
   <div class="daily-header">
     <h1>Daily Devotions</h1>
-    <div class="lang-select-wrap">
-      <label for="daily-lang">Language:</label>
-      <select id="daily-lang"></select>
-    </div>
+    <details class="lang-dropdown" id="daily-lang-dropdown">
+      <summary id="daily-lang-label">English</summary>
+      <div class="lang-dropdown-panel">
+        <input type="search" class="lang-filter-input" id="daily-lang-filter" placeholder="Filter languages..." autocomplete="off">
+        <div class="lang-dropdown-list" id="daily-lang-list"></div>
+      </div>
+    </details>
   </div>
 
   <!-- Morning / Evening checkboxes -->
@@ -112,20 +115,62 @@
   margin-bottom: 1.5rem;
 }
 .daily-header h1 { font-size: 1.5rem; margin: 0; }
-.lang-select-wrap {
-  display: flex;
-  align-items: center;
-  gap: .4rem;
-  font-size: .9rem;
-}
-.lang-select-wrap select {
-  padding: .3rem .5rem;
+/* Language dropdown — reuses site-wide .lang-dropdown styles from main.css */
+.daily-header .lang-dropdown { position: relative; }
+.daily-header .lang-dropdown summary {
+  padding: .3rem .8rem;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--surface);
-  color: var(--text);
   font-size: .9rem;
-  max-width: 200px;
+  cursor: pointer;
+  list-style: none;
+}
+.daily-header .lang-dropdown summary::-webkit-details-marker { display: none; }
+.daily-header .lang-dropdown-panel {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  margin-top: 2px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.15);
+  width: 280px;
+  max-height: 400px;
+  overflow: hidden;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+}
+.daily-header .lang-filter-input {
+  margin: .4rem;
+  padding: .3rem .5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: .85rem;
+  background: var(--bg);
+  color: var(--text);
+}
+.daily-header .lang-dropdown-list {
+  overflow-y: auto;
+  max-height: 340px;
+}
+.daily-header .lang-dropdown-list a {
+  display: flex;
+  justify-content: space-between;
+  padding: .3rem .6rem;
+  font-size: .85rem;
+  color: var(--text);
+  text-decoration: none;
+  cursor: pointer;
+}
+.daily-header .lang-dropdown-list a:hover { background: #fff3ef; }
+.daily-header .lang-dropdown-list a.active { font-weight: 700; color: var(--accent); }
+.daily-header .lang-dropdown-list .lang-code-badge {
+  font-size: .7rem;
+  color: var(--text-secondary);
+  font-family: monospace;
 }
 
 /* Cards */
@@ -384,10 +429,27 @@
     return h;
   }
 
-  // ── Language selector ──
-  const langSelect = $('daily-lang');
+  // ── Language selector (filterable dropdown) ──
+  const langDropdown = $('daily-lang-dropdown');
+  const langLabel = $('daily-lang-label');
+  const langList = $('daily-lang-list');
+  const langFilter = $('daily-lang-filter');
+  let selectedLang = localStorage.getItem('hw_daily_lang') || 'en';
+  let selectedRtl = false;
   let allLanguages = [];
   let writingsIndex = [];
+
+  function selectLang(code) {
+    selectedLang = code;
+    const lang = allLanguages.find(l => l.code === code);
+    selectedRtl = lang?.rtl || false;
+    langLabel.textContent = lang ? lang.name + ' (' + (lang.prayer_count || 0) + ')' : code;
+    localStorage.setItem('hw_daily_lang', code);
+    // Update active state
+    langList.querySelectorAll('a').forEach(a => a.classList.toggle('active', a.dataset.code === code));
+    langDropdown.removeAttribute('open');
+    loadContent();
+  }
 
   async function init() {
     // Init standalone sections first (don't depend on language data)
@@ -408,29 +470,48 @@
       console.warn('Failed to load language/writing data:', e);
     }
 
-    // Populate language dropdown
+    // Populate filterable language dropdown — alphabetical, English first
     const sorted = [...allLanguages].sort((a, b) => {
       if (a.code === 'en') return -1;
       if (b.code === 'en') return 1;
-      return (b.prayer_count || 0) - (a.prayer_count || 0);
+      return a.name.localeCompare(b.name);
     });
+    // Track names for disambiguation
+    const nameCounts = {};
+    sorted.forEach(l => { nameCounts[l.name] = (nameCounts[l.name] || 0) + 1; });
+
     sorted.forEach(l => {
-      const opt = document.createElement('option');
-      opt.value = l.code;
-      opt.textContent = l.name + ' (' + (l.prayer_count || 0) + ')';
-      if (l.rtl) opt.dataset.rtl = '1';
-      langSelect.appendChild(opt);
+      const a = document.createElement('a');
+      a.href = '#';
+      a.dataset.code = l.code;
+      a.dataset.name = l.name.toLowerCase();
+      const displayName = nameCounts[l.name] > 1 ? l.name + ' [' + l.code + ']' : l.name;
+      a.innerHTML = displayName + '<span class="lang-code-badge">' + (l.prayer_count || 0) + '</span>';
+      if (l.code === selectedLang) a.classList.add('active');
+      a.addEventListener('click', e => { e.preventDefault(); selectLang(l.code); });
+      langList.appendChild(a);
     });
 
-    // Restore saved language or default to English
-    const savedLang = localStorage.getItem('hw_daily_lang') || 'en';
-    langSelect.value = savedLang;
-    if (!langSelect.value) langSelect.value = 'en';
-
-    langSelect.addEventListener('change', () => {
-      localStorage.setItem('hw_daily_lang', langSelect.value);
-      loadContent();
+    // Filter input
+    langFilter.addEventListener('input', () => {
+      const q = langFilter.value.toLowerCase().trim();
+      langList.querySelectorAll('a').forEach(a => {
+        a.style.display = (!q || a.dataset.name.includes(q) || a.dataset.code.includes(q)) ? '' : 'none';
+      });
     });
+
+    // Close dropdown on outside click
+    document.addEventListener('click', e => {
+      if (!langDropdown.contains(e.target)) langDropdown.removeAttribute('open');
+    });
+    // Focus filter when opened
+    langDropdown.addEventListener('toggle', () => {
+      if (langDropdown.open) { langFilter.value = ''; langFilter.focus(); langList.querySelectorAll('a').forEach(a => a.style.display = ''); }
+    });
+
+    // Set initial label
+    const initLang = allLanguages.find(l => l.code === selectedLang);
+    if (initLang) langLabel.textContent = initLang.name + ' (' + (initLang.prayer_count || 0) + ')';
 
     if (allLanguages.length > 0) loadContent();
   }
@@ -440,8 +521,8 @@
   let writingEntries = [];
 
   async function loadContent() {
-    const lang = langSelect.value;
-    const rtl = langSelect.selectedOptions[0]?.dataset.rtl === '1';
+    const lang = selectedLang;
+    const rtl = selectedRtl;
 
     // Fetch prayers
     $('prayer-content').innerHTML = '<p class="placeholder">Loading...</p>';
@@ -516,13 +597,13 @@
     const p = prayers[idx % prayers.length];
     el.innerHTML = p.text || '';
     if (rtl) el.setAttribute('dir', 'rtl'); else el.removeAttribute('dir');
-    const lang = langSelect.value.toLowerCase();
+    const lang = selectedLang.toLowerCase();
     meta.innerHTML = (p.category ? p.category + ' &middot; ' : '') +
       '<a href="/prayers/' + lang + '/#' + p.phelps + '">' + (p.phelps || '') + '</a>';
   }
 
   $('btn-new-prayer').addEventListener('click', () => {
-    const rtl = langSelect.selectedOptions[0]?.dataset.rtl === '1';
+    const rtl = selectedRtl;
     showRandomPrayer(rtl, true);
   });
 
@@ -558,14 +639,14 @@
     }
     el.innerHTML = text;
     if (rtl) el.setAttribute('dir', 'rtl'); else el.removeAttribute('dir');
-    const lang = langSelect.value.toLowerCase();
+    const lang = selectedLang.toLowerCase();
     meta.innerHTML = w.writingTitle + ' &middot; ' + w.author +
       ' &middot; <a href="/writings/' + w.writingKey + '/' + lang + '/#' + w.phelps + '">' +
       (w.name || w.phelps || '') + '</a>';
   }
 
   $('btn-new-writing').addEventListener('click', () => {
-    const rtl = langSelect.selectedOptions[0]?.dataset.rtl === '1';
+    const rtl = selectedRtl;
     showRandomWriting(rtl, true);
   });
 
@@ -624,7 +705,7 @@
     const code = OBLIG_CODES[type];
     const prayer = prayerData.prayers.find(p => p.phelps === code);
     if (prayer) {
-      const rtl = langSelect.selectedOptions[0]?.dataset.rtl === '1';
+      const rtl = selectedRtl;
       el.innerHTML = prayer.text || '';
       if (rtl) el.setAttribute('dir', 'rtl'); else el.removeAttribute('dir');
     } else {
