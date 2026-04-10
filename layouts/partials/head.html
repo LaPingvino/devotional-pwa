@@ -13,7 +13,8 @@
 <body>
 <header class="site-header">
   <a href="/" class="title">{{ site.Title }}</a>
-  <nav>
+  <button class="nav-toggle" id="nav-toggle" aria-label="Menu">&#x2630;</button>
+  <nav id="site-nav">
     <a href="/daily/">Daily</a>
     <a href="/devotional/">Program</a>
     <a href="/prayers/">Prayers</a>
@@ -36,3 +37,7 @@
     <a href="/phelps/">Catalog</a>
   </nav>
 </header>
+<script>
+document.getElementById('nav-toggle').addEventListener('click',function(){document.getElementById('site-nav').classList.toggle('open')});
+document.querySelectorAll('.nav-dropdown-toggle').forEach(function(t){t.addEventListener('click',function(e){if(window.innerWidth<=900){e.preventDefault();t.closest('.nav-dropdown').classList.toggle('open')}})});
+</script>
