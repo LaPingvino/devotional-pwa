@@ -5,8 +5,8 @@
 {{ $key := .Params.writingKey }}
 {{ $showNames := .Params.showNames }}
 {{ $multiBook := gt (len $entries) 1 }}
-{{/* Single-book types where each entry has its own Phelps code get per-entry inventory links */}}
-{{ $singleBook := not $multiBook }}
+{{/* Show per-entry inventory links only for types with distinct codes per entry (SAQ, Gleanings, PM, Days, Ridvan) */}}
+{{ $showEntryLinks := and (not $multiBook) $showNames }}
 
 {{ partial "head.html" (dict "Title" .Title "Lang" $lang "Params" (dict "rtl" $rtl)) }}
 <div class="page-body">
@@ -88,7 +88,7 @@
           <div class="writing-entry-label">
             <a href="#{{ .phelps }}" class="entry-num" title="Link to this section">{{ $bookIdx }}</a>
             {{ if and $showNames .name }}<a href="#{{ .phelps }}" class="entry-name">{{ .name }}</a>{{ end }}
-            {{ if $singleBook }}<a href="/phelps/{{ .phelps | lower }}/" class="phelps-link" title="View in inventory">{{ .phelps }}</a>{{ end }}
+            {{ if $showEntryLinks }}<a href="/phelps/{{ .phelps | lower }}/" class="phelps-link" title="View in inventory">{{ .phelps }}</a>{{ end }}
           </div>
           <div class="writing-text">{{ .text | safeHTML }}</div>
         </section>
