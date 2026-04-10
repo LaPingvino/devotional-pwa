@@ -166,6 +166,21 @@ var englishToHebrew = func() map[string]string {
 	return m
 }()
 
+// Greek/Syriac NT filenames use no hyphen (1corinthians vs 1-corinthians)
+var englishToGreek = map[string]string{
+	"1-corinthians":     "1corinthians",
+	"2-corinthians":     "2corinthians",
+	"1-thessalonians":   "1thessalonians",
+	"2-thessalonians":   "2thessalonians",
+	"1-timothy":         "1timothy",
+	"2-timothy":         "2timothy",
+	"1-peter":           "1peter",
+	"2-peter":           "2peter",
+	"1-john":            "1john",
+	"2-john":            "2john",
+	"3-john":            "3john",
+}
+
 var verseRe = regexp.MustCompile(`^(\d+)\.\s+(.+)`)
 var verseReArabicNums = regexp.MustCompile(`^([٠-٩]+)\.\s+(.+)`)
 
@@ -305,11 +320,15 @@ func main() {
 				}
 			}
 		}
-		// Syriac + Greek (NT only, optional)
+		// Syriac + Greek (NT only, optional) — files omit hyphen in numbered books
+		ntFileID := b.id
+		if gid, ok := englishToGreek[b.id]; ok {
+			ntFileID = gid
+		}
 		if b.section == "nt" {
 			if dirs, ok := langDirs["syr"]; ok {
 				if d, ok2 := dirs["nt"]; ok2 {
-					chs := findChapters(d, b.id)
+					chs := findChapters(d, ntFileID)
 					if len(chs) > maxCh {
 						maxCh = len(chs)
 					}
@@ -318,7 +337,7 @@ func main() {
 			}
 			if dirs, ok := langDirs["el"]; ok {
 				if d, ok2 := dirs["nt"]; ok2 {
-					chs := findChapters(d, b.id)
+					chs := findChapters(d, ntFileID)
 					if len(chs) > maxCh {
 						maxCh = len(chs)
 					}
@@ -395,12 +414,16 @@ func main() {
 				}
 			}
 
-			// Syriac
+			// Syriac — numbered books omit hyphen
 			syrVerses := map[int]string{}
+			ntFileID := book.ID
+			if gid, ok := englishToGreek[book.ID]; ok {
+				ntFileID = gid
+			}
 			if book.HasSyriac {
 				if dirs, ok := langDirs["syr"]; ok {
 					if d, ok2 := dirs["nt"]; ok2 {
-						path := filepath.Join(d, fmt.Sprintf("%s-%02d.md", book.ID, ch))
+						path := filepath.Join(d, fmt.Sprintf("%s-%02d.md", ntFileID, ch))
 						title, subtitle, vlines := parseChapter(path)
 						if cd.Title == "" {
 							cd.Title = title
@@ -414,12 +437,12 @@ func main() {
 				}
 			}
 
-			// Greek
+			// Greek — same filename convention as Syriac
 			elVerses := map[int]string{}
 			if book.HasGreek {
 				if dirs, ok := langDirs["el"]; ok {
 					if d, ok2 := dirs["nt"]; ok2 {
-						path := filepath.Join(d, fmt.Sprintf("%s-%02d.md", book.ID, ch))
+						path := filepath.Join(d, fmt.Sprintf("%s-%02d.md", ntFileID, ch))
 						title, subtitle, vlines := parseChapter(path)
 						if cd.Title == "" {
 							cd.Title = title
