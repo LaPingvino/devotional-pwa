@@ -592,11 +592,6 @@
     const initLang = allLanguages.find(l => l.code === selectedLang);
     if (initLang) langLabel.textContent = initLang.name + ' (' + (initLang.prayer_count || 0) + ')';
 
-    // Replaced old langSelect.addEventListener('change', ...) —
-    // selectLang() now calls renderItems() directly
-      renderItems();
-    });
-
     renderItems();
     initSuggestions();
   }
