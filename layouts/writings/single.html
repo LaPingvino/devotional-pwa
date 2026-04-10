@@ -15,7 +15,11 @@
 
     <div class="sidebar-section" style="margin-top:.5rem">
       <div class="sidebar-heading">Navigate</div>
-      <div id="writing-toc" style="max-height:45vh; overflow-y:auto">
+      <div style="padding:0 1rem .5rem">
+        <input type="number" id="goto-section" min="1" placeholder="Go to #…"
+               style="width:100%; padding:.3rem .5rem; border:1px solid var(--border); border-radius:4px; font-size:.85rem; background:var(--bg); color:var(--text);">
+      </div>
+      <div id="writing-toc" style="max-height:40vh; overflow-y:auto">
         {{ range $entries }}
         <a href="#book-{{ .base }}" class="toc-book" data-base="{{ .base }}">
           {{ if .title }}{{ .title }}{{ else }}{{ .base }}{{ end }}
@@ -153,4 +157,25 @@
 }
 </style>
 
+<script>
+// Jump to section by number
+const gotoInput = document.getElementById('goto-section');
+const allEntries = document.querySelectorAll('.writing-entry');
+if (gotoInput && allEntries.length) {
+  gotoInput.max = allEntries.length;
+  gotoInput.addEventListener('change', jump);
+  gotoInput.addEventListener('keydown', e => { if (e.key === 'Enter') jump(); });
+  function jump() {
+    const n = parseInt(gotoInput.value);
+    if (n >= 1 && n <= allEntries.length) {
+      allEntries[n - 1].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+  // Also handle hash on load: #42 → scroll to entry 42
+  const hash = parseInt(location.hash.replace('#', ''));
+  if (hash >= 1 && hash <= allEntries.length) {
+    setTimeout(() => allEntries[hash - 1].scrollIntoView({ block: 'start' }), 100);
+  }
+}
+</script>
 {{ partial "foot.html" . }}
