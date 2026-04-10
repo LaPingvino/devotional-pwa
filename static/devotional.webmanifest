@@ -1,11 +1,12 @@
 {
-    "name": "Holywritings.net",
-    "short_name": "Holywritings",
-    "theme_color": "green",
-    "background_color": "lightgrey",
+    "name": "Holy Writings",
+    "short_name": "Holy Writings",
+    "description": "Multilingual Bahá'í prayers, writings, and devotional tools",
+    "theme_color": "#ff7954",
+    "background_color": "#fafafa",
     "display": "standalone",
     "scope": "/",
-    "start_url": "https://holywritings.net",
+    "start_url": "/",
   "icons": [
     {
       "src": "windows11/SmallTile.scale-100.png",
