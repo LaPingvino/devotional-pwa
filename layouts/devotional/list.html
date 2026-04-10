@@ -25,8 +25,13 @@
   <div id="builder-panel">
     <div class="dev-toolbar">
       <button class="btn-action" id="btn-share" title="Copy shareable link" data-i18n="dev_share">Share link</button>
+      <button class="btn-action" id="btn-qr" title="Show QR code">QR</button>
       <button class="btn-action" id="btn-print" title="Print / save as PDF" data-i18n="dev_print">Print</button>
       <button class="btn-action btn-danger" id="btn-clear" title="Clear all" data-i18n="dev_clear">Clear</button>
+    </div>
+    <div id="qr-panel" class="qr-panel" style="display:none">
+      <div id="qr-screen"></div>
+      <p class="qr-panel-url" id="qr-panel-url"></p>
     </div>
     <p class="dev-hint" id="empty-hint">
       Browse <a href="/prayers/">prayers</a> or <a href="/writings/">writings</a> and use the
@@ -355,6 +360,24 @@
   line-height: 1;
 }
 
+/* QR panel (on-screen sharing) */
+.qr-panel {
+  text-align: center;
+  padding: .8rem;
+  margin-bottom: 1rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.qr-panel canvas { margin: 0 auto; display: block; }
+.qr-panel-url {
+  font-size: .7rem;
+  color: var(--text-secondary);
+  word-break: break-all;
+  margin-top: .4rem;
+  font-family: monospace;
+}
+
 /* Phelps code — print only */
 .dev-item-pin {
   display: none;
@@ -366,7 +389,7 @@
   .site-header, .dev-toolbar, .dev-add-row, .dev-controls,
   .dev-item-drag, .dev-item-remove, .dev-item-lock,
   .dev-item-code, #builder-panel .dev-hint,
-  #shared-banner, .no-print, .dev-suggestions, footer { display: none !important; }
+  #shared-banner, .no-print, .dev-suggestions, .qr-panel, footer { display: none !important; }
 
   .dev-page { max-width: 100%; padding: 0; margin: 0; }
   .dev-header { justify-content: center; margin-bottom: 1.5rem; }
@@ -767,6 +790,19 @@
     }).catch(() => {
       prompt('Copy this link:', url);
     });
+  });
+
+  // ── QR button (on-screen) ──
+  $('btn-qr').addEventListener('click', () => {
+    var panel = $('qr-panel');
+    if (panel.style.display !== 'none') { panel.style.display = 'none'; return; }
+    if (codes.length === 0) { alert('Add some prayers first!'); return; }
+    var url = location.origin + '/devotional/#' + codesToHash(codes);
+    var qrEl = $('qr-screen');
+    qrEl.innerHTML = '';
+    generateQR(url, qrEl);
+    $('qr-panel-url').textContent = url;
+    panel.style.display = '';
   });
 
   // ── Print button ──
