@@ -1894,7 +1894,6 @@ func main() {
 		fmt.Printf("Combined: %d languages total (%d latin, %d non-latin)\n",
 			len(allSections), len(latinSections), len(otherSections))
 
-		combinedTitle := *title + " — All Languages"
 		outBase := filepath.Join(dir, "prayers_all")
 
 		if !*epubMode {
