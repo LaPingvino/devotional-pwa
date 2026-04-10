@@ -1,4 +1,4 @@
-# Cloudflare Pages: rewrite unknown /phelps/:slug/ requests to the JS fallback page.
-# Static phelps pages (for codes with prayer translations) take priority over this rule.
+# Cloudflare Pages: rewrite /phelps/:slug/ to the JS detail page.
+# Static assets (.json files) are served directly by CF before rewrites apply.
 /phelps/:slug   /phelps/detail/  200
 /phelps/:slug/  /phelps/detail/  200
