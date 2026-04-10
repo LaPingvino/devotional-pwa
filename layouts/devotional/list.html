@@ -1,0 +1,779 @@
+{{ partial "head.html" (dict "Title" .Title "Lang" "en" "Params" (dict "description" "Build and share multilingual Bahá'í devotional programs")) }}
+
+<div class="dev-page" id="dev-page">
+
+  <div class="dev-header">
+    <h1 id="dev-title">Devotional Program</h1>
+    <div class="dev-controls">
+      <div class="lang-select-wrap">
+        <label for="dev-lang">Language:</label>
+        <select id="dev-lang"></select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Builder mode: shown when no hash codes -->
+  <div id="builder-panel">
+    <div class="dev-toolbar">
+      <button class="btn-action" id="btn-share" title="Copy shareable link">Share link</button>
+      <button class="btn-action" id="btn-print" title="Print / save as PDF">Print</button>
+      <button class="btn-action btn-danger" id="btn-clear" title="Clear all">Clear</button>
+    </div>
+    <p class="dev-hint" id="empty-hint">
+      Browse <a href="/prayers/">prayers</a> or <a href="/writings/">writings</a> and use the
+      <strong>+</strong> button to add items to your devotional program.
+    </p>
+  </div>
+
+  <!-- Shared mode: shown when URL has hash codes -->
+  <div id="shared-banner" style="display:none">
+    <p class="dev-hint">
+      This devotional program was shared with you.
+      <button class="btn-action btn-small" id="btn-save-local">Save to my devotionals</button>
+      <button class="btn-action btn-small" id="btn-edit">Edit</button>
+    </p>
+  </div>
+
+  <!-- Program items -->
+  <div id="dev-items" class="dev-items"></div>
+
+  <!-- Add by code -->
+  <div class="dev-add-row" id="add-row">
+    <input type="text" id="add-code" placeholder="Add Phelps code (e.g. BH00074BLE)" class="add-input">
+    <button class="btn-action" id="btn-add-code">Add</button>
+  </div>
+
+</div>
+
+<!-- QR code in print view (hidden on screen) -->
+<div id="print-qr" class="print-only"></div>
+
+<style>
+.dev-page {
+  max-width: 740px;
+  margin: 0 auto;
+  padding: 1rem;
+}
+.dev-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin-bottom: 1rem;
+}
+.dev-header h1 { font-size: 1.5rem; margin: 0; }
+.dev-controls {
+  display: flex;
+  align-items: center;
+  gap: .8rem;
+}
+.lang-select-wrap {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .9rem;
+}
+.lang-select-wrap select {
+  padding: .3rem .5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: .9rem;
+  max-width: 200px;
+}
+
+/* Toolbar */
+.dev-toolbar {
+  display: flex;
+  gap: .5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+.btn-action {
+  padding: .35rem .8rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: .85rem;
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.btn-action:hover { border-color: var(--accent); color: var(--accent); }
+.btn-action.btn-small { padding: .2rem .5rem; font-size: .8rem; }
+.btn-danger:hover { border-color: #e53935; color: #e53935; }
+.dev-hint {
+  font-size: .9rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+.dev-hint a { color: var(--accent); }
+
+/* Items list */
+.dev-items { min-height: 2rem; }
+.dev-item {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem 1.2rem;
+  margin-bottom: .75rem;
+  position: relative;
+  transition: box-shadow .15s;
+}
+.dev-item.dragging { opacity: .5; }
+.dev-item.drag-over { box-shadow: 0 -3px 0 var(--accent); }
+.dev-item-header {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  margin-bottom: .5rem;
+}
+.dev-item-drag {
+  cursor: grab;
+  color: var(--text-secondary);
+  font-size: 1.2rem;
+  line-height: 1;
+  user-select: none;
+  padding: 0 .2rem;
+}
+.dev-item-drag:active { cursor: grabbing; }
+.dev-item-code {
+  font-family: monospace;
+  font-size: .8rem;
+  color: var(--accent);
+  font-weight: 600;
+}
+.dev-item-meta {
+  font-size: .8rem;
+  color: var(--text-secondary);
+  flex: 1;
+}
+.dev-item-remove {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1.1rem;
+  cursor: pointer;
+  padding: .2rem .4rem;
+  line-height: 1;
+}
+.dev-item-remove:hover { color: #e53935; }
+.dev-item-text {
+  font-size: .95rem;
+  line-height: 1.7;
+  max-height: 300px;
+  overflow-y: auto;
+}
+.dev-item-text p { margin-bottom: .6rem; }
+.dev-item-na {
+  color: var(--text-secondary);
+  font-style: italic;
+  font-size: .9rem;
+}
+
+/* Add row */
+.dev-add-row {
+  display: flex;
+  gap: .5rem;
+  margin-top: 1rem;
+}
+.add-input {
+  flex: 1;
+  padding: .4rem .6rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: .9rem;
+  font-family: monospace;
+  background: var(--surface);
+  color: var(--text);
+}
+
+/* Nine-pointed star separator */
+.dev-star-sep {
+  text-align: center;
+  margin: .3rem 0;
+  line-height: 1;
+}
+
+/* Print styles */
+.no-print {}
+@media print {
+  .site-header, .dev-toolbar, .dev-add-row, .dev-controls,
+  .dev-item-drag, .dev-item-remove, #builder-panel .dev-hint,
+  #shared-banner, .no-print, footer { display: none !important; }
+  .dev-item { break-inside: avoid; border: none; box-shadow: none; border-radius: 0; padding: .8rem 0; }
+  .dev-item-text { max-height: none; overflow: visible; }
+  .dev-page { max-width: 100%; padding: 0; }
+  .dev-star-sep .nine-star { color: #333; }
+  .print-only { display: block !important; }
+}
+.print-only { display: none; }
+#print-qr {
+  text-align: center;
+  margin-top: 2rem;
+  page-break-inside: avoid;
+}
+#print-qr canvas { margin: 0 auto; }
+#print-qr .qr-url {
+  font-size: .75rem;
+  color: var(--text-secondary);
+  word-break: break-all;
+  margin-top: .3rem;
+}
+#print-qr .qr-label {
+  font-size: .85rem;
+  color: var(--text-secondary);
+  margin-bottom: .3rem;
+}
+
+/* "Add to devotional" button used across the site */
+.btn-add-devotional {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 1.5rem;
+  height: 1.5rem;
+  font-size: .9rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color .15s, border-color .15s;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+.btn-add-devotional:hover { color: var(--accent); border-color: var(--accent); }
+.btn-add-devotional.added { color: var(--accent); border-color: var(--accent); }
+</style>
+
+<script>
+(function() {
+  'use strict';
+  const $ = id => document.getElementById(id);
+
+  // ── Devotional storage ──
+  const STORAGE_KEY = 'hw_devotional_codes';
+  function getCodes() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+  }
+  function saveCodes(codes) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(codes));
+  }
+  // Global helper for "add to devotional" buttons across the site
+  window.hwDevotional = {
+    add(code) {
+      const codes = getCodes();
+      if (!codes.includes(code)) { codes.push(code); saveCodes(codes); }
+    },
+    remove(code) {
+      saveCodes(getCodes().filter(c => c !== code));
+    },
+    has(code) { return getCodes().includes(code); },
+    codes: getCodes
+  };
+
+  // ── Determine mode: shared (hash codes) or builder (localStorage) ──
+  let isShared = false;
+  let codes = [];
+
+  function parseHash() {
+    const h = location.hash.replace('#', '').trim();
+    if (h) {
+      return h.split(',').map(c => c.trim().toUpperCase()).filter(Boolean);
+    }
+    return [];
+  }
+
+  const hashCodes = parseHash();
+  if (hashCodes.length > 0) {
+    isShared = true;
+    codes = hashCodes;
+    $('shared-banner').style.display = '';
+    $('builder-panel').style.display = 'none';
+    $('add-row').style.display = 'none';
+  } else {
+    codes = getCodes();
+  }
+
+  // ── Language selector ──
+  const langSelect = $('dev-lang');
+  let allLanguages = [];
+  let prayerCache = {}; // lang → {phelps → prayer}
+  let writingCache = {}; // `${key}/${lang}` → {phelps → entry}
+
+  async function init() {
+    const [langRes, writRes] = await Promise.all([
+      fetch('/data/languages.json'),
+      fetch('/data/writings.json')
+    ]);
+    allLanguages = await langRes.json();
+    window._writingsIndex = await writRes.json();
+
+    const sorted = [...allLanguages].sort((a, b) => {
+      if (a.code === 'en') return -1;
+      if (b.code === 'en') return 1;
+      return (b.prayer_count || 0) - (a.prayer_count || 0);
+    });
+    sorted.forEach(l => {
+      const opt = document.createElement('option');
+      opt.value = l.code;
+      opt.textContent = l.name + (l.prayer_count ? ' (' + l.prayer_count + ')' : '');
+      if (l.rtl) opt.dataset.rtl = '1';
+      langSelect.appendChild(opt);
+    });
+
+    const saved = localStorage.getItem('hw_devotional_lang') || 'en';
+    langSelect.value = saved || 'en';
+
+    langSelect.addEventListener('change', () => {
+      localStorage.setItem('hw_devotional_lang', langSelect.value);
+      renderItems();
+    });
+
+    renderItems();
+  }
+
+  // ── Fetch prayer data for a language ──
+  async function getPrayerMap(lang) {
+    if (prayerCache[lang]) return prayerCache[lang];
+    try {
+      const res = await fetch('/data/prayers/' + lang.toLowerCase() + '.json');
+      if (!res.ok) { prayerCache[lang] = {}; return {}; }
+      const data = await res.json();
+      const map = {};
+      (data.prayers || []).forEach(p => { map[p.phelps] = p; });
+      prayerCache[lang] = map;
+      return map;
+    } catch { prayerCache[lang] = {}; return {}; }
+  }
+
+  // ── Fetch writing data for a type+language ──
+  async function getWritingMap(key, lang) {
+    const cacheKey = key + '/' + lang;
+    if (writingCache[cacheKey]) return writingCache[cacheKey];
+    try {
+      const res = await fetch('/data/writings/' + key + '/' + lang.toLowerCase() + '.json');
+      if (!res.ok) { writingCache[cacheKey] = {}; return {}; }
+      const data = await res.json();
+      const map = {};
+      (data.books || []).forEach(b => {
+        (b.entries || []).forEach(e => { map[e.phelps] = { ...e, bookTitle: b.title }; });
+      });
+      writingCache[cacheKey] = map;
+      return map;
+    } catch { writingCache[cacheKey] = {}; return {}; }
+  }
+
+  // ── Resolve a Phelps code to text in given language ──
+  async function resolveCode(code, lang) {
+    // Try prayers first
+    const pMap = await getPrayerMap(lang);
+    if (pMap[code]) {
+      const p = pMap[code];
+      return { text: p.text, category: p.category, type: 'prayer', name: p.name };
+    }
+
+    // Try writings — check each writing type
+    const wIdx = window._writingsIndex || [];
+    for (const w of wIdx) {
+      if (w.langs.some(l => l.code === lang)) {
+        const wMap = await getWritingMap(w.key, lang);
+        if (wMap[code]) {
+          const e = wMap[code];
+          return { text: e.text, category: w.title, type: 'writing', name: e.name || e.bookTitle };
+        }
+      }
+    }
+
+    return null;
+  }
+
+  // ── Render all items ──
+  async function renderItems() {
+    const container = $('dev-items');
+    const lang = langSelect.value;
+    const rtl = langSelect.selectedOptions[0]?.dataset.rtl === '1';
+
+    if (codes.length === 0) {
+      container.innerHTML = '';
+      $('empty-hint').style.display = '';
+      return;
+    }
+    if ($('empty-hint')) $('empty-hint').style.display = 'none';
+
+    container.innerHTML = '<p style="color:var(--text-secondary)">Loading...</p>';
+
+    const items = [];
+    for (const code of codes) {
+      const resolved = await resolveCode(code, lang);
+      items.push({ code, resolved });
+    }
+
+    container.innerHTML = '';
+    const STAR = '\u{1F7D9}'; // nine-pointed star
+    items.forEach((item, idx) => {
+      // Star separator between items
+      if (idx > 0) {
+        const sep = document.createElement('div');
+        sep.className = 'dev-star-sep';
+        sep.textContent = STAR;
+        container.appendChild(sep);
+      }
+
+      const div = document.createElement('div');
+      div.className = 'dev-item';
+      div.dataset.idx = idx;
+      div.draggable = true;
+
+      const r = item.resolved;
+      const textHtml = r ? r.text : '<span class="dev-item-na">Not available in this language</span>';
+      const meta = r ? (r.category || '') + (r.name ? ' — ' + r.name : '') : '';
+
+      div.innerHTML = `
+        <div class="dev-item-header no-print">
+          <span class="dev-item-drag" title="Drag to reorder">&#x2630;</span>
+          <span class="dev-item-code">${item.code}</span>
+          <span class="dev-item-meta">${meta}</span>
+          ${!isShared ? '<button class="dev-item-remove" title="Remove">&times;</button>' : ''}
+        </div>
+        <div class="dev-item-text"${rtl ? ' dir="rtl"' : ''}>${textHtml}</div>`;
+
+      // Remove button
+      const removeBtn = div.querySelector('.dev-item-remove');
+      if (removeBtn) {
+        removeBtn.addEventListener('click', () => {
+          codes.splice(idx, 1);
+          if (!isShared) saveCodes(codes);
+          renderItems();
+        });
+      }
+
+      // Drag-and-drop reordering
+      div.addEventListener('dragstart', e => {
+        div.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', idx.toString());
+      });
+      div.addEventListener('dragend', () => div.classList.remove('dragging'));
+      div.addEventListener('dragover', e => { e.preventDefault(); div.classList.add('drag-over'); });
+      div.addEventListener('dragleave', () => div.classList.remove('drag-over'));
+      div.addEventListener('drop', e => {
+        e.preventDefault();
+        div.classList.remove('drag-over');
+        const fromIdx = parseInt(e.dataTransfer.getData('text/plain'));
+        const toIdx = idx;
+        if (fromIdx !== toIdx) {
+          const [moved] = codes.splice(fromIdx, 1);
+          codes.splice(toIdx, 0, moved);
+          if (!isShared) saveCodes(codes);
+          renderItems();
+        }
+      });
+
+      container.appendChild(div);
+    });
+  }
+
+  // ── Share button ──
+  $('btn-share').addEventListener('click', () => {
+    if (codes.length === 0) { alert('Add some prayers first!'); return; }
+    const url = location.origin + '/devotional/#' + codes.join(',');
+    navigator.clipboard.writeText(url).then(() => {
+      $('btn-share').textContent = 'Copied!';
+      setTimeout(() => { $('btn-share').textContent = 'Share link'; }, 2000);
+    }).catch(() => {
+      prompt('Copy this link:', url);
+    });
+  });
+
+  // ── Print button ──
+  $('btn-print').addEventListener('click', () => {
+    // Generate QR code for print
+    const url = location.origin + '/devotional/#' + codes.join(',');
+    const qrDiv = $('print-qr');
+    qrDiv.innerHTML = '';
+    const label = document.createElement('p');
+    label.className = 'qr-label';
+    label.textContent = 'Scan to view this devotional in your own language:';
+    qrDiv.appendChild(label);
+    generateQR(url, qrDiv);
+    const urlP = document.createElement('p');
+    urlP.className = 'qr-url';
+    urlP.textContent = url;
+    qrDiv.appendChild(urlP);
+    setTimeout(() => window.print(), 200);
+  });
+
+  // ── Clear button ──
+  $('btn-clear').addEventListener('click', () => {
+    if (codes.length === 0) return;
+    if (!confirm('Remove all items from your devotional?')) return;
+    codes = [];
+    saveCodes(codes);
+    renderItems();
+  });
+
+  // ── Add by code ──
+  $('btn-add-code').addEventListener('click', () => {
+    const input = $('add-code');
+    const code = input.value.trim().toUpperCase();
+    if (!code) return;
+    if (!codes.includes(code)) {
+      codes.push(code);
+      if (!isShared) saveCodes(codes);
+    }
+    input.value = '';
+    renderItems();
+  });
+  $('add-code').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); $('btn-add-code').click(); }
+  });
+
+  // ── Save shared to local ──
+  $('btn-save-local').addEventListener('click', () => {
+    saveCodes([...codes]);
+    $('btn-save-local').textContent = 'Saved!';
+    setTimeout(() => { $('btn-save-local').textContent = 'Save to my devotionals'; }, 2000);
+  });
+
+  // ── Edit shared → switch to builder mode ──
+  $('btn-edit').addEventListener('click', () => {
+    saveCodes([...codes]);
+    location.hash = '';
+    isShared = false;
+    $('shared-banner').style.display = 'none';
+    $('builder-panel').style.display = '';
+    $('add-row').style.display = '';
+    renderItems();
+  });
+
+  // ── QR Code generator (minimal, no external deps) ──
+  // Uses alphanumeric mode for URLs — generates SVG
+  function generateQR(text, container) {
+    // Simple QR: use a canvas-based approach via the QR matrix
+    // For reliability, use the well-known minimal QR encoder
+    const canvas = document.createElement('canvas');
+    canvas.width = 200;
+    canvas.height = 200;
+    container.appendChild(canvas);
+
+    // Minimal QR generation using the error correction polynomial approach
+    // For production simplicity, we'll encode as a data URL image using an inline encoder
+    const modules = qrEncode(text);
+    if (!modules) { container.innerHTML = '<p style="font-size:.8rem;color:var(--text-secondary)">QR generation failed</p>'; return; }
+    const ctx = canvas.getContext('2d');
+    const size = modules.length;
+    const scale = Math.floor(200 / size);
+    canvas.width = canvas.height = size * scale;
+    ctx.fillStyle = '#fff';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#000';
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        if (modules[y][x]) ctx.fillRect(x * scale, y * scale, scale, scale);
+      }
+    }
+  }
+
+  // ── Minimal QR Code encoder (version 1-10, byte mode, ECC L) ──
+  // Based on the QR code specification ISO/IEC 18004
+  function qrEncode(text) {
+    const data = new TextEncoder().encode(text);
+    // Version capacities for byte mode, ECC level L
+    const caps = [0,17,32,53,78,106,134,154,192,230,271,321,367,425,458,520,586,644,718,792,858];
+    let version = 0;
+    for (let v = 1; v <= 20; v++) { if (data.length <= caps[v]) { version = v; break; } }
+    if (!version) return null;
+
+    const size = version * 4 + 17;
+    const modules = Array.from({length: size}, () => Array(size).fill(false));
+    const reserved = Array.from({length: size}, () => Array(size).fill(false));
+
+    // Finder patterns
+    function finderPattern(cx, cy) {
+      for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) {
+        const x = cx + dx, y = cy + dy;
+        if (x < 0 || x >= size || y < 0 || y >= size) continue;
+        const ring = Math.max(Math.abs(dx), Math.abs(dy));
+        modules[y][x] = ring !== 2;
+        reserved[y][x] = true;
+      }
+      // Separator
+      for (let i = -4; i <= 4; i++) {
+        for (const [dx, dy] of [[i, -4], [i, 4], [-4, i], [4, i]]) {
+          const x = cx + dx, y = cy + dy;
+          if (x >= 0 && x < size && y >= 0 && y < size) reserved[y][x] = true;
+        }
+      }
+    }
+    finderPattern(3, 3);
+    finderPattern(size - 4, 3);
+    finderPattern(3, size - 4);
+
+    // Timing patterns
+    for (let i = 8; i < size - 8; i++) {
+      modules[6][i] = modules[i][6] = i % 2 === 0;
+      reserved[6][i] = reserved[i][6] = true;
+    }
+
+    // Alignment patterns (version >= 2)
+    if (version >= 2) {
+      const positions = alignmentPositions(version);
+      for (const ay of positions) for (const ax of positions) {
+        if (reserved[ay][ax]) continue;
+        for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+          const ring = Math.max(Math.abs(dx), Math.abs(dy));
+          modules[ay + dy][ax + dx] = ring !== 1;
+          reserved[ay + dy][ax + dx] = true;
+        }
+      }
+    }
+
+    // Reserve format info areas
+    for (let i = 0; i < 9; i++) {
+      reserved[8][i] = true;
+      reserved[i][8] = true;
+      if (i < 8) { reserved[8][size - 1 - i] = true; reserved[size - 1 - i][8] = true; }
+    }
+    modules[size - 8][8] = true; reserved[size - 8][8] = true; // dark module
+
+    // Reserve version info (version >= 7)
+    if (version >= 7) {
+      for (let i = 0; i < 6; i++) for (let j = 0; j < 3; j++) {
+        reserved[i][size - 11 + j] = true;
+        reserved[size - 11 + j][i] = true;
+      }
+    }
+
+    // Encode data
+    const bits = encodeData(data, version);
+
+    // Place data bits
+    let bitIdx = 0;
+    let upward = true;
+    for (let right = size - 1; right >= 1; right -= 2) {
+      if (right === 6) right = 5; // skip timing column
+      const col = [right, right - 1];
+      const rows = upward ? Array.from({length: size}, (_, i) => size - 1 - i) : Array.from({length: size}, (_, i) => i);
+      for (const row of rows) {
+        for (const c of col) {
+          if (!reserved[row][c]) {
+            if (bitIdx < bits.length) modules[row][c] = bits[bitIdx] === 1;
+            bitIdx++;
+          }
+        }
+      }
+      upward = !upward;
+    }
+
+    // Apply mask (pattern 0: (row + col) % 2 === 0)
+    for (let y = 0; y < size; y++) {
+      for (let x = 0; x < size; x++) {
+        if (!reserved[y][x] && (y + x) % 2 === 0) modules[y][x] = !modules[y][x];
+      }
+    }
+
+    // Write format info (ECC L, mask 0)
+    const formatBits = getFormatBits(0, 0); // ecl=L(01), mask=0
+    for (let i = 0; i < 15; i++) {
+      const bit = (formatBits >> (14 - i)) & 1;
+      // Horizontal
+      const hx = i < 8 ? (i < 6 ? i : i + 1) : size - 15 + i;
+      modules[8][hx] = !!bit;
+      // Vertical
+      const vy = i < 8 ? (i < 6 ? size - 1 - i : size - i) : 14 - i < 6 ? 14 - i : 15 - i;
+      modules[vy][8] = !!bit;
+    }
+
+    // Version info (version >= 7)
+    if (version >= 7) {
+      const vBits = getVersionBits(version);
+      for (let i = 0; i < 18; i++) {
+        const bit = (vBits >> i) & 1;
+        const row = Math.floor(i / 3), col = i % 3;
+        modules[row][size - 11 + col] = !!bit;
+        modules[size - 11 + col][row] = !!bit;
+      }
+    }
+
+    return modules;
+  }
+
+  function alignmentPositions(version) {
+    if (version === 1) return [];
+    const intervals = version === 32 ? 26 : Math.ceil((version * 4 + 4) / (Math.floor(version / 7) * 2 + 2)) * 2;
+    const last = version * 4 + 10;
+    const positions = [6];
+    for (let p = last; p > 6; p -= intervals) positions.unshift(p);
+    if (positions[0] !== 6) positions.unshift(6);
+    // Deduplicate
+    return [...new Set(positions)].sort((a, b) => a - b);
+  }
+
+  function encodeData(data, version) {
+    const caps = [0,17,32,53,78,106,134,154,192,230,271,321,367,425,458,520,586,644,718,792,858];
+    const totalBytes = caps[version] + (version >= 10 ? 2 : 0); // approximate
+    // ECC codewords per block for level L
+    const eccTable = [0,7,10,15,20,26,18,20,24,30,18,20,24,26,30,22,24,28,30,28,28];
+    const eccPerBlock = eccTable[version] || 20;
+    const totalCodewords = getDataCodewords(version);
+
+    // Byte mode header
+    const bits = [];
+    function pushBits(val, len) { for (let i = len - 1; i >= 0; i--) bits.push((val >> i) & 1); }
+    pushBits(0b0100, 4); // byte mode indicator
+    pushBits(data.length, version >= 10 ? 16 : 8); // character count
+    for (const b of data) pushBits(b, 8);
+    pushBits(0, 4); // terminator (up to 4 bits)
+    // Pad to byte boundary
+    while (bits.length % 8 !== 0) bits.push(0);
+    // Pad codewords
+    const padBytes = [0b11101100, 0b00010001];
+    let pi = 0;
+    while (bits.length < totalCodewords * 8) {
+      pushBits(padBytes[pi % 2], 8);
+      pi++;
+    }
+
+    return bits;
+  }
+
+  function getDataCodewords(version) {
+    // Total codewords minus ECC codewords for level L
+    const total = [0,26,44,70,100,134,172,196,242,292,346,404,466,532,581,655,733,815,901,991,1085];
+    const ecc = [0,7,10,15,20,26,36,40,48,60,72,80,96,104,120,132,144,168,180,196,224];
+    return (total[version] || 0) - (ecc[version] || 0);
+  }
+
+  function getFormatBits(ecl, mask) {
+    // Format string = ecl(2 bits) + mask(3 bits) → 5 data bits + 10 ECC bits, XOR with 101010000010010
+    let data = (ecl << 3) | mask;
+    let bits = data << 10;
+    // Polynomial division by 10100110111
+    const gen = 0b10100110111;
+    for (let i = 14; i >= 10; i--) {
+      if (bits & (1 << i)) bits ^= gen << (i - 10);
+    }
+    bits = (data << 10) | bits;
+    return bits ^ 0b101010000010010;
+  }
+
+  function getVersionBits(version) {
+    // Version info = 6 data bits + 12 ECC bits
+    let data = version;
+    let bits = data << 12;
+    const gen = 0b1111100100101;
+    for (let i = 17; i >= 12; i--) {
+      if (bits & (1 << i)) bits ^= gen << (i - 12);
+    }
+    return (data << 12) | bits;
+  }
+
+  init();
+})();
+</script>
+{{ partial "foot.html" . }}

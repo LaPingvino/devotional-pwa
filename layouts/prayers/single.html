@@ -62,6 +62,7 @@
             <a href="/inventory/?pin={{ $baseL | upper }}" title="Inventory entry" style="opacity:.6; font-size:.8em; margin-left:.3em">↗</a>
           </span>
           <button class="fav-btn" data-phelps="{{ $pin }}" aria-label="Toggle favourite">☆</button>
+          <button class="btn-add-devotional" data-phelps="{{ $pin }}" aria-label="Add to devotional" title="Add to devotional program">+</button>
         </div>
         <div class="prayer-text">{{ .text | markdownify }}</div>
         {{ with .notes }}
@@ -203,6 +204,21 @@ document.querySelectorAll('.fav-btn').forEach(btn => {
   });
 });
 
+// "Add to devotional" buttons
+document.querySelectorAll('.btn-add-devotional').forEach(btn => {
+  const p = btn.dataset.phelps;
+  const DKEY = 'hw_devotional_codes';
+  function isDev() { try { return JSON.parse(localStorage.getItem(DKEY) || '[]').includes(p); } catch { return false; } }
+  if (isDev()) { btn.textContent = '\u2713'; btn.classList.add('added'); }
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    let codes = []; try { codes = JSON.parse(localStorage.getItem(DKEY) || '[]'); } catch {}
+    if (codes.includes(p)) { codes = codes.filter(c => c !== p); btn.textContent = '+'; btn.classList.remove('added'); }
+    else { codes.push(p); btn.textContent = '\u2713'; btn.classList.add('added'); }
+    localStorage.setItem(DKEY, JSON.stringify(codes));
+  });
+});
+
 // Filterable language dropdowns
 document.querySelectorAll('.lang-dropdown').forEach(dd => {
   const input = dd.querySelector('.lang-filter-input');
@@ -232,7 +248,7 @@ if (hash) {
 }
 document.querySelectorAll('.prayer-card-header').forEach(header => {
   header.addEventListener('click', e => {
-    if (e.target.closest('a') || e.target.closest('.fav-btn')) return;
+    if (e.target.closest('a') || e.target.closest('.fav-btn') || e.target.closest('.btn-add-devotional')) return;
     header.closest('.prayer-card').classList.toggle('folded');
   });
 });

@@ -1,3 +1,11 @@
+/* Nine-pointed star font (single glyph subset of Noto Sans Symbols 2) */
+@font-face {
+  font-family: 'NineStar';
+  src: url('/fonts/nine-star.woff2') format('woff2');
+  font-display: swap;
+  unicode-range: U+1F7D9;
+}
+
 /* Bahá'í Prayers — Hugo site styles */
 :root {
   --accent: #ff7954;
@@ -14,7 +22,7 @@
 
 html { font-size: 16px; scroll-behavior: smooth; }
 body {
-  font-family: "Segoe UI", Roboto, system-ui, sans-serif;
+  font-family: "Segoe UI", Roboto, system-ui, sans-serif, 'NineStar';
   background: var(--bg);
   color: var(--text);
   line-height: 1.6;
@@ -769,3 +777,24 @@ p { margin-bottom: .5rem; }
 .commentary-content h3 { font-size: 1rem; margin: 1rem 0 .3rem; color: var(--accent); }
 
 /* Mobile: bible sidebar handled by .page-body + .sidebar responsive rules */
+
+/* "Add to devotional" button — used on prayer and writing pages */
+.btn-add-devotional {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  width: 1.5rem;
+  height: 1.5rem;
+  font-size: .9rem;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color .15s, border-color .15s;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+.btn-add-devotional:hover { color: var(--accent); border-color: var(--accent); }
+.btn-add-devotional.added { color: var(--accent); border-color: var(--accent); }

@@ -89,6 +89,7 @@
             <a href="#{{ .phelps }}" class="entry-num" title="Link to this section">{{ $bookIdx }}</a>
             {{ if and $showNames .name }}<a href="#{{ .phelps }}" class="entry-name">{{ .name }}</a>{{ end }}
             {{ if $showEntryLinks }}<a href="/phelps/{{ .phelps | lower }}/" class="phelps-link" title="View in inventory">{{ .phelps }}</a>{{ end }}
+            <button class="btn-add-devotional" data-phelps="{{ .phelps }}" aria-label="Add to devotional" title="Add to devotional program">+</button>
           </div>
           <div class="writing-text">{{ .text | safeHTML }}</div>
         </section>
@@ -319,6 +320,20 @@ a.entry-name:hover { text-decoration: underline; }
     window.addEventListener('scroll', onScroll, { passive: true });
     onScroll(); // initial
   }
+  // "Add to devotional" buttons
+  document.querySelectorAll('.btn-add-devotional').forEach(btn => {
+    const p = btn.dataset.phelps;
+    const DKEY = 'hw_devotional_codes';
+    function isDev() { try { return JSON.parse(localStorage.getItem(DKEY) || '[]').includes(p); } catch { return false; } }
+    if (isDev()) { btn.textContent = '\u2713'; btn.classList.add('added'); }
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      let codes = []; try { codes = JSON.parse(localStorage.getItem(DKEY) || '[]'); } catch {}
+      if (codes.includes(p)) { codes = codes.filter(c => c !== p); btn.textContent = '+'; btn.classList.remove('added'); }
+      else { codes.push(p); btn.textContent = '\u2713'; btn.classList.add('added'); }
+      localStorage.setItem(DKEY, JSON.stringify(codes));
+    });
+  });
 })();
 </script>
 {{ partial "foot.html" . }}
