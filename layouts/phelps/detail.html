@@ -40,11 +40,11 @@
     return p;
   }
 
-  function renderTranslations(translations) {
+  function renderTranslations(translations, code) {
     if (!translations || translations.length === 0) return '';
     const count = translations.length;
     const links = translations.map(t =>
-      `<a href="/prayers/${t.language.toLowerCase()}/#" data-code="${t.language.toLowerCase()}" data-name="${t.lang_name.toLowerCase()}">${t.lang_name}<span class="lang-code-badge">${t.language}</span></a>`
+      `<a href="/prayers/${t.language.toLowerCase()}/#${code}" data-code="${t.language.toLowerCase()}" data-name="${t.lang_name.toLowerCase()}">${t.lang_name}<span class="lang-code-badge">${t.language}</span></a>`
     ).join('\n');
     const filter = count > 6 ? `<input type="search" class="lang-filter-input" placeholder="Filter languages…" autocomplete="off">` : '';
     return `
@@ -87,7 +87,7 @@
         ${sc.subjects ? `<div class="meta-badge" style="display:block; margin-bottom:.6rem; font-size:.75rem">${sc.subjects}</div>` : ''}
         ${sc.notes ? `<div style="font-size:.8rem; color:var(--text-secondary); background:var(--surface); border-radius:4px; padding:.5rem; margin-bottom:.6rem;">${sc.notes}</div>` : ''}
         ${renderWritingRefs(sc.writing_refs)}
-        ${renderTranslations(sc.translations)}
+        ${renderTranslations(sc.translations, sc.code)}
       </div>`;
   }
 
