@@ -347,8 +347,18 @@ a.entry-name:hover { text-decoration: underline; }
   function saveCodes(codes) { localStorage.setItem(DKEY, JSON.stringify(codes)); }
 
   // Build shorthand code for a range, or null if no shorthand exists
+  // bookEl is the .writing-book element containing the entries
   var rangeShorthands = {
-    'iqan':         function(base, from, to) { var part = base.replace('BH00002',''); return 'iqan:' + part + ':' + from + (to > from ? '-' + to : ''); },
+    'iqan':         function(base, from, to, bookEl) {
+      // Detect part from the first entry in the range
+      var entries = bookEl.querySelectorAll('.writing-entry');
+      var part = '1';
+      for (var i = 0; i < entries.length; i++) {
+        var order = parseInt(entries[i].dataset.order);
+        if (order >= from) { part = entries[i].id.charAt(7); break; }
+      }
+      return 'iqan:' + part + ':' + from + (to > from ? '-' + to : '');
+    },
     'aqdas':        function(base, from, to) { return 'aqdas:' + from + (to > from ? '-' + to : ''); },
     'gleanings':    function(base, from, to) { return 'gleanings:' + from + (to > from ? '-' + to : ''); },
     'hidden-words': function(base, from, to) { var s = base.indexOf('386') >= 0 ? 'a' : 'p'; return 'hw:' + s + from + (to > from ? '-' + to : ''); },
@@ -373,7 +383,7 @@ a.entry-name:hover { text-decoration: underline; }
       var key = book.dataset.key || '';
       var base = (book.id || '').replace('book-', '');
       var shortFn = rangeShorthands[key];
-      var shortCode = shortFn ? shortFn(base, from, to) : null;
+      var shortCode = shortFn ? shortFn(base, from, to, book) : null;
 
       var codes = getCodes();
       if (shortCode) {
