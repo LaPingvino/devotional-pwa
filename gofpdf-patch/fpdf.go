@@ -1884,7 +1884,7 @@ func (f *Fpdf) addFontFromBytes(familyStr, styleStr string, jsonFileBytes, zFile
 
 		err := utf8File.parseFile()
 		if err != nil {
-			fmt.Printf("get metrics Error: %e\n", err)
+			f.err = fmt.Errorf("font parse error: %w", err)
 			return
 		}
 		desc := FontDescType{

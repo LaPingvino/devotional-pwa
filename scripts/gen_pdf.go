@@ -755,12 +755,13 @@ func loadFonts(pdf *gofpdf.Fpdf, lang, fontDir string, runes map[rune]bool) *fon
 		if fi.loaded[family] {
 			return true
 		}
-		path := findFont(filename)
-		if path == "" {
+		fullPath := findFont(filename)
+		if fullPath == "" {
 			return false
 		}
+		path := fullPath
 		// Try subsetting first; fall back to full font if unavailable.
-		if subPath := subsetTTF(path, runes); subPath != "" {
+		if subPath := subsetTTF(fullPath, runes); subPath != "" {
 			path = subPath
 		}
 		data, err := os.ReadFile(path)
@@ -769,6 +770,22 @@ func loadFonts(pdf *gofpdf.Fpdf, lang, fontDir string, runes map[rune]bool) *fon
 			return false
 		}
 		pdf.AddUTF8FontFromBytes(family, "", data)
+		// Check if gofpdf accepted the font; if not, retry with full (unsubsetted) font.
+		if pdf.Err() && path != fullPath {
+			fmt.Fprintf(os.Stderr, "  subset font failed for %s — retrying with full font\n", family)
+			pdf.ClearError()
+			data, err = os.ReadFile(fullPath)
+			if err != nil {
+				return false
+			}
+			pdf.AddUTF8FontFromBytes(family, "", data)
+			path = fullPath
+		}
+		if pdf.Err() {
+			fmt.Fprintf(os.Stderr, "  font load error for %s: %v\n", family, pdf.Error())
+			pdf.ClearError()
+			return false
+		}
 		zeroCombiningMarkWidths(pdf)
 		fi.loaded[family] = true
 		fmt.Fprintf(os.Stderr, "  font: %s ← %s\n", family, filepath.Base(path))
