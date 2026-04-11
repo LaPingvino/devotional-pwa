@@ -532,6 +532,20 @@
     codes = getCodes();
   }
 
+  // ── Simple markdown renderer ──
+  function renderMd(text) {
+    if (!text) return '';
+    return text
+      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+      .replace(/^# (.+)$/gm, '<h2>$1</h2>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+      .replace(/\n{2,}/g, '</p><p>')
+      .replace(/\n/g, '<br>')
+      .replace(/^/, '<p>').replace(/$/, '</p>');
+  }
+
   // ── Language selector (filterable dropdown with tiers) ──
   const langDropdown = $('dev-lang-dropdown');
   const langLabel = $('dev-lang-label');
@@ -714,7 +728,7 @@
       div.draggable = true;
 
       const r = item.resolved;
-      const textHtml = r ? r.text : '<span class="dev-item-na">Not available in ' + item.useLang + '</span>';
+      const textHtml = r ? renderMd(r.text) : '<span class="dev-item-na">Not available in ' + item.useLang + '</span>';
       const meta = r ? (r.category || '') + (r.name ? ' — ' + r.name : '') : '';
       const isRtlLang = allLanguages.find(l => l.code === item.useLang); const isRtl = isRtlLang && isRtlLang.rtl;
       const lockLabel = item.lang ? item.lang.toUpperCase() : '\u{1F310}';
@@ -1070,7 +1084,7 @@
             <span class="sug-item-code">${p.phelps}</span>
             <button class="sug-item-add${inProgram ? ' added' : ''}">${inProgram ? '\u2713' : '+'}</button>
           </summary>
-          <div class="sug-item-text"${isRtl ? ' dir="rtl"' : ''}>${p.text || ''}</div>`;
+          <div class="sug-item-text"${isRtl ? ' dir="rtl"' : ''}>${renderMd(p.text || '')}</div>`;
         const btn = item.querySelector('.sug-item-add');
         btn.addEventListener('click', e => {
           e.stopPropagation();
