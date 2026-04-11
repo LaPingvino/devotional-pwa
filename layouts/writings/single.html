@@ -331,19 +331,21 @@ a.entry-name:hover { text-decoration: underline; }
   document.querySelectorAll('.btn-add-devotional').forEach(btn => {
     const p = btn.dataset.phelps;
     const DKEY = 'hw_devotional_codes';
-    function isDev() { try { return JSON.parse(localStorage.getItem(DKEY) || '[]').includes(p); } catch { return false; } }
+    function codeStr(item) { return typeof item === 'string' ? item : item.code; }
+    function isDev() { try { return JSON.parse(localStorage.getItem(DKEY) || '[]').some(function(i) { return codeStr(i) === p; }); } catch { return false; } }
     if (isDev()) { btn.textContent = '\u2713'; btn.classList.add('added'); }
     btn.addEventListener('click', e => {
       e.stopPropagation();
       let codes = []; try { codes = JSON.parse(localStorage.getItem(DKEY) || '[]'); } catch {}
-      if (codes.includes(p)) { codes = codes.filter(c => c !== p); btn.textContent = '+'; btn.classList.remove('added'); }
-      else { codes.push(p); btn.textContent = '\u2713'; btn.classList.add('added'); }
+      if (codes.some(function(i) { return codeStr(i) === p; })) { codes = codes.filter(function(i) { return codeStr(i) !== p; }); btn.textContent = '+'; btn.classList.remove('added'); }
+      else { codes.push({code: p}); btn.textContent = '\u2713'; btn.classList.add('added'); }
       localStorage.setItem(DKEY, JSON.stringify(codes));
     });
   });
   // ── Range add to devotional ──
   var DKEY = 'hw_devotional_codes';
   function getCodes() { try { return JSON.parse(localStorage.getItem(DKEY) || '[]'); } catch(e) { return []; } }
+  function codeStr2(item) { return typeof item === 'string' ? item : item.code; }
   function saveCodes(codes) { localStorage.setItem(DKEY, JSON.stringify(codes)); }
 
   // Build shorthand code for a range, or null if no shorthand exists
@@ -388,7 +390,7 @@ a.entry-name:hover { text-decoration: underline; }
       var codes = getCodes();
       if (shortCode) {
         // Add as single compact range code
-        if (codes.indexOf(shortCode) === -1) codes.push(shortCode);
+        if (!codes.some(function(i) { return codeStr2(i) === shortCode; })) codes.push({code: shortCode});
       } else {
         // Fallback: add individual phelps codes
         var entries = book.querySelectorAll('.writing-entry');
@@ -396,7 +398,7 @@ a.entry-name:hover { text-decoration: underline; }
           var order = parseInt(e.dataset.order);
           if (order >= from && order <= to) {
             var p = e.id;
-            if (codes.indexOf(p) === -1) codes.push(p);
+            if (!codes.some(function(i) { return codeStr2(i) === p; })) codes.push({code: p});
           }
         });
       }

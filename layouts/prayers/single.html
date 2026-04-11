@@ -208,13 +208,14 @@ document.querySelectorAll('.fav-btn').forEach(btn => {
 document.querySelectorAll('.btn-add-devotional').forEach(btn => {
   const p = btn.dataset.phelps;
   const DKEY = 'hw_devotional_codes';
-  function isDev() { try { return JSON.parse(localStorage.getItem(DKEY) || '[]').includes(p); } catch { return false; } }
+  function codeStr(item) { return typeof item === 'string' ? item : item.code; }
+  function isDev() { try { return JSON.parse(localStorage.getItem(DKEY) || '[]').some(function(i) { return codeStr(i) === p; }); } catch { return false; } }
   if (isDev()) { btn.textContent = '\u2713'; btn.classList.add('added'); }
   btn.addEventListener('click', e => {
     e.stopPropagation();
     let codes = []; try { codes = JSON.parse(localStorage.getItem(DKEY) || '[]'); } catch {}
-    if (codes.includes(p)) { codes = codes.filter(c => c !== p); btn.textContent = '+'; btn.classList.remove('added'); }
-    else { codes.push(p); btn.textContent = '\u2713'; btn.classList.add('added'); }
+    if (codes.some(function(i) { return codeStr(i) === p; })) { codes = codes.filter(function(i) { return codeStr(i) !== p; }); btn.textContent = '+'; btn.classList.remove('added'); }
+    else { codes.push({code: p}); btn.textContent = '\u2713'; btn.classList.add('added'); }
     localStorage.setItem(DKEY, JSON.stringify(codes));
   });
 });

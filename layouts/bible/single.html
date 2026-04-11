@@ -253,9 +253,10 @@
   var BOOK_ID = '{{ $book.id }}';
   var DKEY = 'hw_devotional_codes';
   function getCodes() { try { return JSON.parse(localStorage.getItem(DKEY) || '[]'); } catch(e) { return []; } }
-  function hasCode(c) { return getCodes().indexOf(c) >= 0; }
-  function addCode(c) { var codes = getCodes(); if (codes.indexOf(c) < 0) { codes.push(c); localStorage.setItem(DKEY, JSON.stringify(codes)); } }
-  function removeCode(c) { var codes = getCodes().filter(function(x) { return x !== c; }); localStorage.setItem(DKEY, JSON.stringify(codes)); }
+  function codeStr(item) { return typeof item === 'string' ? item : item.code; }
+  function hasCode(c) { return getCodes().some(function(i) { return codeStr(i) === c; }); }
+  function addCode(c) { var codes = getCodes(); if (!hasCode(c)) { codes.push({code: c}); localStorage.setItem(DKEY, JSON.stringify(codes)); } }
+  function removeCode(c) { var codes = getCodes().filter(function(i) { return codeStr(i) !== c; }); localStorage.setItem(DKEY, JSON.stringify(codes)); }
 
   document.querySelectorAll('.btn-add-chapter').forEach(function(btn) {
     var ch = btn.dataset.ch;
