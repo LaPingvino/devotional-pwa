@@ -64,6 +64,7 @@ type AqdasEntry struct {
 type IqanEntry struct {
 	Id         int    `json:"Id"`
 	Number     int    `json:"Number"`
+	Part       int    `json:"Part"`
 	LanguageId int    `json:"LanguageId"`
 	Text       string `json:"Text"`
 }
@@ -400,11 +401,11 @@ func fetchIqan(url, iso string) []DBRow {
 	}
 	var rows []DBRow
 	for _, e := range entries {
-		phelps := fmt.Sprintf("BH00002%02d", e.Number)
+		phelps := fmt.Sprintf("BH00002%d%03d", e.Part, e.Number)
 		rows = append(rows, DBRow{
 			Phelps:   phelps,
 			Language: iso,
-			Name:     fmt.Sprintf("Kitáb-i-Íqán §%d", e.Number),
+			Name:     fmt.Sprintf("Kitáb-i-Íqán Part %d §%d", e.Part, e.Number),
 			Type:     "iqan",
 			Text:     cleanHTML(e.Text),
 			Source:   source,
