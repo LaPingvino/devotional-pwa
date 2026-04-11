@@ -88,10 +88,15 @@ echo "--- LLM Failure Patterns ---"
 sql "SELECT COUNT(*) as llm_failures FROM writings
 WHERE text LIKE '%I apologize, it seems I made%'
    OR text LIKE '%I am unable to translate%'
-   OR text LIKE '%search results indicate%'
+   OR text LIKE '%search results%provide%'
    OR text LIKE '%This command executes the%'
    OR text LIKE '%it seems I made a mistake%'
-   OR text LIKE '%available tools do not%'"
+   OR text LIKE '%available tools do not%'
+   OR text LIKE '%Translating%Prayer%'
+   OR text LIKE '%google_web_search%'
+   OR text LIKE '%My apologies%investigation%'
+   OR text LIKE '%Seeking Translation%'
+   OR text LIKE '%It seems there are no direct%'"
 
 # 6. Malformed phelps codes
 echo ""
