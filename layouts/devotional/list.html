@@ -516,7 +516,7 @@
       var lc = s.toLowerCase();
       if (lc.startsWith('bible.') || lc.startsWith('quran.') ||
           lc.startsWith('iqan.') || lc.startsWith('aqdas.') ||
-          lc.startsWith('gleanings.') || lc.startsWith('hw.')) {
+          lc.startsWith('gleanings.') || lc.startsWith('hw.') || lc.startsWith('pm.')) {
         return { code: lc.replace(/\./g, ':') };
       }
       var parts = s.split(':');
@@ -825,41 +825,51 @@
     return null;
   }
 
+  // Generate Phelps codes for a range, given prefix and padding
+  function phelpsRange(prefix, start, end, pad) {
+    var codes = [];
+    for (var i = start; i <= end; i++) {
+      var s = String(i);
+      while (s.length < pad) s = '0' + s;
+      codes.push(prefix + s);
+    }
+    return codes;
+  }
+
   // Parse writing shorthands like iqan:1:5, aqdas:42, gleanings:131
   function parseWritingShorthand(code) {
     var m;
     // iqan:part:section or iqan:part:start-end
     m = code.match(/^iqan:(\d+):(\d+)(?:-(\d+))?$/);
     if (m) {
-      var part = parseInt(m[1]), start = parseInt(m[2]), end = m[3] ? parseInt(m[3]) : start;
-      var prefix = 'BH00002' + part;
+      var part = m[1], start = parseInt(m[2]), end = m[3] ? parseInt(m[3]) : start;
+      var wanted = phelpsRange('BH00002' + part, start, end, 3);
       return {
         key: 'iqan', title: "Kit\u00e1b-i-\u00cdq\u00e1n",
-        label: "Kit\u00e1b-i-\u00cdq\u00e1n Part " + part + " \u00a7" + start + (end > start ? '-' + end : ''),
-        filter: function(e) {
-          var n = parseInt(e.phelps.replace(prefix, ''));
-          return e.phelps.startsWith(prefix) && n >= start && n <= end;
-        }
+        label: "\u00cdq\u00e1n " + part + ":" + start + (end > start ? '\u2013' + end : ''),
+        filter: function(e) { return wanted.indexOf(e.phelps) >= 0; }
       };
     }
     // aqdas:para or aqdas:start-end
     m = code.match(/^aqdas:(\d+)(?:-(\d+))?$/);
     if (m) {
       var start = parseInt(m[1]), end = m[2] ? parseInt(m[2]) : start;
+      var wanted = phelpsRange('BH00001', start, end, 3);
       return {
         key: 'aqdas', title: "Kit\u00e1b-i-Aqdas",
-        label: "Aqdas \u00b6" + start + (end > start ? '-' + end : ''),
-        filter: function(e) { return e.order >= start && e.order <= end; }
+        label: "Aqdas \u00b6" + start + (end > start ? '\u2013' + end : ''),
+        filter: function(e) { return wanted.indexOf(e.phelps) >= 0; }
       };
     }
     // gleanings:num or gleanings:start-end
     m = code.match(/^gleanings:(\d+)(?:-(\d+))?$/);
     if (m) {
       var start = parseInt(m[1]), end = m[2] ? parseInt(m[2]) : start;
+      var wanted = phelpsRange('BH10200', start, end, 3);
       return {
         key: 'gleanings', title: "Gleanings",
-        label: "Gleanings " + start + (end > start ? '-' + end : ''),
-        filter: function(e) { return e.order >= start && e.order <= end; }
+        label: "Gleanings " + start + (end > start ? '\u2013' + end : ''),
+        filter: function(e) { return wanted.indexOf(e.phelps) >= 0; }
       };
     }
     // hw:a5 or hw:p12 (Hidden Words Arabic/Persian)
@@ -868,14 +878,21 @@
       var section = m[1] === 'a' ? 'Arabic' : 'Persian';
       var start = parseInt(m[2]), end = m[3] ? parseInt(m[3]) : start;
       var prefix = m[1] === 'a' ? 'BH00386A' : 'BH00113P';
+      var wanted = phelpsRange(prefix, start, end, 2);
       return {
         key: 'hidden-words', title: "Hidden Words",
-        label: section + " Hidden Word" + (end > start ? 's ' + start + '-' + end : ' ' + start),
-        filter: function(e) {
-          if (!e.phelps.startsWith(prefix)) return false;
-          var n = parseInt(e.phelps.replace(prefix, ''));
-          return n >= start && n <= end;
-        }
+        label: section + " Hidden Word" + (end > start ? 's ' + start + '\u2013' + end : ' ' + start),
+        filter: function(e) { return wanted.indexOf(e.phelps) >= 0; }
+      };
+    }
+    // pm:42 (Prayers & Meditations section)
+    m = code.match(/^pm:(\d+)(?:-(\d+))?$/);
+    if (m) {
+      var start = parseInt(m[1]), end = m[2] ? parseInt(m[2]) : start;
+      return {
+        key: 'pm', title: "Prayers & Meditations",
+        label: "PM " + start + (end > start ? '\u2013' + end : ''),
+        filter: function(e) { return e.order >= start && e.order <= end; }
       };
     }
     return null;
@@ -1048,7 +1065,7 @@
     var lc = raw.toLowerCase();
     var isRef = lc.startsWith('bible:') || lc.startsWith('quran:') ||
       lc.startsWith('iqan:') || lc.startsWith('aqdas:') ||
-      lc.startsWith('gleanings:') || lc.startsWith('hw:');
+      lc.startsWith('gleanings:') || lc.startsWith('hw:') || lc.startsWith('pm:');
     var code = isRef ? lc : raw.toUpperCase();
     if (!codes.some(i => i.code === code)) {
       codes.push({ code: code });
