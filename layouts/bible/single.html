@@ -251,22 +251,26 @@
 
   // ── Add to devotional: chapter buttons ──
   var BOOK_ID = '{{ $book.id }}';
+  var DKEY = 'hw_devotional_codes';
+  function getCodes() { try { return JSON.parse(localStorage.getItem(DKEY) || '[]'); } catch(e) { return []; } }
+  function hasCode(c) { return getCodes().indexOf(c) >= 0; }
+  function addCode(c) { var codes = getCodes(); if (codes.indexOf(c) < 0) { codes.push(c); localStorage.setItem(DKEY, JSON.stringify(codes)); } }
+  function removeCode(c) { var codes = getCodes().filter(function(x) { return x !== c; }); localStorage.setItem(DKEY, JSON.stringify(codes)); }
+
   document.querySelectorAll('.btn-add-chapter').forEach(function(btn) {
     var ch = btn.dataset.ch;
     var code = 'bible:' + BOOK_ID + ':' + ch;
-    if (window.hwDevotional && window.hwDevotional.has(code)) {
+    if (hasCode(code)) {
       btn.textContent = '\u2713'; btn.classList.add('added');
     }
     btn.addEventListener('click', function(e) {
       e.stopPropagation();
-      if (window.hwDevotional) {
-        if (window.hwDevotional.has(code)) {
-          window.hwDevotional.remove(code);
-          btn.textContent = '+'; btn.classList.remove('added');
-        } else {
-          window.hwDevotional.add(code);
-          btn.textContent = '\u2713'; btn.classList.add('added');
-        }
+      if (hasCode(code)) {
+        removeCode(code);
+        btn.textContent = '+'; btn.classList.remove('added');
+      } else {
+        addCode(code);
+        btn.textContent = '\u2713'; btn.classList.add('added');
       }
     });
   });
@@ -297,7 +301,7 @@
       '<button class="btn-action btn-small range-cancel">Cancel</button>';
     document.querySelector('.main-content').prepend(rangeBanner);
     rangeBanner.querySelector('.range-add').addEventListener('click', function() {
-      if (window.hwDevotional) window.hwDevotional.add(code);
+      addCode(code);
       clearRange();
     });
     rangeBanner.querySelector('.range-cancel').addEventListener('click', clearRange);
