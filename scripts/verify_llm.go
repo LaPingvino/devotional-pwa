@@ -15,115 +15,115 @@ import (
 	"log"
 	"math"
 	"os"
+	"os/exec"
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	_ "github.com/go-sql-driver/mysql"
 )
 
-// Theme dimensions — each is a list of distinctive keywords for that theme.
-// A prayer's vector is its score per dimension (count of matching keywords / total keywords).
-var themes = map[string][]string{
-	"healing": {"heal", "healer", "healing", "sick", "sickness", "disease", "afflict",
-		"remedy", "cure", "physician", "recovery", "ailing", "infirm", "sufficer"},
-	"children": {"child", "children", "infant", "babe", "little", "tender", "seedling",
-		"sapling", "nursed", "cradle", "maidservant", "youth", "young", "educate"},
-	"unity": {"unity", "unite", "united", "oneness", "harmony", "concord", "fellowship",
-		"gathering", "assemblage", "assembly", "meeting", "gathered", "companions"},
-	"teaching": {"teach", "teaching", "teacher", "spread", "diffuse", "promulgate",
-		"proclaim", "herald", "journey", "travel", "arise", "army", "hosts", "pioneer"},
-	"departed": {"departed", "deceased", "dead", "death", "die", "dying", "grave",
-		"tomb", "burial", "paradise", "reunion", "forgive", "forgiveness", "mercy"},
-	"protection": {"protect", "protection", "shelter", "refuge", "shield", "guard",
-		"safeguard", "preserve", "defend", "fortress", "stronghold", "sufficient"},
-	"marriage": {"marriage", "married", "marry", "bride", "bridegroom", "wedding",
-		"spouse", "husband", "wife", "couple", "two", "nest", "birds", "united"},
-	"morning": {"morning", "dawn", "arise", "arisen", "awaken", "awakened", "sleep",
-		"slumber", "daybreak", "sunrise", "morn", "risen", "wakefulness"},
-	"evening": {"evening", "night", "nightfall", "midnight", "retire", "rest",
-		"repose", "slumber", "darkness", "setting"},
-	"fasting": {"fast", "fasting", "hunger", "thirst", "abstain", "feast",
-		"nourish", "sustain", "intercalary"},
-	"covenant": {"covenant", "steadfast", "firm", "firmness", "faithful", "faithfulness",
-		"testament", "violation", "violate", "wayward", "allegiance"},
-	"tests": {"test", "tests", "trial", "trials", "tribulation", "difficulty",
-		"difficulties", "adversity", "affliction", "calamity", "suffering", "patience"},
-	"praise": {"praise", "praised", "glorified", "glorify", "glory", "exalted",
-		"adoration", "magnify", "lauded", "thanksgiving", "thankful"},
-	"forgiveness": {"forgive", "forgiveness", "pardon", "repent", "repentance",
-		"sin", "sins", "transgression", "err", "erred", "shortcoming"},
-	"detachment": {"detach", "detachment", "renounce", "worldly", "material",
-		"desire", "passion", "vain", "idle", "fancy", "wealth", "poverty"},
-	"obligatory": {"obligatory", "noon", "recited", "recite", "witness", "testify",
-		"worship", "powerlessness", "might", "created", "know"},
-	"nearness": {"near", "nearness", "close", "intimate", "presence", "face",
-		"countenance", "behold", "attain", "court", "threshold", "door"},
-	"spiritual": {"spirit", "spiritual", "soul", "heart", "heavenly", "celestial",
-		"divine", "holy", "sacred", "pure", "illumine", "radiance", "light"},
-	"service": {"serve", "service", "servant", "handmaid", "maidservant",
-		"minister", "assist", "aid", "help", "succor", "support"},
-	"knowledge": {"knowledge", "wisdom", "understanding", "insight", "certitude",
-		"truth", "recognition", "discover", "reveal", "mystery", "secret"},
-	"family": {"family", "mother", "father", "parent", "parents", "son", "daughter",
-		"household", "home", "offspring", "generation"},
-	"prosperity": {"prosper", "prosperity", "progress", "advance", "flourish",
-		"success", "victory", "triumph", "conquer", "prevail"},
+// Stop words — extremely common words in Bahá'í prayer English that don't help distinguish prayers
+var stopWords = map[string]bool{
+	"the": true, "and": true, "that": true, "thou": true, "thy": true, "thee": true,
+	"this": true, "with": true, "from": true, "hast": true, "art": true, "for": true,
+	"all": true, "who": true, "his": true, "are": true, "unto": true, "have": true,
+	"god": true, "lord": true, "mine": true, "their": true, "which": true, "him": true,
+	"upon": true, "not": true, "may": true, "hath": true, "them": true,
+	"our": true, "its": true, "but": true, "been": true, "those": true, "they": true,
+	"shall": true, "will": true, "doth": true, "dost": true, "was": true, "were": true,
+	"has": true, "had": true, "let": true, "nor": true, "yet": true, "every": true,
+	"can": true, "one": true, "verily": true, "truly": true, "most": true, "own": true,
+	"her": true, "she": true, "what": true, "whom": true, "whose": true,
 }
 
-var dimNames []string
-
-func init() {
-	dimNames = make([]string, 0, len(themes))
-	for k := range themes {
-		dimNames = append(dimNames, k)
-	}
-	sort.Strings(dimNames)
-}
+// Vocabulary built from all reference texts (populated at runtime)
+var vocab map[string]int    // word -> dimension index
+var idf map[string]float64  // word -> inverse document frequency
 
 var wordRe = regexp.MustCompile(`[a-zA-Z]{3,}`)
 
-func tokenize(text string) []string {
-	matches := wordRe.FindAllString(strings.ToLower(text), -1)
-	return matches
+func tokenize(text string) map[string]int {
+	words := wordRe.FindAllString(strings.ToLower(text), -1)
+	freq := make(map[string]int)
+	for _, w := range words {
+		if !stopWords[w] && len(w) >= 3 {
+			freq[w]++
+		}
+	}
+	return freq
 }
 
-func vectorize(text string) []float64 {
-	words := tokenize(text)
-	if len(words) == 0 {
-		return make([]float64, len(dimNames))
-	}
-	// Build word set for fast lookup
-	wordSet := make(map[string]int)
-	for _, w := range words {
-		wordSet[w]++
-	}
-	vec := make([]float64, len(dimNames))
-	for i, dim := range dimNames {
-		keywords := themes[dim]
-		score := 0.0
-		for _, kw := range keywords {
-			if c, ok := wordSet[kw]; ok {
-				score += float64(c)
-			}
-			// Also check partial matches (e.g., "healed" matches "heal")
-			for w, c := range wordSet {
-				if len(w) > len(kw) && strings.HasPrefix(w, kw) {
-					score += float64(c) * 0.5
-				}
-			}
+// buildVocab creates the word→dimension mapping from all reference texts.
+// Only includes words that appear in 2+ but <50% of documents (informative words).
+func buildVocab(docs []map[string]int) {
+	docFreq := make(map[string]int) // how many docs contain this word
+	for _, d := range docs {
+		for w := range d {
+			docFreq[w]++
 		}
-		vec[i] = score / float64(len(words)) // normalize by text length
+	}
+	n := float64(len(docs))
+	vocab = make(map[string]int)
+	idf = make(map[string]float64)
+	idx := 0
+	// Collect candidates with IDF scores
+	type wordIDF struct {
+		word string
+		idf  float64
+	}
+	var candidates []wordIDF
+	for w, df := range docFreq {
+		if df >= 2 && float64(df)/n < 0.3 && len(w) >= 4 {
+			candidates = append(candidates, wordIDF{w, math.Log(n / float64(df))})
+		}
+	}
+	// Keep top 2000 by IDF (most distinctive words)
+	sort.Slice(candidates, func(i, j int) bool { return candidates[i].idf > candidates[j].idf })
+	if len(candidates) > 2000 {
+		candidates = candidates[:2000]
+	}
+	for _, c := range candidates {
+		vocab[c.word] = idx
+		idf[c.word] = c.idf
+		idx++
+	}
+	log.Printf("  Vocabulary: %d words (from %d total)", len(vocab), len(docFreq))
+}
+
+func vectorize(wordFreq map[string]int) sparseVec {
+	vec := make(sparseVec)
+	total := 0.0
+	for _, c := range wordFreq {
+		total += float64(c)
+	}
+	if total == 0 {
+		return vec
+	}
+	for w, c := range wordFreq {
+		if idx, ok := vocab[w]; ok {
+			tf := float64(c) / total
+			vec[idx] = tf * idf[w]
+		}
 	}
 	return vec
 }
 
-func cosine(a, b []float64) float64 {
+func cosine(a, b sparseVec) float64 {
+	// Iterate over the smaller vector for efficiency
+	if len(a) > len(b) {
+		a, b = b, a
+	}
 	var dot, magA, magB float64
-	for i := range a {
-		dot += a[i] * b[i]
-		magA += a[i] * a[i]
-		magB += b[i] * b[i]
+	for idx, va := range a {
+		if vb, ok := b[idx]; ok {
+			dot += va * vb
+		}
+		magA += va * va
+	}
+	for _, vb := range b {
+		magB += vb * vb
 	}
 	if magA == 0 || magB == 0 {
 		return 0
@@ -131,9 +131,12 @@ func cosine(a, b []float64) float64 {
 	return dot / (math.Sqrt(magA) * math.Sqrt(magB))
 }
 
+// Sparse vector: map[dimension_index]value — much more memory-efficient for TF-IDF
+type sparseVec map[int]float64
+
 type refEntry struct {
 	phelps string
-	vec    []float64
+	vec    sparseVec
 	text   string // first 100 chars for display
 }
 
@@ -141,7 +144,7 @@ type llmEntry struct {
 	phelps  string
 	version string
 	text    string
-	vec     []float64
+	vec     sparseVec
 }
 
 type match struct {
@@ -156,29 +159,60 @@ func main() {
 	doltDir := flag.String("dolt-dir", os.Getenv("HOME")+"/bahaiwritings", "Dolt database directory")
 	threshold := flag.Float64("threshold", 0.3, "Minimum cosine similarity to consider a match")
 	apply := flag.Bool("apply", false, "Output SQL to apply corrections")
+	dsn := flag.String("dsn", "", "MySQL DSN (e.g. root@tcp(127.0.0.1:3306)/bahaiwritings). If empty, starts a temporary dolt sql-server.")
 	flag.Parse()
-
-	// Connect via dolt sql-server or use CLI
-	// For simplicity, use dolt sql CLI via exec
-	// Actually, let's just use the mysql driver if a server is running,
-	// otherwise fall back to reading from CLI
 
 	log.Printf("Loading data from %s...", *doltDir)
 
-	db, err := sql.Open("mysql", "root@tcp(127.0.0.1:3306)/bahaiwritings")
+	var db *sql.DB
+	var err error
+
+	if *dsn != "" {
+		db, err = sql.Open("mysql", *dsn)
+	} else {
+		// Start a temporary dolt sql-server
+		dbName := "bahaiwritings"
+		port := "13337"
+		log.Printf("Starting temporary dolt sql-server on port %s...", port)
+		cmd := exec.Command("dolt", "sql-server", "-H", "127.0.0.1", "-P", port, "--no-auto-commit")
+		cmd.Dir = *doltDir
+		cmd.Stdout = os.Stderr
+		cmd.Stderr = os.Stderr
+		if err := cmd.Start(); err != nil {
+			log.Fatalf("Cannot start dolt sql-server: %v", err)
+		}
+		defer func() {
+			cmd.Process.Kill()
+			cmd.Wait()
+		}()
+		// Wait for server to be ready
+		for i := 0; i < 30; i++ {
+			db, err = sql.Open("mysql", fmt.Sprintf("root@tcp(127.0.0.1:%s)/%s", port, dbName))
+			if err == nil {
+				if err = db.Ping(); err == nil {
+					break
+				}
+			}
+			time.Sleep(500 * time.Millisecond)
+		}
+		if err != nil {
+			log.Fatalf("Cannot connect after starting server: %v", err)
+		}
+		_ = dbName
+	}
 	if err != nil {
-		log.Fatalf("Cannot connect to dolt: %v", err)
+		log.Fatalf("Cannot open database: %v", err)
 	}
 	defer db.Close()
 
-	// Test connection - if it fails, we need dolt sql-server
-	if err := db.Ping(); err != nil {
-		log.Fatalf("Cannot ping dolt server. Start one with: cd %s && dolt sql-server &\nError: %v", *doltDir, err)
-	}
-
-	// Load reference: inventory first lines + English prayers
+	// Phase 1: Load all text and tokenize
 	log.Println("Loading reference prayers...")
-	refs := make(map[string]*refEntry)
+	type rawRef struct {
+		phelps string
+		text   string
+		words  map[string]int
+	}
+	refRaw := make(map[string]*rawRef)
 
 	// Inventory
 	rows, err := db.Query(`SELECT PIN, ` + "`First line (translated)`" + ` FROM inventory
@@ -189,11 +223,11 @@ func main() {
 	for rows.Next() {
 		var pin, text string
 		rows.Scan(&pin, &text)
-		refs[pin] = &refEntry{phelps: pin, vec: vectorize(text), text: text[:min(len(text), 80)]}
+		refRaw[pin] = &rawRef{phelps: pin, text: text, words: tokenize(text)}
 	}
 	rows.Close()
 
-	// English prayers from bahaiprayers.net
+	// English prayers from bahaiprayers.net (override inventory with longer text)
 	rows, err = db.Query(`SELECT phelps, LEFT(text, 2000) FROM writings
 		WHERE language='en' AND source='bahaiprayers.net' AND (type IS NULL OR type='prayer')
 		AND phelps NOT LIKE 'TMP%'`)
@@ -203,46 +237,101 @@ func main() {
 	for rows.Next() {
 		var phelps, text string
 		rows.Scan(&phelps, &text)
-		vec := vectorize(text)
-		if existing, ok := refs[phelps]; !ok || magnitude(vec) > magnitude(existing.vec) {
-			refs[phelps] = &refEntry{phelps: phelps, vec: vec, text: text[:min(len(text), 80)]}
+		w := tokenize(text)
+		if existing, ok := refRaw[phelps]; !ok || len(w) > len(existing.words) {
+			refRaw[phelps] = &rawRef{phelps: phelps, text: text, words: w}
 		}
 	}
 	rows.Close()
+	log.Printf("  %d reference entries", len(refRaw))
 
-	log.Printf("  %d reference entries", len(refs))
-
-	// Load LLM entries
+	// Load LLM entries (tokenize only, vectorize after vocab is built)
 	log.Println("Loading LLM entries...")
+	type rawLLM struct {
+		phelps  string
+		version string
+		text    string
+		words   map[string]int
+	}
+	var llmRaw []rawLLM
 	rows, err = db.Query(`SELECT phelps, version, LEFT(text, 2000) FROM writings
 		WHERE source='llm-translation' AND language='en'`)
 	if err != nil {
 		log.Fatal(err)
 	}
-	var llmEntries []llmEntry
 	for rows.Next() {
-		var e llmEntry
+		var e rawLLM
 		rows.Scan(&e.phelps, &e.version, &e.text)
-		e.vec = vectorize(e.text)
-		llmEntries = append(llmEntries, e)
+		e.words = tokenize(e.text)
+		llmRaw = append(llmRaw, e)
 	}
 	rows.Close()
-	log.Printf("  %d LLM entries", len(llmEntries))
+	log.Printf("  %d LLM entries", len(llmRaw))
 
-	// Match
-	var matches []match
-	refList := make([]refEntry, 0, len(refs))
-	for _, r := range refs {
-		refList = append(refList, *r)
+	// Phase 2: Build vocabulary from all reference docs
+	log.Println("Building vocabulary...")
+	allDocs := make([]map[string]int, 0, len(refRaw))
+	for _, r := range refRaw {
+		allDocs = append(allDocs, r.words)
+	}
+	buildVocab(allDocs)
+
+	// Phase 3: Vectorize everything
+	log.Println("Vectorizing...")
+	refs := make(map[string]*refEntry)
+	for code, r := range refRaw {
+		refs[code] = &refEntry{phelps: code, vec: vectorize(r.words), text: r.text[:min(len(r.text), 80)]}
 	}
 
+	var llmEntries []llmEntry
+	for _, r := range llmRaw {
+		llmEntries = append(llmEntries, llmEntry{
+			phelps: r.phelps, version: r.version, text: r.text, vec: vectorize(r.words),
+		})
+	}
+
+	// Build inverted index: word dimension -> list of ref codes that have it
+	log.Println("Building inverted index...")
+	invertedIdx := make(map[int][]string) // dim -> phelps codes
+	for code, r := range refs {
+		for dim := range r.vec {
+			invertedIdx[dim] = append(invertedIdx[dim], code)
+		}
+	}
+
+	// Match using inverted index to prefilter candidates
+	log.Println("Matching...")
+	var matches []match
+
 	for _, llm := range llmEntries {
+		// Find candidate refs that share at least one vocab word
+		candidateScores := make(map[string]int) // code -> shared word count
+		for dim := range llm.vec {
+			for _, code := range invertedIdx[dim] {
+				candidateScores[code]++
+			}
+		}
+		// Only compute cosine for top 500 candidates by shared word count
+		type cand struct {
+			code  string
+			count int
+		}
+		var cands []cand
+		for code, count := range candidateScores {
+			cands = append(cands, cand{code, count})
+		}
+		sort.Slice(cands, func(i, j int) bool { return cands[i].count > cands[j].count })
+		if len(cands) > 500 {
+			cands = cands[:500]
+		}
+
 		type scored struct {
 			code  string
 			score float64
 		}
 		var scores []scored
-		for _, r := range refList {
+		for _, c := range cands {
+			r := refs[c.code]
 			s := cosine(llm.vec, r.vec)
 			scores = append(scores, scored{r.phelps, s})
 		}
@@ -304,31 +393,48 @@ func main() {
 	// Output SQL
 	if *apply {
 		fmt.Println("\n-- SQL to apply corrections:")
+		fmt.Println("-- WARNING: Review before applying! The theme-vector matching is approximate.")
+		fmt.Println("-- High-score matches (>0.5) are very likely correct.")
+		fmt.Println("-- Lower scores need manual verification.")
 		fmt.Println("SET FOREIGN_KEY_CHECKS=0;")
 		for _, m := range matches {
 			if m.status == "WRONG" {
-				// Find which languages have this wrong code (non-English, non-LLM)
-				fmt.Printf("-- %s → %s (score=%.2f)\n", m.llm.phelps, m.bestCode, m.bestScore)
-				fmt.Printf("-- LLM: %s\n", strings.ReplaceAll(m.llm.text[:min(len(m.llm.text), 80)], "\n", " "))
-				fmt.Printf("UPDATE writings SET phelps='%s' WHERE phelps='%s' AND language<>'en' AND source<>'inventory';\n",
+				// The LLM entry under code X tells us the foreign-language prayer is actually code Y.
+				// But we must be careful: code X might have CORRECT entries in other languages.
+				// The LLM was generated from a specific source language entry.
+				// Strategy: find which non-English entries under code X DON'T have code Y already,
+				// and only recode those where the LLM was the reference.
+				// For safety, we recode ALL non-English non-inventory entries from X to Y,
+				// but only if X doesn't have many languages (suggesting it's a single-language code).
+				opening := strings.ReplaceAll(m.llm.text[:min(len(m.llm.text), 80)], "\n", " ")
+				fmt.Printf("\n-- %s → %s (score=%.2f, gap=%.2f)\n", m.llm.phelps, m.bestCode, m.bestScore, m.bestScore-m.nextScore)
+				fmt.Printf("-- LLM: %s\n", opening)
+
+				if m.bestScore >= 0.5 {
+					fmt.Printf("-- HIGH CONFIDENCE\n")
+				}
+
+				// Delete the LLM English entry
+				fmt.Printf("DELETE FROM writings WHERE version='%s';\n", m.llm.version)
+
+				// Recode foreign entries — but only if this code is likely single-language
+				// (codes with many languages are more complex, skip auto-recode)
+				fmt.Printf("-- To recode foreign entries, verify first then run:\n")
+				fmt.Printf("-- UPDATE writings SET phelps='%s' WHERE phelps='%s' AND language<>'en' AND source<>'inventory' AND (type IS NULL OR type='prayer');\n",
 					m.bestCode, m.llm.phelps)
-				fmt.Printf("DELETE FROM writings WHERE version='%s';\n\n", m.llm.version)
-			} else if m.status == "OK" {
-				// Check if real English exists — if so, delete LLM
-				fmt.Printf("-- %s OK, delete LLM if real English exists\n", m.llm.phelps)
-				fmt.Printf("-- DELETE FROM writings WHERE version='%s'; -- only if net English exists\n\n", m.llm.version)
 			}
 		}
-		fmt.Println("SET FOREIGN_KEY_CHECKS=1;")
-	}
-}
 
-func magnitude(v []float64) float64 {
-	sum := 0.0
-	for _, x := range v {
-		sum += x * x
+		// Delete OK entries that have a real English counterpart
+		fmt.Println("\n-- Delete OK LLM entries where real English exists:")
+		for _, m := range matches {
+			if m.status == "OK" {
+				fmt.Printf("-- DELETE FROM writings WHERE version='%s'; -- %s\n", m.llm.version, m.llm.phelps)
+			}
+		}
+
+		fmt.Println("\nSET FOREIGN_KEY_CHECKS=1;")
 	}
-	return math.Sqrt(sum)
 }
 
 func min(a, b int) int {
