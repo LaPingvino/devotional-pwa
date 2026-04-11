@@ -39,6 +39,12 @@ fi
 echo "Generating data files..."
 go run scripts/gen_hugo_data.go --dolt-dir ./bahaiwritings --out-dir .
 
+# Copy Bible and Quran JSON to static/data for client-side fetch
+mkdir -p static/data/bible static/data/quran
+cp assets/bible/*.json static/data/bible/ 2>/dev/null || true
+cp assets/quran/*.json static/data/quran/ 2>/dev/null || true
+echo "Bible/Quran data: $(ls static/data/bible/*.json 2>/dev/null | wc -l) bible, $(ls static/data/quran/*.json 2>/dev/null | wc -l) quran"
+
 # Generate i18n bundle
 echo "Generating i18n bundle..."
 go run scripts/gen_i18n.go
