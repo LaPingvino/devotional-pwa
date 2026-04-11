@@ -1,0 +1,271 @@
+{{ partial "head.html" (dict "Title" "About" "Lang" "en") }}
+<div class="main-content about-page">
+
+<h1>About Holy Writings</h1>
+<p class="about-subtitle">Work in progress &mdash; a community-driven multilingual sacred text project</p>
+
+<nav class="about-toc">
+  <a href="#methodology">Methodology</a>
+  <a href="#sources">Sources</a>
+  <a href="#known-issues">Known Issues</a>
+  <a href="#checklist">Data Quality Checklist</a>
+  <a href="#help">How You Can Help</a>
+  <a href="#contact">Contact</a>
+</nav>
+
+<!-- ============================================================ -->
+<h2 id="methodology">Methodology</h2>
+
+<p>Holy Writings brings together Bah&aacute;&rsquo;&iacute; prayers and sacred texts from multiple online
+sources, cross-referenced using the
+<a href="https://bahai-library.com/encyclopaedia_phelps_index" target="_blank" rel="noopener">Phelps Index</a>
+&mdash; a catalog of 29,000+ Bah&aacute;&rsquo;&iacute; Holy Writings identified by unique PIN codes
+(e.g.&nbsp;BH00074BLE for &ldquo;Blessed is the spot&rdquo;).</p>
+
+<h3>The matching pipeline</h3>
+
+<p>Each prayer or text entry from a source needs to be matched to its Phelps code.
+This is done through a multi-stage pipeline:</p>
+
+<ol>
+  <li><strong>Rosetta matching</strong> &mdash; If the same prayer already exists in another
+    language with a known code, we match via cross-language reference tables
+    (the &ldquo;rosetta&rdquo; approach). This is the most reliable method.</li>
+
+  <li><strong>Text similarity</strong> &mdash; For English prayers, we compare against the
+    Phelps inventory using Jaccard word overlap, prefix matching, and length
+    ratio analysis. Threshold: 0.45+ similarity score.</li>
+
+  <li><strong>LLM-assisted matching</strong> &mdash; When automated methods fail, we use
+    Gemini Flash Lite to translate short excerpts and match against the inventory.
+    This is flagged in the database as <code>llm-translation</code> source.</li>
+
+  <li><strong>Manual verification</strong> &mdash; High-value or ambiguous matches are
+    reviewed by hand. False positives from LLM matching are tracked and
+    blacklisted to prevent recurrence.</li>
+</ol>
+
+<h3>Code types</h3>
+
+<table class="about-table">
+  <thead><tr><th>Prefix</th><th>Meaning</th><th>Example</th></tr></thead>
+  <tbody>
+    <tr><td>BH</td><td>Bah&aacute;&rsquo;u&rsquo;ll&aacute;h</td><td>BH00074BLE &mdash; &ldquo;Blessed is the spot&rdquo;</td></tr>
+    <tr><td>AB</td><td>&lsquo;Abdu&rsquo;l-Bah&aacute;</td><td>AB10714 &mdash; Children&rsquo;s prayer</td></tr>
+    <tr><td>BB</td><td>The B&aacute;b</td><td>BB00623 &mdash; Healing prayer</td></tr>
+    <tr><td>ABU</td><td>Universal House of Justice / compilations</td><td>ABU0129EDU &mdash; Children&rsquo;s education</td></tr>
+    <tr><td>TMP</td><td>Temporary &mdash; unresolved, awaiting identification</td><td>TMP00442</td></tr>
+    <tr><td>XBH / XAB / XBB</td><td>Identified author but not yet in inventory</td><td>XAB00002</td></tr>
+  </tbody>
+</table>
+
+<p>Mnemonic suffixes (e.g.&nbsp;<code>BLE</code> in BH00074BLE, <code>NAM</code> in BH01313NAM)
+distinguish different prayers from the same tablet or identify well-known excerpts.</p>
+
+<!-- ============================================================ -->
+<h2 id="sources">Sources</h2>
+
+<table class="about-table">
+  <thead><tr><th>Source</th><th>Type</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td><a href="https://bahaiprayers.net" target="_blank" rel="noopener">bahaiprayers.net</a></td>
+        <td>Primary prayer source</td>
+        <td>500+ languages, category structure, prayer book ordering</td></tr>
+    <tr><td><a href="https://bahaiprayers.app" target="_blank" rel="noopener">bahaiprayers.app</a></td>
+        <td>Secondary prayer source</td>
+        <td>Some languages/prayers not on .net; used for cross-referencing</td></tr>
+    <tr><td><a href="https://bahaiprayers.org" target="_blank" rel="noopener">bahaiprayers.org</a></td>
+        <td>Supplementary source</td>
+        <td>Additional translations</td></tr>
+    <tr><td><a href="https://bahai-library.com" target="_blank" rel="noopener">Phelps Index</a></td>
+        <td>Reference catalog</td>
+        <td>29,000+ entries with first lines, publications, manuscripts</td></tr>
+    <tr><td><a href="https://www.bahai.org/library/" target="_blank" rel="noopener">bahai.org</a></td>
+        <td>Official texts</td>
+        <td>Authoritative English, Arabic, Persian texts</td></tr>
+  </tbody>
+</table>
+
+<p>Writings (Hidden Words, Kit&aacute;b-i-Aqdas, Kit&aacute;b-i-&Iacute;q&aacute;n, Gleanings,
+Prayers &amp; Meditations, Some Answered Questions, Tablets of Bah&aacute;&rsquo;u&rsquo;ll&aacute;h,
+Days of Remembrance, Ridv&aacute;n Messages) are fetched from the bahaiprayers.net API
+with per-section Phelps code matching.</p>
+
+<!-- ============================================================ -->
+<h2 id="known-issues">Known Issues</h2>
+
+<p>This is a work in progress. Known data quality issues include:</p>
+
+<h3>Matching accuracy</h3>
+<ul>
+  <li><strong>LLM-assisted matches may contain errors.</strong> Approximately 5% of
+    matches were made with LLM assistance. While most are correct, some may be
+    false positives &mdash; especially for short prayers or prayers from the same
+    tablet with similar openings.</li>
+  <li><strong>TMP codes</strong> indicate prayers we couldn&rsquo;t identify. There are
+    currently ~46 unique TMP codes remaining across various languages. Some are
+    composite entries (multiple prayers combined), some are regional texts not
+    in the Phelps inventory, and some are non-prayer content (tablet excerpts,
+    historical texts).</li>
+  <li><strong>Category assignments come from source sites</strong> and may be
+    incorrect. We&rsquo;ve found and fixed several (e.g. the Tablet of Wisdom
+    filed under &ldquo;Children&rdquo;), but more likely remain.</li>
+</ul>
+
+<h3>Source-specific issues</h3>
+<ul>
+  <li><strong>bahaiprayers.net French &ldquo;Prayers &amp; Meditations&rdquo;</strong> was
+    actually a different French prayer compilation, not the Shoghi Effendi
+    selection. Purged; will be reimported from first principles.</li>
+  <li><strong>Intro/front-page prayers</strong> on bahaiprayers.net (like
+    &ldquo;Blessed is the spot&rdquo; and &ldquo;Intone, O My servant&rdquo;) are not
+    indexed as prayers by the site, so they were missing from major
+    languages. Partially recovered from bahaiprayers.app.</li>
+  <li><strong>Some API language codes are wrong</strong> (e.g. Esperanto and Tagalog
+    were mapped to English). We use the database&rsquo;s <code>languages.api_id</code>
+    field as the authoritative mapping.</li>
+</ul>
+
+<h3>Structural issues</h3>
+<ul>
+  <li><strong>Same-tablet prayers</strong> may share a Phelps code when they should
+    have distinct mnemonic sub-codes. Length-ratio analysis (comparing the same
+    code across languages) helps catch these.</li>
+  <li><strong>Composite entries</strong> &mdash; some source sites combine multiple short
+    prayers into one entry. These need splitting and individual coding.</li>
+  <li><strong>Prayer vs. tablet excerpt</strong> &mdash; some entries categorized as
+    &ldquo;prayers&rdquo; are actually excerpts from tablets or historical texts,
+    not standalone prayers.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="checklist">Data Quality Checklist</h2>
+
+<p>Systematic checks we are working through. Items marked with
+<span class="check-done">&#x2705;</span> are complete;
+<span class="check-wip">&#x1F6A7;</span> means in progress;
+<span class="check-todo">&#x2B1C;</span> means not yet started.</p>
+
+<div class="checklist">
+
+<h3>Matching completeness</h3>
+<ul class="checklist-items">
+  <li class="done">Zero NULL phelps codes &mdash; every entry has at least a TMP code</li>
+  <li class="wip">Resolve remaining ~46 TMP codes (down from 900+)</li>
+  <li class="wip">Cross-source deduplication &mdash; same prayer from multiple sources correctly linked</li>
+  <li class="todo">Verify X-codes against future Phelps index updates</li>
+</ul>
+
+<h3>Code accuracy</h3>
+<ul class="checklist-items">
+  <li class="done">False positive blacklist &mdash; known bad matches blocked from reoccurrence</li>
+  <li class="done">Length-ratio scan for same-code mismatches across languages (&gt;5x ratio flagged)</li>
+  <li class="wip">Systematic review of LLM-matched entries (5% of total)</li>
+  <li class="wip">Sub-code split for same-tablet prayers (e.g. BH02806FAM/FAS, BH00769/GOD)</li>
+  <li class="todo">Manual spot-check of 100 random entries per language tier</li>
+  <li class="todo">Community-reported corrections (need reporting mechanism)</li>
+</ul>
+
+<h3>Category accuracy</h3>
+<ul class="checklist-items">
+  <li class="done">Fixed Tablet of Wisdom (BH00223): was &ldquo;Children&rdquo;, now &ldquo;Spiritual Growth&rdquo;</li>
+  <li class="done">Fixed Afrikaans Holy Mariner (BH01026): was &ldquo;Tablet of Ahmad&rdquo;</li>
+  <li class="wip">Systematic category audit across top-20 languages</li>
+  <li class="todo">Standardize category names across languages</li>
+</ul>
+
+<h3>Writings (non-prayer texts)</h3>
+<ul class="checklist-items">
+  <li class="done">Hidden Words: 69 languages, Arabic/Persian numbered correctly</li>
+  <li class="done">Kit&aacute;b-i-Aqdas: 19 languages</li>
+  <li class="done">Kit&aacute;b-i-&Iacute;q&aacute;n: 23 languages</li>
+  <li class="wip">Gleanings: staging codes (BH10200xxx) need matching to real Phelps codes</li>
+  <li class="wip">Prayers &amp; Meditations: English matched; French purged (wrong source); other languages need verification</li>
+  <li class="wip">Some Answered Questions: staging codes need matching</li>
+  <li class="todo">Tablets of Bah&aacute;&rsquo;u&rsquo;ll&aacute;h: staging codes need matching</li>
+  <li class="todo">Additional writing sources (Epistle to Son of Wolf, Seven Valleys, etc.)</li>
+</ul>
+
+<h3>Bible &amp; Qur&rsquo;an</h3>
+<ul class="checklist-items">
+  <li class="done">KJV English with marginal notes ({implied words} and {note: explanations})</li>
+  <li class="done">Hebrew OT, Greek NT, Syriac NT source texts</li>
+  <li class="done">Van Dyck Arabic Bible</li>
+  <li class="done">Qur&rsquo;an: Arabic, 3+ translation languages</li>
+  <li class="todo">Additional Bible translations</li>
+  <li class="todo">Qur&rsquo;an commentary integration</li>
+</ul>
+
+<h3>User interface</h3>
+<ul class="checklist-items">
+  <li class="done">PWA with offline support</li>
+  <li class="done">UI in 13 languages (auto-detected)</li>
+  <li class="done">Daily devotions with random readings, obligatory prayer tracker, Qiblih compass</li>
+  <li class="done">Devotional program builder with sharing, QR codes, print</li>
+  <li class="wip">PDF/EPUB downloads for all prayer languages</li>
+  <li class="todo">Full-text search across all content</li>
+  <li class="todo">Web components refactoring for consistency</li>
+</ul>
+
+</div>
+
+<!-- ============================================================ -->
+<h2 id="help">How You Can Help</h2>
+
+<p>This project benefits enormously from community input. Here&rsquo;s how you can
+contribute:</p>
+
+<h3>Report errors</h3>
+<ul>
+  <li><strong>Wrong prayer code:</strong> If a prayer is showing up under the wrong
+    Phelps code, or if two different prayers share the same code, please let us
+    know the language, the prayer text (or first line), and what you believe the
+    correct code should be.</li>
+  <li><strong>Wrong category:</strong> If a prayer appears in the wrong category
+    (e.g. a healing prayer filed under &ldquo;Marriage&rdquo;), report the language,
+    Phelps code, current category, and correct category.</li>
+  <li><strong>Missing prayers:</strong> If you know of a prayer that should be in a
+    particular language but isn&rsquo;t, let us know.</li>
+  <li><strong>Text errors:</strong> Typos, formatting issues, or incorrect text in
+    any language.</li>
+</ul>
+
+<h3>Help with identification</h3>
+<ul>
+  <li><strong>TMP codes:</strong> If you recognize a prayer currently tagged with a
+    TMP code, tell us what it is! Visit the
+    <a href="/phelps/?q=TMP">TMP entries in the catalog</a> to browse them.</li>
+  <li><strong>Regional prayers:</strong> Some prayers exist only in specific regions
+    and may not be in the Phelps inventory. If you can identify the author or
+    source, that helps us assign the correct code.</li>
+</ul>
+
+<h3>Translate the interface</h3>
+<p>The UI currently supports 13 languages. If you&rsquo;d like to help translate
+the interface into another language, or improve an existing translation,
+please get in touch.</p>
+
+<h3>Technical contributions</h3>
+<p>The source code is available on
+<a href="https://github.com/LaPingvino/devotional-pwa" target="_blank" rel="noopener">GitHub</a>.
+The prayer database is hosted on
+<a href="https://www.dolthub.com/repositories/holywritings/bahaiwritings" target="_blank" rel="noopener">DoltHub</a>
+and can be cloned and queried with SQL.</p>
+
+<!-- ============================================================ -->
+<h2 id="contact">Contact</h2>
+
+<p>For corrections, suggestions, or questions:</p>
+<ul>
+  <li>Email: <a href="mailto:joop@kiefte.net">joop@kiefte.net</a></li>
+  <li>GitHub: <a href="https://github.com/LaPingvino/devotional-pwa/issues" target="_blank" rel="noopener">Open an issue</a></li>
+</ul>
+
+<p class="about-footer">
+  <em>Matches partially made with LLM assistance.
+  This is a community project and not an official Bah&aacute;&rsquo;&iacute; publication.
+  Text accuracy depends on the original sources.</em>
+</p>
+
+</div>
+{{ partial "foot.html" . }}
