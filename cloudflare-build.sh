@@ -25,7 +25,11 @@ echo "Hugo version: $(hugo version)"
 # Clone the prayer database (public DoltHub repo, no auth needed)
 if [ -d "bahaiwritings/.dolt" ]; then
   echo "Pulling latest bahaiwritings..."
-  (cd bahaiwritings && dolt pull origin main)
+  (cd bahaiwritings && dolt pull origin main) || {
+    echo "Pull failed — doing fresh clone..."
+    rm -rf bahaiwritings
+    dolt clone holywritings/bahaiwritings
+  }
 else
   echo "Cloning bahaiwritings (this takes ~2 minutes)..."
   dolt clone holywritings/bahaiwritings
