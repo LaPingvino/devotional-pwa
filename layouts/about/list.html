@@ -7,6 +7,7 @@
 <nav class="about-toc">
   <a href="#methodology">Methodology</a>
   <a href="#sources">Sources</a>
+  <a href="#suggestions">Suggestions</a>
   <a href="#known-issues">Known Issues</a>
   <a href="#checklist">Data Quality Checklist</a>
   <a href="#help">How You Can Help</a>
@@ -90,6 +91,77 @@ distinguish different prayers from the same tablet or identify well-known excerp
 Prayers &amp; Meditations, Some Answered Questions, Tablets of Bah&aacute;&rsquo;u&rsquo;ll&aacute;h,
 Days of Remembrance, Ridv&aacute;n Messages) are fetched from the bahaiprayers.net API
 with per-section Phelps code matching.</p>
+
+<!-- ============================================================ -->
+<h2 id="suggestions">Devotional Suggestions</h2>
+
+<p>The <a href="/devotional/">Devotional Program</a> builder offers thematic prayer
+suggestions based on the Bah&aacute;&rsquo;&iacute; calendar and common devotional themes.
+Here&rsquo;s how they work:</p>
+
+<h3>How suggestions are selected</h3>
+
+<p>Each Bah&aacute;&rsquo;&iacute; month, holy day, and theme is associated with a set of
+prayer <strong>categories</strong> from bahaiprayers.net (e.g. the month of
+N&uacute;r / Light maps to &ldquo;Enlightenment&rdquo;, &ldquo;Guidance&rdquo;, and
+&ldquo;Teaching&rdquo;). Prayers matching those categories are then offered as
+suggestions.</p>
+
+<ul>
+  <li>Suggestions always draw from the <strong>English prayer catalog</strong> as the
+    canonical source (for consistent selection across languages), but display
+    text in your selected language when a translation exists.</li>
+  <li>Prayers are <strong>sorted by number of available translations</strong>, so the
+    most widely translated prayers appear first.</li>
+  <li>Prayers flagged as <code>llm-translation</code> source are hidden from
+    suggestions to avoid showing machine-generated text.</li>
+</ul>
+
+<h3>Month&ndash;theme associations</h3>
+
+<p>The mapping from Bah&aacute;&rsquo;&iacute; months to prayer categories is an
+<strong>editorial choice</strong>, not an authoritative assignment. It is based on the
+spiritual quality each month&rsquo;s name evokes:</p>
+
+<table class="about-table">
+  <thead><tr><th>Month</th><th>Meaning</th><th>Suggested categories</th></tr></thead>
+  <tbody>
+    <tr><td>Bah&aacute;</td><td>Splendour</td><td>Praise &amp; Gratitude, Spiritual Growth, Nearness to God</td></tr>
+    <tr><td>Jal&aacute;l</td><td>Glory</td><td>Praise &amp; Gratitude, Steadfastness, Trust in God</td></tr>
+    <tr><td>Jam&aacute;l</td><td>Beauty</td><td>Praise &amp; Gratitude, Spiritual Growth, Nearness to God</td></tr>
+    <tr><td>&lsquo;A&#7827;amat</td><td>Grandeur</td><td>Praise &amp; Gratitude, Firmness in the Covenant, Triumph of the Cause</td></tr>
+    <tr><td>N&uacute;r</td><td>Light</td><td>Enlightenment, Guidance, Teaching</td></tr>
+    <tr><td>Ra&#7717;mat</td><td>Mercy</td><td>Forgiveness, Healing, Humanity</td></tr>
+    <tr><td>Kalim&aacute;t</td><td>Words</td><td>Teaching, Guidance, Firmness in the Covenant</td></tr>
+    <tr><td>Kam&aacute;l</td><td>Perfection</td><td>Spiritual Growth, Detachment, Steadfastness</td></tr>
+    <tr><td>Asm&aacute;&rsquo;</td><td>Names</td><td>Praise &amp; Gratitude, Nearness to God, Trust in God</td></tr>
+    <tr><td>&lsquo;Izzat</td><td>Might</td><td>Aid &amp; Assistance, Protection, Steadfastness</td></tr>
+    <tr><td>Mash&iacute;yyat</td><td>Will</td><td>Tests &amp; Difficulties, Trust in God, Detachment</td></tr>
+    <tr><td>&lsquo;Ilm</td><td>Knowledge</td><td>Enlightenment, Guidance, Children</td></tr>
+    <tr><td>Qudrat</td><td>Power</td><td>Aid &amp; Assistance, Triumph of the Cause, Steadfastness</td></tr>
+    <tr><td>Qawl</td><td>Speech</td><td>Teaching, Gatherings, Unity</td></tr>
+    <tr><td>Mas&aacute;&rsquo;il</td><td>Questions</td><td>Guidance, Spiritual Growth, Enlightenment</td></tr>
+    <tr><td>Sharaf</td><td>Honour</td><td>Service, Humanity, Justice</td></tr>
+    <tr><td>Sul&#7789;&aacute;n</td><td>Sovereignty</td><td>Firmness in the Covenant, Triumph of the Cause, Tablets of Visitation</td></tr>
+    <tr><td>Mulk</td><td>Dominion</td><td>Praise &amp; Gratitude, Spiritual Assembly, Unity</td></tr>
+    <tr><td>&lsquo;Al&aacute;&rsquo;</td><td>Loftiness</td><td>The Fast, Nearness to God, Detachment</td></tr>
+  </tbody>
+</table>
+
+<p>These associations are subjective and open to feedback. If you think a month
+would be better served by different categories, please
+<a href="#contact">let us know</a>.</p>
+
+<h3>Limitations</h3>
+<ul>
+  <li>Categories come from bahaiprayers.net and may not perfectly reflect each
+    prayer&rsquo;s content (see <a href="#known-issues">Known Issues</a>).</li>
+  <li>The month&ndash;theme mapping is a starting point, not a definitive guide.
+    Some associations are stronger than others.</li>
+  <li>Holy day suggestions rely on the Gregorian calendar date, which may not
+    exactly match the Bad&iacute;&rsquo; calendar holy day for all years (particularly
+    the Twin Holy Days whose Gregorian dates shift annually).</li>
+</ul>
 
 <!-- ============================================================ -->
 <h2 id="known-issues">Known Issues</h2>
