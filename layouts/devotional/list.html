@@ -64,7 +64,7 @@
 
   <!-- Add by code -->
   <div class="dev-add-row" id="add-row">
-    <input type="text" id="add-code" placeholder="BH00074BLE, bible:john:3:16, quran:2:255, hw:a5, iqan:1:3" class="add-input">
+    <input type="text" id="add-code" placeholder="BH00074BLE, bible:john:3:16, quran:2:255, hw:a5, iqan:1:3, esw:1-5" class="add-input">
     <button class="btn-action" id="btn-add-code">Add</button>
   </div>
 
@@ -897,6 +897,17 @@
         filter: function(e) { return e.order >= start && e.order <= end; }
       };
     }
+    // esw:5 or esw:10-20 (Epistle to the Son of the Wolf)
+    m = code.match(/^esw:(\d+)(?:-(\d+))?$/);
+    if (m) {
+      var start = parseInt(m[1]), end = m[2] ? parseInt(m[2]) : start;
+      var wanted = phelpsRange('BH00005', start, end, 3);
+      return {
+        key: 'lawh', title: "Other Tablets",
+        label: "ESW \u00b6" + start + (end > start ? '\u2013' + end : ''),
+        filter: function(e) { return wanted.indexOf(e.phelps) >= 0; }
+      };
+    }
     return null;
   }
 
@@ -1067,7 +1078,8 @@
     var lc = raw.toLowerCase();
     var isRef = lc.startsWith('bible:') || lc.startsWith('quran:') ||
       lc.startsWith('iqan:') || lc.startsWith('aqdas:') ||
-      lc.startsWith('gleanings:') || lc.startsWith('hw:') || lc.startsWith('pm:');
+      lc.startsWith('gleanings:') || lc.startsWith('hw:') || lc.startsWith('pm:') ||
+      lc.startsWith('esw:');
     var code = isRef ? lc : raw.toUpperCase();
     if (!codes.some(i => i.code === code)) {
       codes.push({ code: code });

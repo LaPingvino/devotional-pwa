@@ -486,7 +486,7 @@ var writingTypes = []struct {
 	{"tablets", "Tablets of Bahá'u'lláh", "Bahá'u'lláh", "tablets", false, false},
 	{"days", "Days of Remembrance", "Bahá'u'lláh", "days_remembrance", true, true},
 	{"ridvan", "Ridván Messages", "Universal House of Justice", "ridvan", true, true},
-	{"lawh", "Other Tablets", "Bahá'u'lláh", "lawh", true, false},
+	{"lawh", "Other Tablets", "Bahá'u'lláh", "lawh", false, false},
 }
 
 // generateWritings returns a reverse index: base phelps code → []WritingRef
@@ -555,11 +555,12 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 					if bk, ok := bookMap[base]; ok {
 						bk.Entries = append(bk.Entries, e)
 					} else {
-						// Strip trailing number to get book title
+						// Strip trailing section marker to get book title
 						// "Persian Hidden Word 1" → "Persian Hidden Words"
+						// "Epistle to the Son of the Wolf §1" → "Epistle to the Son of the Wolf"
 						// "Lawḥ-i-Karmil (Tablet of Carmel)" → unchanged
-						title := strings.TrimRight(e.Name, " 0123456789")
-						if title != e.Name && !strings.HasSuffix(title, "s") {
+						title := strings.TrimRight(e.Name, " 0123456789§¶")
+						if title != e.Name && strings.HasSuffix(title, "Word") {
 							title += "s" // pluralize: "Persian Hidden Word" → "Persian Hidden Words"
 						}
 						bookMap[base] = &WritingBook{

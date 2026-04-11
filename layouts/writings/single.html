@@ -346,6 +346,19 @@ a.entry-name:hover { text-decoration: underline; }
   function getCodes() { try { return JSON.parse(localStorage.getItem(DKEY) || '[]'); } catch(e) { return []; } }
   function saveCodes(codes) { localStorage.setItem(DKEY, JSON.stringify(codes)); }
 
+  // Build shorthand code for a range, or null if no shorthand exists
+  var rangeShorthands = {
+    'iqan':         function(base, from, to) { var part = base.replace('BH00002',''); return 'iqan:' + part + ':' + from + (to > from ? '-' + to : ''); },
+    'aqdas':        function(base, from, to) { return 'aqdas:' + from + (to > from ? '-' + to : ''); },
+    'gleanings':    function(base, from, to) { return 'gleanings:' + from + (to > from ? '-' + to : ''); },
+    'hidden-words': function(base, from, to) { var s = base.indexOf('386') >= 0 ? 'a' : 'p'; return 'hw:' + s + from + (to > from ? '-' + to : ''); },
+    'pm':           function(base, from, to) { return 'pm:' + from + (to > from ? '-' + to : ''); },
+    'lawh':         function(base, from, to) {
+      if (base === 'BH00005') return 'esw:' + from + (to > from ? '-' + to : '');
+      return null;
+    }
+  };
+
   document.querySelectorAll('.range-add-btn').forEach(function(btn) {
     var bar = btn.closest('.writing-range-bar');
     var fromInput = bar.querySelector('.range-from');
@@ -355,22 +368,39 @@ a.entry-name:hover { text-decoration: underline; }
       var to = parseInt(toInput.value) || from;
       if (!from || from < 1) return;
       if (to < from) { var tmp = from; from = to; to = tmp; }
-      var codes = getCodes();
       var book = btn.closest('.writing-book');
       if (!book) return;
+      var key = book.dataset.key || '';
+      var base = (book.id || '').replace('book-', '');
+      var shortFn = rangeShorthands[key];
+      var shortCode = shortFn ? shortFn(base, from, to) : null;
+
+      var codes = getCodes();
+      if (shortCode) {
+        // Add as single compact range code
+        if (codes.indexOf(shortCode) === -1) codes.push(shortCode);
+      } else {
+        // Fallback: add individual phelps codes
+        var entries = book.querySelectorAll('.writing-entry');
+        entries.forEach(function(e) {
+          var order = parseInt(e.dataset.order);
+          if (order >= from && order <= to) {
+            var p = e.id;
+            if (codes.indexOf(p) === -1) codes.push(p);
+          }
+        });
+      }
+      // Update visual state of buttons in range
       var entries = book.querySelectorAll('.writing-entry');
-      var added = 0;
       entries.forEach(function(e) {
         var order = parseInt(e.dataset.order);
         if (order >= from && order <= to) {
-          var p = e.id;
-          if (codes.indexOf(p) === -1) { codes.push(p); added++; }
           var addBtn = e.querySelector('.btn-add-devotional');
           if (addBtn) { addBtn.textContent = '\u2713'; addBtn.classList.add('added'); }
         }
       });
       saveCodes(codes);
-      btn.textContent = '\u2713 Added ' + added;
+      btn.textContent = '\u2713 Added';
       setTimeout(function() { btn.textContent = 'Add to devotional'; }, 2000);
     });
   });
