@@ -342,17 +342,9 @@ a.entry-name:hover { text-decoration: underline; }
     });
   });
   // ── Range add to devotional ──
-  var KEY = '{{ $key }}';
-  var rangeShorthands = {
-    'iqan': function(from, to) { return 'iqan:1:' + from + (to > from ? '-' + to : ''); },
-    'aqdas': function(from, to) { return 'aqdas:' + from + (to > from ? '-' + to : ''); },
-    'gleanings': function(from, to) { return 'gleanings:' + from + (to > from ? '-' + to : ''); },
-    'hidden-words': function(from, to) {
-      // Determine Arabic vs Persian by checking entry phelps codes
-      return 'hw:a' + from + (to > from ? '-' + to : '');
-    },
-    'pm': function(from, to) { return 'pm:' + from + (to > from ? '-' + to : ''); }
-  };
+  var DKEY = 'hw_devotional_codes';
+  function getCodes() { try { return JSON.parse(localStorage.getItem(DKEY) || '[]'); } catch(e) { return []; } }
+  function saveCodes(codes) { localStorage.setItem(DKEY, JSON.stringify(codes)); }
 
   document.querySelectorAll('.range-add-btn').forEach(function(btn) {
     var bar = btn.closest('.writing-range-bar');
@@ -363,25 +355,23 @@ a.entry-name:hover { text-decoration: underline; }
       var to = parseInt(toInput.value) || from;
       if (!from || from < 1) return;
       if (to < from) { var tmp = from; from = to; to = tmp; }
-      var shorthand = rangeShorthands[KEY];
-      if (shorthand && window.hwDevotional) {
-        window.hwDevotional.add(shorthand(from, to));
-        btn.textContent = '\u2713 Added';
-        setTimeout(function() { btn.textContent = 'Add to devotional'; }, 2000);
-      } else {
-        // Fallback: add individual phelps codes
-        var book = btn.closest('.writing-book');
-        if (!book) return;
-        var entries = book.querySelectorAll('.writing-entry');
-        entries.forEach(function(e) {
-          var order = parseInt(e.dataset.order);
-          if (order >= from && order <= to && window.hwDevotional) {
-            window.hwDevotional.add(e.id);
-          }
-        });
-        btn.textContent = '\u2713 Added';
-        setTimeout(function() { btn.textContent = 'Add to devotional'; }, 2000);
-      }
+      var codes = getCodes();
+      var book = btn.closest('.writing-book');
+      if (!book) return;
+      var entries = book.querySelectorAll('.writing-entry');
+      var added = 0;
+      entries.forEach(function(e) {
+        var order = parseInt(e.dataset.order);
+        if (order >= from && order <= to) {
+          var p = e.id;
+          if (codes.indexOf(p) === -1) { codes.push(p); added++; }
+          var addBtn = e.querySelector('.btn-add-devotional');
+          if (addBtn) { addBtn.textContent = '\u2713'; addBtn.classList.add('added'); }
+        }
+      });
+      saveCodes(codes);
+      btn.textContent = '\u2713 Added ' + added;
+      setTimeout(function() { btn.textContent = 'Add to devotional'; }, 2000);
     });
   });
 })();
