@@ -65,6 +65,7 @@
           {{ if .title }}<span class="chapter-title">{{ .title }}</span>{{ end }}
           {{ if .subtitle }}<span class="chapter-subtitle">{{ .subtitle }}</span>{{ end }}
         </div>
+        <button class="btn-add-devotional btn-add-chapter" data-book="{{ $book.id }}" data-ch="{{ .chapter }}" aria-label="Add chapter to devotional" title="Add chapter to devotional">+</button>
       </div>
 
       <table class="interlinear">
@@ -82,7 +83,7 @@
           <td class="il-src il-el">{{ .el }}</td>
           {{ end }}
 
-          <td class="il-num">{{ .num }}</td>
+          <td class="il-num"><span class="verse-sel" data-num="{{ .num }}">{{ .num }}</span></td>
 
           {{/* Translation columns */}}
           {{ if $.Params.book.has_english }}
@@ -236,17 +237,102 @@
   });
 
   // Chapter sidebar highlight
-  const links = document.querySelectorAll('.chapter-link');
-  const sections = document.querySelectorAll('.bible-chapter');
-  const observer = new IntersectionObserver(entries => {
-    entries.forEach(entry => {
+  var links = document.querySelectorAll('.chapter-link');
+  var sections = document.querySelectorAll('.bible-chapter');
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
       if (entry.isIntersecting) {
-        const ch = entry.target.id;
-        links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + ch));
+        var ch = entry.target.id;
+        links.forEach(function(l) { l.classList.toggle('active', l.getAttribute('href') === '#' + ch); });
       }
     });
   }, { rootMargin: '-20% 0px -70% 0px' });
-  sections.forEach(s => observer.observe(s));
+  sections.forEach(function(s) { observer.observe(s); });
+
+  // ── Add to devotional: chapter buttons ──
+  var BOOK_ID = '{{ $book.id }}';
+  document.querySelectorAll('.btn-add-chapter').forEach(function(btn) {
+    var ch = btn.dataset.ch;
+    var code = 'bible:' + BOOK_ID + ':' + ch;
+    if (window.hwDevotional && window.hwDevotional.has(code)) {
+      btn.textContent = '\u2713'; btn.classList.add('added');
+    }
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (window.hwDevotional) {
+        if (window.hwDevotional.has(code)) {
+          window.hwDevotional.remove(code);
+          btn.textContent = '+'; btn.classList.remove('added');
+        } else {
+          window.hwDevotional.add(code);
+          btn.textContent = '\u2713'; btn.classList.add('added');
+        }
+      }
+    });
+  });
+
+  // ── Verse range selection ──
+  var rangeStart = null;
+  var rangeEnd = null;
+  var rangeChapter = null;
+  var rangeBanner = null;
+
+  function clearRange() {
+    document.querySelectorAll('.verse-sel.range-selected').forEach(function(el) {
+      el.classList.remove('range-selected');
+    });
+    rangeStart = null; rangeEnd = null; rangeChapter = null;
+    if (rangeBanner) { rangeBanner.remove(); rangeBanner = null; }
+  }
+
+  function showRangeBanner() {
+    if (rangeBanner) rangeBanner.remove();
+    var lo = Math.min(rangeStart, rangeEnd);
+    var hi = Math.max(rangeStart, rangeEnd);
+    var code = 'bible:' + BOOK_ID + ':' + rangeChapter + ':' + lo + (hi > lo ? '-' + hi : '');
+    rangeBanner = document.createElement('div');
+    rangeBanner.className = 'range-banner';
+    rangeBanner.innerHTML = '<span>' + BOOK_ID.charAt(0).toUpperCase() + BOOK_ID.slice(1) + ' ' + rangeChapter + ':' + lo + (hi > lo ? '\u2013' + hi : '') + '</span> ' +
+      '<button class="btn-action btn-small range-add">Add to devotional</button> ' +
+      '<button class="btn-action btn-small range-cancel">Cancel</button>';
+    document.querySelector('.main-content').prepend(rangeBanner);
+    rangeBanner.querySelector('.range-add').addEventListener('click', function() {
+      if (window.hwDevotional) window.hwDevotional.add(code);
+      clearRange();
+    });
+    rangeBanner.querySelector('.range-cancel').addEventListener('click', clearRange);
+  }
+
+  document.querySelectorAll('.verse-sel').forEach(function(el) {
+    el.style.cursor = 'pointer';
+    el.title = 'Click to start selection, click another to set range';
+    el.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var num = parseInt(el.dataset.num);
+      var ch = el.closest('.bible-chapter');
+      var chNum = ch ? ch.id.replace('ch', '') : '1';
+
+      if (rangeStart === null || chNum !== rangeChapter) {
+        // Start new range
+        clearRange();
+        rangeStart = num;
+        rangeEnd = num;
+        rangeChapter = chNum;
+        el.classList.add('range-selected');
+        showRangeBanner();
+      } else {
+        // Set end of range
+        rangeEnd = num;
+        var lo = Math.min(rangeStart, rangeEnd);
+        var hi = Math.max(rangeStart, rangeEnd);
+        ch.querySelectorAll('.verse-sel').forEach(function(v) {
+          var n = parseInt(v.dataset.num);
+          v.classList.toggle('range-selected', n >= lo && n <= hi);
+        });
+        showRangeBanner();
+      }
+    });
+  });
 })();
 </script>
 {{ partial "foot.html" . }}

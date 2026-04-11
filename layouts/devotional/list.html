@@ -392,7 +392,9 @@
   .dev-item-code, #builder-panel .dev-hint,
   #shared-banner, .no-print, .dev-suggestions, .qr-panel, footer { display: none !important; }
 
+  @page { margin: 2cm 2.5cm; }
   .dev-page { max-width: 100%; padding: 0; margin: 0; }
+  body { margin: 0; padding: 0; }
   .dev-header { justify-content: center; margin-bottom: 1.5rem; }
   .dev-header h1 { font-size: 1.8rem; text-align: center; width: 100%; }
 
@@ -1147,6 +1149,48 @@
     { name: 'Nineteen Day Feast', cats: ['Gatherings', 'Unity', 'Spiritual Assembly', 'Praise and Gratitude'] },
   ];
 
+  // Scripture selections — direct codes rather than category-based
+  const SCRIPTURE_PICKS = [
+    { name: 'Psalms (selected)', type: 'scripture', items: [
+      {code:'bible:psalms:23', label:'Psalm 23 — The Lord is my shepherd'},
+      {code:'bible:psalms:19:1-6', label:'Psalm 19:1\u20136 — The heavens declare'},
+      {code:'bible:psalms:91', label:'Psalm 91 — Under His wings'},
+      {code:'bible:psalms:121', label:'Psalm 121 — I lift up mine eyes'},
+      {code:'bible:psalms:139:1-18', label:'Psalm 139:1\u201318 — Thou hast searched me'},
+      {code:'bible:psalms:46', label:'Psalm 46 — God is our refuge'},
+      {code:'bible:psalms:1', label:'Psalm 1 — Blessed is the man'},
+      {code:'bible:psalms:51:1-12', label:'Psalm 51:1\u201312 — Have mercy upon me'},
+    ]},
+    { name: 'Gospels (selected)', type: 'scripture', items: [
+      {code:'bible:matthew:5:3-12', label:'Beatitudes (Matthew 5:3\u201312)'},
+      {code:'bible:matthew:6:9-13', label:'Lord\u2019s Prayer (Matthew 6:9\u201313)'},
+      {code:'bible:matthew:22:36-40', label:'The Great Commandment (Matthew 22:36\u201340)'},
+      {code:'bible:john:1:1-14', label:'In the beginning was the Word (John 1:1\u201314)'},
+      {code:'bible:john:15:1-12', label:'I am the vine (John 15:1\u201312)'},
+      {code:'bible:matthew:7:7-11', label:'Ask, and it shall be given (Matthew 7:7\u201311)'},
+    ]},
+    { name: "Qur'an (selected)", type: 'scripture', items: [
+      {code:'quran:1', label:'Al-F\u0101ti\u1e25a (The Opening)'},
+      {code:'quran:2:255', label:'\u0100yat al-Kurs\u012b (Throne Verse, 2:255)'},
+      {code:'quran:112', label:'Al-Ikhl\u0101\u1e63 (Sincerity)'},
+      {code:'quran:113', label:'Al-Falaq (The Dawn)'},
+      {code:'quran:114', label:'An-N\u0101s (Mankind)'},
+      {code:'quran:55:1-13', label:'Ar-Ra\u1e25m\u0101n 1\u201313 (The Merciful)'},
+      {code:'quran:24:35', label:'The Light Verse (24:35)'},
+      {code:'quran:93', label:'A\u1e0d-\u1e0cu\u1e25\u0101 (The Morning Hours)'},
+    ]},
+    { name: 'Hidden Words (selected)', type: 'scripture', items: [
+      {code:'hw:a1', label:'Arabic 1 — O Son of Spirit!'},
+      {code:'hw:a2', label:'Arabic 2 — O Son of Spirit! The best beloved'},
+      {code:'hw:a3', label:'Arabic 3 — O Son of Man! Veiled in My immemorial being'},
+      {code:'hw:a4', label:'Arabic 4 — O Son of Man! I loved thy creation'},
+      {code:'hw:a5', label:'Arabic 5 — O Son of Being! Love Me'},
+      {code:'hw:p1', label:'Persian 1 — O ye people that have minds to know'},
+      {code:'hw:p3', label:'Persian 3 — O friend! In the garden of thy heart'},
+      {code:'hw:p19', label:'Persian 19 — O My friends!'},
+    ]},
+  ];
+
   // Simplified Badí' calendar: Naw-Rúz = March 20
   function getBadiDate(d) {
     const y = d.getFullYear(), m = d.getMonth() + 1, day = d.getDate();
@@ -1212,6 +1256,8 @@
     });
     // Special themes
     SPECIAL_THEMES.forEach(st => tabs.push({ label: st.name, cats: st.cats }));
+    // Scripture selections
+    SCRIPTURE_PICKS.forEach(sp => tabs.push({ label: sp.name, type: 'scripture', items: sp.items }));
     // All months
     BADI_MONTHS.forEach((bm, i) => {
       if (!(badi.month === i && !badi.ayyamiha)) {
@@ -1245,6 +1291,53 @@
       const lang = langSelect.value || 'en';
 
       listEl.innerHTML = '<p style="color:var(--text-secondary);font-size:.85rem">Loading...</p>';
+
+      // Scripture tabs render differently — show predefined items with resolve
+      if (tab.type === 'scripture') {
+        listEl.innerHTML = '';
+        tab.items.forEach(function(si) {
+          var item = document.createElement('details');
+          item.className = 'sug-item';
+          var inProgram = codes.some(function(i) { return i.code === si.code; });
+          item.innerHTML =
+            '<summary class="sug-item-header">' +
+              '<span class="sug-item-name">' + si.label + '</span>' +
+              '<span class="sug-item-code">' + si.code + '</span>' +
+              '<button class="sug-item-add' + (inProgram ? ' added' : '') + '">' + (inProgram ? '\u2713' : '+') + '</button>' +
+            '</summary>' +
+            '<div class="sug-item-text" style="color:var(--text-secondary);font-size:.85rem">Open to preview...</div>';
+          // Lazy-load text on open
+          item.addEventListener('toggle', async function() {
+            if (!item.open) return;
+            var textEl = item.querySelector('.sug-item-text');
+            if (textEl.dataset.loaded) return;
+            textEl.dataset.loaded = '1';
+            var resolved = await resolveCode(si.code, lang);
+            if (resolved) {
+              textEl.innerHTML = renderMd(resolved.text || '');
+              textEl.style.color = '';
+              textEl.style.fontSize = '';
+            } else {
+              textEl.textContent = 'Could not load text';
+            }
+          });
+          var btn = item.querySelector('.sug-item-add');
+          btn.addEventListener('click', function(e) {
+            e.stopPropagation();
+            if (codes.some(function(i) { return i.code === si.code; })) {
+              codes = codes.filter(function(i) { return i.code !== si.code; });
+              btn.textContent = '+'; btn.classList.remove('added');
+            } else {
+              codes.push({ code: si.code });
+              btn.textContent = '\u2713'; btn.classList.add('added');
+            }
+            if (!isShared) saveCodes(codes);
+            renderItems();
+          });
+          listEl.appendChild(item);
+        });
+        return;
+      }
 
       // Always select from English (canonical categories + translation counts)
       const enMap = await getPrayerMap('en');

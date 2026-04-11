@@ -941,3 +941,18 @@ p { margin-bottom: .5rem; }
 .checklist-items li.wip::before { content: "\1F6A7"; }
 .checklist-items li.todo::before { content: "\2B1C"; }
 .about-footer { margin-top: 3rem; padding: 1.5rem; background: var(--bg-secondary, #f5f5f5); border-radius: 8px; font-size: .9rem; color: var(--text-secondary); }
+.about-details { margin: 1rem 0; }
+.about-details summary { cursor: pointer; color: var(--accent); font-weight: 500; }
+
+/* Verse/ayah range selection */
+.verse-sel.range-selected, .ayah-sel.range-selected { background: var(--accent); color: #fff; border-radius: 3px; padding: 0 3px; }
+.range-banner { position: sticky; top: 0; z-index: 20; background: var(--accent); color: #fff; padding: .5rem 1rem; display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; font-size: .9rem; border-radius: 0 0 6px 6px; }
+.range-banner .btn-small { background: rgba(255,255,255,.2); color: #fff; border: 1px solid rgba(255,255,255,.4); padding: .2rem .6rem; border-radius: 4px; cursor: pointer; font-size: .8rem; }
+.range-banner .btn-small:hover { background: rgba(255,255,255,.4); }
+.ayah-sel { cursor: pointer; font-size: .75em; color: var(--text-secondary); margin-right: .3em; }
+.btn-add-chapter, .btn-add-surah { margin-left: auto; }
+
+/* Writing range picker */
+.writing-range-bar { display: flex; gap: .5rem; align-items: center; padding: .3rem 1rem; font-size: .85rem; flex-wrap: wrap; }
+.writing-range-bar input[type="number"] { width: 4em; padding: .2rem .3rem; border: 1px solid var(--border); border-radius: 4px; font-size: .85rem; }
+.writing-range-bar .btn-small { padding: .2rem .6rem; font-size: .8rem; }

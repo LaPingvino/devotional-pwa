@@ -69,7 +69,7 @@
 
     <div class="writing-body"{{ if $rtl }} dir="rtl"{{ end }}>
       {{ range $entries }}
-      <div class="writing-book" id="book-{{ .base }}" data-count="{{ len .entries }}">
+      <div class="writing-book" id="book-{{ .base }}" data-count="{{ len .entries }}" data-key="{{ $key }}">
         {{ if $multiBook }}
         <div class="writing-book-header">
           <h2 class="writing-book-heading">
@@ -80,6 +80,13 @@
                  title="Jump to verse number within this section">
         </div>
         {{ end }}
+        <div class="writing-range-bar no-print">
+          <span>Add range:</span>
+          <input type="number" class="range-from" min="1" max="{{ len .entries }}" placeholder="from">
+          <span>&ndash;</span>
+          <input type="number" class="range-to" min="1" max="{{ len .entries }}" placeholder="to">
+          <button class="btn-action btn-small range-add-btn">Add to devotional</button>
+        </div>
 
         {{ $bookIdx := 0 }}
         {{ range .entries }}
@@ -332,6 +339,49 @@ a.entry-name:hover { text-decoration: underline; }
       if (codes.includes(p)) { codes = codes.filter(c => c !== p); btn.textContent = '+'; btn.classList.remove('added'); }
       else { codes.push(p); btn.textContent = '\u2713'; btn.classList.add('added'); }
       localStorage.setItem(DKEY, JSON.stringify(codes));
+    });
+  });
+  // ── Range add to devotional ──
+  var KEY = '{{ $key }}';
+  var rangeShorthands = {
+    'iqan': function(from, to) { return 'iqan:1:' + from + (to > from ? '-' + to : ''); },
+    'aqdas': function(from, to) { return 'aqdas:' + from + (to > from ? '-' + to : ''); },
+    'gleanings': function(from, to) { return 'gleanings:' + from + (to > from ? '-' + to : ''); },
+    'hidden-words': function(from, to) {
+      // Determine Arabic vs Persian by checking entry phelps codes
+      return 'hw:a' + from + (to > from ? '-' + to : '');
+    },
+    'pm': function(from, to) { return 'pm:' + from + (to > from ? '-' + to : ''); }
+  };
+
+  document.querySelectorAll('.range-add-btn').forEach(function(btn) {
+    var bar = btn.closest('.writing-range-bar');
+    var fromInput = bar.querySelector('.range-from');
+    var toInput = bar.querySelector('.range-to');
+    btn.addEventListener('click', function() {
+      var from = parseInt(fromInput.value);
+      var to = parseInt(toInput.value) || from;
+      if (!from || from < 1) return;
+      if (to < from) { var tmp = from; from = to; to = tmp; }
+      var shorthand = rangeShorthands[KEY];
+      if (shorthand && window.hwDevotional) {
+        window.hwDevotional.add(shorthand(from, to));
+        btn.textContent = '\u2713 Added';
+        setTimeout(function() { btn.textContent = 'Add to devotional'; }, 2000);
+      } else {
+        // Fallback: add individual phelps codes
+        var book = btn.closest('.writing-book');
+        if (!book) return;
+        var entries = book.querySelectorAll('.writing-entry');
+        entries.forEach(function(e) {
+          var order = parseInt(e.dataset.order);
+          if (order >= from && order <= to && window.hwDevotional) {
+            window.hwDevotional.add(e.id);
+          }
+        });
+        btn.textContent = '\u2713 Added';
+        setTimeout(function() { btn.textContent = 'Add to devotional'; }, 2000);
+      }
     });
   });
 })();

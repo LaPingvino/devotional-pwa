@@ -68,6 +68,7 @@
             <span class="surah-name-ar">{{ .name_ar }}</span>
             <span class="surah-name-trans">{{ .name_trans }}</span>
           </div>
+          <button class="btn-add-devotional btn-add-surah" data-surah="{{ .number }}" aria-label="Add surah to devotional" title="Add whole surah to devotional">+</button>
         </div>
 
         {{ if and (ne (int $surahNum) 1) (ne (int $surahNum) 9) }}
@@ -77,6 +78,7 @@
         <ol class="verse-list" start="1">
           {{ range .verses }}
           <li class="verse" id="surah-{{ $surahNum }}-ayah-{{ .ayah }}" data-surah="{{ $surahNum }}" data-ayah="{{ .ayah }}" value="{{ .ayah }}">
+            <span class="ayah-num ayah-sel" data-surah="{{ $surahNum }}" data-ayah="{{ .ayah }}">{{ .ayah }}</span>
             <span class="ayah-text">{{ .text }}</span>
           </li>
           {{ end }}
@@ -502,8 +504,75 @@
     });
   }
 
+  // ── Add to devotional: surah buttons ──
+  document.querySelectorAll('.btn-add-surah').forEach(function(btn) {
+    var surah = btn.dataset.surah;
+    var code = 'quran:' + surah;
+    if (window.hwDevotional && window.hwDevotional.has(code)) {
+      btn.textContent = '\u2713'; btn.classList.add('added');
+    }
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (window.hwDevotional) {
+        if (window.hwDevotional.has(code)) {
+          window.hwDevotional.remove(code);
+          btn.textContent = '+'; btn.classList.remove('added');
+        } else {
+          window.hwDevotional.add(code);
+          btn.textContent = '\u2713'; btn.classList.add('added');
+        }
+      }
+    });
+  });
+
+  // ── Ayah range selection ──
+  var qRangeStart = null, qRangeEnd = null, qRangeSurah = null, qBanner = null;
+  function clearQRange() {
+    document.querySelectorAll('.ayah-sel.range-selected').forEach(function(el) { el.classList.remove('range-selected'); });
+    qRangeStart = null; qRangeEnd = null; qRangeSurah = null;
+    if (qBanner) { qBanner.remove(); qBanner = null; }
+  }
+  function showQBanner() {
+    if (qBanner) qBanner.remove();
+    var lo = Math.min(qRangeStart, qRangeEnd), hi = Math.max(qRangeStart, qRangeEnd);
+    var code = 'quran:' + qRangeSurah + ':' + lo + (hi > lo ? '-' + hi : '');
+    qBanner = document.createElement('div');
+    qBanner.className = 'range-banner';
+    qBanner.innerHTML = '<span>Surah ' + qRangeSurah + ':' + lo + (hi > lo ? '\u2013' + hi : '') + '</span> ' +
+      '<button class="btn-action btn-small range-add">Add to devotional</button> ' +
+      '<button class="btn-action btn-small range-cancel">Cancel</button>';
+    document.querySelector('.main-content').prepend(qBanner);
+    qBanner.querySelector('.range-add').addEventListener('click', function() {
+      if (window.hwDevotional) window.hwDevotional.add(code);
+      clearQRange();
+    });
+    qBanner.querySelector('.range-cancel').addEventListener('click', clearQRange);
+  }
+  document.querySelectorAll('.ayah-sel').forEach(function(el) {
+    el.style.cursor = 'pointer';
+    el.title = 'Click to start selection, click another to set range';
+    el.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var surah = el.dataset.surah, ayah = parseInt(el.dataset.ayah);
+      if (qRangeStart === null || surah !== qRangeSurah) {
+        clearQRange();
+        qRangeStart = ayah; qRangeEnd = ayah; qRangeSurah = surah;
+        el.classList.add('range-selected');
+        showQBanner();
+      } else {
+        qRangeEnd = ayah;
+        var lo = Math.min(qRangeStart, qRangeEnd), hi = Math.max(qRangeStart, qRangeEnd);
+        el.closest('.surah-section').querySelectorAll('.ayah-sel').forEach(function(v) {
+          var n = parseInt(v.dataset.ayah);
+          v.classList.toggle('range-selected', n >= lo && n <= hi);
+        });
+        showQBanner();
+      }
+    });
+  });
+
   // Init
-  const hashMatch = location.hash.match(/surah-(\d+)/);
+  var hashMatch = location.hash.match(/surah-(\d+)/);
   showSurah(hashMatch ? hashMatch[1] : 1);
 })();
 </script>
