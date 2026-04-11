@@ -758,7 +758,8 @@
         var t = v.en || v.ar || v.syr || v.el || '';
         return '<sup>' + v.num + '</sup> ' + t;
       });
-      var title = (data.book || ref.book) + ' ' + ref.chapter;
+      var bookName = (data.book && data.book.conventional) || ref.book;
+      var title = bookName.charAt(0).toUpperCase() + bookName.slice(1) + ' ' + ref.chapter;
       if (ref.verseEnd < 999) {
         title += ':' + ref.verseStart;
         if (ref.verseEnd > ref.verseStart) title += '-' + ref.verseEnd;
