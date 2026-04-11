@@ -1044,9 +1044,28 @@
         item.className = 'sug-item' + (p.hasLocal ? '' : ' sug-item-nolocal');
         const inProgram = codes.some(i => i.code === p.phelps);
         const tCount = (p.translations || []).length;
+        // Show first line of prayer text as label, unless there's a distinctive name
+        var label = '';
+        var pName = (p.name || '').replace(/^##\s*/, '').trim();
+        // If the name is just the category or empty, extract first line from text
+        if (!pName || pName === p.category || tab.cats.indexOf(pName) >= 0) {
+          var tmp = document.createElement('div');
+          tmp.innerHTML = p.text || '';
+          var raw = tmp.textContent || '';
+          // Strip markdown headers and leading whitespace
+          raw = raw.replace(/^#+\s+[^\n]+\n?/g, '').replace(/^\s+/, '');
+          // Take first ~80 chars, break at word boundary
+          label = raw.substring(0, 90);
+          var sp = label.lastIndexOf(' ', 80);
+          if (sp > 40) label = label.substring(0, sp);
+          label = label.trim();
+          if (raw.length > label.length) label += '\u2026';
+        } else {
+          label = pName;
+        }
         item.innerHTML = `
           <summary class="sug-item-header">
-            <span class="sug-item-name">${p.name || p.category}${p.hasLocal ? '' : ' <span style="font-size:.7em;color:var(--text-secondary)">(en)</span>'}</span>
+            <span class="sug-item-name">${label}${p.hasLocal ? '' : ' <span style="font-size:.7em;color:var(--text-secondary)">(en)</span>'}</span>
             <span class="sug-item-langs" title="${tCount} languages">${tCount}L</span>
             <span class="sug-item-code">${p.phelps}</span>
             <button class="sug-item-add${inProgram ? ' added' : ''}">${inProgram ? '\u2713' : '+'}</button>
