@@ -2,340 +2,196 @@
 <div class="main-content about-page">
 
 <h1>About Holy Writings</h1>
-<p class="about-subtitle">Work in progress &mdash; a community-driven multilingual sacred text project</p>
+
+<p>Holy Writings aims to make the sacred texts of the Bah&aacute;&rsquo;&iacute; Faith
+accessible in as many languages as possible, in a single place, with reliable
+cross-referencing.</p>
+
+<p>The project is maintained by <a href="mailto:joop@kiefte.net">Joop Kiefte</a>
+and is not an official Bah&aacute;&rsquo;&iacute; publication. It is a personal project born
+from a love for the Writings and a desire to serve the worldwide Bah&aacute;&rsquo;&iacute;
+community.</p>
 
 <nav class="about-toc">
-  <a href="#methodology">Methodology</a>
-  <a href="#sources">Sources</a>
+  <a href="#what">What this site does</a>
+  <a href="#how">How it works</a>
   <a href="#suggestions">Suggestions</a>
-  <a href="#known-issues">Known Issues</a>
-  <a href="#checklist">Data Quality Checklist</a>
-  <a href="#help">How You Can Help</a>
+  <a href="#quality">Data quality</a>
+  <a href="#help">How you can help</a>
   <a href="#contact">Contact</a>
 </nav>
 
 <!-- ============================================================ -->
-<h2 id="methodology">Methodology</h2>
+<h2 id="what">What this site does</h2>
 
-<p>Holy Writings brings together Bah&aacute;&rsquo;&iacute; prayers and sacred texts from multiple online
-sources, cross-referenced using the
-<a href="https://bahai-library.com/encyclopaedia_phelps_index" target="_blank" rel="noopener">Phelps Index</a>
-&mdash; a catalog of 29,000+ Bah&aacute;&rsquo;&iacute; Holy Writings identified by unique PIN codes
-(e.g.&nbsp;BH00074BLE for &ldquo;Blessed is the spot&rdquo;).</p>
-
-<h3>The matching pipeline</h3>
-
-<p>Each prayer or text entry from a source needs to be matched to its Phelps code.
-This is done through a multi-stage pipeline:</p>
-
-<ol>
-  <li><strong>Rosetta matching</strong> &mdash; If the same prayer already exists in another
-    language with a known code, we match via cross-language reference tables
-    (the &ldquo;rosetta&rdquo; approach). This is the most reliable method.</li>
-
-  <li><strong>Text similarity</strong> &mdash; For English prayers, we compare against the
-    Phelps inventory using Jaccard word overlap, prefix matching, and length
-    ratio analysis. Threshold: 0.45+ similarity score.</li>
-
-  <li><strong>LLM-assisted matching</strong> &mdash; When automated methods fail, we use
-    Gemini Flash Lite to translate short excerpts and match against the inventory.
-    This is flagged in the database as <code>llm-translation</code> source.</li>
-
-  <li><strong>Manual verification</strong> &mdash; High-value or ambiguous matches are
-    reviewed by hand. False positives from LLM matching are tracked and
-    blacklisted to prevent recurrence.</li>
-</ol>
-
-<h3>Code types</h3>
-
-<table class="about-table">
-  <thead><tr><th>Prefix</th><th>Meaning</th><th>Example</th></tr></thead>
-  <tbody>
-    <tr><td>BH</td><td>Bah&aacute;&rsquo;u&rsquo;ll&aacute;h</td><td>BH00074BLE &mdash; &ldquo;Blessed is the spot&rdquo;</td></tr>
-    <tr><td>AB</td><td>&lsquo;Abdu&rsquo;l-Bah&aacute;</td><td>AB10714 &mdash; Children&rsquo;s prayer</td></tr>
-    <tr><td>BB</td><td>The B&aacute;b</td><td>BB00623 &mdash; Healing prayer</td></tr>
-    <tr><td>ABU</td><td>Universal House of Justice / compilations</td><td>ABU0129EDU &mdash; Children&rsquo;s education</td></tr>
-    <tr><td>TMP</td><td>Temporary &mdash; unresolved, awaiting identification</td><td>TMP00442</td></tr>
-    <tr><td>XBH / XAB / XBB</td><td>Identified author but not yet in inventory</td><td>XAB00002</td></tr>
-  </tbody>
-</table>
-
-<p>Mnemonic suffixes (e.g.&nbsp;<code>BLE</code> in BH00074BLE, <code>NAM</code> in BH01313NAM)
-distinguish different prayers from the same tablet or identify well-known excerpts.</p>
-
-<!-- ============================================================ -->
-<h2 id="sources">Sources</h2>
-
-<table class="about-table">
-  <thead><tr><th>Source</th><th>Type</th><th>Notes</th></tr></thead>
-  <tbody>
-    <tr><td><a href="https://bahaiprayers.net" target="_blank" rel="noopener">bahaiprayers.net</a></td>
-        <td>Primary prayer source</td>
-        <td>500+ languages, category structure, prayer book ordering</td></tr>
-    <tr><td><a href="https://bahaiprayers.app" target="_blank" rel="noopener">bahaiprayers.app</a></td>
-        <td>Secondary prayer source</td>
-        <td>Some languages/prayers not on .net; used for cross-referencing</td></tr>
-    <tr><td><a href="https://bahaiprayers.org" target="_blank" rel="noopener">bahaiprayers.org</a></td>
-        <td>Supplementary source</td>
-        <td>Additional translations</td></tr>
-    <tr><td><a href="https://bahai-library.com" target="_blank" rel="noopener">Phelps Index</a></td>
-        <td>Reference catalog</td>
-        <td>29,000+ entries with first lines, publications, manuscripts</td></tr>
-    <tr><td><a href="https://www.bahai.org/library/" target="_blank" rel="noopener">bahai.org</a></td>
-        <td>Official texts</td>
-        <td>Authoritative English, Arabic, Persian texts</td></tr>
-  </tbody>
-</table>
-
-<p>Writings (Hidden Words, Kit&aacute;b-i-Aqdas, Kit&aacute;b-i-&Iacute;q&aacute;n, Gleanings,
-Prayers &amp; Meditations, Some Answered Questions, Tablets of Bah&aacute;&rsquo;u&rsquo;ll&aacute;h,
-Days of Remembrance, Ridv&aacute;n Messages) are fetched from the bahaiprayers.net API
-with per-section Phelps code matching.</p>
-
-<!-- ============================================================ -->
-<h2 id="suggestions">Devotional Suggestions</h2>
-
-<p>The <a href="/devotional/">Devotional Program</a> builder offers thematic prayer
-suggestions based on the Bah&aacute;&rsquo;&iacute; calendar and common devotional themes.
-Here&rsquo;s how they work:</p>
-
-<h3>How suggestions are selected</h3>
-
-<p>Each Bah&aacute;&rsquo;&iacute; month, holy day, and theme is associated with a set of
-prayer <strong>categories</strong> from bahaiprayers.net (e.g. the month of
-N&uacute;r / Light maps to &ldquo;Enlightenment&rdquo;, &ldquo;Guidance&rdquo;, and
-&ldquo;Teaching&rdquo;). Prayers matching those categories are then offered as
-suggestions.</p>
+<p>There are wonderful Bah&aacute;&rsquo;&iacute; prayer and scripture resources online, but
+they tend to be separate: one site has prayers in 500+ languages, another has
+a comprehensive catalog, another the authoritative texts. Holy Writings
+brings them together:</p>
 
 <ul>
-  <li>Suggestions always draw from the <strong>English prayer catalog</strong> as the
-    canonical source (for consistent selection across languages), but display
-    text in your selected language when a translation exists.</li>
-  <li>Prayers are <strong>sorted by number of available translations</strong>, so the
-    most widely translated prayers appear first.</li>
-  <li>Prayers flagged as <code>llm-translation</code> source are hidden from
-    suggestions to avoid showing machine-generated text.</li>
-</ul>
-
-<h3>Month&ndash;theme associations</h3>
-
-<p>The mapping from Bah&aacute;&rsquo;&iacute; months to prayer categories is an
-<strong>editorial choice</strong>, not an authoritative assignment. It is based on the
-spiritual quality each month&rsquo;s name evokes:</p>
-
-<table class="about-table">
-  <thead><tr><th>Month</th><th>Meaning</th><th>Suggested categories</th></tr></thead>
-  <tbody>
-    <tr><td>Bah&aacute;</td><td>Splendour</td><td>Praise &amp; Gratitude, Spiritual Growth, Nearness to God</td></tr>
-    <tr><td>Jal&aacute;l</td><td>Glory</td><td>Praise &amp; Gratitude, Steadfastness, Trust in God</td></tr>
-    <tr><td>Jam&aacute;l</td><td>Beauty</td><td>Praise &amp; Gratitude, Spiritual Growth, Nearness to God</td></tr>
-    <tr><td>&lsquo;A&#7827;amat</td><td>Grandeur</td><td>Praise &amp; Gratitude, Firmness in the Covenant, Triumph of the Cause</td></tr>
-    <tr><td>N&uacute;r</td><td>Light</td><td>Enlightenment, Guidance, Teaching</td></tr>
-    <tr><td>Ra&#7717;mat</td><td>Mercy</td><td>Forgiveness, Healing, Humanity</td></tr>
-    <tr><td>Kalim&aacute;t</td><td>Words</td><td>Teaching, Guidance, Firmness in the Covenant</td></tr>
-    <tr><td>Kam&aacute;l</td><td>Perfection</td><td>Spiritual Growth, Detachment, Steadfastness</td></tr>
-    <tr><td>Asm&aacute;&rsquo;</td><td>Names</td><td>Praise &amp; Gratitude, Nearness to God, Trust in God</td></tr>
-    <tr><td>&lsquo;Izzat</td><td>Might</td><td>Aid &amp; Assistance, Protection, Steadfastness</td></tr>
-    <tr><td>Mash&iacute;yyat</td><td>Will</td><td>Tests &amp; Difficulties, Trust in God, Detachment</td></tr>
-    <tr><td>&lsquo;Ilm</td><td>Knowledge</td><td>Enlightenment, Guidance, Children</td></tr>
-    <tr><td>Qudrat</td><td>Power</td><td>Aid &amp; Assistance, Triumph of the Cause, Steadfastness</td></tr>
-    <tr><td>Qawl</td><td>Speech</td><td>Teaching, Gatherings, Unity</td></tr>
-    <tr><td>Mas&aacute;&rsquo;il</td><td>Questions</td><td>Guidance, Spiritual Growth, Enlightenment</td></tr>
-    <tr><td>Sharaf</td><td>Honour</td><td>Service, Humanity, Justice</td></tr>
-    <tr><td>Sul&#7789;&aacute;n</td><td>Sovereignty</td><td>Firmness in the Covenant, Triumph of the Cause, Tablets of Visitation</td></tr>
-    <tr><td>Mulk</td><td>Dominion</td><td>Praise &amp; Gratitude, Spiritual Assembly, Unity</td></tr>
-    <tr><td>&lsquo;Al&aacute;&rsquo;</td><td>Loftiness</td><td>The Fast, Nearness to God, Detachment</td></tr>
-  </tbody>
-</table>
-
-<p>These associations are subjective and open to feedback. If you think a month
-would be better served by different categories, please
-<a href="#contact">let us know</a>.</p>
-
-<h3>Limitations</h3>
-<ul>
-  <li>Categories come from bahaiprayers.net and may not perfectly reflect each
-    prayer&rsquo;s content (see <a href="#known-issues">Known Issues</a>).</li>
-  <li>The month&ndash;theme mapping is a starting point, not a definitive guide.
-    Some associations are stronger than others.</li>
-  <li>Holy day suggestions rely on the Gregorian calendar date, which may not
-    exactly match the Bad&iacute;&rsquo; calendar holy day for all years (particularly
-    the Twin Holy Days whose Gregorian dates shift annually).</li>
+  <li><strong>Prayers</strong> in 520+ languages, drawn from
+    <a href="https://bahaiprayers.net" target="_blank" rel="noopener">bahaiprayers.net</a>,
+    <a href="https://bahaiprayers.app" target="_blank" rel="noopener">bahaiprayers.app</a>,
+    and other sources.</li>
+  <li><strong>Writings</strong> &mdash; the Hidden Words, Kit&aacute;b-i-Aqdas,
+    Kit&aacute;b-i-&Iacute;q&aacute;n, Gleanings, Prayers &amp; Meditations,
+    Some Answered Questions, Tablets of Bah&aacute;&rsquo;u&rsquo;ll&aacute;h, Days of
+    Remembrance, and Ridv&aacute;n Messages in multiple languages.</li>
+  <li><strong>Bible</strong> (KJV with marginal notes, Hebrew OT, Greek &amp; Syriac NT,
+    Van Dyck Arabic) and <strong>Qur&rsquo;an</strong> with translations.</li>
+  <li><strong>Cross-referencing</strong> via the
+    <a href="https://bahai-library.com/encyclopaedia_phelps_index" target="_blank" rel="noopener">Phelps Index</a>
+    &mdash; a catalog of 29,000+ Bah&aacute;&rsquo;&iacute; Holy Writings, each identified by a
+    unique code.</li>
+  <li><strong>Tools</strong> &mdash; a
+    <a href="/daily/">daily devotion</a> page,
+    a <a href="/devotional/">devotional program</a> builder you can share with a link or QR code,
+    and downloadable PDFs.</li>
 </ul>
 
 <!-- ============================================================ -->
-<h2 id="known-issues">Known Issues</h2>
+<h2 id="how">How it works</h2>
 
-<p>This is a work in progress. Known data quality issues include:</p>
+<p>The core challenge is connecting prayers across sources and languages. A prayer
+on bahaiprayers.net might appear under a different title or category than the same
+prayer on bahaiprayers.app. Connecting them requires identifying which specific
+prayer each entry is.</p>
 
-<h3>Matching accuracy</h3>
+<p>I use the <strong>Phelps Index Number</strong> (PIN) system as the common key. Each
+prayer or text has a unique code (e.g. BH00074BLE for &ldquo;Blessed is the
+spot&rdquo;). Matching each source entry to its PIN involves:</p>
+
 <ul>
-  <li><strong>LLM-assisted matches may contain errors.</strong> Approximately 5% of
-    matches were made with LLM assistance. While most are correct, some may be
-    false positives &mdash; especially for short prayers or prayers from the same
-    tablet with similar openings.</li>
-  <li><strong>TMP codes</strong> indicate prayers we couldn&rsquo;t identify. There are
-    currently ~46 unique TMP codes remaining across various languages. Some are
-    composite entries (multiple prayers combined), some are regional texts not
-    in the Phelps inventory, and some are non-prayer content (tablet excerpts,
-    historical texts).</li>
-  <li><strong>Category assignments come from source sites</strong> and may be
-    incorrect. We&rsquo;ve found and fixed several (e.g. the Tablet of Wisdom
-    filed under &ldquo;Children&rdquo;), but more likely remain.</li>
+  <li><strong>Cross-language matching</strong> &mdash; if a prayer is already identified in
+    one language, the same prayer in another language can often be found through
+    the source site&rsquo;s internal cross-references.</li>
+  <li><strong>Text comparison</strong> &mdash; comparing opening lines and content against
+    the Phelps inventory&rsquo;s catalog of first lines.</li>
+  <li><strong>Using LLM assistance to translate excerpts</strong> from less-common
+    languages into English for matching when automated methods fall short.</li>
+  <li><strong>Manual review</strong> for ambiguous or high-stakes matches.</li>
 </ul>
 
-<h3>Source-specific issues</h3>
-<ul>
-  <li><strong>bahaiprayers.net French &ldquo;Prayers &amp; Meditations&rdquo;</strong> was
-    actually a different French prayer compilation, not the Shoghi Effendi
-    selection. Purged; will be reimported from first principles.</li>
-  <li><strong>Intro/front-page prayers</strong> on bahaiprayers.net (like
-    &ldquo;Blessed is the spot&rdquo; and &ldquo;Intone, O My servant&rdquo;) are not
-    indexed as prayers by the site, so they were missing from major
-    languages. Partially recovered from bahaiprayers.app.</li>
-  <li><strong>Some API language codes are wrong</strong> (e.g. Esperanto and Tagalog
-    were mapped to English). We use the database&rsquo;s <code>languages.api_id</code>
-    field as the authoritative mapping.</li>
-</ul>
-
-<h3>Structural issues</h3>
-<ul>
-  <li><strong>Same-tablet prayers</strong> may share a Phelps code when they should
-    have distinct mnemonic sub-codes. Length-ratio analysis (comparing the same
-    code across languages) helps catch these.</li>
-  <li><strong>Composite entries</strong> &mdash; some source sites combine multiple short
-    prayers into one entry. These need splitting and individual coding.</li>
-  <li><strong>Prayer vs. tablet excerpt</strong> &mdash; some entries categorized as
-    &ldquo;prayers&rdquo; are actually excerpts from tablets or historical texts,
-    not standalone prayers.</li>
-</ul>
-
-<!-- ============================================================ -->
-<h2 id="checklist">Data Quality Checklist</h2>
-
-<p>Systematic checks we are working through. Items marked with
-<span class="check-done">&#x2705;</span> are complete;
-<span class="check-wip">&#x1F6A7;</span> means in progress;
-<span class="check-todo">&#x2B1C;</span> means not yet started.</p>
-
-<div class="checklist">
-
-<h3>Matching completeness</h3>
-<ul class="checklist-items">
-  <li class="done">Zero NULL phelps codes &mdash; every entry has at least a TMP code</li>
-  <li class="wip">Resolve remaining ~46 TMP codes (down from 900+)</li>
-  <li class="wip">Cross-source deduplication &mdash; same prayer from multiple sources correctly linked</li>
-  <li class="todo">Verify X-codes against future Phelps index updates</li>
-</ul>
-
-<h3>Code accuracy</h3>
-<ul class="checklist-items">
-  <li class="done">False positive blacklist &mdash; known bad matches blocked from reoccurrence</li>
-  <li class="done">Length-ratio scan for same-code mismatches across languages (&gt;5x ratio flagged)</li>
-  <li class="wip">Systematic review of LLM-matched entries (5% of total)</li>
-  <li class="wip">Sub-code split for same-tablet prayers (e.g. BH02806FAM/FAS, BH00769/GOD)</li>
-  <li class="todo">Manual spot-check of 100 random entries per language tier</li>
-  <li class="todo">Community-reported corrections (need reporting mechanism)</li>
-</ul>
-
-<h3>Category accuracy</h3>
-<ul class="checklist-items">
-  <li class="done">Fixed Tablet of Wisdom (BH00223): was &ldquo;Children&rdquo;, now &ldquo;Spiritual Growth&rdquo;</li>
-  <li class="done">Fixed Afrikaans Holy Mariner (BH01026): was &ldquo;Tablet of Ahmad&rdquo;</li>
-  <li class="wip">Systematic category audit across top-20 languages</li>
-  <li class="todo">Standardize category names across languages</li>
-</ul>
-
-<h3>Writings (non-prayer texts)</h3>
-<ul class="checklist-items">
-  <li class="done">Hidden Words: 69 languages, Arabic/Persian numbered correctly</li>
-  <li class="done">Kit&aacute;b-i-Aqdas: 19 languages</li>
-  <li class="done">Kit&aacute;b-i-&Iacute;q&aacute;n: 23 languages</li>
-  <li class="wip">Gleanings: staging codes (BH10200xxx) need matching to real Phelps codes</li>
-  <li class="wip">Prayers &amp; Meditations: English matched; French purged (wrong source); other languages need verification</li>
-  <li class="wip">Some Answered Questions: staging codes need matching</li>
-  <li class="todo">Tablets of Bah&aacute;&rsquo;u&rsquo;ll&aacute;h: staging codes need matching</li>
-  <li class="todo">Additional writing sources (Epistle to Son of Wolf, Seven Valleys, etc.)</li>
-</ul>
-
-<h3>Bible &amp; Qur&rsquo;an</h3>
-<ul class="checklist-items">
-  <li class="done">KJV English with marginal notes ({implied words} and {note: explanations})</li>
-  <li class="done">Hebrew OT, Greek NT, Syriac NT source texts</li>
-  <li class="done">Van Dyck Arabic Bible</li>
-  <li class="done">Qur&rsquo;an: Arabic, 3+ translation languages</li>
-  <li class="todo">Additional Bible translations</li>
-  <li class="todo">Qur&rsquo;an commentary integration</li>
-</ul>
-
-<h3>User interface</h3>
-<ul class="checklist-items">
-  <li class="done">PWA with offline support</li>
-  <li class="done">UI in 13 languages (auto-detected)</li>
-  <li class="done">Daily devotions with random readings, obligatory prayer tracker, Qiblih compass</li>
-  <li class="done">Devotional program builder with sharing, QR codes, print</li>
-  <li class="wip">PDF/EPUB downloads for all prayer languages</li>
-  <li class="todo">Full-text search across all content</li>
-  <li class="todo">Web components refactoring for consistency</li>
-</ul>
-
-</div>
-
-<!-- ============================================================ -->
-<h2 id="help">How You Can Help</h2>
-
-<p>This project benefits enormously from community input. Here&rsquo;s how you can
-contribute:</p>
-
-<h3>Report errors</h3>
-<ul>
-  <li><strong>Wrong prayer code:</strong> If a prayer is showing up under the wrong
-    Phelps code, or if two different prayers share the same code, please let us
-    know the language, the prayer text (or first line), and what you believe the
-    correct code should be.</li>
-  <li><strong>Wrong category:</strong> If a prayer appears in the wrong category
-    (e.g. a healing prayer filed under &ldquo;Marriage&rdquo;), report the language,
-    Phelps code, current category, and correct category.</li>
-  <li><strong>Missing prayers:</strong> If you know of a prayer that should be in a
-    particular language but isn&rsquo;t, let us know.</li>
-  <li><strong>Text errors:</strong> Typos, formatting issues, or incorrect text in
-    any language.</li>
-</ul>
-
-<h3>Help with identification</h3>
-<ul>
-  <li><strong>TMP codes:</strong> If you recognize a prayer currently tagged with a
-    TMP code, tell us what it is! Visit the
-    <a href="/phelps/?q=TMP">TMP entries in the catalog</a> to browse them.</li>
-  <li><strong>Regional prayers:</strong> Some prayers exist only in specific regions
-    and may not be in the Phelps inventory. If you can identify the author or
-    source, that helps us assign the correct code.</li>
-</ul>
-
-<h3>Translate the interface</h3>
-<p>The UI currently supports 13 languages. If you&rsquo;d like to help translate
-the interface into another language, or improve an existing translation,
-please get in touch.</p>
-
-<h3>Technical contributions</h3>
-<p>The source code is available on
-<a href="https://github.com/LaPingvino/devotional-pwa" target="_blank" rel="noopener">GitHub</a>.
-The prayer database is hosted on
+<p>The database is hosted on
 <a href="https://www.dolthub.com/repositories/holywritings/bahaiwritings" target="_blank" rel="noopener">DoltHub</a>
-and can be cloned and queried with SQL.</p>
+(a version-controlled SQL database) and the site source is on
+<a href="https://github.com/LaPingvino/devotional-pwa" target="_blank" rel="noopener">GitHub</a>.</p>
+
+<!-- ============================================================ -->
+<h2 id="suggestions">Devotional suggestions</h2>
+
+<p>The <a href="/devotional/">devotional program builder</a> suggests prayers based on
+the Bah&aacute;&rsquo;&iacute; calendar and common devotional themes.</p>
+
+<p>Each Bah&aacute;&rsquo;&iacute; month has a spiritual quality (e.g. N&uacute;r = Light,
+Ra&#7717;mat = Mercy). I&rsquo;ve mapped these to prayer categories that seem to
+reflect that quality &mdash; for example, the month of N&uacute;r suggests prayers
+from &ldquo;Enlightenment&rdquo;, &ldquo;Guidance&rdquo;, and &ldquo;Teaching&rdquo;.
+Similarly, holy days suggest prayers specific to that occasion.</p>
+
+<p><strong>These associations are my own editorial choices</strong>, not authoritative
+assignments. They&rsquo;re a starting point for inspiration, not a prescription.
+If you have thoughts on better associations, I&rsquo;d love to hear them.</p>
+
+<details class="about-details">
+  <summary>Full month&ndash;theme table</summary>
+  <table class="about-table">
+    <thead><tr><th>Month</th><th>Meaning</th><th>Suggested categories</th></tr></thead>
+    <tbody>
+      <tr><td>Bah&aacute;</td><td>Splendour</td><td>Praise &amp; Gratitude, Spiritual Growth, Nearness to God</td></tr>
+      <tr><td>Jal&aacute;l</td><td>Glory</td><td>Praise &amp; Gratitude, Steadfastness, Trust in God</td></tr>
+      <tr><td>Jam&aacute;l</td><td>Beauty</td><td>Praise &amp; Gratitude, Spiritual Growth, Nearness to God</td></tr>
+      <tr><td>&lsquo;A&#7827;amat</td><td>Grandeur</td><td>Praise &amp; Gratitude, Firmness in the Covenant, Triumph of the Cause</td></tr>
+      <tr><td>N&uacute;r</td><td>Light</td><td>Enlightenment, Guidance, Teaching</td></tr>
+      <tr><td>Ra&#7717;mat</td><td>Mercy</td><td>Forgiveness, Healing, Humanity</td></tr>
+      <tr><td>Kalim&aacute;t</td><td>Words</td><td>Teaching, Guidance, Firmness in the Covenant</td></tr>
+      <tr><td>Kam&aacute;l</td><td>Perfection</td><td>Spiritual Growth, Detachment, Steadfastness</td></tr>
+      <tr><td>Asm&aacute;&rsquo;</td><td>Names</td><td>Praise &amp; Gratitude, Nearness to God, Trust in God</td></tr>
+      <tr><td>&lsquo;Izzat</td><td>Might</td><td>Aid &amp; Assistance, Protection, Steadfastness</td></tr>
+      <tr><td>Mash&iacute;yyat</td><td>Will</td><td>Tests &amp; Difficulties, Trust in God, Detachment</td></tr>
+      <tr><td>&lsquo;Ilm</td><td>Knowledge</td><td>Enlightenment, Guidance, Children</td></tr>
+      <tr><td>Qudrat</td><td>Power</td><td>Aid &amp; Assistance, Triumph of the Cause, Steadfastness</td></tr>
+      <tr><td>Qawl</td><td>Speech</td><td>Teaching, Gatherings, Unity</td></tr>
+      <tr><td>Mas&aacute;&rsquo;il</td><td>Questions</td><td>Guidance, Spiritual Growth, Enlightenment</td></tr>
+      <tr><td>Sharaf</td><td>Honour</td><td>Service, Humanity, Justice</td></tr>
+      <tr><td>Sul&#7789;&aacute;n</td><td>Sovereignty</td><td>Firmness in the Covenant, Triumph of the Cause, Tablets of Visitation</td></tr>
+      <tr><td>Mulk</td><td>Dominion</td><td>Praise &amp; Gratitude, Spiritual Assembly, Unity</td></tr>
+      <tr><td>&lsquo;Al&aacute;&rsquo;</td><td>Loftiness</td><td>The Fast, Nearness to God, Detachment</td></tr>
+    </tbody>
+  </table>
+</details>
+
+<!-- ============================================================ -->
+<h2 id="quality">Data quality</h2>
+
+<p>This is a work in progress. The matching process is imperfect, and I&rsquo;m
+continuously improving it. Here&rsquo;s an honest picture of where things stand:</p>
+
+<h3>What&rsquo;s solid</h3>
+<ul>
+  <li>Every prayer entry has an identifier &mdash; no untagged entries.</li>
+  <li>Cross-language matching for major languages is well-tested.</li>
+  <li>Known false positives are blacklisted to prevent recurrence.</li>
+</ul>
+
+<h3>What needs work</h3>
+<ul>
+  <li><strong>~46 unidentified prayers</strong> (TMP codes) remain. Some are regional
+    texts not in the Phelps inventory, some are composite entries, some I simply
+    haven&rsquo;t been able to identify yet.</li>
+  <li><strong>About 5% of matches used LLM assistance</strong> (translating short
+    excerpts to English for identification). Most are correct, but some may be
+    wrong &mdash; especially for short prayers or prayers with similar openings.</li>
+  <li><strong>Categories come from the source sites</strong> and occasionally have
+    errors (e.g. the Tablet of Wisdom was filed under &ldquo;Children&rdquo;).</li>
+  <li><strong>Some writing sections</strong> (Gleanings, Some Answered Questions,
+    Tablets) still use staging codes and need matching to their real Phelps numbers.</li>
+  <li>The French &ldquo;Prayers &amp; Meditations&rdquo; turned out to be a different
+    compilation entirely, and has been removed pending reimport.</li>
+</ul>
+
+<h3>How I&rsquo;m checking</h3>
+<ul>
+  <li>Using LLM assistance to run length-ratio scans across languages
+    &mdash; if the &ldquo;same&rdquo; prayer is 5x longer in one language, something is probably
+    miscoded.</li>
+  <li>Systematic category audits across the top languages.</li>
+  <li>Splitting same-tablet prayers that were incorrectly sharing one code.</li>
+  <li>And of course: reading reports from people who actually use these prayers and
+    notice when something is off.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2 id="help">How you can help</h2>
+
+<p>The most valuable contributions come from people who know these prayers.
+If you spot something wrong, please tell me &mdash; even a short email helps.</p>
+
+<ul>
+  <li><strong>Wrong or missing prayers</strong> &mdash; if a prayer shows up under the wrong
+    code, in the wrong category, or is missing from a language you know.</li>
+  <li><strong>Unidentified prayers</strong> &mdash; browse the
+    <a href="/phelps/?q=TMP">TMP entries</a> and let me know if you recognize any.</li>
+  <li><strong>Interface translations</strong> &mdash; the UI supports 13 languages; more are
+    welcome.</li>
+  <li><strong>Suggestion improvements</strong> &mdash; ideas for better month&ndash;theme
+    associations or additional themes for the devotional builder.</li>
+  <li><strong>Code contributions</strong> &mdash; the
+    <a href="https://github.com/LaPingvino/devotional-pwa" target="_blank" rel="noopener">source code</a>
+    and <a href="https://www.dolthub.com/repositories/holywritings/bahaiwritings" target="_blank" rel="noopener">database</a>
+    are both open.</li>
+</ul>
 
 <!-- ============================================================ -->
 <h2 id="contact">Contact</h2>
 
-<p>For corrections, suggestions, or questions:</p>
-<ul>
-  <li>Email: <a href="mailto:joop@kiefte.net">joop@kiefte.net</a></li>
-  <li>GitHub: <a href="https://github.com/LaPingvino/devotional-pwa/issues" target="_blank" rel="noopener">Open an issue</a></li>
-</ul>
+<p><a href="mailto:joop@kiefte.net">joop@kiefte.net</a>
+&middot; <a href="https://github.com/LaPingvino/devotional-pwa/issues" target="_blank" rel="noopener">GitHub issues</a></p>
 
 <p class="about-footer">
-  <em>Matches partially made with LLM assistance.
-  This is a community project and not an official Bah&aacute;&rsquo;&iacute; publication.
+  <em>Some matches were made with LLM assistance.
+  This is a community project, not an official Bah&aacute;&rsquo;&iacute; publication.
   Text accuracy depends on the original sources.</em>
 </p>
 
