@@ -78,7 +78,7 @@
         <ol class="verse-list" start="1">
           {{ range .verses }}
           <li class="verse" id="surah-{{ $surahNum }}-ayah-{{ .ayah }}" data-surah="{{ $surahNum }}" data-ayah="{{ .ayah }}" value="{{ .ayah }}">
-            <span class="ayah-num ayah-sel" data-surah="{{ $surahNum }}" data-ayah="{{ .ayah }}">{{ .ayah }}</span>
+            <span class="range-marker" data-surah="{{ $surahNum }}" data-ayah="{{ .ayah }}">&#x25CB;</span><span class="ayah-num">{{ .ayah }}</span>
             <span class="ayah-text">{{ .text }}</span>
           </li>
           {{ end }}
@@ -544,7 +544,7 @@
   // ── Ayah range selection ──
   var qRangeStart = null, qRangeEnd = null, qRangeSurah = null, qBanner = null;
   function clearQRange() {
-    document.querySelectorAll('.ayah-sel.range-selected').forEach(function(el) { el.classList.remove('range-selected'); });
+    document.querySelectorAll('.range-marker.range-selected').forEach(function(el) { el.classList.remove('range-selected'); });
     qRangeStart = null; qRangeEnd = null; qRangeSurah = null;
     if (qBanner) { qBanner.remove(); qBanner = null; }
   }
@@ -564,7 +564,7 @@
     });
     qBanner.querySelector('.range-cancel').addEventListener('click', clearQRange);
   }
-  document.querySelectorAll('.ayah-sel').forEach(function(el) {
+  document.querySelectorAll('.surah-section .range-marker').forEach(function(el) {
     el.style.cursor = 'pointer';
     el.title = 'Click to start selection, click another to set range';
     el.addEventListener('click', function(e) {
@@ -578,7 +578,7 @@
       } else {
         qRangeEnd = ayah;
         var lo = Math.min(qRangeStart, qRangeEnd), hi = Math.max(qRangeStart, qRangeEnd);
-        el.closest('.surah-section').querySelectorAll('.ayah-sel').forEach(function(v) {
+        el.closest('.surah-section').querySelectorAll('.range-marker').forEach(function(v) {
           var n = parseInt(v.dataset.ayah);
           v.classList.toggle('range-selected', n >= lo && n <= hi);
         });

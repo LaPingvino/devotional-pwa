@@ -94,7 +94,7 @@
         {{ $bookIdx = add $bookIdx 1 }}
         <section class="writing-entry" id="{{ .phelps }}" data-order="{{ .order }}">
           <div class="writing-entry-label">
-            <a href="#{{ .phelps }}" class="entry-num" title="Link to this section">{{ $bookIdx }}</a>
+            <span class="range-marker" data-order="{{ .order }}">&#x25CB;</span><a href="#{{ .phelps }}" class="entry-num" title="Link to this section">{{ $bookIdx }}</a>
             {{ if and $showNames .name }}<a href="#{{ .phelps }}" class="entry-name">{{ .name }}</a>{{ end }}
             {{ if $showEntryLinks }}<a href="/phelps/{{ .phelps | lower }}/" class="phelps-link" title="View in inventory">{{ .phelps }}</a>{{ end }}
             <button class="btn-add-devotional" data-phelps="{{ .phelps }}" aria-label="Add to devotional" title="Add to devotional program">+</button>
@@ -428,7 +428,7 @@ a.entry-name:hover { text-decoration: underline; }
   // ── Paragraph range selection by clicking entry numbers ──
   var wRangeStart = null, wRangeEnd = null, wRangeBook = null, wBanner = null;
   function clearWRange() {
-    document.querySelectorAll('.entry-num.range-selected').forEach(function(el) { el.classList.remove('range-selected'); });
+    document.querySelectorAll('.range-marker.range-selected').forEach(function(el) { el.classList.remove('range-selected'); });
     wRangeStart = null; wRangeEnd = null; wRangeBook = null;
     if (wBanner) { wBanner.remove(); wBanner = null; }
   }
@@ -467,13 +467,10 @@ a.entry-name:hover { text-decoration: underline; }
     });
     wBanner.querySelector('.range-cancel').addEventListener('click', clearWRange);
   }
-  document.querySelectorAll('.entry-num').forEach(function(el) {
+  document.querySelectorAll('.writing-entry .range-marker').forEach(function(el) {
     el.addEventListener('click', function(e) {
-      e.preventDefault();
       e.stopPropagation();
-      var entry = el.closest('.writing-entry');
-      if (!entry) return;
-      var order = parseInt(entry.dataset.order);
+      var order = parseInt(el.dataset.order);
       var book = el.closest('.writing-book');
       if (wRangeStart === null || book !== wRangeBook) {
         clearWRange();
@@ -483,11 +480,9 @@ a.entry-name:hover { text-decoration: underline; }
       } else {
         wRangeEnd = order;
         var lo = Math.min(wRangeStart, wRangeEnd), hi = Math.max(wRangeStart, wRangeEnd);
-        book.querySelectorAll('.entry-num').forEach(function(n) {
-          var ent = n.closest('.writing-entry');
-          if (!ent) return;
-          var o = parseInt(ent.dataset.order);
-          n.classList.toggle('range-selected', o >= lo && o <= hi);
+        book.querySelectorAll('.range-marker').forEach(function(m) {
+          var o = parseInt(m.dataset.order);
+          m.classList.toggle('range-selected', o >= lo && o <= hi);
         });
         showWBanner();
       }

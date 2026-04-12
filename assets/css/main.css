@@ -956,7 +956,17 @@ p { margin-bottom: .5rem; }
 .about-details { margin: 1rem 0; }
 .about-details summary { cursor: pointer; color: var(--accent); font-weight: 500; }
 
-/* Verse/ayah range selection */
+/* Range selection markers */
+.range-marker {
+  cursor: pointer;
+  color: var(--border);
+  font-size: .7em;
+  margin-right: .2em;
+  vertical-align: middle;
+  transition: color .15s;
+}
+.range-marker:hover { color: var(--accent); }
+.range-marker.range-selected { color: var(--accent); }
 .verse-sel.range-selected, .ayah-sel.range-selected { background: var(--accent); color: #fff; border-radius: 3px; padding: 0 3px; }
 .range-banner { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); z-index: 100; background: var(--accent); color: #fff; padding: .6rem 1.2rem; display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; font-size: .9rem; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.3); max-width: 90vw; }
 .range-banner .btn-small { background: rgba(255,255,255,.2); color: #fff; border: 1px solid rgba(255,255,255,.4); padding: .2rem .6rem; border-radius: 4px; cursor: pointer; font-size: .8rem; }

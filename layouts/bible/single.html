@@ -84,7 +84,7 @@
           <td class="il-src il-el">{{ .el }}</td>
           {{ end }}
 
-          <td class="il-num"><span class="verse-sel" data-num="{{ .num }}">{{ .num }}</span></td>
+          <td class="il-num"><span class="range-marker" data-num="{{ .num }}" title="{{ .num }}">&#x25CB;</span><sup>{{ .num }}</sup></td>
 
           {{/* Translation columns */}}
           {{ if $.Params.book.has_english }}
@@ -464,7 +464,7 @@
   var rangeBanner = null;
 
   function clearRange() {
-    document.querySelectorAll('.verse-sel.range-selected').forEach(function(el) {
+    document.querySelectorAll('.range-marker.range-selected').forEach(function(el) {
       el.classList.remove('range-selected');
     });
     rangeStart = null; rangeEnd = null; rangeChapter = null;
@@ -498,9 +498,7 @@
     document.querySelector('.main-content').appendChild(hint);
   }
 
-  document.querySelectorAll('.verse-sel').forEach(function(el) {
-    el.style.cursor = 'pointer';
-    el.title = window.__t('verse_hint');
+  document.querySelectorAll('.range-marker').forEach(function(el) {
     el.addEventListener('click', function(e) {
       e.stopPropagation();
       var num = parseInt(el.dataset.num);
@@ -508,7 +506,6 @@
       var chNum = ch ? ch.id.replace('ch', '') : '1';
 
       if (rangeStart === null || chNum !== rangeChapter) {
-        // Start new range
         clearRange();
         rangeStart = num;
         rangeEnd = num;
@@ -516,11 +513,10 @@
         el.classList.add('range-selected');
         showRangeBanner();
       } else {
-        // Set end of range
         rangeEnd = num;
         var lo = Math.min(rangeStart, rangeEnd);
         var hi = Math.max(rangeStart, rangeEnd);
-        ch.querySelectorAll('.verse-sel').forEach(function(v) {
+        ch.querySelectorAll('.range-marker').forEach(function(v) {
           var n = parseInt(v.dataset.num);
           v.classList.toggle('range-selected', n >= lo && n <= hi);
         });
