@@ -108,6 +108,15 @@ prayers_all_epub: "Alle — EPUB"
 prayers_sop_pdf: "Kort verplicht gebed (alle talen) — PDF"
 prayers_sop_epub: "Kort verplicht gebed — EPUB"
 
+# Verse selection
+verse_hint: "Klik op een versnummer om te beginnen en op een ander om een bereik te selecteren voor het devotioneel programma."
+verse_add: "Toevoegen aan devotioneel programma"
+verse_cancel: "Annuleren"
+
+# Qiblih
+qiblih_no_geo: "Kon locatie niet bepalen. Sta alstublieft locatietoegang toe."
+qiblih_drag_hint: "Sleep om uw locatie te corrigeren"
+
 # Search page
 search_title: "Zoeken"
 search_desc: "Zoek in gebeden en geschriften in alle talen."

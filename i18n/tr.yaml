@@ -108,6 +108,15 @@ prayers_all_epub: "Tümü — EPUB"
 prayers_sop_pdf: "Kısa farz dua (tüm diller) — PDF"
 prayers_sop_epub: "Kısa farz dua — EPUB"
 
+# Verse selection
+verse_hint: "Başlamak için bir ayet numarasına tıklayın, ardından dua programı için bir aralık seçmek üzere başka birine tıklayın."
+verse_add: "Dua programına ekle"
+verse_cancel: "İptal"
+
+# Qiblih
+qiblih_no_geo: "Konum belirlenemedi. Lütfen konum erişimine izin verin."
+qiblih_drag_hint: "Konumunuzu düzeltmek için sürükleyin"
+
 # Search page
 search_title: "Ara"
 search_desc: "Tüm dillerdeki dua ve yazılarda arayın."

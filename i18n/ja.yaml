@@ -108,6 +108,15 @@ prayers_all_epub: "すべて — EPUB"
 prayers_sop_pdf: "短い義務の祈り（全言語） — PDF"
 prayers_sop_epub: "短い義務の祈り — EPUB"
 
+# Verse selection
+verse_hint: "節番号をクリックして開始し、別の節をクリックして礼拝プログラムの範囲を選択します。"
+verse_add: "礼拝プログラムに追加"
+verse_cancel: "キャンセル"
+
+# Qiblih
+qiblih_no_geo: "位置を特定できませんでした。位置情報へのアクセスを許可してください。"
+qiblih_drag_hint: "ドラッグして位置を修正"
+
 # Search page
 search_title: "検索"
 search_desc: "すべての言語の祈りと聖典を検索します。"

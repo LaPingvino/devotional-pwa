@@ -108,6 +108,15 @@ prayers_all_epub: "Toate — EPUB"
 prayers_sop_pdf: "Rugăciunea obligatorie scurtă (toate limbile) — PDF"
 prayers_sop_epub: "Rugăciunea obligatorie scurtă — EPUB"
 
+# Verse selection
+verse_hint: "Faceți clic pe un număr de verset pentru a începe, apoi pe altul pentru a selecta un interval pentru programul de rugăciune."
+verse_add: "Adăugați la programul de rugăciune"
+verse_cancel: "Anulare"
+
+# Qiblih
+qiblih_no_geo: "Nu s-a putut determina locația. Vă rugăm să permiteți accesul la locație."
+qiblih_drag_hint: "Trageți pentru a corecta locația"
+
 # Search page
 search_title: "Cautare"
 search_desc: "Cautati in rugaciuni si scrieri in toate limbile."

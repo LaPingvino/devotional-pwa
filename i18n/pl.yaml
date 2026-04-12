@@ -108,6 +108,15 @@ prayers_all_epub: "Wszystkie — EPUB"
 prayers_sop_pdf: "Krótka modlitwa obowiązkowa (wszystkie języki) — PDF"
 prayers_sop_epub: "Krótka modlitwa obowiązkowa — EPUB"
 
+# Verse selection
+verse_hint: "Kliknij numer wersetu, aby rozpocząć, a następnie inny, aby wybrać zakres do programu nabożeństwa."
+verse_add: "Dodaj do programu nabożeństwa"
+verse_cancel: "Anuluj"
+
+# Qiblih
+qiblih_no_geo: "Nie udało się ustalić lokalizacji. Proszę zezwolić na dostęp do lokalizacji."
+qiblih_drag_hint: "Przeciągnij, aby poprawić lokalizację"
+
 # Search page
 search_title: "Szukaj"
 search_desc: "Szukaj w modlitwach i pismach we wszystkich językach."

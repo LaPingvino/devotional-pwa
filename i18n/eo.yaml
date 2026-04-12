@@ -108,6 +108,15 @@ prayers_all_epub: "Ĉiuj — EPUB"
 prayers_sop_pdf: "Mallonga deviga preĝo (ĉiuj lingvoj) — PDF"
 prayers_sop_epub: "Mallonga deviga preĝo — EPUB"
 
+# Verse selection
+verse_hint: "Klaku versnumeron por komenci, poste alian por elekti gamon por la preĝkunvena programo."
+verse_add: "Aldoni al preĝkunvena programo"
+verse_cancel: "Nuligi"
+
+# Qiblih
+qiblih_no_geo: "Ne eblis determini lokon. Bonvolu permesi lokan aliron."
+qiblih_drag_hint: "Trenu por korekti vian lokon"
+
 # Search page
 search_title: "Serĉi"
 search_desc: "Serĉu en preĝoj kaj skriboj en ĉiuj lingvoj."

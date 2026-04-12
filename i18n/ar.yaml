@@ -108,6 +108,15 @@ prayers_all_epub: "الكلّ — EPUB"
 prayers_sop_pdf: "الصلاة الواجبة القصيرة (جميع اللغات) — PDF"
 prayers_sop_epub: "الصلاة الواجبة القصيرة — EPUB"
 
+# Verse selection
+verse_hint: "انقر على رقم الآية للبدء، ثمّ على رقم آخر لتحديد نطاق للبرنامج التعبّدي."
+verse_add: "إضافة إلى البرنامج التعبّدي"
+verse_cancel: "إلغاء"
+
+# Qiblih
+qiblih_no_geo: "تعذّر تحديد الموقع. يُرجى السماح بالوصول إلى الموقع."
+qiblih_drag_hint: "اسحب لتصحيح موقعك"
+
 # Search page
 search_title: "بحث"
 search_desc: "البحث في الأدعية والآثار بجميع اللغات."

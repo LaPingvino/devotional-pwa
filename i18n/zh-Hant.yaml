@@ -108,6 +108,15 @@ prayers_all_epub: "全部 — EPUB"
 prayers_sop_pdf: "短必誠祈禱（所有語言） — PDF"
 prayers_sop_epub: "短必誠祈禱 — EPUB"
 
+# Verse selection
+verse_hint: "點擊經文編號開始，再點擊另一個編號選擇範圍新增到靈修計畫。"
+verse_add: "新增到靈修計畫"
+verse_cancel: "取消"
+
+# Qiblih
+qiblih_no_geo: "無法確定位置。請允許位置存取。"
+qiblih_drag_hint: "拖曳以修正您的位置"
+
 # Search page
 search_title: "搜尋"
 search_desc: "搜尋所有語言的祈禱文和聖典。"

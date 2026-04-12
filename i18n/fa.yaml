@@ -108,6 +108,15 @@ prayers_all_epub: "همه — EPUB"
 prayers_sop_pdf: "نماز واجب کوتاه (همه زبان‌ها) — PDF"
 prayers_sop_epub: "نماز واجب کوتاه — EPUB"
 
+# Verse selection
+verse_hint: "برای شروع روی شماره آیه کلیک کنید، سپس روی آیه دیگر برای انتخاب محدوده برای برنامه عبادی."
+verse_add: "افزودن به برنامه عبادی"
+verse_cancel: "لغو"
+
+# Qiblih
+qiblih_no_geo: "تعیین مکان ممکن نشد. لطفاً اجازه دسترسی به مکان را بدهید."
+qiblih_drag_hint: "بکشید تا مکان خود را تصحیح کنید"
+
 # Search page
 search_title: "جستجو"
 search_desc: "جستجو در ادعیه و آثار به همه زبان‌ها."

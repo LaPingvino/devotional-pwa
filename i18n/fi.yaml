@@ -108,6 +108,15 @@ prayers_all_epub: "Kaikki — EPUB"
 prayers_sop_pdf: "Lyhyt pakollinen rukous (kaikki kielet) — PDF"
 prayers_sop_epub: "Lyhyt pakollinen rukous — EPUB"
 
+# Verse selection
+verse_hint: "Napsauta jaenumeroa aloittaaksesi, sitten toista valitaksesi välin rukousohjelmaan."
+verse_add: "Lisää rukousohjelmaan"
+verse_cancel: "Peruuta"
+
+# Qiblih
+qiblih_no_geo: "Sijaintia ei voitu määrittää. Salli sijainnin käyttö."
+qiblih_drag_hint: "Vedä korjataksesi sijaintisi"
+
 # Search page
 search_title: "Haku"
 search_desc: "Hae rukouksista ja kirjoituksista kaikilla kielillä."

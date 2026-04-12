@@ -108,6 +108,15 @@ prayers_all_epub: "Todos — EPUB"
 prayers_sop_pdf: "Oración obligatoria corta (todos los idiomas) — PDF"
 prayers_sop_epub: "Oración obligatoria corta — EPUB"
 
+# Verse selection
+verse_hint: "Haz clic en un número de versículo para comenzar y en otro para seleccionar un rango para el programa devocional."
+verse_add: "Añadir al programa devocional"
+verse_cancel: "Cancelar"
+
+# Qiblih
+qiblih_no_geo: "No se pudo determinar la ubicación. Por favor, permita el acceso a la ubicación."
+qiblih_drag_hint: "Arrastra para corregir tu ubicación"
+
 # Search page
 search_title: "Buscar"
 search_desc: "Busca en oraciones y escritos en todos los idiomas."

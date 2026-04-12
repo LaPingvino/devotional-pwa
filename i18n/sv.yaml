@@ -108,6 +108,15 @@ prayers_all_epub: "Alla — EPUB"
 prayers_sop_pdf: "Kort obligatorisk bön (alla språk) — PDF"
 prayers_sop_epub: "Kort obligatorisk bön — EPUB"
 
+# Verse selection
+verse_hint: "Klicka på ett versnummer för att börja, sedan ett annat för att välja ett intervall för andaktsprogrammet."
+verse_add: "Lägg till i andaktsprogram"
+verse_cancel: "Avbryt"
+
+# Qiblih
+qiblih_no_geo: "Kunde inte bestämma platsen. Tillåt platsåtkomst."
+qiblih_drag_hint: "Dra för att korrigera din plats"
+
 # Search page
 search_title: "Sok"
 search_desc: "Sok bland boner och skrifter pa alla sprak."

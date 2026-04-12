@@ -108,6 +108,15 @@ prayers_all_epub: "Toutes — EPUB"
 prayers_sop_pdf: "Prière obligatoire courte (toutes les langues) — PDF"
 prayers_sop_epub: "Prière obligatoire courte — EPUB"
 
+# Verse selection
+verse_hint: "Cliquez sur un numéro de verset pour commencer, puis sur un autre pour sélectionner une plage pour le programme de dévotion."
+verse_add: "Ajouter au programme de dévotion"
+verse_cancel: "Annuler"
+
+# Qiblih
+qiblih_no_geo: "Impossible de déterminer la position. Veuillez autoriser l'accès à la localisation."
+qiblih_drag_hint: "Faites glisser pour corriger votre position"
+
 # Search page
 search_title: "Recherche"
 search_desc: "Rechercher dans les prières et écrits dans toutes les langues."

@@ -108,6 +108,15 @@ prayers_all_epub: "전체 — EPUB"
 prayers_sop_pdf: "짧은 의무 기도 (전체 언어) — PDF"
 prayers_sop_epub: "짧은 의무 기도 — EPUB"
 
+# Verse selection
+verse_hint: "절 번호를 클릭하여 시작하고, 다른 절을 클릭하여 기도 프로그램에 추가할 범위를 선택하세요."
+verse_add: "기도 프로그램에 추가"
+verse_cancel: "취소"
+
+# Qiblih
+qiblih_no_geo: "위치를 확인할 수 없습니다. 위치 접근을 허용해 주세요."
+qiblih_drag_hint: "드래그하여 위치 수정"
+
 # Search page
 search_title: "검색"
 search_desc: "모든 언어의 기도와 성문을 검색하세요."

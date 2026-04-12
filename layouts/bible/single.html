@@ -479,8 +479,8 @@
     rangeBanner = document.createElement('div');
     rangeBanner.className = 'range-banner';
     rangeBanner.innerHTML = '<span>' + BOOK_ID.charAt(0).toUpperCase() + BOOK_ID.slice(1) + ' ' + rangeChapter + ':' + lo + (hi > lo ? '\u2013' + hi : '') + '</span> ' +
-      '<button class="btn-action btn-small range-add">Add to devotional</button> ' +
-      '<button class="btn-action btn-small range-cancel">Cancel</button>';
+      '<button class="btn-action btn-small range-add">' + window.__t('verse_add') + '</button> ' +
+      '<button class="btn-action btn-small range-cancel">\u2715</button>';
     document.querySelector('.main-content').prepend(rangeBanner);
     rangeBanner.querySelector('.range-add').addEventListener('click', function() {
       addCode(code);
@@ -489,9 +489,18 @@
     rangeBanner.querySelector('.range-cancel').addEventListener('click', clearRange);
   }
 
+  // Show verse selection hint (once per session)
+  if (!sessionStorage.getItem('hw_verse_hint_dismissed')) {
+    var hint = document.createElement('div');
+    hint.className = 'range-banner';
+    hint.style.opacity = '.9';
+    hint.innerHTML = '<span>' + window.__t('verse_hint') + '</span><button class="btn-action btn-small" onclick="this.parentElement.remove();sessionStorage.setItem(\'hw_verse_hint_dismissed\',\'1\')">\u2715</button>';
+    document.querySelector('.main-content').appendChild(hint);
+  }
+
   document.querySelectorAll('.verse-sel').forEach(function(el) {
     el.style.cursor = 'pointer';
-    el.title = 'Click to start selection, click another to set range';
+    el.title = window.__t('verse_hint');
     el.addEventListener('click', function(e) {
       e.stopPropagation();
       var num = parseInt(el.dataset.num);

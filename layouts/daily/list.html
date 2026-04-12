@@ -958,7 +958,7 @@
         }
 
         drawLine(lat, lng);
-        var userMarker = L.marker([lat, lng], { draggable: true }).addTo(map).bindPopup('Drag to correct your location');
+        var userMarker = L.marker([lat, lng], { draggable: true }).addTo(map).bindPopup(window.__t('qiblih_drag_hint'));
         L.marker([BAHJI.lat, BAHJI.lng]).addTo(map).bindPopup('Bahji');
 
         userMarker.on('dragend', function() {
@@ -1069,7 +1069,7 @@
           // High accuracy failed — retry with low accuracy and longer timeout
           navigator.geolocation.getCurrentPosition(
             onPosition,
-            function(err) { statusEl.textContent = 'Could not determine location. Please allow location access.'; },
+            function(err) { statusEl.textContent = window.__t('qiblih_no_geo'); },
             { enableHighAccuracy: false, timeout: 30000, maximumAge: 300000 }
           );
         },

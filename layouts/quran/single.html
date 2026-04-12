@@ -555,8 +555,8 @@
     qBanner = document.createElement('div');
     qBanner.className = 'range-banner';
     qBanner.innerHTML = '<span>Surah ' + qRangeSurah + ':' + lo + (hi > lo ? '\u2013' + hi : '') + '</span> ' +
-      '<button class="btn-action btn-small range-add">Add to devotional</button> ' +
-      '<button class="btn-action btn-small range-cancel">Cancel</button>';
+      '<button class="btn-action btn-small range-add">' + window.__t('verse_add') + '</button> ' +
+      '<button class="btn-action btn-small range-cancel">\u2715</button>';
     document.querySelector('.main-content').prepend(qBanner);
     qBanner.querySelector('.range-add').addEventListener('click', function() {
       addCode(code);

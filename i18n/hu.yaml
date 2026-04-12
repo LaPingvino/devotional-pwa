@@ -108,6 +108,15 @@ prayers_all_epub: "Összes — EPUB"
 prayers_sop_pdf: "Rövid kötelező ima (összes nyelv) — PDF"
 prayers_sop_epub: "Rövid kötelező ima — EPUB"
 
+# Verse selection
+verse_hint: "Kattintson egy versszámra a kezdéshez, majd egy másikra a tartomány kiválasztásához az imaprogramhoz."
+verse_add: "Hozzáadás az imaprogramhoz"
+verse_cancel: "Mégse"
+
+# Qiblih
+qiblih_no_geo: "Nem sikerült meghatározni a helyzetet. Kérjük, engedélyezze a helymeghatározást."
+qiblih_drag_hint: "Húzza a helyzet javításához"
+
 # Search page
 search_title: "Kereses"
 search_desc: "Kereses imak es irasok kozott minden nyelven."
