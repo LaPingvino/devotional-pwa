@@ -815,7 +815,7 @@
             title += ':' + ref.verseStart;
             if (ref.verseEnd > ref.verseStart) title += '-' + ref.verseEnd;
           }
-          return { text: '<p>' + textParts.join(' ') + '</p>', category: 'Bible', type: 'bible', name: title };
+          return { text: '<p>' + textParts.join(' ') + '</p>', category: 'Bible', type: 'bible', name: title, link: '/bible/' + ref.book + '/#ch' + ref.chapter };
         }
       }
 
@@ -838,7 +838,7 @@
         title += ':' + ref.verseStart;
         if (ref.verseEnd > ref.verseStart) title += '-' + ref.verseEnd;
       }
-      return { text: '<p>' + textParts.join(' ') + '</p>', category: 'Bible', type: 'bible', name: title };
+      return { text: '<p>' + textParts.join(' ') + '</p>', category: 'Bible', type: 'bible', name: title, link: '/bible/' + ref.book + '/#ch' + ref.chapter };
     }
 
     // Quran reference
@@ -861,7 +861,8 @@
         title += ' ' + ref.ayahStart;
         if (ref.ayahEnd > ref.ayahStart) title += '-' + ref.ayahEnd;
       }
-      return { text: '<p>' + textParts.join(' ') + '</p>', category: "Qur'an", type: 'quran', name: title };
+      var quranLang = lang === 'en' ? 'en' : lang;
+      return { text: '<p>' + textParts.join(' ') + '</p>', category: "Qur'an", type: 'quran', name: title, link: '/quran/' + quranLang + '/#s' + ref.surah };
     }
 
     // Writing shorthand: iqan:part:section, aqdas:para, etc.
@@ -874,7 +875,7 @@
         var matching = entries.filter(writingShort.filter);
         if (matching.length > 0) {
           var text = matching.map(function(e) { return e.text; }).join('\n');
-          return { text: text, category: writingShort.title, type: 'writing', name: writingShort.label };
+          return { text: text, category: writingShort.title, type: 'writing', name: writingShort.label, link: '/writings/' + writingShort.key + '/' + lang + '/' };
         }
       }
     }
@@ -883,7 +884,7 @@
     var pMap = await getPrayerMap(lang);
     if (pMap[code]) {
       var p = pMap[code];
-      return { text: p.text, category: p.category, type: 'prayer', name: p.name };
+      return { text: p.text, category: p.category, type: 'prayer', name: p.name, link: '/prayers/' + lang + '/#' + code };
     }
 
     // Try writings — check each writing type
@@ -894,7 +895,7 @@
         var wMap = await getWritingMap(w.key, lang);
         if (wMap[code]) {
           var e = wMap[code];
-          return { text: e.text, category: w.title, type: 'writing', name: e.name || e.bookTitle };
+          return { text: e.text, category: w.title, type: 'writing', name: e.name || e.bookTitle, link: '/writings/' + w.key + '/' + lang + '/#' + code };
         }
       }
     }
@@ -1050,11 +1051,11 @@
       const div = document.createElement('div');
       div.className = 'dev-item';
       div.dataset.idx = idx;
-      div.draggable = true;
 
       const r = item.resolved;
       const textHtml = r ? renderMd(r.text) : '<span class="dev-item-na">Not available in ' + item.useLang + '</span>';
-      const meta = r ? (r.category || '') + (r.name ? ' — ' + r.name : '') : '';
+      const metaText = r ? (r.category || '') + (r.name ? ' — ' + r.name : '') : '';
+      const meta = r && r.link ? '<a href="' + r.link + '" style="color:inherit;text-decoration:none;border-bottom:1px dotted var(--text-secondary)">' + metaText + '</a>' : metaText;
       const isRtlLang = allLanguages.find(l => l.code === item.useLang); const isRtl = isRtlLang && isRtlLang.rtl;
       const lockLabel = item.lang ? item.lang.toUpperCase() : '\u{1F310}';
       const lockTitle = item.lang ? 'Locked to ' + item.lang + ' (click to unlock)' : 'Using global language (click to lock to ' + lang + ')';
@@ -1094,13 +1095,16 @@
         });
       }
 
-      // Drag-and-drop reordering
+      // Drag-and-drop reordering — only from the drag handle
+      var dragHandle = div.querySelector('.dev-item-drag');
+      dragHandle.addEventListener('mousedown', function() { div.draggable = true; });
+      dragHandle.addEventListener('touchstart', function() { div.draggable = true; }, {passive: true});
       div.addEventListener('dragstart', e => {
         div.classList.add('dragging');
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', idx.toString());
       });
-      div.addEventListener('dragend', () => div.classList.remove('dragging'));
+      div.addEventListener('dragend', () => { div.classList.remove('dragging'); div.draggable = false; });
       div.addEventListener('dragover', e => { e.preventDefault(); div.classList.add('drag-over'); });
       div.addEventListener('dragleave', () => div.classList.remove('drag-over'));
       div.addEventListener('drop', e => {
