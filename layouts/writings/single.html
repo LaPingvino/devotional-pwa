@@ -368,6 +368,12 @@ a.entry-name:hover { text-decoration: underline; }
     'lawh':         function(base, from, to) {
       if (base === 'BH00005') return 'esw:' + from + (to > from ? '-' + to : '');
       return null;
+    },
+    'divineplan':   function(base, from, to) {
+      var tdpBases = {AB00956:1,AB01505:2,AB01130:3,AB00936:4,AB01552:5,AB00218:6,AB00049:7,AB00032:8,AB00241:9,AB00209:10,AB00184:11,AB00210:12,AB00169:13,AB00094:14};
+      var tablet = tdpBases[base];
+      if (tablet) return 'tdp:' + tablet + ':' + from + (to > from ? '-' + to : '');
+      return null;
     }
   };
 
