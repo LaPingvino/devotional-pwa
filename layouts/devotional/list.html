@@ -819,7 +819,7 @@
       });
       if (verses.length === 0) return null;
       var textParts = verses.map(function(v) {
-        var t = (lang === 'ar' ? (v.ar || v.en) : (v.en || v.ar)) || v.syr || v.el || '';
+        var t = {he: v.he, syr: v.syr, el: v.el, ar: v.ar, en: v.en}[lang] || v.en || v.ar || '';
         return '<sup>' + v.num + '</sup> ' + t;
       });
       var bookName = (data.book && data.book.conventional) || ref.book;
