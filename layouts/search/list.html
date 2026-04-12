@@ -71,8 +71,8 @@
       langCounts[e.l]++;
       if (e.ln) langNames[e.l] = e.ln;
     });
-    var sorted = Object.keys(langCounts).filter(function(l) { return langNames[l]; })
-      .sort(function(a,b) { return langNames[a].localeCompare(langNames[b]); });
+    var sorted = Object.keys(langCounts).filter(function(l) { return langNames[l] && langCounts[l] >= 5; })
+      .sort(function(a,b) { return langCounts[b] - langCounts[a]; });
     sorted.forEach(function(l) {
       var opt = document.createElement('option');
       opt.value = l;
