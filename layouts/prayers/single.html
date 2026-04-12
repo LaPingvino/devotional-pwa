@@ -48,7 +48,9 @@
       {{ $pinL := $pin | lower }}
       {{ $baseL := replaceRE "[a-z]{3}$" "" $pinL }}
       {{ $suffix := strings.TrimPrefix $baseL $pinL }}
-      {{ $wc := len (findRE `\S+` (replaceRE `#+\s+[^\n]+` "" .text)) }}
+      {{ $plainText := replaceRE `#+\s+[^\n]+` "" .text }}
+      {{ $wc := len (findRE `\S+` $plainText) }}
+      {{ $preview := replaceRE `\s+` " " (replaceRE `[*#\[\]()>]` "" $plainText) | truncate 60 "…" }}
       <article class="prayer-card folded" id="{{ $pin }}"
                data-cat="{{ .category }}"
                data-native-cat="{{ .category }}"
@@ -56,6 +58,7 @@
         <div class="prayer-card-header">
           <span class="prayer-toggle" aria-hidden="true">▶</span>
           {{ with .name }}<span class="prayer-name">{{ . }}</span>{{ end }}
+          <span class="prayer-preview">{{ $preview }}</span>
           <span class="word-count">~{{ $wc }}w</span>
           <span class="prayer-phelps">
             <a href="/phelps/{{ $baseL }}/{{ if $suffix }}#{{ $suffix }}{{ end }}" title="All translations">{{ $pin }}</a>

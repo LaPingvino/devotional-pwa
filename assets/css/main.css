@@ -411,7 +411,15 @@ body {
 .prayer-name {
   font-weight: 600;
   font-size: .85rem;
+}
+.prayer-preview {
   flex: 1;
+  font-size: .8rem;
+  color: var(--text-secondary);
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 /* Translation footer on prayer cards */
 .prayer-translations {
