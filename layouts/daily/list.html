@@ -1048,10 +1048,18 @@
         return;
       }
       statusEl.textContent = 'Finding your location...';
+      // Try high accuracy first (GPS), fall back to low accuracy (IP-based)
       navigator.geolocation.getCurrentPosition(
         onPosition,
-        err => { statusEl.textContent = 'Location error: ' + err.message; },
-        { enableHighAccuracy: true, timeout: 10000 }
+        function() {
+          // High accuracy failed — retry with low accuracy and longer timeout
+          navigator.geolocation.getCurrentPosition(
+            onPosition,
+            function(err) { statusEl.textContent = 'Could not determine location. Please allow location access.'; },
+            { enableHighAccuracy: false, timeout: 30000, maximumAge: 300000 }
+          );
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
       );
     });
   }
