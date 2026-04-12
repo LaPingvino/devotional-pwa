@@ -959,22 +959,20 @@ p { margin-bottom: .5rem; }
 /* Range selection markers */
 .range-marker {
   cursor: pointer;
-  display: inline-block;
-  width: 1.1em;
-  height: 1.1em;
-  line-height: 1.1em;
-  text-align: center;
-  font-size: .7em;
-  margin-right: .2em;
+  appearance: none;
+  -webkit-appearance: none;
+  width: .9em;
+  height: .9em;
+  margin: 0 .3em 0 0;
   vertical-align: middle;
   border: 1.5px solid var(--text-secondary);
-  border-radius: 50%;
-  color: var(--text-secondary);
+  border-radius: 3px;
   background: transparent;
   transition: all .15s;
+  flex-shrink: 0;
 }
-.range-marker:hover { border-color: var(--accent); color: var(--accent); background: rgba(255,121,84,.1); }
-.range-marker.range-selected { border-color: var(--accent); color: #fff; background: var(--accent); }
+.range-marker:hover { border-color: var(--accent); background: rgba(255,121,84,.15); }
+.range-marker:checked, .range-marker.range-selected { border-color: var(--accent); background: var(--accent); }
 td.il-marker { width: 1.2em; padding: 0 .2em; vertical-align: middle; }
 .verse .range-marker { position: absolute; left: -1.8em; top: .35em; }
 .verse-sel.range-selected, .ayah-sel.range-selected { background: var(--accent); color: #fff; border-radius: 3px; padding: 0 3px; }

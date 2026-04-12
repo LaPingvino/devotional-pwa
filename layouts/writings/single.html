@@ -94,7 +94,7 @@
         {{ $bookIdx = add $bookIdx 1 }}
         <section class="writing-entry" id="{{ .phelps }}" data-order="{{ .order }}">
           <div class="writing-entry-label">
-            <span class="range-marker" data-order="{{ .order }}">&#x25CB;</span><a href="#{{ .phelps }}" class="entry-num" title="Link to this section">{{ $bookIdx }}</a>
+            <input type="checkbox" class="range-marker" data-order="{{ .order }}"><a href="#{{ .phelps }}" class="entry-num" title="Link to this section">{{ $bookIdx }}</a>
             {{ if and $showNames .name }}<a href="#{{ .phelps }}" class="entry-name">{{ .name }}</a>{{ end }}
             {{ if $showEntryLinks }}<a href="/phelps/{{ .phelps | lower }}/" class="phelps-link" title="View in inventory">{{ .phelps }}</a>{{ end }}
             <button class="btn-add-devotional" data-phelps="{{ .phelps }}" aria-label="Add to devotional" title="Add to devotional program">+</button>
@@ -428,7 +428,7 @@ a.entry-name:hover { text-decoration: underline; }
   // ── Paragraph range selection by clicking entry numbers ──
   var wRangeStart = null, wRangeEnd = null, wRangeBook = null, wBanner = null;
   function clearWRange() {
-    document.querySelectorAll('.range-marker.range-selected').forEach(function(el) { el.classList.remove('range-selected'); });
+    document.querySelectorAll('.range-marker.range-selected').forEach(function(el) { el.checked = false; });
     wRangeStart = null; wRangeEnd = null; wRangeBook = null;
     if (wBanner) { wBanner.remove(); wBanner = null; }
   }
@@ -475,14 +475,14 @@ a.entry-name:hover { text-decoration: underline; }
       if (wRangeStart === null || book !== wRangeBook) {
         clearWRange();
         wRangeStart = order; wRangeEnd = order; wRangeBook = book;
-        el.classList.add('range-selected');
+        el.checked = true;
         showWBanner();
       } else {
         wRangeEnd = order;
         var lo = Math.min(wRangeStart, wRangeEnd), hi = Math.max(wRangeStart, wRangeEnd);
         book.querySelectorAll('.range-marker').forEach(function(m) {
           var o = parseInt(m.dataset.order);
-          m.classList.toggle('range-selected', o >= lo && o <= hi);
+          m.checked = (o >= lo && o <= hi);
         });
         showWBanner();
       }

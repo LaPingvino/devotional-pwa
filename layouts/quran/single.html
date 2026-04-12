@@ -78,7 +78,7 @@
         <ol class="verse-list" start="1">
           {{ range .verses }}
           <li class="verse" id="surah-{{ $surahNum }}-ayah-{{ .ayah }}" data-surah="{{ $surahNum }}" data-ayah="{{ .ayah }}" value="{{ .ayah }}">
-            <span class="range-marker" data-surah="{{ $surahNum }}" data-ayah="{{ .ayah }}">&#x25CB;</span>
+            <input type="checkbox" class="range-marker" data-surah="{{ $surahNum }}" data-ayah="{{ .ayah }}">
             <span class="ayah-text">{{ .text }}</span>
           </li>
           {{ end }}
@@ -545,7 +545,7 @@
   // ── Ayah range selection ──
   var qRangeStart = null, qRangeEnd = null, qRangeSurah = null, qBanner = null;
   function clearQRange() {
-    document.querySelectorAll('.range-marker.range-selected').forEach(function(el) { el.classList.remove('range-selected'); });
+    document.querySelectorAll('.range-marker.range-selected').forEach(function(el) { el.checked = false; });
     qRangeStart = null; qRangeEnd = null; qRangeSurah = null;
     if (qBanner) { qBanner.remove(); qBanner = null; }
   }
@@ -574,14 +574,14 @@
       if (qRangeStart === null || surah !== qRangeSurah) {
         clearQRange();
         qRangeStart = ayah; qRangeEnd = ayah; qRangeSurah = surah;
-        el.classList.add('range-selected');
+        el.checked = true;
         showQBanner();
       } else {
         qRangeEnd = ayah;
         var lo = Math.min(qRangeStart, qRangeEnd), hi = Math.max(qRangeStart, qRangeEnd);
         el.closest('.surah-section').querySelectorAll('.range-marker').forEach(function(v) {
           var n = parseInt(v.dataset.ayah);
-          v.classList.toggle('range-selected', n >= lo && n <= hi);
+          v.checked = (n >= lo && n <= hi);
         });
         showQBanner();
       }

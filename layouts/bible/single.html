@@ -84,7 +84,7 @@
           <td class="il-src il-el">{{ .el }}</td>
           {{ end }}
 
-          <td class="il-marker"><span class="range-marker" data-num="{{ .num }}">&#x25CB;</span></td>
+          <td class="il-marker"><input type="checkbox" class="range-marker" data-num="{{ .num }}"></td>
           <td class="il-num">{{ .num }}</td>
 
           {{/* Translation columns */}}
@@ -466,7 +466,7 @@
 
   function clearRange() {
     document.querySelectorAll('.range-marker.range-selected').forEach(function(el) {
-      el.classList.remove('range-selected');
+      el.checked = false;
     });
     rangeStart = null; rangeEnd = null; rangeChapter = null;
     if (rangeBanner) { rangeBanner.remove(); rangeBanner = null; }
@@ -512,7 +512,7 @@
         rangeStart = num;
         rangeEnd = num;
         rangeChapter = chNum;
-        el.classList.add('range-selected');
+        el.checked = true;
         showRangeBanner();
       } else {
         rangeEnd = num;
@@ -520,7 +520,7 @@
         var hi = Math.max(rangeStart, rangeEnd);
         ch.querySelectorAll('.range-marker').forEach(function(v) {
           var n = parseInt(v.dataset.num);
-          v.classList.toggle('range-selected', n >= lo && n <= hi);
+          v.checked = (n >= lo && n <= hi);
         });
         showRangeBanner();
       }
