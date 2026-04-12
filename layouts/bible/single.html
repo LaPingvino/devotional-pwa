@@ -383,6 +383,25 @@
   }
   document.querySelectorAll('.trans-opt').forEach(wireTransOpt);
 
+  // Auto-select translation matching UI language (if not en/ar which are local)
+  (function() {
+    var uiLang = (window.__uiLang || 'en').split('-')[0];
+    var uiFull = window.__uiLang || 'en';
+    if (uiLang === 'en' || uiFull === 'en') return; // English is already default
+    // Check for local Arabic
+    if (uiLang === 'ar') {
+      var arOpt = transList.querySelector('[data-lang="ar"][data-local]');
+      if (arOpt) { arOpt.click(); return; }
+    }
+    // Check Bolls translations — try full code first, then base
+    var match = BOLLS_TRANSLATIONS.find(function(t) { return t.lang === uiFull; }) ||
+                BOLLS_TRANSLATIONS.find(function(t) { return t.lang === uiLang; });
+    if (match) {
+      var opt = transList.querySelector('[data-bolls="' + match.code + '"]');
+      if (opt) opt.click();
+    }
+  })();
+
   // OT: Hebrew source toggle
   const srcCb = document.getElementById('show-source');
   if (srcCb) {

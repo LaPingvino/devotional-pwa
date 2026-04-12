@@ -141,9 +141,16 @@
     allLink.addEventListener('click', function(ev) { ev.preventDefault(); selectLang(''); });
     langList.appendChild(allLink);
 
-    // Sort by count desc
+    // Sort by count desc, UI language first
+    var uiBase = (window.__uiLang || 'en').split('-')[0];
+    var uiFull = window.__uiLang || 'en';
     var sorted = Object.keys(langCounts).filter(function(l) { return langNamesMap[l]; })
-      .sort(function(a,b) { return langCounts[b] - langCounts[a]; });
+      .sort(function(a,b) {
+        var aUi = (a === uiFull || a === uiBase) ? 1 : 0;
+        var bUi = (b === uiFull || b === uiBase) ? 1 : 0;
+        if (aUi !== bUi) return bUi - aUi;
+        return langCounts[b] - langCounts[a];
+      });
     sorted.forEach(function(l) {
       var a = document.createElement('a');
       a.href = '#'; a.dataset.code = l; a.dataset.name = (langNamesMap[l] || '').toLowerCase(); a.dataset.count = langCounts[l];

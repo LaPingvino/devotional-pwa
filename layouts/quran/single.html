@@ -401,6 +401,17 @@
     mobileSelect.addEventListener('change', () => showSurah(mobileSelect.value));
   }
 
+  // Pin UI language to top of language dropdown
+  (function() {
+    var list = document.querySelector('#quran-lang-dropdown .lang-dropdown-list');
+    if (!list) return;
+    var uiLang = (window.__uiLang || 'en').toLowerCase();
+    var uiBase = uiLang.split('-')[0];
+    var match = list.querySelector('[data-code="' + uiLang + '"]') ||
+                list.querySelector('[data-code="' + uiBase + '"]');
+    if (match && match !== list.firstElementChild) list.prepend(match);
+  })();
+
   // Language dropdown: preserve current surah hash when switching
   document.querySelectorAll('#quran-lang-dropdown .lang-dropdown-list a').forEach(a => {
     a.addEventListener('click', e => {
