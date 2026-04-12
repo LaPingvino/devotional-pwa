@@ -737,7 +737,7 @@
     }
 
     const p = prayers[idx % prayers.length];
-    el.innerHTML = p.text || '';
+    el.innerHTML = renderMd(p.text || '');
     if (rtl) el.setAttribute('dir', 'rtl'); else el.removeAttribute('dir');
     const lang = selectedLang.toLowerCase();
     meta.innerHTML = (p.category ? p.category + ' &middot; ' : '') +
@@ -779,7 +779,7 @@
     if (text.length > maxLen) {
       text = text.slice(0, maxLen) + '&hellip;';
     }
-    el.innerHTML = text;
+    el.innerHTML = renderMd(text);
     if (rtl) el.setAttribute('dir', 'rtl'); else el.removeAttribute('dir');
     const lang = selectedLang.toLowerCase();
     meta.innerHTML = w.writingTitle + ' &middot; ' + w.author +
