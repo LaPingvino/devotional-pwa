@@ -539,7 +539,7 @@
   const langLabel = $('daily-lang-label');
   const langList = $('daily-lang-list');
   const langFilter = $('daily-lang-filter');
-  let selectedLang = localStorage.getItem('hw_daily_lang') || 'en';
+  let selectedLang = 'en'; // resolved in init() via __bestLang
   let selectedRtl = false;
   let allLanguages = [];
   let writingsIndex = [];
@@ -574,6 +574,10 @@
     } catch (e) {
       console.warn('Failed to load language/writing data:', e);
     }
+
+    // Resolve best language now that we know what's available
+    var availCodes = allLanguages.map(function(l) { return l.code; });
+    selectedLang = window.__bestLang('hw_daily_lang', availCodes);
 
     // Populate filterable language dropdown — alphabetical, English first
     const sorted = [...allLanguages].sort((a, b) => {

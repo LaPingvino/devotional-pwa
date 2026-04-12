@@ -573,7 +573,7 @@
     get value() { return selectedLang; },
     addEventListener() {} // no-op; selectLang() triggers re-renders directly
   };
-  let selectedLang = localStorage.getItem('hw_devotional_lang') || 'en';
+  let selectedLang = 'en'; // resolved in init() via __bestLang
   let allLanguages = [];
   let prayerCache = {}; // lang → {phelps → prayer}
   let writingCache = {}; // `${key}/${lang}` → {phelps → entry}
@@ -596,6 +596,10 @@
     ]);
     allLanguages = await langRes.json();
     window._writingsIndex = await writRes.json();
+
+    // Resolve best language now that we know what's available
+    var availCodes = allLanguages.map(function(l) { return l.code; });
+    selectedLang = window.__bestLang('hw_devotional_lang', availCodes);
 
     // Populate dropdown — alphabetical, English first
     const sorted = [...allLanguages].sort((a, b) => {

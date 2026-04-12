@@ -24,6 +24,25 @@
     var base = lang.split('-')[0];
     window.__uiLang = lang;
     window.__t = function(k) { return k; }; // stub until loaded
+    // Pick best content language: stored preference → UI lang → browser langs → 'en'
+    window.__bestLang = function(storageKey, availableCodes) {
+      var stored = localStorage.getItem(storageKey);
+      if (stored && availableCodes.indexOf(stored) >= 0) return stored;
+      // Try UI language and its base
+      if (availableCodes.indexOf(lang) >= 0) return lang;
+      if (availableCodes.indexOf(base) >= 0) return base;
+      // Try browser languages
+      var navLangs = (navigator.languages || [navigator.language || '']).slice();
+      for (var i = 0; i < navLangs.length; i++) {
+        var nl = navLangs[i];
+        if (nl === 'zh-CN' || nl === 'zh') nl = 'zh-Hans';
+        if (nl === 'zh-TW' || nl === 'zh-HK') nl = 'zh-Hant';
+        if (availableCodes.indexOf(nl) >= 0) return nl;
+        var nb = nl.split('-')[0];
+        if (availableCodes.indexOf(nb) >= 0) return nb;
+      }
+      return 'en';
+    };
 
     fetch('/data/i18n.json').then(function(r) { return r.json(); }).then(function(T) {
       window.__i18n = T;
