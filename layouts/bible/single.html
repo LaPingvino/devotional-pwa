@@ -272,53 +272,77 @@
     if (this.open) { transFilter.value = ''; transFilter.focus(); transList.querySelectorAll('.trans-opt').forEach(function(a) { a.style.display = ''; }); }
   });
 
-  // Bolls text cache: {translationCode: {chapter: [{verse, text}]}}
+  // Bolls text cache and lazy loading state
   var bollsCache = {};
+  var activeBolls = null; // {code, rtl} when a Bolls translation is active
+  var bollsObserver = null;
+  var bollsLoaded = new Set(); // chapter IDs already rendered for current translation
 
   function clearBollsColumns() {
     document.querySelectorAll('.il-bolls').forEach(function(el) { el.remove(); });
+    bollsLoaded.clear();
   }
 
-  async function loadBollsChapter(translationCode, bookNum, chapter) {
-    var key = translationCode + ':' + bookNum + ':' + chapter;
-    if (bollsCache[key]) return bollsCache[key];
-    var url = 'https://bolls.life/get-text/' + translationCode + '/' + bookNum + '/' + chapter + '/';
-    var res = await fetch(url);
-    if (!res.ok) return null;
-    var data = await res.json();
-    bollsCache[key] = data;
-    return data;
-  }
-
-  async function showBollsTranslation(translationCode, rtl) {
-    clearBollsColumns();
+  async function loadBollsChapter(chEl, translationCode, rtl) {
     var bookNum = BOLLS_BOOK_MAP[BOOK_ID];
     if (!bookNum) return;
-    // Load all chapters in parallel
-    var chapters = document.querySelectorAll('.bible-chapter');
-    var promises = [];
-    chapters.forEach(function(ch) {
-      var chNum = parseInt(ch.id.replace('ch', ''));
-      promises.push(loadBollsChapter(translationCode, bookNum, chNum).then(function(verses) {
-        return {el: ch, chNum: chNum, verses: verses};
-      }));
+    var chNum = parseInt(chEl.id.replace('ch', ''));
+    var key = translationCode + ':' + bookNum + ':' + chNum;
+
+    // Fetch (with cache)
+    var verses;
+    if (bollsCache[key]) {
+      verses = bollsCache[key];
+    } else {
+      try {
+        var url = 'https://bolls.life/get-text/' + translationCode + '/' + bookNum + '/' + chNum + '/';
+        var res = await fetch(url);
+        if (!res.ok) return;
+        verses = await res.json();
+        bollsCache[key] = verses;
+      } catch(e) { return; }
+    }
+
+    // Don't render if translation changed while loading
+    if (!activeBolls || activeBolls.code !== translationCode) return;
+
+    var verseMap = {};
+    verses.forEach(function(v) { verseMap[v.verse] = v.text; });
+    chEl.querySelectorAll('.interlinear tbody tr').forEach(function(row) {
+      var numEl = row.querySelector('.verse-sel');
+      if (!numEl) return;
+      var num = parseInt(numEl.dataset.num);
+      var td = document.createElement('td');
+      td.className = 'il-trans il-bolls';
+      if (rtl) td.dir = 'rtl';
+      td.innerHTML = verseMap[num] || '';
+      row.appendChild(td);
     });
-    var results = await Promise.all(promises);
-    results.forEach(function(r) {
-      if (!r.verses) return;
-      var verseMap = {};
-      r.verses.forEach(function(v) { verseMap[v.verse] = v.text; });
-      r.el.querySelectorAll('.interlinear tbody tr').forEach(function(row) {
-        var numEl = row.querySelector('.verse-sel');
-        if (!numEl) return;
-        var num = parseInt(numEl.dataset.num);
-        var td = document.createElement('td');
-        td.className = 'il-trans il-bolls';
-        if (rtl) td.dir = 'rtl';
-        td.textContent = verseMap[num] || '';
-        row.appendChild(td);
+    bollsLoaded.add(chEl.id);
+  }
+
+  function startBollsLazy(translationCode, rtl) {
+    if (bollsObserver) bollsObserver.disconnect();
+    activeBolls = {code: translationCode, rtl: rtl};
+
+    bollsObserver = new IntersectionObserver(function(entries) {
+      entries.forEach(function(entry) {
+        if (!entry.isIntersecting) return;
+        if (!activeBolls || activeBolls.code !== translationCode) return;
+        if (bollsLoaded.has(entry.target.id)) return;
+        bollsLoaded.add(entry.target.id); // mark early to prevent double-load
+        loadBollsChapter(entry.target, translationCode, rtl);
       });
+    }, { rootMargin: '200px 0px' }); // start loading slightly before visible
+
+    document.querySelectorAll('.bible-chapter').forEach(function(ch) {
+      bollsObserver.observe(ch);
     });
+  }
+
+  function stopBollsLazy() {
+    if (bollsObserver) { bollsObserver.disconnect(); bollsObserver = null; }
+    activeBolls = null;
   }
 
   // Translation language picker — exclusive switch
@@ -336,6 +360,7 @@
           document.querySelectorAll('.il-' + opt.dataset.lang).forEach(function(el) { el.style.display = 'none'; });
         }
       });
+      stopBollsLazy();
       clearBollsColumns();
 
       // Activate clicked one
@@ -349,7 +374,7 @@
       } else if (isBolls) {
         // Hide commentaries for external translations
         document.querySelectorAll('.chapter-commentary').forEach(function(el) { el.style.display = 'none'; });
-        showBollsTranslation(isBolls, !!this.dataset.rtl);
+        startBollsLazy(isBolls, !!this.dataset.rtl);
       }
 
       document.getElementById('trans-label').textContent = this.textContent.trim();

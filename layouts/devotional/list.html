@@ -744,12 +744,72 @@
     return { surah: surah, ayahStart: ayahStart, ayahEnd: ayahEnd };
   }
 
+  // ── Bolls.life Bible translations for devotional ──
+  var BOLLS_LANG_MAP = {
+    fr:'FRLSG',de:'LUT',es:'RV1960',pt:'ARA',ru:'SYNOD',it:'NR06',nl:'DSV',pl:'BG',
+    ro:'VDCL',hu:'KB',sv:'SFB2015',ko:'KRV',ja:'JPKJV','zh-Hant':'CUV','zh-Hans':'CUNPS',
+    id:'TB',vi:'VI1934',no:'DNB',cs:'CSP09',fa:'POV',hi:'HIOV',sw:'SUV',af:'AFR53',la:'VULG'
+  };
+  var BOLLS_BOOK_MAP = {
+    genesis:1,exodus:2,leviticus:3,numbers:4,deuteronomy:5,joshua:6,judges:7,ruth:8,
+    '1-samuel':9,'2-samuel':10,'1-kings':11,'2-kings':12,'1-chronicles':13,'2-chronicles':14,
+    ezra:15,nehemiah:16,esther:17,job:18,psalms:19,proverbs:20,ecclesiastes:21,
+    'song-of-solomon':22,isaiah:23,jeremiah:24,lamentations:25,ezekiel:26,daniel:27,
+    hosea:28,joel:29,amos:30,obadiah:31,jonah:32,micah:33,nahum:34,habakkuk:35,
+    zephaniah:36,haggai:37,zechariah:38,malachi:39,
+    matthew:40,mark:41,luke:42,john:43,acts:44,romans:45,
+    '1-corinthians':46,'2-corinthians':47,galatians:48,ephesians:49,philippians:50,
+    colossians:51,'1-thessalonians':52,'2-thessalonians':53,'1-timothy':54,'2-timothy':55,
+    titus:56,philemon:57,hebrews:58,james:59,'1-peter':60,'2-peter':61,
+    '1-john':62,'2-john':63,'3-john':64,jude:65,revelation:66
+  };
+  var bollsDevCache = {};
+
+  async function fetchBollsVerses(bollsCode, book, chapter, verseStart, verseEnd) {
+    var bookNum = BOLLS_BOOK_MAP[book];
+    if (!bookNum) return null;
+    var key = bollsCode + ':' + bookNum + ':' + chapter;
+    var verses;
+    if (bollsDevCache[key]) {
+      verses = bollsDevCache[key];
+    } else {
+      try {
+        var url = 'https://bolls.life/get-text/' + bollsCode + '/' + bookNum + '/' + chapter + '/';
+        var res = await fetch(url);
+        if (!res.ok) return null;
+        verses = await res.json();
+        bollsDevCache[key] = verses;
+      } catch(e) { return null; }
+    }
+    return verses.filter(function(v) { return v.verse >= verseStart && v.verse <= verseEnd; });
+  }
+
   // ── Resolve a code to text in given language ──
   async function resolveCode(code, lang) {
     // Bible reference
     if (code.startsWith('bible:')) {
       var ref = parseBibleRef(code);
       if (!ref) return null;
+
+      // Try Bolls translation for non-en/ar languages
+      var bollsCode = BOLLS_LANG_MAP[lang];
+      if (bollsCode) {
+        var bVerses = await fetchBollsVerses(bollsCode, ref.book, ref.chapter, ref.verseStart, ref.verseEnd);
+        if (bVerses && bVerses.length > 0) {
+          var textParts = bVerses.map(function(v) {
+            return '<sup>' + v.verse + '</sup> ' + (v.text || '');
+          });
+          var bookName = ref.book.replace(/-/g, ' ').replace(/\b\w/g, function(c) { return c.toUpperCase(); });
+          var title = bookName + ' ' + ref.chapter;
+          if (ref.verseEnd < 999) {
+            title += ':' + ref.verseStart;
+            if (ref.verseEnd > ref.verseStart) title += '-' + ref.verseEnd;
+          }
+          return { text: '<p>' + textParts.join(' ') + '</p>', category: 'Bible', type: 'bible', name: title };
+        }
+      }
+
+      // Fall back to local KJV/Van Dyck data
       var data = await fetchBibleBook(ref.book);
       if (!data) return null;
       var ch = (data.chapters || []).find(function(c) { return c.chapter === ref.chapter; });
@@ -759,8 +819,7 @@
       });
       if (verses.length === 0) return null;
       var textParts = verses.map(function(v) {
-        // Prefer English, then Arabic
-        var t = v.en || v.ar || v.syr || v.el || '';
+        var t = (lang === 'ar' ? (v.ar || v.en) : (v.en || v.ar)) || v.syr || v.el || '';
         return '<sup>' + v.num + '</sup> ' + t;
       });
       var bookName = (data.book && data.book.conventional) || ref.book;
