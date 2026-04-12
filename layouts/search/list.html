@@ -63,14 +63,20 @@
     data = d;
     statusEl.textContent = data.length.toLocaleString() + ' entries loaded. Type to search.';
 
-    // Populate language filter
-    var langs = {};
-    data.forEach(function(e) { if (e.ln) langs[e.l] = e.ln; });
-    var sorted = Object.entries(langs).sort(function(a,b) { return a[1].localeCompare(b[1]); });
-    sorted.forEach(function(pair) {
+    // Populate language filter with counts
+    var langCounts = {};
+    var langNames = {};
+    data.forEach(function(e) {
+      if (!langCounts[e.l]) langCounts[e.l] = 0;
+      langCounts[e.l]++;
+      if (e.ln) langNames[e.l] = e.ln;
+    });
+    var sorted = Object.keys(langCounts).filter(function(l) { return langNames[l]; })
+      .sort(function(a,b) { return langNames[a].localeCompare(langNames[b]); });
+    sorted.forEach(function(l) {
       var opt = document.createElement('option');
-      opt.value = pair[0];
-      opt.textContent = pair[1] + ' (' + pair[0] + ')';
+      opt.value = l;
+      opt.textContent = langNames[l] + ' (' + l + ') — ' + langCounts[l];
       langFilter.appendChild(opt);
     });
   });
