@@ -430,6 +430,101 @@ func main() {
 		log.Printf("  created %d writing-only phelps files", created)
 	}
 
+	// 8. Search index — full text excerpts for client-side search
+	// Only one entry per phelps code per language (deduplicated)
+	log.Println("→ search index...")
+	type SearchEntry struct {
+		Phelps   string `json:"p"`
+		Language string `json:"l"`
+		LangName string `json:"ln,omitempty"`
+		Text     string `json:"t"` // first ~150 chars, stripped of HTML
+		Category string `json:"c,omitempty"`
+		Link     string `json:"u"` // URL to view this prayer
+	}
+	var searchEntries []SearchEntry
+	searchSeen := map[string]bool{} // "phelps|lang" → already added
+	for langCode, prayers := range allPrayers {
+		for _, p := range prayers {
+			if p.Phelps == "" || p.Source == "llm-translation" {
+				continue
+			}
+			key := p.Phelps + "|" + langCode
+			if searchSeen[key] {
+				continue
+			}
+			searchSeen[key] = true
+			text := stripHTML(p.Text)
+			if len([]rune(text)) > 150 {
+				text = string([]rune(text)[:150])
+			}
+			if text == "" {
+				continue
+			}
+			cat := p.Category
+			link := "/prayers/" + langCode + "/#" + p.Phelps
+			searchEntries = append(searchEntries, SearchEntry{
+				Phelps:   p.Phelps,
+				Language: langCode,
+				LangName: langNames[langCode],
+				Text:     text,
+				Category: cat,
+				Link:     link,
+			})
+		}
+	}
+	// Also add writings — only first paragraph per base code per language
+	writingRows := doltQuery(`
+		SELECT w.phelps, w.language, LEFT(w.text, 400) as text, w.type
+		FROM writings w
+		INNER JOIN (
+			SELECT MIN(phelps) as first_phelps, language, type
+			FROM writings
+			WHERE type IS NOT NULL AND type <> 'prayer'
+			AND phelps IS NOT NULL AND phelps <> ''
+			GROUP BY LEFT(phelps, 7), language, type
+		) g ON w.phelps = g.first_phelps AND w.language = g.language AND w.type = g.type
+		ORDER BY w.phelps, w.language
+	`)
+	writingTypeNames := map[string]string{
+		"hidden_words": "Hidden Words", "aqdas": "Kitáb-i-Aqdas", "iqan": "Kitáb-i-Íqán",
+		"gleanings": "Gleanings", "pm": "Prayers & Meditations", "saq": "Some Answered Questions",
+		"tablets": "Tablets of Bahá'u'lláh", "days_remembrance": "Days of Remembrance",
+		"ridvan": "Ridván Messages", "lawh": "Other Tablets",
+	}
+	writingTypeKeys := map[string]string{
+		"hidden_words": "hidden-words", "aqdas": "aqdas", "iqan": "iqan",
+		"gleanings": "gleanings", "pm": "pm", "saq": "saq",
+		"tablets": "tablets", "days_remembrance": "days", "ridvan": "ridvan", "lawh": "lawh",
+	}
+	for _, row := range writingRows[1:] {
+		if len(row) < 4 {
+			continue
+		}
+		phelps, lang, text, wtype := row[0], row[1], row[2], row[3]
+		text = stripHTML(text)
+		if len([]rune(text)) > 300 {
+			text = string([]rune(text)[:300])
+		}
+		if text == "" {
+			continue
+		}
+		key := writingTypeKeys[wtype]
+		if key == "" {
+			continue
+		}
+		link := "/writings/" + key + "/" + lang + "/#" + phelps
+		searchEntries = append(searchEntries, SearchEntry{
+			Phelps:   phelps,
+			Language: lang,
+			LangName: langNames[lang],
+			Text:     text,
+			Category: writingTypeNames[wtype],
+			Link:     link,
+		})
+	}
+	writeJSON(filepath.Join(staticDir, "search.json"), searchEntries)
+	log.Printf("  %d search entries", len(searchEntries))
+
 	log.Println("Done!")
 }
 
@@ -1109,4 +1204,22 @@ func basePINKey(pin string) string {
 		return pin[:n-3]
 	}
 	return pin
+}
+
+// stripHTML removes HTML tags and collapses whitespace.
+func stripHTML(s string) string {
+	out := make([]byte, 0, len(s))
+	inTag := false
+	for i := 0; i < len(s); i++ {
+		if s[i] == '<' {
+			inTag = true
+		} else if s[i] == '>' {
+			inTag = false
+			out = append(out, ' ')
+		} else if !inTag {
+			out = append(out, s[i])
+		}
+	}
+	result := strings.Join(strings.Fields(string(out)), " ")
+	return strings.TrimSpace(result)
 }

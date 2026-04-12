@@ -1,0 +1,180 @@
+{{ partial "head.html" (dict "Title" "Search" "Lang" "en") }}
+<div class="main-content">
+  <h1>Search</h1>
+  <p style="color:var(--text-secondary); margin-bottom:1rem;">
+    Search across prayers and writings in all languages.
+  </p>
+
+  <div style="display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1rem;">
+    <input type="search" id="q" placeholder="Search text, code, or keyword…" autofocus
+           style="flex:1; min-width:200px; padding:.6rem .8rem; border:1px solid var(--border); border-radius:6px; font-size:1rem; background:var(--bg); color:var(--text);">
+    <select id="lang-filter" style="padding:.5rem; border:1px solid var(--border); border-radius:6px; background:var(--bg); color:var(--text);">
+      <option value="">All languages</option>
+    </select>
+    <select id="cat-filter" style="padding:.5rem; border:1px solid var(--border); border-radius:6px; background:var(--bg); color:var(--text);">
+      <option value="">All types</option>
+      <option value="prayer">Prayers</option>
+      <option value="Hidden Words">Hidden Words</option>
+      <option value="Kitáb-i-Aqdas">Kitáb-i-Aqdas</option>
+      <option value="Kitáb-i-Íqán">Kitáb-i-Íqán</option>
+      <option value="Gleanings">Gleanings</option>
+      <option value="Prayers & Meditations">Prayers & Meditations</option>
+      <option value="Some Answered Questions">Some Answered Questions</option>
+      <option value="Tablets of Bahá'u'lláh">Tablets</option>
+      <option value="Days of Remembrance">Days of Remembrance</option>
+      <option value="Ridván Messages">Ridván Messages</option>
+      <option value="Other Tablets">Other Tablets</option>
+    </select>
+  </div>
+
+  <div id="status" style="font-size:.85rem; color:var(--text-secondary); margin-bottom:.5rem;"></div>
+  <div id="results"></div>
+</div>
+
+<style>
+.search-result { padding:.8rem; margin-bottom:.5rem; border:1px solid var(--border); border-radius:6px; }
+.search-result:hover { background: var(--bg-hover, #f8f8f8); }
+.search-result .sr-header { display:flex; gap:.5rem; align-items:baseline; flex-wrap:wrap; }
+.search-result .sr-code { font-family:monospace; font-weight:600; color:var(--accent); text-decoration:none; }
+.search-result .sr-lang { font-size:.8rem; color:var(--text-secondary); }
+.search-result .sr-cat { font-size:.75rem; padding:.1rem .4rem; background:var(--accent); color:#fff; border-radius:3px; }
+.search-result .sr-text { margin-top:.3rem; font-size:.9rem; line-height:1.4; color:var(--text); }
+.search-result .sr-text mark { background:#ffe066; padding:0 2px; border-radius:2px; }
+.search-result .sr-add { margin-left:auto; cursor:pointer; background:none; border:1px solid var(--border); border-radius:4px; padding:.2rem .5rem; font-size:.8rem; color:var(--text-secondary); }
+.search-result .sr-add:hover { background:var(--accent); color:#fff; border-color:var(--accent); }
+</style>
+
+<script>
+(function() {
+  var data = null;
+  var DKEY = 'hw_devotional_codes';
+  function codeStr(item) { return typeof item === 'string' ? item : item.code; }
+  function hasCode(c) { try { return JSON.parse(localStorage.getItem(DKEY) || '[]').some(function(i) { return codeStr(i) === c; }); } catch(e) { return false; } }
+  function addCode(c) { try { var codes = JSON.parse(localStorage.getItem(DKEY) || '[]'); if (!codes.some(function(i) { return codeStr(i) === c; })) { codes.push({code: c}); localStorage.setItem(DKEY, JSON.stringify(codes)); } } catch(e) {} }
+
+  var qInput = document.getElementById('q');
+  var langFilter = document.getElementById('lang-filter');
+  var catFilter = document.getElementById('cat-filter');
+  var statusEl = document.getElementById('status');
+  var resultsEl = document.getElementById('results');
+
+  statusEl.textContent = 'Loading search index...';
+  fetch('/data/search.json').then(function(r) { return r.json(); }).then(function(d) {
+    data = d;
+    statusEl.textContent = data.length.toLocaleString() + ' entries loaded. Type to search.';
+
+    // Populate language filter
+    var langs = {};
+    data.forEach(function(e) { if (e.ln) langs[e.l] = e.ln; });
+    var sorted = Object.entries(langs).sort(function(a,b) { return a[1].localeCompare(b[1]); });
+    sorted.forEach(function(pair) {
+      var opt = document.createElement('option');
+      opt.value = pair[0];
+      opt.textContent = pair[1] + ' (' + pair[0] + ')';
+      langFilter.appendChild(opt);
+    });
+  });
+
+  var debounce = null;
+  function onInput() {
+    clearTimeout(debounce);
+    debounce = setTimeout(doSearch, 200);
+  }
+  qInput.addEventListener('input', onInput);
+  langFilter.addEventListener('change', doSearch);
+  catFilter.addEventListener('change', doSearch);
+
+  // Check URL params
+  var params = new URLSearchParams(window.location.search);
+  if (params.get('q')) { qInput.value = params.get('q'); }
+  if (params.get('lang')) { langFilter.value = params.get('lang'); }
+  if (params.get('cat')) { catFilter.value = params.get('cat'); }
+  if (qInput.value) setTimeout(doSearch, 500);
+
+  function doSearch() {
+    if (!data) return;
+    var query = qInput.value.trim().toLowerCase();
+    var lang = langFilter.value;
+    var cat = catFilter.value;
+
+    if (!query && !lang && !cat) {
+      statusEl.textContent = data.length.toLocaleString() + ' entries. Type to search.';
+      resultsEl.innerHTML = '';
+      return;
+    }
+
+    var results = [];
+    var words = query.split(/\s+/).filter(function(w) { return w.length > 0; });
+
+    for (var i = 0; i < data.length; i++) {
+      var e = data[i];
+      if (lang && e.l !== lang) continue;
+      if (cat) {
+        if (cat === 'prayer' && e.c) continue;
+        if (cat !== 'prayer' && e.c !== cat) continue;
+      }
+      if (words.length === 0) {
+        results.push(e);
+        if (results.length >= 200) break;
+        continue;
+      }
+      // All words must match somewhere (phelps, text, lang_name, category)
+      var haystack = (e.p + ' ' + e.t + ' ' + (e.ln || '') + ' ' + (e.c || '')).toLowerCase();
+      var allMatch = true;
+      for (var w = 0; w < words.length; w++) {
+        if (haystack.indexOf(words[w]) < 0) { allMatch = false; break; }
+      }
+      if (allMatch) {
+        results.push(e);
+        if (results.length >= 200) break;
+      }
+    }
+
+    statusEl.textContent = results.length >= 200 ? '200+ results (showing first 200)' : results.length + ' results';
+
+    // Update URL
+    var url = new URL(window.location);
+    if (query) url.searchParams.set('q', query); else url.searchParams.delete('q');
+    if (lang) url.searchParams.set('lang', lang); else url.searchParams.delete('lang');
+    if (cat) url.searchParams.set('cat', cat); else url.searchParams.delete('cat');
+    history.replaceState(null, '', url);
+
+    // Render
+    var html = '';
+    results.forEach(function(e) {
+      var text = e.t;
+      // Highlight matching words
+      if (words.length > 0) {
+        words.forEach(function(w) {
+          var re = new RegExp('(' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+          text = text.replace(re, '<mark>$1</mark>');
+        });
+      }
+      var catBadge = e.c ? '<span class="sr-cat">' + e.c + '</span>' : '<span class="sr-cat" style="background:#888">Prayer</span>';
+      var addBtn = '<button class="sr-add" data-code="' + e.p + '" title="Add to devotional program">+</button>';
+      html += '<div class="search-result">'
+        + '<div class="sr-header">'
+        + '<a href="' + e.u + '" class="sr-code">' + e.p + '</a>'
+        + '<span class="sr-lang">' + (e.ln || e.l) + '</span>'
+        + catBadge
+        + addBtn
+        + '</div>'
+        + '<div class="sr-text">' + text + '</div>'
+        + '</div>';
+    });
+    resultsEl.innerHTML = html;
+
+    // Wire up add buttons
+    resultsEl.querySelectorAll('.sr-add').forEach(function(btn) {
+      var code = btn.dataset.code;
+      if (hasCode(code)) { btn.textContent = '\u2713'; btn.style.background = 'var(--accent)'; btn.style.color = '#fff'; }
+      btn.addEventListener('click', function(ev) {
+        ev.preventDefault();
+        addCode(code);
+        btn.textContent = '\u2713'; btn.style.background = 'var(--accent)'; btn.style.color = '#fff';
+      });
+    });
+  }
+})();
+</script>
+{{ partial "foot.html" . }}
