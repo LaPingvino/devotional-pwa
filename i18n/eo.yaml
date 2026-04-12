@@ -29,7 +29,7 @@ nav_search: "Serĉi"
 # Home page
 home_title: "Sanktaj Skriboj"
 home_subtitle: "Plurlingva kolekto de sanktaj tekstoj."
-home_daily_desc: "Hazardaj legaĵoj, deviga-preĝa spurilo, 95-foja Allah-u-Abhá-kalkulilo kaj Qiblih-kompaso."
+home_daily_desc: "Hazardaj legaĵoj, deviga-preĝa spurilo, 95-foja Allah-u-Abhá-kalkulilo kaj Kiblo-kompaso."
 home_program_desc: "Kreu kaj kunhavigu plurlingvajn preĝkunvenajn programojn kun temaj sugestoj."
 home_prayers_desc: "Foliumu bahaajn preĝojn laŭ kategorio kaj aŭtoro."
 home_writings_desc: "Legu la Kaŝitajn Vortojn, la Kitáb-i-Aqdas, la Kitáb-i-Íqán, Krestomation kaj pli."
@@ -54,9 +54,9 @@ daily_oblig_noon: "Tagmezo"
 daily_oblig_evening: "Vespero"
 daily_abha_title: "Allah-u-Abhá"
 daily_abha_subtitle: "95-foje ĉiutage"
-daily_qiblih_title: "Qiblih"
+daily_qiblih_title: "Kiblo"
 daily_qiblih_subtitle: "Direkto al Bahji, Akko"
-daily_qiblih_find: "Trovi Qiblih"
+daily_qiblih_find: "Trovi Kiblo"
 daily_qiblih_active: "Kompaso aktiva"
 daily_qiblih_no_sensor: "Neniu kompaso-sensilo — nur direkto montrata"
 daily_qiblih_finding: "Serĉante vian lokon..."
@@ -113,7 +113,7 @@ verse_hint: "Klaku ○ por komenci elekton, poste alian ○ por difini gamon por
 verse_add: "Aldoni al preĝkunvena programo"
 verse_cancel: "Nuligi"
 
-# Qiblih
+# Kiblo
 qiblih_no_geo: "Ne eblis determini lokon. Bonvolu permesi lokan aliron."
 qiblih_drag_hint: "Trenu por korekti vian lokon"
 
