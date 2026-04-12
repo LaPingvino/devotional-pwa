@@ -613,8 +613,8 @@
 
     // Populate dropdown — alphabetical, English first
     const sorted = [...allLanguages].sort((a, b) => {
-      if (a.code === 'en') return -1;
-      if (b.code === 'en') return 1;
+      if (a.code === selectedLang) return -1;
+      if (b.code === selectedLang) return 1;
       return a.name.localeCompare(b.name);
     });
     const nameCounts = {};

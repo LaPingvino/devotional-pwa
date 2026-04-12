@@ -2,33 +2,33 @@
 <div class="main-content">
   <h1 data-i18n="nav_prayers">Bahá'í Prayers</h1>
   <p style="color:var(--text-secondary); margin-bottom:1rem;">
-    {{ len site.Data.languages }} languages · {{ site.Params.description }}
+    <span id="prayers-lang-count">{{ len site.Data.languages }}</span> <span data-i18n="languages">languages</span> · <span data-i18n="prayers_subtitle">Share prayers with people in their own language</span>
   </p>
 
   <div class="lang-controls">
-    <input type="search" id="lang-search" placeholder="Search languages…" autocomplete="off"
+    <input type="search" id="lang-search" placeholder="Search languages…" data-i18n-placeholder="prayers_search" autocomplete="off"
            style="flex:1; min-width:180px; padding:.45rem .75rem; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text); font-size:.95rem;">
     <label class="filter-toggle" title="Show only languages with multiple prayers">
       <input type="checkbox" id="filter-rich" checked>
-      <span>Many prayers only</span>
+      <span data-i18n="prayers_many_only">Many prayers only</span>
     </label>
     <select id="min-prayers" style="padding:.4rem .6rem; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text); font-size:.85rem;">
-      <option value="1">All (1+)</option>
-      <option value="2">2+ prayers</option>
-      <option value="5" selected>5+ prayers</option>
-      <option value="10">10+ prayers</option>
-      <option value="20">20+ prayers</option>
+      <option value="1" data-i18n="prayers_all_1">All (1+)</option>
+      <option value="2" data-i18n="prayers_2_plus">2+ prayers</option>
+      <option value="5" selected data-i18n="prayers_5_plus">5+ prayers</option>
+      <option value="10" data-i18n="prayers_10_plus">10+ prayers</option>
+      <option value="20" data-i18n="prayers_20_plus">20+ prayers</option>
     </select>
   </div>
   <p id="lang-count-msg" style="font-size:.8rem; color:var(--text-secondary); margin:.4rem 0 .8rem;"></p>
 
   <div style="margin-bottom:1.5rem;">
-    <span style="color:var(--text-secondary);font-size:.85rem;">Download all languages:</span>
-    <a href="/downloads/prayers_all_latin.pdf" class="dl-link" download>Latin &amp; European — PDF</a>
-    <a href="/downloads/prayers_all_other.pdf" class="dl-link" download style="margin-left:.4rem;">Asian &amp; Other — PDF</a>
-    <a href="/downloads/prayers_all.epub" class="dl-link" download style="margin-left:.4rem;">All — EPUB</a>
-    <a href="/downloads/prayers_sop.pdf" class="dl-link" download style="margin-left:.4rem;">Short Obligatory Prayer (all languages) — PDF</a>
-    <a href="/downloads/prayers_sop.epub" class="dl-link" download style="margin-left:.4rem;">Short Obligatory Prayer — EPUB</a>
+    <span style="color:var(--text-secondary);font-size:.85rem;" data-i18n="prayers_download_all">Download all languages:</span>
+    <a href="/downloads/prayers_all_latin.pdf" class="dl-link" download data-i18n="prayers_latin_pdf">Latin &amp; European — PDF</a>
+    <a href="/downloads/prayers_all_other.pdf" class="dl-link" download style="margin-left:.4rem;" data-i18n="prayers_other_pdf">Asian &amp; Other — PDF</a>
+    <a href="/downloads/prayers_all.epub" class="dl-link" download style="margin-left:.4rem;" data-i18n="prayers_all_epub">All — EPUB</a>
+    <a href="/downloads/prayers_sop.pdf" class="dl-link" download style="margin-left:.4rem;" data-i18n="prayers_sop_pdf">Short Obligatory Prayer (all languages) — PDF</a>
+    <a href="/downloads/prayers_sop.epub" class="dl-link" download style="margin-left:.4rem;" data-i18n="prayers_sop_epub">Short Obligatory Prayer — EPUB</a>
   </div>
 
   <div class="lang-grid" id="lang-grid">
@@ -54,9 +54,13 @@
   const cards    = Array.from(grid.querySelectorAll('.lang-card'));
   const richChk  = document.getElementById('filter-rich');
 
-  // Pin English to front
-  const enCard = cards.find(c => c.dataset.code === 'en');
-  if (enCard) grid.prepend(enCard);
+  // Pin UI language (or its base) to front, fall back to English
+  var uiLang = (window.__uiLang || 'en').toLowerCase();
+  var uiBase = uiLang.split('-')[0];
+  var pinCard = cards.find(c => c.dataset.code === uiLang) ||
+                cards.find(c => c.dataset.code === uiBase) ||
+                cards.find(c => c.dataset.code === 'en');
+  if (pinCard) grid.prepend(pinCard);
 
   richChk.addEventListener('change', () => {
     minSel.disabled = !richChk.checked;
@@ -78,8 +82,8 @@
     });
     const total = cards.length;
     msg.textContent = shown < total
-      ? `Showing ${shown} of ${total} languages`
-      : `${total} languages`;
+      ? window.__t('prayers_showing') + ' ' + shown + ' ' + window.__t('prayers_of') + ' ' + total + ' ' + window.__t('languages')
+      : total + ' ' + window.__t('languages');
   }
 
   filter();
