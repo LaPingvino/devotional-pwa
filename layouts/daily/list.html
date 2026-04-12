@@ -993,16 +993,37 @@
       showMap(userLat, userLng);
 
       // Try device orientation
+      var hasCompass = false;
+      function onFirstOrientation(e) {
+        if (e.alpha !== null || e.webkitCompassHeading !== undefined) {
+          hasCompass = true;
+          $('compass').style.display = '';
+          onOrientation(e);
+        }
+        window.removeEventListener('deviceorientation', onFirstOrientation, true);
+        if (hasCompass) {
+          window.addEventListener('deviceorientation', onOrientation, true);
+        }
+      }
       if (window.DeviceOrientationEvent) {
         if (typeof DeviceOrientationEvent.requestPermission === 'function') {
           DeviceOrientationEvent.requestPermission().then(state => {
             if (state === 'granted') {
-              window.addEventListener('deviceorientation', onOrientation, true);
+              window.addEventListener('deviceorientation', onFirstOrientation, true);
             }
           }).catch(() => {});
         } else {
-          window.addEventListener('deviceorientation', onOrientation, true);
+          window.addEventListener('deviceorientation', onFirstOrientation, true);
         }
+        // Hide compass initially, show only if sensor works
+        setTimeout(function() {
+          if (!hasCompass) {
+            $('compass').style.display = 'none';
+            statusEl.textContent = '';
+          }
+        }, 1000);
+      } else {
+        $('compass').style.display = 'none';
       }
     }
 
