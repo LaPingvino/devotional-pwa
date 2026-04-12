@@ -84,7 +84,8 @@
           <td class="il-src il-el">{{ .el }}</td>
           {{ end }}
 
-          <td class="il-num"><span class="range-marker" data-num="{{ .num }}" title="{{ .num }}">&#x25CB;</span><sup>{{ .num }}</sup></td>
+          <td class="il-marker"><span class="range-marker" data-num="{{ .num }}">&#x25CB;</span></td>
+          <td class="il-num">{{ .num }}</td>
 
           {{/* Translation columns */}}
           {{ if $.Params.book.has_english }}

@@ -78,7 +78,7 @@
         <ol class="verse-list" start="1">
           {{ range .verses }}
           <li class="verse" id="surah-{{ $surahNum }}-ayah-{{ .ayah }}" data-surah="{{ $surahNum }}" data-ayah="{{ .ayah }}" value="{{ .ayah }}">
-            <span class="range-marker" data-surah="{{ $surahNum }}" data-ayah="{{ .ayah }}">&#x25CB;</span><span class="ayah-num">{{ .ayah }}</span>
+            <span class="range-marker" data-surah="{{ $surahNum }}" data-ayah="{{ .ayah }}">&#x25CB;</span>
             <span class="ayah-text">{{ .text }}</span>
           </li>
           {{ end }}
@@ -228,6 +228,7 @@
   padding: .4rem 0;
   line-height: 1.8;
   border-bottom: 1px solid #f0f0f0;
+  position: relative;
 }
 .verse:last-child {
   border-bottom: none;
