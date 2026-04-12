@@ -961,20 +961,25 @@ p { margin-bottom: .5rem; }
   cursor: pointer;
   appearance: none;
   -webkit-appearance: none;
-  width: .9em;
-  height: .9em;
-  margin: 0 .3em 0 0;
+  width: 12px;
+  height: 12px;
+  margin: 0;
+  padding: 0;
   vertical-align: middle;
   border: 1.5px solid var(--text-secondary);
-  border-radius: 3px;
+  border-radius: 2px;
   background: transparent;
   transition: all .15s;
   flex-shrink: 0;
 }
 .range-marker:hover { border-color: var(--accent); background: rgba(255,121,84,.15); }
-.range-marker:checked, .range-marker.range-selected { border-color: var(--accent); background: var(--accent); }
-td.il-marker { width: 1.2em; padding: 0 .2em; vertical-align: middle; }
-.verse .range-marker { position: absolute; left: -1.8em; top: .35em; }
+.range-marker:checked { border-color: var(--accent); background: var(--accent); }
+/* Bible: thin column on the left */
+td.il-marker { width: 18px; padding: 2px 3px; vertical-align: top; padding-top: .45em; }
+/* Quran: left margin */
+.verse .range-marker { position: absolute; left: -1.4em; top: .55em; }
+/* Writings: inline before paragraph number */
+.writing-entry-label .range-marker { margin-right: .4em; position: relative; top: -1px; }
 .verse-sel.range-selected, .ayah-sel.range-selected { background: var(--accent); color: #fff; border-radius: 3px; padding: 0 3px; }
 .range-banner { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); z-index: 100; background: var(--accent); color: #fff; padding: .6rem 1.2rem; display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; font-size: .9rem; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.3); max-width: 90vw; }
 .range-banner .btn-small { background: rgba(255,255,255,.2); color: #fff; border: 1px solid rgba(255,255,255,.4); padding: .2rem .6rem; border-radius: 4px; cursor: pointer; font-size: .8rem; }
