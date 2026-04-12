@@ -42,9 +42,10 @@
       <details class="lang-dropdown" id="trans-dropdown">
         <summary id="trans-label">English</summary>
         <div class="lang-dropdown-panel">
-          <div class="lang-dropdown-list">
-            {{ if $book.has_english }}<a href="#" class="trans-opt active" data-lang="en">English</a>{{ end }}
-            {{ if $book.has_arabic }}<a href="#" class="trans-opt" data-lang="ar">العربية Arabic</a>{{ end }}
+          <input type="search" class="lang-filter-input" id="bible-trans-filter" placeholder="Filter..." autocomplete="off" style="margin:.4rem;padding:.3rem .5rem;border:1px solid var(--border);border-radius:4px;font-size:.85rem;background:var(--bg);color:var(--text);">
+          <div class="lang-dropdown-list" id="trans-list">
+            {{ if $book.has_english }}<a href="#" class="trans-opt active" data-lang="en" data-local="1">English (KJV)</a>{{ end }}
+            {{ if $book.has_arabic }}<a href="#" class="trans-opt" data-lang="ar" data-local="1">العربية (Van Dyck)</a>{{ end }}
           </div>
         </div>
       </details>
@@ -197,28 +198,165 @@
     });
   });
 
-  // Translation language picker — exclusive switch (click selects one, hides others)
-  document.querySelectorAll('.trans-opt').forEach(a => {
+  var BOOK_ID = '{{ $book.id }}';
+
+  // ── Bolls.life Bible translations ──
+  var BOLLS_TRANSLATIONS = [
+    {code:'FRLSG',lang:'fr',name:'Français (Segond 1910)'},
+    {code:'LUT',lang:'de',name:'Deutsch (Luther 1912)'},
+    {code:'RV1960',lang:'es',name:'Español (Reina-Valera 1960)'},
+    {code:'ARA',lang:'pt',name:'Português (Almeida)'},
+    {code:'SYNOD',lang:'ru',name:'Русский (Синодальный)'},
+    {code:'NR06',lang:'it',name:'Italiano (Nuova Riveduta)'},
+    {code:'DSV',lang:'nl',name:'Nederlands (Statenvertaling)'},
+    {code:'BG',lang:'pl',name:'Polski (Biblia Gdańska)'},
+    {code:'VDCL',lang:'ro',name:'Română (Cornilescu)'},
+    {code:'KB',lang:'hu',name:'Magyar (Károli)'},
+    {code:'SFB2015',lang:'sv',name:'Svenska (Folkbibeln)'},
+    {code:'KRV',lang:'ko',name:'한국어 (개역한글)'},
+    {code:'JPKJV',lang:'ja',name:'日本語 (口語訳)'},
+    {code:'CUV',lang:'zh-Hant',name:'中文繁體 (和合本)'},
+    {code:'CUNPS',lang:'zh-Hans',name:'中文简体 (新标点和合本)'},
+    {code:'TB',lang:'id',name:'Indonesia (Terjemahan Baru)'},
+    {code:'VI1934',lang:'vi',name:'Tiếng Việt (1934)'},
+    {code:'DNB',lang:'no',name:'Norsk (1930)'},
+    {code:'CSP09',lang:'cs',name:'Čeština (ČSP)'},
+    {code:'POV',lang:'fa',name:'فارسی (ترجمه قدیم)',rtl:true},
+    {code:'HIOV',lang:'hi',name:'हिन्दी (O.V.)'},
+    {code:'SUV',lang:'sw',name:'Kiswahili (Union)'},
+    {code:'AFR53',lang:'af',name:'Afrikaans (1953)'},
+    {code:'VULG',lang:'la',name:'Latina (Vulgata)'},
+    {code:'RUF',lang:'hu2',name:'Magyar (Újfordítás 2014)'},
+    {code:'RNKSV',lang:'ko2',name:'한국어 (새번역)'},
+  ];
+  // Map our book IDs to Bolls book numbers
+  var BOLLS_BOOK_MAP = {
+    genesis:1,exodus:2,leviticus:3,numbers:4,deuteronomy:5,joshua:6,judges:7,ruth:8,
+    '1-samuel':9,'2-samuel':10,'1-kings':11,'2-kings':12,'1-chronicles':13,'2-chronicles':14,
+    ezra:15,nehemiah:16,esther:17,job:18,psalms:19,proverbs:20,ecclesiastes:21,
+    'song-of-solomon':22,isaiah:23,jeremiah:24,lamentations:25,ezekiel:26,daniel:27,
+    hosea:28,joel:29,amos:30,obadiah:31,jonah:32,micah:33,nahum:34,habakkuk:35,
+    zephaniah:36,haggai:37,zechariah:38,malachi:39,
+    matthew:40,mark:41,luke:42,john:43,acts:44,romans:45,
+    '1-corinthians':46,'2-corinthians':47,galatians:48,ephesians:49,philippians:50,
+    colossians:51,'1-thessalonians':52,'2-thessalonians':53,'1-timothy':54,'2-timothy':55,
+    titus:56,philemon:57,hebrews:58,james:59,'1-peter':60,'2-peter':61,
+    '1-john':62,'2-john':63,'3-john':64,jude:65,revelation:66
+  };
+
+  // Add Bolls translations to the dropdown
+  var transList = document.getElementById('trans-list');
+  BOLLS_TRANSLATIONS.forEach(function(t) {
+    var a = document.createElement('a');
+    a.href = '#';
+    a.className = 'trans-opt';
+    a.dataset.lang = t.code;
+    a.dataset.bolls = t.code;
+    a.dataset.name = t.name.toLowerCase();
+    if (t.rtl) a.dataset.rtl = '1';
+    a.textContent = t.name;
+    transList.appendChild(a);
+  });
+
+  // Filter input for translations
+  var transFilter = document.getElementById('bible-trans-filter');
+  transFilter.addEventListener('input', function() {
+    var q = this.value.toLowerCase().trim();
+    transList.querySelectorAll('.trans-opt').forEach(function(a) {
+      if (!q) { a.style.display = ''; return; }
+      var haystack = (a.textContent + ' ' + (a.dataset.name || '') + ' ' + a.dataset.lang).toLowerCase();
+      a.style.display = haystack.indexOf(q) >= 0 ? '' : 'none';
+    });
+  });
+  document.getElementById('trans-dropdown').addEventListener('toggle', function() {
+    if (this.open) { transFilter.value = ''; transFilter.focus(); transList.querySelectorAll('.trans-opt').forEach(function(a) { a.style.display = ''; }); }
+  });
+
+  // Bolls text cache: {translationCode: {chapter: [{verse, text}]}}
+  var bollsCache = {};
+
+  function clearBollsColumns() {
+    document.querySelectorAll('.il-bolls').forEach(function(el) { el.remove(); });
+  }
+
+  async function loadBollsChapter(translationCode, bookNum, chapter) {
+    var key = translationCode + ':' + bookNum + ':' + chapter;
+    if (bollsCache[key]) return bollsCache[key];
+    var url = 'https://bolls.life/get-text/' + translationCode + '/' + bookNum + '/' + chapter + '/';
+    var res = await fetch(url);
+    if (!res.ok) return null;
+    var data = await res.json();
+    bollsCache[key] = data;
+    return data;
+  }
+
+  async function showBollsTranslation(translationCode, rtl) {
+    clearBollsColumns();
+    var bookNum = BOLLS_BOOK_MAP[BOOK_ID];
+    if (!bookNum) return;
+    // Load all chapters in parallel
+    var chapters = document.querySelectorAll('.bible-chapter');
+    var promises = [];
+    chapters.forEach(function(ch) {
+      var chNum = parseInt(ch.id.replace('ch', ''));
+      promises.push(loadBollsChapter(translationCode, bookNum, chNum).then(function(verses) {
+        return {el: ch, chNum: chNum, verses: verses};
+      }));
+    });
+    var results = await Promise.all(promises);
+    results.forEach(function(r) {
+      if (!r.verses) return;
+      var verseMap = {};
+      r.verses.forEach(function(v) { verseMap[v.verse] = v.text; });
+      r.el.querySelectorAll('.interlinear tbody tr').forEach(function(row) {
+        var numEl = row.querySelector('.verse-sel');
+        if (!numEl) return;
+        var num = parseInt(numEl.dataset.num);
+        var td = document.createElement('td');
+        td.className = 'il-trans il-bolls';
+        if (rtl) td.dir = 'rtl';
+        td.textContent = verseMap[num] || '';
+        row.appendChild(td);
+      });
+    });
+  }
+
+  // Translation language picker — exclusive switch
+  function wireTransOpt(a) {
     a.addEventListener('click', function(e) {
       e.preventDefault();
-      const lang = this.dataset.lang;
-      // Deactivate all, hide all translation columns
-      document.querySelectorAll('.trans-opt').forEach(opt => {
+      var isLocal = this.dataset.local;
+      var isBolls = this.dataset.bolls;
+      var lang = this.dataset.lang;
+
+      // Deactivate all, hide all local translation columns
+      document.querySelectorAll('.trans-opt').forEach(function(opt) {
         opt.classList.remove('active');
-        document.querySelectorAll('.il-' + opt.dataset.lang).forEach(el => el.style.display = 'none');
+        if (opt.dataset.local) {
+          document.querySelectorAll('.il-' + opt.dataset.lang).forEach(function(el) { el.style.display = 'none'; });
+        }
       });
+      clearBollsColumns();
+
       // Activate clicked one
       this.classList.add('active');
-      document.querySelectorAll('.il-' + lang).forEach(el => el.style.display = '');
-      // Switch commentary to match
-      document.querySelectorAll('.chapter-commentary').forEach(el => el.style.display = 'none');
-      const commClass = 'commentary-' + lang;
-      document.querySelectorAll('.' + commClass).forEach(el => el.style.display = '');
-      // Update label
+
+      if (isLocal) {
+        document.querySelectorAll('.il-' + lang).forEach(function(el) { el.style.display = ''; });
+        // Switch commentary to match
+        document.querySelectorAll('.chapter-commentary').forEach(function(el) { el.style.display = 'none'; });
+        document.querySelectorAll('.commentary-' + lang).forEach(function(el) { el.style.display = ''; });
+      } else if (isBolls) {
+        // Hide commentaries for external translations
+        document.querySelectorAll('.chapter-commentary').forEach(function(el) { el.style.display = 'none'; });
+        showBollsTranslation(isBolls, !!this.dataset.rtl);
+      }
+
       document.getElementById('trans-label').textContent = this.textContent.trim();
       document.getElementById('trans-dropdown').removeAttribute('open');
     });
-  });
+  }
+  document.querySelectorAll('.trans-opt').forEach(wireTransOpt);
 
   // OT: Hebrew source toggle
   const srcCb = document.getElementById('show-source');
@@ -250,7 +388,6 @@
   sections.forEach(function(s) { observer.observe(s); });
 
   // ── Add to devotional: chapter buttons ──
-  var BOOK_ID = '{{ $book.id }}';
   var DKEY = 'hw_devotional_codes';
   function getCodes() { try { return JSON.parse(localStorage.getItem(DKEY) || '[]'); } catch(e) { return []; } }
   function codeStr(item) { return typeof item === 'string' ? item : item.code; }
