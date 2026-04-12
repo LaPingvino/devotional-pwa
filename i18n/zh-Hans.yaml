@@ -109,7 +109,7 @@ prayers_sop_pdf: "短必诚祈祷（所有语言） — PDF"
 prayers_sop_epub: "短必诚祈祷 — EPUB"
 
 # Verse selection
-verse_hint: "点击经文编号开始，再点击另一个编号选择范围添加到灵修计划。"
+verse_hint: "点击○开始选择，再点击另一个○设定灵修计划的范围。"
 verse_add: "添加到灵修计划"
 verse_cancel: "取消"
 

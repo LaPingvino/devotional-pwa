@@ -109,7 +109,7 @@ prayers_sop_pdf: "Rövid kötelező ima (összes nyelv) — PDF"
 prayers_sop_epub: "Rövid kötelező ima — EPUB"
 
 # Verse selection
-verse_hint: "Kattintson egy versszámra a kezdéshez, majd egy másikra a tartomány kiválasztásához az imaprogramhoz."
+verse_hint: "Kattintson a ○ jelre a kiválasztás megkezdéséhez, majd egy másik ○ jelre a tartomány beállításához az imaprogramhoz."
 verse_add: "Hozzáadás az imaprogramhoz"
 verse_cancel: "Mégse"
 

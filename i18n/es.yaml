@@ -109,7 +109,7 @@ prayers_sop_pdf: "Oración obligatoria corta (todos los idiomas) — PDF"
 prayers_sop_epub: "Oración obligatoria corta — EPUB"
 
 # Verse selection
-verse_hint: "Haz clic en un número de versículo para comenzar y en otro para seleccionar un rango para el programa devocional."
+verse_hint: "Haz clic en ○ para comenzar a seleccionar, luego en otro ○ para definir un rango para el programa devocional."
 verse_add: "Añadir al programa devocional"
 verse_cancel: "Cancelar"
 

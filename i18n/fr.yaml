@@ -109,7 +109,7 @@ prayers_sop_pdf: "Prière obligatoire courte (toutes les langues) — PDF"
 prayers_sop_epub: "Prière obligatoire courte — EPUB"
 
 # Verse selection
-verse_hint: "Cliquez sur un numéro de verset pour commencer, puis sur un autre pour sélectionner une plage pour le programme de dévotion."
+verse_hint: "Cliquez sur ○ pour commencer la sélection, puis sur un autre ○ pour définir une plage pour le programme de dévotion."
 verse_add: "Ajouter au programme de dévotion"
 verse_cancel: "Annuler"
 

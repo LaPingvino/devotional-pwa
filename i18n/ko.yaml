@@ -109,7 +109,7 @@ prayers_sop_pdf: "짧은 의무 기도 (전체 언어) — PDF"
 prayers_sop_epub: "짧은 의무 기도 — EPUB"
 
 # Verse selection
-verse_hint: "절 번호를 클릭하여 시작하고, 다른 절을 클릭하여 기도 프로그램에 추가할 범위를 선택하세요."
+verse_hint: "○를 클릭하여 선택을 시작하고, 다른 ○를 클릭하여 기도 프로그램의 범위를 설정하세요."
 verse_add: "기도 프로그램에 추가"
 verse_cancel: "취소"
 

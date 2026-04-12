@@ -109,7 +109,7 @@ prayers_sop_pdf: "Rugăciunea obligatorie scurtă (toate limbile) — PDF"
 prayers_sop_epub: "Rugăciunea obligatorie scurtă — EPUB"
 
 # Verse selection
-verse_hint: "Faceți clic pe un număr de verset pentru a începe, apoi pe altul pentru a selecta un interval pentru programul de rugăciune."
+verse_hint: "Faceți clic pe ○ pentru a începe selecția, apoi pe alt ○ pentru a stabili un interval pentru programul de rugăciune."
 verse_add: "Adăugați la programul de rugăciune"
 verse_cancel: "Anulare"
 

@@ -109,7 +109,7 @@ prayers_sop_pdf: "短い義務の祈り（全言語） — PDF"
 prayers_sop_epub: "短い義務の祈り — EPUB"
 
 # Verse selection
-verse_hint: "節番号をクリックして開始し、別の節をクリックして礼拝プログラムの範囲を選択します。"
+verse_hint: "○をクリックして選択を開始し、別の○をクリックして礼拝プログラムの範囲を設定します。"
 verse_add: "礼拝プログラムに追加"
 verse_cancel: "キャンセル"
 
