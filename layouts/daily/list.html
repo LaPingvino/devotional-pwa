@@ -945,17 +945,31 @@
           attribution: '&copy; OSM contributors',
           maxZoom: 18
         }).addTo(map);
-        // Great circle approximation: intermediate points along the bearing
-        const points = [];
-        const steps = 50;
-        for (let i = 0; i <= steps; i++) {
-          const f = i / steps;
-          const p = intermediatePoint(lat, lng, BAHJI.lat, BAHJI.lng, f);
-          points.push([p.lat, p.lng]);
+
+        var line = null;
+        function drawLine(fromLat, fromLng) {
+          if (line) map.removeLayer(line);
+          var points = [];
+          for (var i = 0; i <= 50; i++) {
+            var p = intermediatePoint(fromLat, fromLng, BAHJI.lat, BAHJI.lng, i / 50);
+            points.push([p.lat, p.lng]);
+          }
+          line = L.polyline(points, { color: '#ff7954', weight: 2, dashArray: '6,4' }).addTo(map);
         }
-        L.polyline(points, { color: '#ff7954', weight: 2, dashArray: '6,4' }).addTo(map);
-        L.marker([lat, lng]).addTo(map).bindPopup('You');
+
+        drawLine(lat, lng);
+        var userMarker = L.marker([lat, lng], { draggable: true }).addTo(map).bindPopup('Drag to correct your location');
         L.marker([BAHJI.lat, BAHJI.lng]).addTo(map).bindPopup('Bahji');
+
+        userMarker.on('dragend', function() {
+          var pos = userMarker.getLatLng();
+          userLat = pos.lat;
+          userLng = pos.lng;
+          qiblihBearing = calcBearing(userLat, userLng, BAHJI.lat, BAHJI.lng);
+          bearingEl.textContent = Math.round(qiblihBearing) + '\u00b0 ' + compassDir(qiblihBearing);
+          drawLine(userLat, userLng);
+          updateCompass();
+        });
       }
       if (window.L) { initMap(); } else {
         const script = document.createElement('script');
