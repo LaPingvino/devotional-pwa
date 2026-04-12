@@ -581,6 +581,7 @@ var writingTypes = []struct {
 	{"tablets", "Tablets of Bahá'u'lláh", "Bahá'u'lláh", "tablets", false, false},
 	{"days", "Days of Remembrance", "Bahá'u'lláh", "days_remembrance", true, true},
 	{"ridvan", "Ridván Messages", "Universal House of Justice", "ridvan", true, true},
+	{"divineplan", "Tablets of the Divine Plan", "'Abdu'l-Bahá", "divineplan", false, false},
 	{"lawh", "Other Tablets", "Bahá'u'lláh", "lawh", false, false},
 }
 
