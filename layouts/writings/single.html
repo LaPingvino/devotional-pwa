@@ -49,7 +49,8 @@
       <div style="max-height:30vh; overflow-y:auto">
         {{ range $allLangs }}
         <a href="/writings/{{ $key }}/{{ .code | lower }}/"
-           class="sidebar-lang{{ if eq .code $lang }} active{{ end }}">
+           class="sidebar-lang{{ if eq .code $lang }} active{{ end }}"
+           data-code="{{ .code | lower }}">
           {{ .name }} <span style="color:var(--text-secondary); font-size:.8em">({{ .count }})</span>
         </a>
         {{ end }}

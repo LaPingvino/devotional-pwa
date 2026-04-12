@@ -9,7 +9,7 @@
   <div class="lang-grid">
     {{ $key := .Params.writingKey }}
     {{ range .Params.allLangs }}
-    <a href="/writings/{{ $key }}/{{ .code | lower }}/" class="lang-card">
+    <a href="/writings/{{ $key }}/{{ .code | lower }}/" class="lang-card" data-code="{{ .code | lower }}">
       <span>{{ .name }}</span>
       <span class="count">{{ .count }}</span>
     </a>

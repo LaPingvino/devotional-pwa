@@ -67,6 +67,7 @@
         window.__uiLang = code;
         localStorage.setItem('hw_ui_lang', code);
         translatePage();
+        markUiLang();
         // Update menu active state
         var menu = document.getElementById('ui-lang-menu');
         if (menu) menu.querySelectorAll('a').forEach(function(a) {
@@ -74,6 +75,15 @@
         });
       };
       translatePage();
+
+      // Highlight UI language in any language list (sidebar, grids, dropdowns)
+      function markUiLang() {
+        document.querySelectorAll('.ui-lang-hint').forEach(function(el) { el.classList.remove('ui-lang-hint'); });
+        var sel = '[data-code="' + lang + '"],[data-code="' + base + '"]';
+        document.querySelectorAll(sel).forEach(function(el) { el.classList.add('ui-lang-hint'); });
+      }
+      window.__markUiLang = markUiLang;
+      markUiLang();
 
       // Populate UI language picker
       var uiLangs = {

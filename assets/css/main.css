@@ -314,6 +314,10 @@ body {
   border-radius: 12px;
 }
 
+/* UI language hint — subtle accent border on the user's interface language */
+.ui-lang-hint { border-left: 3px solid var(--accent); }
+.lang-card.ui-lang-hint { border-left: 3px solid var(--accent); }
+
 /* ── Prayer list ─────────────────────────────────────── */
 .prayer-list { margin-top: .5rem; }
 
