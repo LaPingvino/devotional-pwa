@@ -959,14 +959,22 @@ p { margin-bottom: .5rem; }
 /* Range selection markers */
 .range-marker {
   cursor: pointer;
-  color: var(--border);
+  display: inline-block;
+  width: 1.1em;
+  height: 1.1em;
+  line-height: 1.1em;
+  text-align: center;
   font-size: .7em;
   margin-right: .2em;
   vertical-align: middle;
-  transition: color .15s;
+  border: 1.5px solid var(--text-secondary);
+  border-radius: 50%;
+  color: var(--text-secondary);
+  background: transparent;
+  transition: all .15s;
 }
-.range-marker:hover { color: var(--accent); }
-.range-marker.range-selected { color: var(--accent); }
+.range-marker:hover { border-color: var(--accent); color: var(--accent); background: rgba(255,121,84,.1); }
+.range-marker.range-selected { border-color: var(--accent); color: #fff; background: var(--accent); }
 .verse-sel.range-selected, .ayah-sel.range-selected { background: var(--accent); color: #fff; border-radius: 3px; padding: 0 3px; }
 .range-banner { position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%); z-index: 100; background: var(--accent); color: #fff; padding: .6rem 1.2rem; display: flex; align-items: center; gap: .8rem; flex-wrap: wrap; font-size: .9rem; border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.3); max-width: 90vw; }
 .range-banner .btn-small { background: rgba(255,255,255,.2); color: #fff; border: 1px solid rgba(255,255,255,.4); padding: .2rem .6rem; border-radius: 4px; cursor: pointer; font-size: .8rem; }
