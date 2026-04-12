@@ -494,8 +494,9 @@ a.entry-name:hover { text-decoration: underline; }
     var hint = document.createElement('div');
     hint.className = 'range-banner';
     hint.style.opacity = '.9';
-    hint.innerHTML = '<span>' + window.__t('verse_hint') + '</span><button class="btn-action btn-small" onclick="this.parentElement.remove();sessionStorage.setItem(\'hw_verse_hint_dismissed\',\'1\')">\u2715</button>';
+    hint.innerHTML = '<span data-i18n="verse_hint">Click \u25CB to start selecting, then another \u25CB to set a range for the devotional program.</span><button class="btn-action btn-small" onclick="this.parentElement.remove();sessionStorage.setItem(\'hw_verse_hint_dismissed\',\'1\')">\u2715</button>';
     document.body.appendChild(hint);
+    if (window.__translatePage) window.__translatePage();
   }
 })();
 </script>
