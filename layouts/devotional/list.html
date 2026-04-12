@@ -597,6 +597,16 @@
     allLanguages = await langRes.json();
     window._writingsIndex = await writRes.json();
 
+    // Inject Bible-only languages not in prayer list (source texts + Bolls)
+    var extraLangs = [
+      {code:'syr',name:'ܣܘܪܝܝܐ Syriac',prayer_count:0,rtl:true},
+      {code:'la',name:'Latina',prayer_count:0}
+    ];
+    var existingCodes = new Set(allLanguages.map(function(l) { return l.code; }));
+    extraLangs.forEach(function(el) {
+      if (!existingCodes.has(el.code)) allLanguages.push(el);
+    });
+
     // Resolve best language now that we know what's available
     var availCodes = allLanguages.map(function(l) { return l.code; });
     selectedLang = window.__bestLang('hw_devotional_lang', availCodes);
