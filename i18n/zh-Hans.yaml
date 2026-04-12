@@ -20,6 +20,11 @@ writing_saq: "已答之问"
 writing_tablets: "巴哈欧拉书简"
 writing_days: "纪念之日"
 writing_ridvan: "里兹万文告"
+writing_divineplan: "圣治计划书简"
+writing_other_tablets: "其他书简"
+
+# Navigation extras
+nav_search: "搜索"
 
 # Home page
 home_title: "神圣经典"
@@ -29,8 +34,9 @@ home_program_desc: "创建并分享包含主题建议的多语言灵修聚会程
 home_prayers_desc: "按类别和作者浏览巴哈伊祈祷文。"
 home_writings_desc: "阅读隐言经、亚格达斯经、笃信经、圣典选集等。"
 home_quran_desc: "以多种译本阅读古兰经，附阿拉伯语原文。"
-home_bible_desc: "和合本译本与希伯来语、叙利亚语和希腊语原文。"
+home_bible_desc: "KJV与Van Dyck译本，附希伯来语、叙利亚语和希腊语原文。"
 home_catalog_desc: "浏览费尔普斯索引——收录超过29,000篇巴哈伊圣典的目录。"
+home_about_desc: "方法论、数据质量、已知问题以及如何提供帮助。"
 
 # Daily page
 daily_title: "每日灵修"
@@ -83,6 +89,20 @@ also_in: "其他语言："
 download: "下载"
 pdf: "PDF"
 epub: "EPUB"
+
+# Search page
+search_title: "搜索"
+search_desc: "搜索所有语言的祈祷文和圣典。"
+search_placeholder: "搜索文本、代码或关键词…"
+search_all_languages: "所有语言"
+search_all_types: "所有类型"
+search_loading: "正在加载搜索索引..."
+search_entries_loaded: "条已加载。输入以搜索。"
+search_entries_type: "条。输入以搜索。"
+search_results_200: "200+条结果（显示前200条）"
+search_results: "条结果"
+search_add_devotional: "添加到灵修计划"
+search_prayer: "祈祷"
 
 # Footer
 footer_disclaimer: "本网站的匹配部分借助大语言模型完成。"

@@ -20,6 +20,11 @@ writing_saq: "Beantwortete Fragen"
 writing_tablets: "Botschaften aus Akka"
 writing_days: "Tage der Erinnerung"
 writing_ridvan: "Ridván-Botschaften"
+writing_divineplan: "Sendschreiben zum Göttlichen Plan"
+writing_other_tablets: "Andere Sendschreiben"
+
+# Navigation extras
+nav_search: "Suche"
 
 # Home page
 home_title: "Heilige Schriften"
@@ -29,8 +34,9 @@ home_program_desc: "Erstellen und teilen Sie mehrsprachige Andachtsprogramme mit
 home_prayers_desc: "Durchsuchen Sie Bahá'í-Gebete nach Kategorie und Autor."
 home_writings_desc: "Lesen Sie die Verborgenen Worte, das Kitáb-i-Aqdas, das Kitáb-i-Íqán, Ährenlese und mehr."
 home_quran_desc: "Lesen Sie den Koran in mehreren Übersetzungen mit arabischem Original."
-home_bible_desc: "Luther- und Van-Dyck-Übersetzungen mit hebräischen, syrischen und griechischen Originalen."
+home_bible_desc: "KJV- und Van-Dyck-Übersetzungen mit hebräischen, syrischen und griechischen Originalen."
 home_catalog_desc: "Durchsuchen Sie den Phelps-Index — ein Katalog von über 29.000 Bahá'í-Heiligen Schriften."
+home_about_desc: "Methodik, Datenqualität, bekannte Probleme und wie Sie helfen können."
 
 # Daily page
 daily_title: "Tägliche Andacht"
@@ -83,6 +89,20 @@ also_in: "Auch in:"
 download: "Herunterladen"
 pdf: "PDF"
 epub: "EPUB"
+
+# Search page
+search_title: "Suche"
+search_desc: "Suche in Gebeten und Schriften in allen Sprachen."
+search_placeholder: "Text, Code oder Stichwort suchen…"
+search_all_languages: "Alle Sprachen"
+search_all_types: "Alle Typen"
+search_loading: "Suchindex wird geladen..."
+search_entries_loaded: "Einträge geladen. Suche eingeben."
+search_entries_type: "Einträge. Suche eingeben."
+search_results_200: "200+ Ergebnisse (erste 200 angezeigt)"
+search_results: "Ergebnisse"
+search_add_devotional: "Zum Andachtsprogramm hinzufügen"
+search_prayer: "Gebet"
 
 # Footer
 footer_disclaimer: "Die Zuordnungen auf dieser Website wurden teilweise mit LLM-Unterstützung erstellt."

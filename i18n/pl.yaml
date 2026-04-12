@@ -20,6 +20,11 @@ writing_saq: "Odpowiedzi na niektóre pytania"
 writing_tablets: "Tablice Bahá'u'lláha"
 writing_days: "Dni Pamięci"
 writing_ridvan: "Przesłania Ridván"
+writing_divineplan: "Tablice Boskiego Planu"
+writing_other_tablets: "Inne Tablice"
+
+# Navigation extras
+nav_search: "Szukaj"
 
 # Home page
 home_title: "Święte Pisma"
@@ -29,8 +34,9 @@ home_program_desc: "Twórz i udostępniaj wielojęzyczne programy modlitewne z s
 home_prayers_desc: "Przeglądaj modlitwy bahá'í według kategorii i autora."
 home_writings_desc: "Czytaj Słowa Ukryte, Kitáb-i-Aqdas, Kitáb-i-Íqán, Wybór z Pism i więcej."
 home_quran_desc: "Czytaj Koran w wielu tłumaczeniach z arabskim oryginałem."
-home_bible_desc: "Tłumaczenia Biblii Gdańskiej i Van Dycka z oryginałami hebrajskimi, syryjskimi i greckimi."
+home_bible_desc: "Tłumaczenia KJV i Van Dycka z oryginałami hebrajskimi, syryjskimi i greckimi."
 home_catalog_desc: "Przeglądaj indeks Phelpsa — katalog ponad 29 000 Świętych Pism bahá'í."
+home_about_desc: "Metodologia, jakość danych, znane problemy i jak możesz pomóc."
 
 # Daily page
 daily_title: "Codzienne nabożeństwo"
@@ -83,6 +89,20 @@ also_in: "Także w:"
 download: "Pobierz"
 pdf: "PDF"
 epub: "EPUB"
+
+# Search page
+search_title: "Szukaj"
+search_desc: "Szukaj w modlitwach i pismach we wszystkich językach."
+search_placeholder: "Szukaj tekstu, kodu lub słowa kluczowego…"
+search_all_languages: "Wszystkie języki"
+search_all_types: "Wszystkie typy"
+search_loading: "Ładowanie indeksu wyszukiwania..."
+search_entries_loaded: "wpisów załadowanych. Wpisz, aby wyszukać."
+search_entries_type: "wpisów. Wpisz, aby wyszukać."
+search_results_200: "200+ wyników (pokazano pierwsze 200)"
+search_results: "wyników"
+search_add_devotional: "Dodaj do programu nabożeństwa"
+search_prayer: "Modlitwa"
 
 # Footer
 footer_disclaimer: "Dopasowania na tej stronie zostały częściowo wykonane z pomocą LLM."

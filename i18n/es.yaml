@@ -20,6 +20,11 @@ writing_saq: "Contestación a unas Preguntas"
 writing_tablets: "Tablas de Bahá'u'lláh"
 writing_days: "Días de Remembranza"
 writing_ridvan: "Mensajes de Ridván"
+writing_divineplan: "Tablas del Plan Divino"
+writing_other_tablets: "Otras Tablas"
+
+# Navigation extras
+nav_search: "Buscar"
 
 # Home page
 home_title: "Escritos Sagrados"
@@ -29,8 +34,9 @@ home_program_desc: "Cree y comparta programas devocionales multilingües con sug
 home_prayers_desc: "Explore las oraciones bahá'ís organizadas por categoría y autor."
 home_writings_desc: "Lea las Palabras Ocultas, el Kitáb-i-Aqdas, el Kitáb-i-Íqán, Pasajes y más."
 home_quran_desc: "Lea el Corán en múltiples traducciones con el original en árabe."
-home_bible_desc: "Traducciones Reina-Valera y Van Dyck con originales en hebreo, siríaco y griego."
+home_bible_desc: "Traducciones KJV y Van Dyck con originales en hebreo, siríaco y griego."
 home_catalog_desc: "Explore el índice Phelps — un catálogo de más de 29.000 Escritos Sagrados bahá'ís."
+home_about_desc: "Metodología, calidad de datos, problemas conocidos y cómo puede ayudar."
 
 # Daily page
 daily_title: "Devociones Diarias"
@@ -83,6 +89,20 @@ also_in: "También en:"
 download: "Descargar"
 pdf: "PDF"
 epub: "EPUB"
+
+# Search page
+search_title: "Buscar"
+search_desc: "Busca en oraciones y escritos en todos los idiomas."
+search_placeholder: "Buscar texto, código o palabra clave…"
+search_all_languages: "Todos los idiomas"
+search_all_types: "Todos los tipos"
+search_loading: "Cargando índice de búsqueda..."
+search_entries_loaded: "entradas cargadas. Escribe para buscar."
+search_entries_type: "entradas. Escribe para buscar."
+search_results_200: "200+ resultados (mostrando los primeros 200)"
+search_results: "resultados"
+search_add_devotional: "Añadir al programa devocional"
+search_prayer: "Oración"
 
 # Footer
 footer_disclaimer: "Las correspondencias en este sitio web se han realizado parcialmente con asistencia de LLM."

@@ -20,6 +20,11 @@ writing_saq: "Beantwoorde Vragen"
 writing_tablets: "Tafelen van Bahá'u'lláh"
 writing_days: "Dagen van Herinnering"
 writing_ridvan: "Ridván-boodschappen"
+writing_divineplan: "Tafelen van het Goddelijk Plan"
+writing_other_tablets: "Andere Tafelen"
+
+# Navigation extras
+nav_search: "Zoeken"
 
 # Home page
 home_title: "Heilige Geschriften"
@@ -29,8 +34,9 @@ home_program_desc: "Maak en deel meertalige devotionele programma's met thematis
 home_prayers_desc: "Blader door bahá'í-gebeden op categorie en auteur."
 home_writings_desc: "Lees de Verborgen Woorden, de Kitáb-i-Aqdas, de Kitáb-i-Íqán, de Bloemlezing en meer."
 home_quran_desc: "Lees de Koran in meerdere vertalingen met het Arabische origineel."
-home_bible_desc: "NBG- en Van Dyck-vertalingen met Hebreeuwse, Syrische en Griekse originelen."
+home_bible_desc: "KJV- en Van Dyck-vertalingen met Hebreeuwse, Syrische en Griekse originelen."
 home_catalog_desc: "Blader door de Phelps-index — een catalogus van meer dan 29.000 bahá'í heilige geschriften."
+home_about_desc: "Methodologie, datakwaliteit, bekende problemen en hoe u kunt helpen."
 
 # Daily page
 daily_title: "Dagelijkse Devotie"
@@ -83,6 +89,20 @@ also_in: "Ook in:"
 download: "Downloaden"
 pdf: "PDF"
 epub: "EPUB"
+
+# Search page
+search_title: "Zoeken"
+search_desc: "Zoek in gebeden en geschriften in alle talen."
+search_placeholder: "Zoek tekst, code of trefwoord…"
+search_all_languages: "Alle talen"
+search_all_types: "Alle typen"
+search_loading: "Zoekindex laden..."
+search_entries_loaded: "items geladen. Typ om te zoeken."
+search_entries_type: "items. Typ om te zoeken."
+search_results_200: "200+ resultaten (eerste 200 getoond)"
+search_results: "resultaten"
+search_add_devotional: "Toevoegen aan devotioneel programma"
+search_prayer: "Gebed"
 
 # Footer
 footer_disclaimer: "De overeenkomsten op deze website zijn gedeeltelijk tot stand gekomen met behulp van een LLM."

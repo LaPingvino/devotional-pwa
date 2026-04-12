@@ -20,6 +20,11 @@ writing_saq: "質疑応答集"
 writing_tablets: "バハオラの書簡"
 writing_days: "追憶の日々"
 writing_ridvan: "リズワン・メッセージ"
+writing_divineplan: "神聖なる計画の書簡"
+writing_other_tablets: "その他の書簡"
+
+# Navigation extras
+nav_search: "検索"
 
 # Home page
 home_title: "聖なる書"
@@ -29,8 +34,9 @@ home_program_desc: "テーマ別の提案を含む多言語の祈りの集いプ
 home_prayers_desc: "バハイの祈りをカテゴリーと著者別に閲覧。"
 home_writings_desc: "隠されし言葉、Kitáb-i-Aqdas、Kitáb-i-Íqán、聖典抄などを読む。"
 home_quran_desc: "アラビア語原文とともにクルアーンを複数の翻訳で閲覧。"
-home_bible_desc: "ヘブライ語・シリア語・ギリシア語の原文とともに聖書を閲覧。"
+home_bible_desc: "KJVとVan Dyck訳。ヘブライ語・シリア語・ギリシア語の原文付き。"
 home_catalog_desc: "フェルプス索引を閲覧 — 29,000以上のバハイ聖典のカタログ。"
+home_about_desc: "方法論、データ品質、既知の問題、貢献の方法。"
 
 # Daily page
 daily_title: "日々の祈り"
@@ -83,6 +89,20 @@ also_in: "他の言語："
 download: "ダウンロード"
 pdf: "PDF"
 epub: "EPUB"
+
+# Search page
+search_title: "検索"
+search_desc: "すべての言語の祈りと聖典を検索します。"
+search_placeholder: "テキスト、コード、キーワードを検索…"
+search_all_languages: "すべての言語"
+search_all_types: "すべての種類"
+search_loading: "検索インデックスを読み込み中..."
+search_entries_loaded: "件読み込み済み。入力して検索。"
+search_entries_type: "件。入力して検索。"
+search_results_200: "200件以上（最初の200件を表示）"
+search_results: "件"
+search_add_devotional: "礼拝プログラムに追加"
+search_prayer: "祈り"
 
 # Footer
 footer_disclaimer: "本サイトの照合は一部LLMの支援により行われています。"

@@ -20,6 +20,11 @@ writing_saq: "Le Lezioni di San Giovanni d'Acri"
 writing_tablets: "Tavole di Bahá'u'lláh"
 writing_days: "Giorni di Ricordo"
 writing_ridvan: "Messaggi di Ridván"
+writing_divineplan: "Tavole del Piano Divino"
+writing_other_tablets: "Altre Tavole"
+
+# Navigation extras
+nav_search: "Cerca"
 
 # Home page
 home_title: "Scritti Sacri"
@@ -29,8 +34,9 @@ home_program_desc: "Crea e condividi programmi devozionali multilingue con sugge
 home_prayers_desc: "Sfoglia le preghiere bahá'í organizzate per categoria e autore."
 home_writings_desc: "Leggi le Parole Celate, il Kitáb-i-Aqdas, il Kitáb-i-Íqán, le Spigolature e altro."
 home_quran_desc: "Leggi il Corano in molteplici traduzioni con l'originale arabo."
-home_bible_desc: "Traduzioni CEI e Van Dyck con originali in ebraico, siriaco e greco."
+home_bible_desc: "Traduzioni KJV e Van Dyck con originali in ebraico, siriaco e greco."
 home_catalog_desc: "Sfoglia l'indice Phelps — un catalogo di oltre 29.000 Scritti Sacri bahá'í."
+home_about_desc: "Metodologia, qualità dei dati, problemi noti e come puoi aiutare."
 
 # Daily page
 daily_title: "Devozioni Quotidiane"
@@ -83,6 +89,20 @@ also_in: "Anche in:"
 download: "Scarica"
 pdf: "PDF"
 epub: "EPUB"
+
+# Search page
+search_title: "Cerca"
+search_desc: "Cerca nelle preghiere e negli scritti in tutte le lingue."
+search_placeholder: "Cerca testo, codice o parola chiave…"
+search_all_languages: "Tutte le lingue"
+search_all_types: "Tutti i tipi"
+search_loading: "Caricamento dell'indice di ricerca..."
+search_entries_loaded: "voci caricate. Digita per cercare."
+search_entries_type: "voci. Digita per cercare."
+search_results_200: "200+ risultati (primi 200 mostrati)"
+search_results: "risultati"
+search_add_devotional: "Aggiungi al programma devozionale"
+search_prayer: "Preghiera"
 
 # Footer
 footer_disclaimer: "Le corrispondenze su questo sito sono state parzialmente realizzate con l'ausilio di un LLM."

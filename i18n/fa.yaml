@@ -20,6 +20,11 @@ writing_saq: "مفاوضات"
 writing_tablets: "الواح حضرت بهاءالله"
 writing_days: "ایّام تذکّر"
 writing_ridvan: "پیام‌های رضوان"
+writing_divineplan: "الواح نقشه الهی"
+writing_other_tablets: "الواح دیگر"
+
+# Navigation extras
+nav_search: "جستجو"
 
 # Home page
 home_title: "آثار مقدّسه"
@@ -29,8 +34,9 @@ home_program_desc: "برنامه‌های جلسات دعا به چند زبان
 home_prayers_desc: "مناجات‌های بهائی را بر اساس موضوع و مؤلّف مرور کنید."
 home_writings_desc: "کلمات مکنونه، کتاب اقدس، کتاب ایقان، منتخبات و آثار دیگر را بخوانید."
 home_quran_desc: "قرآن کریم را در ترجمه‌های متعدّد با متن اصلی عربی بخوانید."
-home_bible_desc: "ترجمه‌های فارسی و ون دایک با متون اصلی عبری، سریانی و یونانی."
+home_bible_desc: "ترجمه‌های KJV و ون دایک با متون اصلی عبری، سریانی و یونانی."
 home_catalog_desc: "فهرست فلپس را مرور کنید — فهرستی از بیش از ۲۹٬۰۰۰ اثر مقدّس بهائی."
+home_about_desc: "روش‌شناسی، کیفیت داده‌ها، مشکلات شناخته‌شده و چگونگی کمک شما."
 
 # Daily page
 daily_title: "عبادات روزانه"
@@ -83,6 +89,20 @@ also_in: "همچنین به:"
 download: "دانلود"
 pdf: "PDF"
 epub: "EPUB"
+
+# Search page
+search_title: "جستجو"
+search_desc: "جستجو در ادعیه و آثار به همه زبان‌ها."
+search_placeholder: "جستجوی متن، کد یا کلمه کلیدی…"
+search_all_languages: "همه زبان‌ها"
+search_all_types: "همه انواع"
+search_loading: "بارگذاری فهرست جستجو..."
+search_entries_loaded: "مورد بارگذاری شد. برای جستجو تایپ کنید."
+search_entries_type: "مورد. برای جستجو تایپ کنید."
+search_results_200: "‏200+ نتیجه (200 مورد اول نمایش داده شده)"
+search_results: "نتیجه"
+search_add_devotional: "افزودن به برنامه عبادی"
+search_prayer: "دعا"
 
 # Footer
 footer_disclaimer: "تطبیق‌های این وبسایت تا حدّی با کمک هوش مصنوعی انجام شده است."

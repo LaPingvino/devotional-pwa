@@ -1,17 +1,17 @@
 {{ partial "head.html" (dict "Title" "Search" "Lang" "en") }}
 <div class="main-content">
-  <h1>Search</h1>
-  <p style="color:var(--text-secondary); margin-bottom:1rem;">
+  <h1 data-i18n="search_title">Search</h1>
+  <p style="color:var(--text-secondary); margin-bottom:1rem;" data-i18n="search_desc">
     Search across prayers and writings in all languages.
   </p>
 
   <div style="display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1rem; align-items:start;">
-    <input type="search" id="q" placeholder="Search text, code, or keyword…" autofocus
+    <input type="search" id="q" placeholder="Search text, code, or keyword…" data-i18n-placeholder="search_placeholder" autofocus
            style="flex:1; min-width:200px; padding:.6rem .8rem; border:1px solid var(--border); border-radius:6px; font-size:1rem; background:var(--bg); color:var(--text);">
     <details class="search-lang-dropdown" id="lang-dropdown">
-      <summary id="lang-label">All languages</summary>
+      <summary id="lang-label" data-i18n="search_all_languages">All languages</summary>
       <div class="search-lang-panel">
-        <input type="search" class="search-lang-filter" id="lang-filter-input" placeholder="Filter languages..." autocomplete="off">
+        <input type="search" class="search-lang-filter" id="lang-filter-input" placeholder="Filter languages..." data-i18n-placeholder="filter_languages" autocomplete="off">
         <div class="search-tier-bar" id="lang-tiers">
           <button class="tier-btn active" data-min="5">5+</button>
           <button class="tier-btn" data-min="20">20+</button>
@@ -22,18 +22,19 @@
       </div>
     </details>
     <select id="cat-filter" style="padding:.5rem; border:1px solid var(--border); border-radius:6px; background:var(--bg); color:var(--text);">
-      <option value="">All types</option>
-      <option value="prayer">Prayers</option>
-      <option value="Hidden Words">Hidden Words</option>
-      <option value="Kitáb-i-Aqdas">Kitáb-i-Aqdas</option>
-      <option value="Kitáb-i-Íqán">Kitáb-i-Íqán</option>
-      <option value="Gleanings">Gleanings</option>
-      <option value="Prayers & Meditations">Prayers & Meditations</option>
-      <option value="Some Answered Questions">Some Answered Questions</option>
-      <option value="Tablets of Bahá'u'lláh">Tablets</option>
-      <option value="Days of Remembrance">Days of Remembrance</option>
-      <option value="Ridván Messages">Ridván Messages</option>
-      <option value="Other Tablets">Other Tablets</option>
+      <option value="" data-i18n="search_all_types">All types</option>
+      <option value="prayer" data-i18n="prayers_count">Prayers</option>
+      <option value="Hidden Words" data-i18n="writing_hidden_words">Hidden Words</option>
+      <option value="Kitáb-i-Aqdas" data-i18n="writing_aqdas">Kitáb-i-Aqdas</option>
+      <option value="Kitáb-i-Íqán" data-i18n="writing_iqan">Kitáb-i-Íqán</option>
+      <option value="Gleanings" data-i18n="writing_gleanings">Gleanings</option>
+      <option value="Prayers & Meditations" data-i18n="writing_pm">Prayers & Meditations</option>
+      <option value="Some Answered Questions" data-i18n="writing_saq">Some Answered Questions</option>
+      <option value="Tablets of Bahá'u'lláh" data-i18n="writing_tablets">Tablets</option>
+      <option value="Days of Remembrance" data-i18n="writing_days">Days of Remembrance</option>
+      <option value="Ridván Messages" data-i18n="writing_ridvan">Ridván Messages</option>
+      <option value="Tablets of the Divine Plan" data-i18n="writing_divineplan">Tablets of the Divine Plan</option>
+      <option value="Other Tablets" data-i18n="writing_other_tablets">Other Tablets</option>
     </select>
   </div>
 
@@ -113,17 +114,17 @@
     if (code) {
       langLabel.textContent = (langNamesMap[code] || code) + ' (' + (langCounts[code] || 0) + ')';
     } else {
-      langLabel.textContent = 'All languages';
+      langLabel.textContent = window.__t('search_all_languages');
     }
     langList.querySelectorAll('a').forEach(function(a) { a.classList.toggle('active', a.dataset.code === code); });
     langDropdown.removeAttribute('open');
     doSearch();
   }
 
-  statusEl.textContent = 'Loading search index...';
+  statusEl.textContent = window.__t('search_loading');
   fetch('/data/search.json').then(function(r) { return r.json(); }).then(function(d) {
     data = d;
-    statusEl.textContent = data.length.toLocaleString() + ' entries loaded. Type to search.';
+    statusEl.textContent = data.length.toLocaleString() + ' ' + window.__t('search_entries_loaded');
 
     // Count per language
     data.forEach(function(e) {
@@ -135,7 +136,7 @@
     // "All" option
     var allLink = document.createElement('a');
     allLink.href = '#'; allLink.dataset.code = ''; allLink.dataset.name = 'all'; allLink.dataset.count = '99999';
-    allLink.innerHTML = '<b>All languages</b><span class="lang-count-badge">' + data.length + '</span>';
+    allLink.innerHTML = '<b>' + window.__t('search_all_languages') + '</b><span class="lang-count-badge">' + data.length + '</span>';
     allLink.classList.add('active');
     allLink.addEventListener('click', function(ev) { ev.preventDefault(); selectLang(''); });
     langList.appendChild(allLink);
@@ -199,7 +200,7 @@
     var cat = catFilter.value;
 
     if (!query && !lang && !cat) {
-      statusEl.textContent = data.length.toLocaleString() + ' entries. Type to search.';
+      statusEl.textContent = data.length.toLocaleString() + ' ' + window.__t('search_entries_type');
       resultsEl.innerHTML = '';
       return;
     }
@@ -231,7 +232,7 @@
       }
     }
 
-    statusEl.textContent = results.length >= 200 ? '200+ results (showing first 200)' : results.length + ' results';
+    statusEl.textContent = results.length >= 200 ? window.__t('search_results_200') : results.length + ' ' + window.__t('search_results');
 
     // Update URL
     var url = new URL(window.location);
@@ -251,8 +252,8 @@
           text = text.replace(re, '<mark>$1</mark>');
         });
       }
-      var catBadge = e.c ? '<span class="sr-cat">' + e.c + '</span>' : '<span class="sr-cat" style="background:#888">Prayer</span>';
-      var addBtn = '<button class="sr-add" data-code="' + e.p + '" title="Add to devotional program">+</button>';
+      var catBadge = e.c ? '<span class="sr-cat">' + e.c + '</span>' : '<span class="sr-cat" style="background:#888">' + window.__t('search_prayer') + '</span>';
+      var addBtn = '<button class="sr-add" data-code="' + e.p + '" title="' + window.__t('search_add_devotional') + '">+</button>';
       html += '<div class="search-result">'
         + '<div class="sr-header">'
         + '<a href="' + e.u + '" class="sr-code">' + e.p + '</a>'

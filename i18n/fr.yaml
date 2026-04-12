@@ -20,6 +20,11 @@ writing_saq: "Les Leçons de Saint-Jean-d'Acre"
 writing_tablets: "Tablettes de Bahá'u'lláh"
 writing_days: "Jours de Commémoration"
 writing_ridvan: "Messages de Ridván"
+writing_divineplan: "Tablettes du Plan divin"
+writing_other_tablets: "Autres Tablettes"
+
+# Navigation extras
+nav_search: "Recherche"
 
 # Home page
 home_title: "Écrits Saints"
@@ -29,8 +34,9 @@ home_program_desc: "Créez et partagez des programmes de dévotion multilingues 
 home_prayers_desc: "Parcourez les prières bahá'íes classées par catégorie et par auteur."
 home_writings_desc: "Lisez les Paroles Cachées, le Kitáb-i-Aqdas, le Kitáb-i-Íqán, le Florilège et plus encore."
 home_quran_desc: "Lisez le Coran en plusieurs traductions avec l'original arabe."
-home_bible_desc: "Traductions Louis Segond et Van Dyck avec les originaux en hébreu, syriaque et grec."
+home_bible_desc: "Traductions KJV et Van Dyck avec les originaux en hébreu, syriaque et grec."
 home_catalog_desc: "Parcourez l'index Phelps — un catalogue de plus de 29 000 Écrits Saints bahá'ís."
+home_about_desc: "Méthodologie, qualité des données, problèmes connus et comment vous pouvez aider."
 
 # Daily page
 daily_title: "Dévotions Quotidiennes"
@@ -83,6 +89,20 @@ also_in: "Aussi en :"
 download: "Télécharger"
 pdf: "PDF"
 epub: "EPUB"
+
+# Search page
+search_title: "Recherche"
+search_desc: "Rechercher dans les prières et écrits dans toutes les langues."
+search_placeholder: "Rechercher texte, code ou mot-clé…"
+search_all_languages: "Toutes les langues"
+search_all_types: "Tous les types"
+search_loading: "Chargement de l'index de recherche..."
+search_entries_loaded: "entrées chargées. Tapez pour chercher."
+search_entries_type: "entrées. Tapez pour chercher."
+search_results_200: "200+ résultats (200 premiers affichés)"
+search_results: "résultats"
+search_add_devotional: "Ajouter au programme de dévotion"
+search_prayer: "Prière"
 
 # Footer
 footer_disclaimer: "Les correspondances sur ce site ont été partiellement établies avec l'aide d'un LLM."

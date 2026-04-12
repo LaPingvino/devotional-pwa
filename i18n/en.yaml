@@ -20,6 +20,11 @@ writing_saq: "Some Answered Questions"
 writing_tablets: "Tablets of Bahá'u'lláh"
 writing_days: "Days of Remembrance"
 writing_ridvan: "Ridván Messages"
+writing_divineplan: "Tablets of the Divine Plan"
+writing_other_tablets: "Other Tablets"
+
+# Navigation extras
+nav_search: "Search"
 
 # Home page
 home_title: "Holy Writings"
@@ -84,6 +89,20 @@ also_in: "Also in:"
 download: "Download"
 pdf: "PDF"
 epub: "EPUB"
+
+# Search page
+search_title: "Search"
+search_desc: "Search across prayers and writings in all languages."
+search_placeholder: "Search text, code, or keyword…"
+search_all_languages: "All languages"
+search_all_types: "All types"
+search_loading: "Loading search index..."
+search_entries_loaded: "entries loaded. Type to search."
+search_entries_type: "entries. Type to search."
+search_results_200: "200+ results (showing first 200)"
+search_results: "results"
+search_add_devotional: "Add to devotional program"
+search_prayer: "Prayer"
 
 # Footer
 footer_disclaimer: "The matches on this website have been partially made with LLM assistance."
