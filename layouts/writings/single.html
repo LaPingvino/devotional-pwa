@@ -160,8 +160,10 @@ a.entry-num {
   min-width: 2em;
   text-align: center;
   text-decoration: none;
+  cursor: pointer;
 }
 a.entry-num:hover { color: var(--accent); background: #fff3ef; }
+a.entry-num.range-selected { background: var(--accent); color: #fff; }
 a.entry-name {
   font-size: .85rem;
   font-weight: 600;
@@ -423,6 +425,83 @@ a.entry-name:hover { text-decoration: underline; }
       setTimeout(function() { btn.textContent = 'Add to devotional'; }, 2000);
     });
   });
+  // ── Paragraph range selection by clicking entry numbers ──
+  var wRangeStart = null, wRangeEnd = null, wRangeBook = null, wBanner = null;
+  function clearWRange() {
+    document.querySelectorAll('.entry-num.range-selected').forEach(function(el) { el.classList.remove('range-selected'); });
+    wRangeStart = null; wRangeEnd = null; wRangeBook = null;
+    if (wBanner) { wBanner.remove(); wBanner = null; }
+  }
+  function showWBanner() {
+    if (wBanner) wBanner.remove();
+    var lo = Math.min(wRangeStart, wRangeEnd), hi = Math.max(wRangeStart, wRangeEnd);
+    var book = wRangeBook;
+    var key = book.dataset.key || '';
+    var base = (book.id || '').replace('book-', '');
+    var shortFn = rangeShorthands[key];
+    var shortCode = shortFn ? shortFn(base, lo, hi, book) : null;
+    var label = (book.querySelector('.writing-book-heading') || {}).textContent || key;
+    label = label.trim().substring(0, 30) + ' ' + lo + (hi > lo ? '\u2013' + hi : '');
+    wBanner = document.createElement('div');
+    wBanner.className = 'range-banner';
+    wBanner.innerHTML = '<span>' + label + '</span> ' +
+      '<button class="btn-action btn-small range-add">' + window.__t('verse_add') + '</button> ' +
+      '<button class="btn-action btn-small range-cancel">\u2715</button>';
+    document.body.appendChild(wBanner);
+    wBanner.querySelector('.range-add').addEventListener('click', function() {
+      var codes = getCodes();
+      if (shortCode) {
+        if (!codes.some(function(i) { return codeStr2(i) === shortCode; })) codes.push({code: shortCode});
+      } else {
+        var entries = book.querySelectorAll('.writing-entry');
+        entries.forEach(function(e) {
+          var order = parseInt(e.dataset.order);
+          if (order >= lo && order <= hi) {
+            var p = e.id;
+            if (!codes.some(function(i) { return codeStr2(i) === p; })) codes.push({code: p});
+          }
+        });
+      }
+      saveCodes(codes);
+      clearWRange();
+    });
+    wBanner.querySelector('.range-cancel').addEventListener('click', clearWRange);
+  }
+  document.querySelectorAll('.entry-num').forEach(function(el) {
+    el.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var entry = el.closest('.writing-entry');
+      if (!entry) return;
+      var order = parseInt(entry.dataset.order);
+      var book = el.closest('.writing-book');
+      if (wRangeStart === null || book !== wRangeBook) {
+        clearWRange();
+        wRangeStart = order; wRangeEnd = order; wRangeBook = book;
+        el.classList.add('range-selected');
+        showWBanner();
+      } else {
+        wRangeEnd = order;
+        var lo = Math.min(wRangeStart, wRangeEnd), hi = Math.max(wRangeStart, wRangeEnd);
+        book.querySelectorAll('.entry-num').forEach(function(n) {
+          var ent = n.closest('.writing-entry');
+          if (!ent) return;
+          var o = parseInt(ent.dataset.order);
+          n.classList.toggle('range-selected', o >= lo && o <= hi);
+        });
+        showWBanner();
+      }
+    });
+  });
+
+  // Show hint once
+  if (!sessionStorage.getItem('hw_verse_hint_dismissed')) {
+    var hint = document.createElement('div');
+    hint.className = 'range-banner';
+    hint.style.opacity = '.9';
+    hint.innerHTML = '<span>' + window.__t('verse_hint') + '</span><button class="btn-action btn-small" onclick="this.parentElement.remove();sessionStorage.setItem(\'hw_verse_hint_dismissed\',\'1\')">\u2715</button>';
+    document.body.appendChild(hint);
+  }
 })();
 </script>
 {{ partial "foot.html" . }}
