@@ -862,7 +862,7 @@
         if (ref.ayahEnd > ref.ayahStart) title += '-' + ref.ayahEnd;
       }
       var quranLang = lang === 'en' ? 'en' : lang;
-      return { text: '<p>' + textParts.join(' ') + '</p>', category: "Qur'an", type: 'quran', name: title, link: '/quran/' + quranLang + '/#s' + ref.surah };
+      return { text: '<p>' + textParts.join(' ') + '</p>', category: "Qur'an", type: 'quran', name: title, link: '/quran/' + quranLang + '/#surah-' + ref.surah };
     }
 
     // Writing shorthand: iqan:part:section, aqdas:para, etc.
