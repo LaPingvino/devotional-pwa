@@ -94,7 +94,8 @@
   gap: .8rem;
 }
 /* Language dropdown */
-.dev-controls .lang-dropdown { position: relative; }
+.dev-controls .lang-dropdown { position: relative; z-index: 50; }
+.dev-controls .lang-dropdown-panel { position: absolute; top: 100%; left: 0; z-index: 51; }
 .dev-controls .lang-dropdown summary {
   padding: .3rem .8rem;
   border: 1px solid var(--border);
