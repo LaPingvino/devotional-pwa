@@ -26,15 +26,15 @@
     <div class="dev-toolbar">
       <button class="btn-action" id="btn-share" title="Copy shareable link" data-i18n="dev_share">Share link</button>
       <button class="btn-action" id="btn-qr" title="Show QR code">QR</button>
-      <button class="btn-action" id="btn-compare" title="Compare languages side by side">Compare</button>
+      <button class="btn-action" id="btn-compare" title="Compare languages side by side" data-i18n="dev_compare">Compare</button>
       <button class="btn-action" id="btn-print" title="Print / save as PDF" data-i18n="dev_print">Print</button>
       <button class="btn-action btn-danger" id="btn-clear" title="Clear all" data-i18n="dev_clear">Clear</button>
     </div>
     <div class="compare-bar" id="compare-bar" style="display:none">
-      <span class="compare-label">Compare:</span>
+      <span class="compare-label" data-i18n="dev_compare_label">Compare:</span>
       <div class="compare-chips" id="compare-chips"></div>
-      <button class="btn-action btn-small" id="compare-add" title="Add comparison language">+ lang</button>
-      <button class="btn-action btn-small" id="compare-add-translit" title="Add transliteration column">+ translit</button>
+      <button class="btn-action btn-small" id="compare-add" title="Add comparison language" data-i18n="dev_compare_add">+ lang</button>
+      <button class="btn-action btn-small" id="compare-add-translit" title="Add transliteration column" data-i18n="dev_compare_translit">+ translit</button>
       <button class="btn-action btn-small btn-danger" id="compare-off" title="Exit comparison mode">&times;</button>
     </div>
     <div id="qr-panel" class="qr-panel" style="display:none">
@@ -1376,7 +1376,8 @@
   });
 
   function showCompareAddLang() {
-    var lang = prompt('Enter language code to compare (e.g. fa, ar, de, es, fr):');
+    var promptText = (typeof window.__t === 'function' ? window.__t('dev_compare_prompt') : '') || 'Enter language code to compare (e.g. fa, ar, de, es, fr):';
+    var lang = prompt(promptText);
     if (!lang) return;
     lang = lang.trim().toLowerCase();
     if (lang === selectedLang || compareLangs.indexOf(lang) >= 0) return;
