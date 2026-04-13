@@ -3,7 +3,7 @@
   // Letter mappings (Bahá'í-style transliteration with acute accents)
   var L = {
     // Arabic
-    '\u0621':'\'','\u0627':'\u00E1','\u0623':'a','\u0625':'i','\u0622':'\u00E1',
+    '\u0621':'\'','\u0627':'a','\u0623':'a','\u0625':'i','\u0622':'\u00E1',
     '\u0628':'b','\u062A':'t','\u062B':'th','\u062C':'j','\u062D':'\u1E25',
     '\u062E':'kh','\u062F':'d','\u0630':'dh','\u0631':'r','\u0632':'z',
     '\u0633':'s','\u0634':'sh','\u0635':'\u1E63','\u0636':'\u1E0D','\u0637':'\u1E6D',
@@ -408,16 +408,18 @@
       var part = parts[pi];
       // Check if this part is Arabic
       if (/[\u0621-\u065F\u0670-\u06FF]/.test(part)) {
-        // Check known-word map first (exact Bahá'í transliteration)
-        var knownKey = normalizeKnownKey(part);
-        if (KNOWN[knownKey]) {
-          allSegs.push({t: KNOWN[knownKey], p: false});
-          continue;
+        // Check known-word map — but only for unvocalized text
+        // (vocalized text should use its own tashkeel, not KNOWN overrides)
+        var hasVowelMarks = /[\u064E\u064F\u0650\u064B\u064C\u064D\u0670]/.test(part);
+        if (!hasVowelMarks) {
+          var knownKey = normalizeKnownKey(part);
+          if (KNOWN[knownKey]) {
+            allSegs.push({t: KNOWN[knownKey], p: false});
+            continue;
+          }
         }
         var predicted = false;
         var toTranslit = part;
-        // Check if word has actual vowel marks (not just shadda/sukun)
-        var hasVowelMarks = /[\u064E\u064F\u0650\u064B\u064C\u064D\u0670]/.test(part);
         // If no vowel marks, try dictionary lookup (even if it has shadda/sukun)
         if (!hasVowelMarks && vowelDict) {
           var nk = normalizeKey(part);
@@ -481,10 +483,10 @@
   }
 
   function cleanOutput(s) {
-    // Fix ál → al- (definite article) only when followed by consonant (not á/í/ú vowel)
-    // This avoids converting آلایش (áláyish) which starts with alif-madda, not al-
-    s = s.replace(/(^|[ \n])\u00E1l(?=[bcdfghjklmnpqrstvwxyz\u02BB\u1E00-\u1EFF])/g, '$1al-');
-    s = s.replace(/([\'\-])\u00E1l(?=[bcdfghjklmnpqrstvwxyz\u02BB\u1E00-\u1EFF])/g, '$1al-');
+    // Fix al at word start → al- (definite article)
+    // Only match plain 'a' (not 'á' from alif-madda آ) to avoid breaking آلایش etc.
+    // Only after space/start (not after ' which could be ayn)
+    s = s.replace(/(^|[ \n])al(?=[a-z\u00E1\u00ED\u00FA\u02BB\u1E00-\u1EFF])/g, '$1al-');
     // Sun letter assimilation: al-XX → aX-X (consume doubled consonant from shadda)
     s = s.replace(/al-([tdrzsnl\u1E63\u1E0D\u1E6D\u1E93\u1E25])\1*/g, function(m, c) {
       return 'a' + c + '-' + c;
@@ -497,8 +499,6 @@
     // Double-alif cleanup
     s = s.replace(/a\u00E1/g, '\u00E1');
     s = s.replace(/\u00E1\u00E1/g, '\u00E1');
-    // Strip only lone grammatical -u at absolute word end (nominative case marker)
-    s = s.replace(/([bcdfghjklmnpqrstvwxyz\u1E00-\u1EFF])u(?=[ \n,.]|$)/g, '$1');
     // Liaison: word ending in vowel + space + Alláh → 'lláh (Arabic waṣl)
     s = s.replace(/([aeiou\u00E1\u00ED\u00FA]) All\u00E1h/g, '$1\'ll\u00E1h');
     // Liaison: word ending in consonant + i + space + al-X → 'l-X (genitive construct)
