@@ -109,7 +109,7 @@ prayers_sop_pdf: "Short Obligatory Prayer (all languages) — PDF"
 prayers_sop_epub: "Short Obligatory Prayer — EPUB"
 
 # Verse selection
-verse_hint: "Click ○ to start selecting, then another ○ to set a range for the devotional program."
+verse_hint: "Use the checkboxes to select a range for the devotional program."
 verse_add: "Add to devotional"
 verse_cancel: "Cancel"
 

@@ -109,7 +109,7 @@ prayers_sop_pdf: "Kurzes Pflichtgebet (alle Sprachen) — PDF"
 prayers_sop_epub: "Kurzes Pflichtgebet — EPUB"
 
 # Verse selection
-verse_hint: "Klicke auf ○, um die Auswahl zu beginnen, dann auf ein weiteres ○, um einen Bereich für das Andachtsprogramm festzulegen."
+verse_hint: "Verwenden Sie die Kontrollkästchen, um einen Bereich für das Andachtsprogramm auszuwählen."
 verse_add: "Zum Andachtsprogramm hinzufügen"
 verse_cancel: "Abbrechen"
 

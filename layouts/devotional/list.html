@@ -519,7 +519,7 @@
       if (lc.startsWith('bible.') || lc.startsWith('quran.') ||
           lc.startsWith('iqan.') || lc.startsWith('aqdas.') ||
           lc.startsWith('gleanings.') || lc.startsWith('hw.') || lc.startsWith('pm.') ||
-          lc.startsWith('tdp.') || lc.startsWith('esw.')) {
+          lc.startsWith('tdp.') || lc.startsWith('esw.') || lc.startsWith('tab.')) {
         return { code: lc.replace(/\./g, ':') };
       }
       var parts = s.split(':');
@@ -973,6 +973,17 @@
         filter: function(e) { return e.order >= start && e.order <= end; }
       };
     }
+    // tab:BH00053:5 or tab:BH00053:10-20 (Tablets of Bahá'u'lláh)
+    m = code.match(/^tab:([A-Z]{2}\d{5}):(\d+)(?:-(\d+))?$/);
+    if (m) {
+      var base = m[1], start = parseInt(m[2]), end = m[3] ? parseInt(m[3]) : start;
+      var wanted = phelpsRange(base, start, end, 3);
+      return {
+        key: 'tablets', title: "Tablets of Bahá'u'lláh",
+        label: base + " \u00b6" + start + (end > start ? '\u2013' + end : ''),
+        filter: function(e) { return wanted.indexOf(e.phelps) >= 0; }
+      };
+    }
     // esw:5 or esw:10-20 (Epistle to the Son of the Wolf)
     m = code.match(/^esw:(\d+)(?:-(\d+))?$/);
     if (m) {
@@ -1206,7 +1217,7 @@
     var isRef = lc.startsWith('bible:') || lc.startsWith('quran:') ||
       lc.startsWith('iqan:') || lc.startsWith('aqdas:') ||
       lc.startsWith('gleanings:') || lc.startsWith('hw:') || lc.startsWith('pm:') ||
-      lc.startsWith('esw:') || lc.startsWith('tdp:');
+      lc.startsWith('esw:') || lc.startsWith('tdp:') || lc.startsWith('tab:');
     var code = isRef ? lc : raw.toUpperCase();
     if (!codes.some(i => i.code === code)) {
       codes.push({ code: code });

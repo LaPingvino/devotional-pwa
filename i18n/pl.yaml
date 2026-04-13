@@ -109,7 +109,7 @@ prayers_sop_pdf: "Krótka modlitwa obowiązkowa (wszystkie języki) — PDF"
 prayers_sop_epub: "Krótka modlitwa obowiązkowa — EPUB"
 
 # Verse selection
-verse_hint: "Kliknij ○, aby rozpocząć wybieranie, a następnie kolejne ○, aby ustawić zakres do programu nabożeństwa."
+verse_hint: "Użyj pól wyboru, aby wybrać zakres do programu nabożeństwa."
 verse_add: "Dodaj do programu nabożeństwa"
 verse_cancel: "Anuluj"
 

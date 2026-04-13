@@ -109,7 +109,7 @@ prayers_sop_pdf: "Kısa farz dua (tüm diller) — PDF"
 prayers_sop_epub: "Kısa farz dua — EPUB"
 
 # Verse selection
-verse_hint: "Seçime başlamak için ○ simgesine tıklayın, ardından dua programı için bir aralık belirlemek üzere başka bir ○ simgesine tıklayın."
+verse_hint: "Dua programı için bir aralık seçmek üzere onay kutularını kullanın."
 verse_add: "Dua programına ekle"
 verse_cancel: "İptal"
 

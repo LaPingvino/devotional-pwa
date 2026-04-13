@@ -109,7 +109,7 @@ prayers_sop_pdf: "Mallonga deviga preĝo (ĉiuj lingvoj) — PDF"
 prayers_sop_epub: "Mallonga deviga preĝo — EPUB"
 
 # Verse selection
-verse_hint: "Klaku ○ por komenci elekton, poste alian ○ por difini gamon por la preĝkunvena programo."
+verse_hint: "Uzu la markobutonojn por elekti gamon por la preĝkunvena programo."
 verse_add: "Aldoni al preĝkunvena programo"
 verse_cancel: "Nuligi"
 

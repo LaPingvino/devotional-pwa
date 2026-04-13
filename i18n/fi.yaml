@@ -109,7 +109,7 @@ prayers_sop_pdf: "Lyhyt pakollinen rukous (kaikki kielet) — PDF"
 prayers_sop_epub: "Lyhyt pakollinen rukous — EPUB"
 
 # Verse selection
-verse_hint: "Napsauta ○ aloittaaksesi valinnan, sitten toista ○ asettaaksesi välin rukousohjelmaan."
+verse_hint: "Käytä valintaruutuja valitaksesi välin rukousohjelmaan."
 verse_add: "Lisää rukousohjelmaan"
 verse_cancel: "Peruuta"
 
