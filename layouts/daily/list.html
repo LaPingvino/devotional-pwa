@@ -92,6 +92,7 @@
     </div>
     <div class="abha-controls">
       <button class="btn-small" id="abha-undo" data-i18n="undo">Undo</button>
+      <button class="btn-small abha-beep-toggle" id="abha-beep" title="Toggle beep">🔇</button>
       <button class="btn-small" id="abha-reset" data-i18n="reset">Reset</button>
     </div>
     <div id="abha-done" class="abha-done" style="display:none" data-i18n="complete">Complete!</div>
@@ -413,6 +414,16 @@
   justify-content: center;
   gap: .5rem;
   margin-top: .5rem;
+}
+.abha-beep-toggle {
+  font-size: 1.2rem;
+  min-width: 2.2rem;
+  padding: .2rem .4rem;
+}
+.abha-beep-toggle.on {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
 }
 .abha-done {
   text-align: center;
@@ -855,12 +866,56 @@
     }
   }
 
+  // ── Beep synthesizer (Web Audio API) ──
+  let audioCtx = null;
+  function getAudioCtx() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    return audioCtx;
+  }
+
+  function beep(freq, duration, type, vol) {
+    try {
+      const ctx = getAudioCtx();
+      if (ctx.state === 'suspended') ctx.resume();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type || 'sine';
+      osc.frequency.value = freq;
+      gain.gain.value = vol || 0.3;
+      // Gentle envelope to avoid clicks
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(vol || 0.3, ctx.currentTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime);
+      osc.stop(ctx.currentTime + duration);
+    } catch(e) {}
+  }
+
+  // Normal beep: short soft tick
+  function beepNormal() { beep(880, 0.08, 'sine', 0.15); }
+  // Every 19th: two-tone chime
+  function beep19() {
+    beep(660, 0.15, 'triangle', 0.25);
+    setTimeout(function() { beep(880, 0.15, 'triangle', 0.25); }, 120);
+  }
+  // 95th (final): triumphant ascending chord
+  function beep95() {
+    beep(523, 0.3, 'sine', 0.3);
+    setTimeout(function() { beep(659, 0.3, 'sine', 0.3); }, 150);
+    setTimeout(function() { beep(784, 0.4, 'sine', 0.35); }, 300);
+    setTimeout(function() { beep(1047, 0.5, 'sine', 0.3); }, 500);
+  }
+
   // ── Allah-u-Abha counter ──
   function initAbha() {
     let count = loadState('abha', 0);
+    let beepOn = loadState('abha_beep', false);
     const btn = $('abha-btn');
     const countEl = $('abha-count');
     const doneEl = $('abha-done');
+    const beepBtn = $('abha-beep');
 
     function render() {
       countEl.textContent = count;
@@ -868,7 +923,12 @@
       btn.classList.toggle('done', done);
       doneEl.style.display = done ? '' : 'none';
     }
+    function renderBeep() {
+      beepBtn.textContent = beepOn ? '\uD83D\uDD0A' : '\uD83D\uDD07';
+      beepBtn.classList.toggle('on', beepOn);
+    }
     render();
+    renderBeep();
 
     btn.addEventListener('click', () => {
       if (count < 95) {
@@ -877,9 +937,24 @@
         render();
         // Haptic feedback
         if (navigator.vibrate) navigator.vibrate(count >= 95 ? [50, 30, 50] : 15);
+        // Beep feedback
+        if (beepOn) {
+          if (count === 95) beep95();
+          else if (count % 19 === 0) beep19();
+          else beepNormal();
+        }
       } else {
         if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
+        if (beepOn) beep95();
       }
+    });
+
+    beepBtn.addEventListener('click', () => {
+      beepOn = !beepOn;
+      saveState('abha_beep', beepOn);
+      renderBeep();
+      // Play a sample beep when enabling so user knows it works
+      if (beepOn) beepNormal();
     });
 
     $('abha-undo').addEventListener('click', () => {
