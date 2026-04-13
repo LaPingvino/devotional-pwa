@@ -71,6 +71,7 @@ dev_add_hint: "تصفّح الأدعية أو الآثار واستخدم زرّ
 dev_shared_hint: "تمّت مشاركة هذا البرنامج التعبّديّ معك."
 dev_save_local: "حفظ في برامجي التعبّديّة"
 dev_edit: "تعديل"
+dev_share_lang: "تضمين اللغة في الروابط المشتركة"
 dev_compare: "مقارنة"
 dev_compare_label: "مقارنة:"
 dev_compare_add: "+ لغة"

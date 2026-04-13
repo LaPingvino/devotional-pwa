@@ -71,6 +71,7 @@ dev_add_hint: "Parcourez les prières ou les écrits et utilisez le bouton + pou
 dev_shared_hint: "Ce programme de dévotion a été partagé avec vous."
 dev_save_local: "Enregistrer dans mes dévotions"
 dev_edit: "Modifier"
+dev_share_lang: "Inclure la langue dans les liens partagés"
 dev_compare: "Comparer"
 dev_compare_label: "Comparaison:"
 dev_compare_add: "+ langue"

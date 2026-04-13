@@ -71,6 +71,7 @@ dev_add_hint: "مناجات‌ها یا آثار را مرور کنید و با 
 dev_shared_hint: "این برنامهٔ جلسهٔ دعا با شما به اشتراک گذاشته شده است."
 dev_save_local: "ذخیره در جلسات دعای من"
 dev_edit: "ویرایش"
+dev_share_lang: "شامل کردن زبان در لینک‌های اشتراکی"
 dev_compare: "مقایسه"
 dev_compare_label: "مقایسه:"
 dev_compare_add: "+ زبان"

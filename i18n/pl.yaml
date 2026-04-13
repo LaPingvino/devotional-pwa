@@ -71,6 +71,7 @@ dev_add_hint: "Przeglądaj modlitwy lub pisma i użyj przycisku +, aby dodać po
 dev_shared_hint: "Ten program modlitewny został Ci udostępniony."
 dev_save_local: "Zapisz w moich programach"
 dev_edit: "Edytuj"
+dev_share_lang: "Uwzględnij język w udostępnianych linkach"
 dev_compare: "Porównaj"
 dev_compare_label: "Porównanie:"
 dev_compare_add: "+ język"

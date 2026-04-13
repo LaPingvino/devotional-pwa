@@ -71,6 +71,7 @@ dev_add_hint: "Rasfoiti rugaciunile sau scrierile si folositi butonul + pentru a
 dev_shared_hint: "Acest program devotional a fost distribuit cu dumneavoastra."
 dev_save_local: "Salveaza in devotionalele mele"
 dev_edit: "Editeaza"
+dev_share_lang: "Include limba în linkurile partajate"
 dev_compare: "Compară"
 dev_compare_label: "Comparare:"
 dev_compare_add: "+ limbă"

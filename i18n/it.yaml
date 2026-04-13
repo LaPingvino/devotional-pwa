@@ -71,6 +71,7 @@ dev_add_hint: "Sfoglia preghiere o scritti e usa il pulsante + per aggiungere el
 dev_shared_hint: "Questo programma devozionale è stato condiviso con te."
 dev_save_local: "Salva nei miei devozionali"
 dev_edit: "Modifica"
+dev_share_lang: "Includi la lingua nei link condivisi"
 dev_compare: "Confronta"
 dev_compare_label: "Confronto:"
 dev_compare_add: "+ lingua"

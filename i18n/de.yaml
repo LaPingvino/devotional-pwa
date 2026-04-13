@@ -71,6 +71,7 @@ dev_add_hint: "Durchsuchen Sie Gebete oder Schriften und verwenden Sie die Schal
 dev_shared_hint: "Dieses Andachtsprogramm wurde mit Ihnen geteilt."
 dev_save_local: "In meinen Andachten speichern"
 dev_edit: "Bearbeiten"
+dev_share_lang: "Sprache in geteilten Links einschließen"
 dev_compare: "Vergleichen"
 dev_compare_label: "Vergleich:"
 dev_compare_add: "+ Sprache"

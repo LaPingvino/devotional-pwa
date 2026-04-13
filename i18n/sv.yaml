@@ -71,6 +71,7 @@ dev_add_hint: "Blaadra bland boner eller skrifter och anvand +-knappen for att l
 dev_shared_hint: "Detta andaktsprogram har delats med dig."
 dev_save_local: "Spara till mina andakter"
 dev_edit: "Redigera"
+dev_share_lang: "Inkludera språk i delade länkar"
 dev_compare: "Jämför"
 dev_compare_label: "Jämförelse:"
 dev_compare_add: "+ språk"

@@ -71,6 +71,7 @@ dev_add_hint: "Просмотрите молитвы или писания и и
 dev_shared_hint: "Эта молитвенная программа была отправлена вам."
 dev_save_local: "Сохранить в мои программы"
 dev_edit: "Редактировать"
+dev_share_lang: "Включить язык в общие ссылки"
 dev_compare: "Сравнить"
 dev_compare_label: "Сравнение:"
 dev_compare_add: "+ язык"

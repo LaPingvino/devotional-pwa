@@ -71,6 +71,7 @@ dev_add_hint: "Foliumu preĝojn aŭ skribojn kaj uzu la butonon + por aldoni ero
 dev_shared_hint: "Ĉi tiu preĝkunvena programo estis kunhavigita kun vi."
 dev_save_local: "Konservi al miaj devotaĵoj"
 dev_edit: "Redakti"
+dev_share_lang: "Inkluzivi lingvon en kunhavigitaj ligiloj"
 dev_compare: "Kompari"
 dev_compare_label: "Komparo:"
 dev_compare_add: "+ lingvo"

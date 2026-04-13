@@ -71,6 +71,7 @@ dev_add_hint: "Blader door gebeden of geschriften en gebruik de +-knop om items 
 dev_shared_hint: "Dit devotionele programma is met u gedeeld."
 dev_save_local: "Opslaan in mijn devotionelen"
 dev_edit: "Bewerken"
+dev_share_lang: "Taal opnemen in gedeelde links"
 dev_compare: "Vergelijken"
 dev_compare_label: "Vergelijking:"
 dev_compare_add: "+ taal"

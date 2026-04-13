@@ -26,6 +26,9 @@
     window.__t = function(k) { return k; }; // stub until loaded
     // Pick best content language: stored preference → UI lang → browser langs → 'en'
     window.__bestLang = function(storageKey, availableCodes) {
+      // URL ?lang= param takes highest priority (for shared links)
+      var urlLang = new URLSearchParams(location.search).get('lang');
+      if (urlLang && availableCodes.indexOf(urlLang) >= 0) return urlLang;
       var stored = localStorage.getItem(storageKey);
       if (stored && availableCodes.indexOf(stored) >= 0) return stored;
       // Try UI language and its base

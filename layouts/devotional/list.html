@@ -30,6 +30,10 @@
       <button class="btn-action" id="btn-print" title="Print / save as PDF" data-i18n="dev_print">Print</button>
       <button class="btn-action btn-danger" id="btn-clear" title="Clear all" data-i18n="dev_clear">Clear</button>
     </div>
+    <label class="share-lang-opt" id="share-lang-opt">
+      <input type="checkbox" id="share-include-lang" checked>
+      <span data-i18n="dev_share_lang">Include language in shared links</span>
+    </label>
     <div class="compare-bar" id="compare-bar" style="display:none">
       <span class="compare-label" data-i18n="dev_compare_label">Compare:</span>
       <div class="compare-chips" id="compare-chips"></div>
@@ -179,6 +183,18 @@
   margin-bottom: 1rem;
 }
 .dev-hint a { color: var(--accent); }
+
+/* Share options */
+.share-lang-opt {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .8rem;
+  color: var(--text-secondary);
+  margin: .3rem 0;
+  cursor: pointer;
+}
+.share-lang-opt input { margin: 0; cursor: pointer; }
 
 /* Compare bar */
 .compare-bar {
@@ -645,6 +661,7 @@
   // ── Determine mode: shared (hash codes) or builder (localStorage) ──
   let isShared = false;
   let codes = [];
+  var hashLang = null; // set by @lang= in hash
 
   function parseHash() {
     const h = location.hash.replace('#', '').trim();
@@ -654,7 +671,11 @@
     for (var si = 0; si < segments.length; si++) {
       var s = segments[si].trim();
       if (!s) continue;
-      // Extract @compare= directive
+      // Extract directives
+      if (s.startsWith('@lang=')) {
+        hashLang = s.substring(6);
+        continue;
+      }
       if (s.startsWith('@compare=')) {
         var cls = s.substring(9).split('+').filter(Boolean);
         if (cls.length > 0) {
@@ -687,9 +708,13 @@
       if (c.indexOf(':') >= 0 && !c.match(/^[A-Z]/)) c = c.replace(/:/g, '.');
       return i.lang ? c + ':' + i.lang : c;
     });
-    // Append comparison languages if active
-    if (compareLangs.length > 0) {
-      parts.push('@compare=' + compareLangs.join('+'));
+    // Append language and comparison state if checkbox is checked
+    var includeLang = $('share-include-lang') && $('share-include-lang').checked;
+    if (includeLang) {
+      parts.push('@lang=' + selectedLang);
+      if (compareLangs.length > 0) {
+        parts.push('@compare=' + compareLangs.join('+'));
+      }
     }
     return parts.join(',');
   }
@@ -779,9 +804,13 @@
       if (!existingCodes.has(el.code)) allLanguages.push(el);
     });
 
-    // Resolve best language now that we know what's available
+    // Resolve best language: hash @lang= > URL ?lang= > stored > browser
     var availCodes = allLanguages.map(function(l) { return l.code; });
-    selectedLang = window.__bestLang('hw_devotional_lang', availCodes);
+    if (hashLang && availCodes.indexOf(hashLang) >= 0) {
+      selectedLang = hashLang;
+    } else {
+      selectedLang = window.__bestLang('hw_devotional_lang', availCodes);
+    }
 
     // Populate dropdown — alphabetical, English first
     const sorted = [...allLanguages].sort((a, b) => {

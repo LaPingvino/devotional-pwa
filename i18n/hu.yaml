@@ -71,6 +71,7 @@ dev_add_hint: "Bongesszen imak vagy irasok kozott, es hasznaja a + gombot az ele
 dev_shared_hint: "Ezt az ahitati programot megosztottak Onnel."
 dev_save_local: "Mentes a sajat ahitataimhoz"
 dev_edit: "Szerkesztes"
+dev_share_lang: "Nyelv hozzáadása a megosztott linkekhez"
 dev_compare: "Összehasonlítás"
 dev_compare_label: "Összehasonlítás:"
 dev_compare_add: "+ nyelv"

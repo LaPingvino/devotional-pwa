@@ -71,6 +71,7 @@ dev_add_hint: "Selaa rukouksia tai kirjoituksia ja lisää kohteita +-painikkeel
 dev_shared_hint: "Tämä hartausohjelma jaettiin kanssasi."
 dev_save_local: "Tallenna omiin hartausohjelmiini"
 dev_edit: "Muokkaa"
+dev_share_lang: "Sisällytä kieli jaettuihin linkkeihin"
 dev_compare: "Vertaile"
 dev_compare_label: "Vertailu:"
 dev_compare_add: "+ kieli"
