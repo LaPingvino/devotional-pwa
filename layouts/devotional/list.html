@@ -34,18 +34,6 @@
       <input type="checkbox" id="share-include-lang" checked>
       <span data-i18n="dev_share_lang">Include language in shared links</span>
     </label>
-    <div class="compare-bar" id="compare-bar" style="display:none">
-      <span class="compare-label" data-i18n="dev_compare_label">Compare:</span>
-      <div class="compare-chips" id="compare-chips"></div>
-      <details class="lang-dropdown compare-lang-picker" id="compare-lang-dropdown">
-        <summary class="btn-action btn-small" data-i18n="dev_compare_add">+ lang</summary>
-        <div class="lang-dropdown-panel">
-          <input type="search" class="lang-filter-input" id="compare-lang-filter" placeholder="Filter languages..." autocomplete="off" data-i18n-placeholder="filter_languages">
-          <div class="lang-dropdown-list" id="compare-lang-list"></div>
-        </div>
-      </details>
-      <button class="btn-action btn-small btn-danger" id="compare-off" title="Exit comparison mode">&times;</button>
-    </div>
     <div id="qr-panel" class="qr-panel" style="display:none">
       <div id="qr-screen"></div>
       <p class="qr-panel-url" id="qr-panel-url"></p>
@@ -63,6 +51,20 @@
       <button class="btn-action btn-small" id="btn-save-local" data-i18n="dev_save_local">Save to my devotionals</button>
       <button class="btn-action btn-small" id="btn-edit" data-i18n="dev_edit">Edit</button>
     </p>
+  </div>
+
+  <!-- Compare bar (outside builder/shared panels so it works in both modes) -->
+  <div class="compare-bar" id="compare-bar" style="display:none">
+    <span class="compare-label" data-i18n="dev_compare_label">Compare:</span>
+    <div class="compare-chips" id="compare-chips"></div>
+    <details class="lang-dropdown compare-lang-picker" id="compare-lang-dropdown">
+      <summary class="btn-action btn-small" data-i18n="dev_compare_add">+ lang</summary>
+      <div class="lang-dropdown-panel">
+        <input type="search" class="lang-filter-input" id="compare-lang-filter" placeholder="Filter languages..." autocomplete="off" data-i18n-placeholder="filter_languages">
+        <div class="lang-dropdown-list" id="compare-lang-list"></div>
+      </div>
+    </details>
+    <button class="btn-action btn-small btn-danger" id="compare-off" title="Exit comparison mode">&times;</button>
   </div>
 
   <!-- Program items -->
@@ -684,6 +686,8 @@
         }
         continue;
       }
+      // Skip any unrecognized @ directives (future-proofing)
+      if (s.startsWith('@')) continue;
       // Reference codes use dots in URL (colons conflict with lang suffix)
       var lc = s.toLowerCase();
       if (lc.startsWith('bible.') || lc.startsWith('quran.') ||
