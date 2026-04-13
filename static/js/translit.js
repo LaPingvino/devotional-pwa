@@ -215,6 +215,88 @@
     return out;
   }
 
+  // Known Bahá'í terms → correct transliteration (bypasses heuristics)
+  // Keys are normalized (stripped tashkeel, Persian letter variants)
+  var KNOWN = {};
+  (function() {
+    var terms = {
+      'الله': 'All\u00E1h', 'اللّه': 'All\u00E1h',
+      'بسمالله': 'Bismi\'ll\u00E1h',
+      'هوالله': 'Huva\'ll\u00E1h', 'هواللّه': 'Huva\'ll\u00E1h',
+      'هوالابهی': 'Huva\'l-Abh\u00E1', 'هوالابهى': 'Huva\'l-Abh\u00E1',
+      'بهاءالله': 'Bah\u00E1\'u\'ll\u00E1h',
+      'عبدالبهاء': '\'Abdu\'l-Bah\u00E1',
+      'الابهی': 'al-Abh\u00E1', 'الابهى': 'al-Abh\u00E1',
+      'ابهی': 'Abh\u00E1', 'ابهى': 'Abh\u00E1',
+      'الرحمن': 'ar-Ra\u1E25m\u00E1n',
+      'الرحیم': 'ar-Ra\u1E25\u00EDm',
+      'الاعظم': 'al-A\'\u1E93am',
+      'الاعلی': 'al-A\'l\u00E1', 'الاعلى': 'al-A\'l\u00E1',
+      'الاقدس': 'al-Aqdas',
+      'الایقان': 'al-\u00CDq\u00E1n',
+      'ایقان': '\u00CDq\u00E1n',
+      'البهاء': 'al-Bah\u00E1\'',
+      'البیان': 'al-Bay\u00E1n',
+      'بیان': 'Bay\u00E1n',
+      'الکتاب': 'al-Kit\u00E1b',
+      'کتاب': 'Kit\u00E1b',
+      'القدوس': 'al-Qudd\u00FAs',
+      'سبحان': 'Sub\u1E25\u00E1n',
+      'الحمد': 'al-\u1E24amd',
+      'محمد': 'Mu\u1E25ammad',
+      'بهاء': 'Bah\u00E1\'',
+      'عبد': '\'Abd',
+      'حسین': '\u1E24usayn',
+      'حسن': '\u1E24asan',
+      'علی': '\'Al\u00ED',
+      'فاطمه': 'F\u00E1\u1E6Dimih',
+      'قران': 'Qur\'\u00E1n',
+      'انجیل': 'Inj\u00EDl',
+      'تورات': 'Tawr\u00E1t',
+      'الهی': 'Il\u00E1h\u00ED',
+      'الاهی': 'Il\u00E1h\u00ED',
+      'ربی': 'Rabb\u00ED',
+      'یا': 'Y\u00E1',
+      'ان': 'inn',
+      'انک': 'innaka',
+      'انه': 'innahu',
+      'انا': 'inn\u00E1',
+      // More common terms
+      'اکبر': 'Akbar', 'اكبر': 'Akbar',
+      'بسمالله': 'Bismi\'ll\u00E1h',
+      'بهاءالابهی': 'Bah\u00E1\'u\'l-Abh\u00E1',
+      'بهاءالابهى': 'Bah\u00E1\'u\'l-Abh\u00E1',
+      'یابهاءالابهی': 'Y\u00E1 Bah\u00E1\'u\'l-Abh\u00E1',
+      'یابهاءالابهى': 'Y\u00E1 Bah\u00E1\'u\'l-Abh\u00E1',
+      'العالمین': 'al-\'\u00C1lam\u00EDn',
+      'العالمين': 'al-\'\u00C1lam\u00EDn',
+      'لله': 'li\'ll\u00E1h',
+      'رب': 'Rabb',
+      'ربک': 'Rabbika',
+      'لا': 'l\u00E1',
+      'اله': 'il\u00E1h',
+      'الا': 'ill\u00E1',
+      'اسالک': 'as\'aluka',
+      'بامرک': 'bi-amrika',
+      'سبحانک': 'Sub\u1E25\u00E1nak',
+      'الملک': 'al-Mulk',
+      'الحکیم': 'al-\u1E24ak\u00EDm',
+      'العزیز': 'al-\'Az\u00EDz',
+      'المقتدر': 'al-Muqtadir',
+      'القدیر': 'al-Qad\u00EDr',
+      'الغفور': 'al-Ghaf\u00FAr',
+      'الکریم': 'al-Kar\u00EDm',
+      'العظیم': 'al-\'A\u1E93\u00EDm',
+      'العلیم': 'al-\'Al\u00EDm',
+      'الحق': 'al-\u1E24aqq',
+      'البهائی': 'al-Bah\u00E1\'\u00ED',
+      'البهائیه': 'al-Bah\u00E1\'\u00EDyyih',
+      'خدا': 'Khud\u00E1',
+      'پروردگار': 'Parvardig\u00E1r',
+    };
+    for (var k in terms) KNOWN[normalizeKey(k)] = terms[k];
+  })();
+
   // Main transliterate: returns {text: string, html: string}
   // html has <span class="vp"> around predicted vowels
   function transliterate(text) {
@@ -227,6 +309,12 @@
       var part = parts[pi];
       // Check if this part is Arabic
       if (/[\u0621-\u065F\u0670-\u06FF]/.test(part)) {
+        // Check known-word map first (exact Bahá'í transliteration)
+        var nkPart = normalizeKey(part);
+        if (KNOWN[nkPart]) {
+          allSegs.push({t: KNOWN[nkPart], p: false});
+          continue;
+        }
         var predicted = false;
         var toTranslit = part;
         // If no tashkeel, try dictionary lookup
@@ -293,8 +381,10 @@
   }
 
   function cleanOutput(s) {
-    // Fix á followed by 'l' → 'al-' (definite article), anywhere in the string
-    s = s.replace(/\u00E1l(?=[a-z\u00E1\u00ED\u00FA\u02BB\u1E00-\u1EFF])/g, 'al-');
+    // Fix á followed by 'l' → 'al-' (definite article), only at word start
+    s = s.replace(/(^|[ \n])\u00E1l(?=[a-z\u00E1\u00ED\u00FA\u02BB\u1E00-\u1EFF])/g, '$1al-');
+    // Also mid-compound (after ' or - boundary)
+    s = s.replace(/([\'\-])\u00E1l(?=[a-z\u00E1\u00ED\u00FA\u02BB\u1E00-\u1EFF])/g, '$1al-');
     // Sun letter assimilation: al-XX → aX-X (consume doubled consonant from shadda)
     s = s.replace(/al-([tdrzsnl\u1E63\u1E0D\u1E6D\u1E93\u1E25])\1*/g, function(m, c) {
       return 'a' + c + '-' + c;
@@ -308,8 +398,11 @@
     s = s.replace(/a\u00E1/g, '\u00E1');
     s = s.replace(/\u00E1\u00E1/g, '\u00E1');
     // Strip only lone grammatical -u at absolute word end (nominative case marker)
-    // Don't strip -i (could be genitive or Persian ezafe) or -an/-in/-un (real endings)
     s = s.replace(/([bcdfghjklmnpqrstvwxyz\u1E00-\u1EFF])u(?=[ \n,.]|$)/g, '$1');
+    // Liaison: word ending in vowel + space + Alláh → 'lláh (Arabic waṣl)
+    s = s.replace(/([aeiou\u00E1\u00ED\u00FA]) All\u00E1h/g, '$1\'ll\u00E1h');
+    // Liaison: word ending in consonant + i + space + al-X → 'l-X (genitive construct)
+    s = s.replace(/i (al-)/g, 'i\'$1');
     return s;
   }
 
