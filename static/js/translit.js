@@ -98,11 +98,12 @@
         var isWaw = (c === '\u0648');
         var isYa = (c === '\u064A' || c === '\u06CC');
         i++;
-        // Check if waw/ya act as long vowels (preceded by matching short vowel)
-        // Only if they do NOT have their own following vowel mark (then they're consonants)
+        // Check if waw/ya act as long vowels
+        // Trigger when: preceded by matching vowel, OR preceded by consonant with no vowel
+        // (implied kasra/damma). Only if they do NOT have their own following vowel mark.
         var nextIsTashkeel = (i < n && V[chars[i]] !== undefined && chars[i] !== '\u0652');
-        if (isWaw && prevVowel === 'u' && !nextIsTashkeel) {
-          // و after damma without own vowel = long ú
+        if (isWaw && (prevVowel === 'u' || (prevVowel === '' && prevBase)) && !nextIsTashkeel) {
+          // و as long ú — remove preceding 'u' if present
           if (cur.length > 0 && cur[cur.length - 1] === 'u') {
             cur = cur.slice(0, -1);
           } else if (result.length > 0 && result[result.length - 1].t === 'u') {
@@ -112,8 +113,8 @@
           prevBase = ''; prevVowel = '';
           continue;
         }
-        if (isYa && prevVowel === 'i' && !nextIsTashkeel) {
-          // ي after kasra without own vowel = long í
+        if (isYa && (prevVowel === 'i' || (prevVowel === '' && prevBase)) && !nextIsTashkeel) {
+          // ي as long í — remove preceding 'i' if present
           if (cur.length > 0 && cur[cur.length - 1] === 'i') {
             cur = cur.slice(0, -1);
           } else if (result.length > 0 && result[result.length - 1].t === 'i') {
