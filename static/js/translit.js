@@ -496,7 +496,7 @@
       root,
       NodeFilter.SHOW_ELEMENT,
       { acceptNode: function(node) {
-        if (node.closest('.site-header, .sidebar, script, style, .translit-line, .nav-dropdown-menu, .ui-lang-menu')) return NodeFilter.FILTER_REJECT;
+        if (node.closest('.site-header, .sidebar, script, style, .translit-line, .nav-dropdown-menu, .ui-lang-menu, .prayer-card-header, .prayer-preview')) return NodeFilter.FILTER_REJECT;
         var dir = node.getAttribute('dir');
         var text = node.textContent || '';
         if ((dir === 'rtl' || hasArabic(text)) && node.children.length === 0 && text.trim().length > 0) {

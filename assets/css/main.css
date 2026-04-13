@@ -362,6 +362,7 @@ body {
 .prayer-card.folded .prayer-alt-sources { display: none; }
 .prayer-card.folded .prayer-meta { display: none; }
 .prayer-card.folded .prayer-card-header { border-bottom: none; }
+.prayer-card.folded > .translit-line { display: none; }
 /* Notes and source meta */
 .prayer-notes {
   padding: .35rem .75rem;
@@ -973,6 +974,16 @@ p { margin-bottom: .5rem; }
 .translit-toggle:hover { background: rgba(255,255,255,.4); }
 .translit-toggle.active { background: #fff; color: var(--accent); border-color: #fff; }
 .translit-line .vp { opacity: .45; }
+.prayer-text .translit-line {
+  margin: -.4rem 0 .8rem;
+  padding: .2rem .75rem;
+  border-left: 2px solid var(--accent, #0078d4);
+  font-size: .82em;
+}
+[dir="rtl"] .prayer-text .translit-line {
+  border-left: none;
+  border-right: 2px solid var(--accent, #0078d4);
+}
 .overlay-translit {
   position: fixed;
   top: 1rem; right: 4rem;
