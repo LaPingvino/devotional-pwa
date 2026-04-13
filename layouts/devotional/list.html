@@ -40,7 +40,6 @@
           <div class="lang-dropdown-list" id="compare-lang-list"></div>
         </div>
       </details>
-      <button class="btn-action btn-small" id="compare-add-translit" title="Add transliteration column" data-i18n="dev_compare_translit">+ translit</button>
       <button class="btn-action btn-small btn-danger" id="compare-off" title="Exit comparison mode">&times;</button>
     </div>
     <div id="qr-panel" class="qr-panel" style="display:none">
@@ -1413,10 +1412,51 @@
     }
   });
 
-  // Populate compare language picker
+  // Populate compare language picker (includes translit virtual entries)
+  var TRANSLIT_ENTRIES = [
+    {code: 'translit', name: 'Arabic (Latin)', nameLC: 'arabic latin translit transliteration'},
+    {code: 'translit', name: 'Persian (Latin)', nameLC: 'persian farsi latin translit transliteration'},
+  ];
+
   function buildCompareLangList() {
     var list = $('compare-lang-list');
     list.innerHTML = '';
+
+    // Translit entry at top
+    var translitAdded = compareLangs.indexOf('translit') >= 0;
+    TRANSLIT_ENTRIES.forEach(function(te) {
+      var a = document.createElement('a');
+      a.href = '#';
+      a.dataset.code = 'translit';
+      a.dataset.name = te.nameLC;
+      if (translitAdded) a.classList.add('added');
+      a.innerHTML = te.name + ' <span class="lang-code-badge" style="color:#7c4dff">translit</span>';
+      a.addEventListener('click', function(e) {
+        e.preventDefault();
+        if (translitAdded) return;
+        if (typeof window.__transliterateWithDict === 'function') {
+          window.__transliterateWithDict('test', function() {
+            compareLangs.push('translit');
+            renderCompareBar();
+            buildCompareLangList();
+            renderItems();
+          });
+        } else {
+          compareLangs.push('translit');
+          renderCompareBar();
+          buildCompareLangList();
+          renderItems();
+        }
+      });
+      list.appendChild(a);
+    });
+
+    // Separator
+    var sep = document.createElement('div');
+    sep.style.cssText = 'border-top:1px solid var(--border);margin:.3rem 0';
+    list.appendChild(sep);
+
+    // Regular languages
     var sorted = [...allLanguages].sort(function(a, b) {
       if (a.code === selectedLang) return -1;
       if (b.code === selectedLang) return 1;
@@ -1435,7 +1475,7 @@
         if (l.code === selectedLang || compareLangs.indexOf(l.code) >= 0) return;
         compareLangs.push(l.code);
         renderCompareBar();
-        buildCompareLangList(); // refresh added state
+        buildCompareLangList();
         renderItems();
       });
       list.appendChild(a);
@@ -1462,22 +1502,6 @@
   });
   document.addEventListener('click', function(e) {
     if (!comparePicker.contains(e.target)) comparePicker.removeAttribute('open');
-  });
-
-  $('compare-add-translit').addEventListener('click', function() {
-    if (compareLangs.indexOf('translit') >= 0) return;
-    // Load the dictionary first, then add column
-    if (typeof window.__transliterateWithDict === 'function') {
-      window.__transliterateWithDict('test', function() {
-        compareLangs.push('translit');
-        renderCompareBar();
-        renderItems();
-      });
-    } else {
-      compareLangs.push('translit');
-      renderCompareBar();
-      renderItems();
-    }
   });
 
   $('compare-off').addEventListener('click', function() {
