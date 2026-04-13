@@ -64,6 +64,7 @@
             <a href="/phelps/{{ $baseL }}/{{ if $suffix }}#{{ $suffix }}{{ end }}" title="All translations">{{ $pin }}</a>
             <a href="/inventory/?pin={{ $baseL | upper }}" title="Inventory entry" style="opacity:.6; font-size:.8em; margin-left:.3em">↗</a>
           </span>
+          <button class="btn-expand prayer-expand" title="Full screen">&#x26F6;</button>
           <button class="fav-btn" data-phelps="{{ $pin }}" aria-label="Toggle favourite">☆</button>
           <button class="btn-add-devotional" data-phelps="{{ $pin }}" aria-label="Add to devotional" title="Add to devotional program">+</button>
         </div>
@@ -252,8 +253,32 @@ if (hash) {
 }
 document.querySelectorAll('.prayer-card-header').forEach(header => {
   header.addEventListener('click', e => {
-    if (e.target.closest('a') || e.target.closest('.fav-btn') || e.target.closest('.btn-add-devotional')) return;
+    if (e.target.closest('a') || e.target.closest('.fav-btn') || e.target.closest('.btn-add-devotional') || e.target.closest('.btn-expand')) return;
     header.closest('.prayer-card').classList.toggle('folded');
+  });
+});
+
+// Full screen expand for prayer cards
+document.querySelectorAll('.prayer-expand').forEach(function(btn) {
+  btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    var card = btn.closest('.prayer-card');
+    if (!card) return;
+    var textEl = card.querySelector('.prayer-text');
+    var nameEl = card.querySelector('.prayer-name');
+    if (!textEl) return;
+    // Unfold first so text is available
+    card.classList.remove('folded');
+    var overlay = document.createElement('div');
+    overlay.className = 'expanded-overlay';
+    var rtl = card.closest('[dir="rtl"]') ? ' dir="rtl"' : '';
+    overlay.innerHTML = '<button class="expand-close">\u2716</button>' +
+      (nameEl ? '<h2 style="margin-bottom:1rem;font-size:1.2rem">' + nameEl.textContent + '</h2>' : '') +
+      '<div' + rtl + '>' + textEl.innerHTML + '</div>';
+    document.body.appendChild(overlay);
+    overlay.querySelector('.expand-close').addEventListener('click', function() { overlay.remove(); });
+    var escHandler = function(ev) { if (ev.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', escHandler); } };
+    document.addEventListener('keydown', escHandler);
   });
 });
 </script>

@@ -1065,6 +1065,7 @@
           <span class="dev-item-drag" title="Drag to reorder">&#x2630;</span>
           <span class="dev-item-code">${item.code}</span>
           <span class="dev-item-meta">${meta}</span>
+          <button class="btn-expand dev-item-expand" title="Full screen">&#x26F6;</button>
           <button class="dev-item-lock${item.lang ? ' locked' : ''}" title="${lockTitle}">${lockLabel}</button>
           ${!isShared ? '<button class="dev-item-remove" title="Remove">&times;</button>' : ''}
         </div>
@@ -1092,6 +1093,25 @@
           codes.splice(idx, 1);
           if (!isShared) saveCodes(codes);
           renderItems();
+        });
+      }
+
+      // Full screen expand
+      var expandBtn = div.querySelector('.dev-item-expand');
+      if (expandBtn) {
+        expandBtn.addEventListener('click', function() {
+          var textEl = div.querySelector('.dev-item-text');
+          if (!textEl) return;
+          var overlay = document.createElement('div');
+          overlay.className = 'expanded-overlay';
+          var metaHtml = div.querySelector('.dev-item-meta') ? div.querySelector('.dev-item-meta').innerHTML : '';
+          overlay.innerHTML = '<button class="expand-close">\u2716</button>' +
+            (metaHtml ? '<div style="color:var(--text-secondary);font-size:.85rem;margin-bottom:1rem">' + metaHtml + '</div>' : '') +
+            '<div' + (isRtl ? ' dir="rtl"' : '') + '>' + textEl.innerHTML + '</div>';
+          document.body.appendChild(overlay);
+          overlay.querySelector('.expand-close').addEventListener('click', function() { overlay.remove(); });
+          var escHandler = function(e) { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', escHandler); } };
+          document.addEventListener('keydown', escHandler);
         });
       }
 
