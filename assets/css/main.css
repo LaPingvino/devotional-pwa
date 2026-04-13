@@ -972,6 +972,7 @@ p { margin-bottom: .5rem; }
 }
 .translit-toggle:hover { background: rgba(255,255,255,.4); }
 .translit-toggle.active { background: #fff; color: var(--accent); border-color: #fff; }
+.translit-line .vp { opacity: .45; }
 
 /* Full screen expand */
 .btn-expand {
