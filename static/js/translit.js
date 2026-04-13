@@ -175,8 +175,11 @@
   var VOWELS_SET = 'aeiou\u00E1\u00ED\u00FA';
   function isVowelChar(ch) { return VOWELS_SET.indexOf(ch) >= 0; }
 
+  // Digraphs that represent single sounds — don't break these
+  var DIGRAPHS = ['sh','th','dh','kh','ch','zh','gh'];
+
   function breakClusters(segs) {
-    // Flatten to get raw consonant/vowel structure, then re-split
+    // Flatten to get raw consonant/vowel structure
     var flat = '';
     for (var i = 0; i < segs.length; i++) flat += segs[i].t;
     if (!flat) return segs;
@@ -187,24 +190,35 @@
     flat = flat.replace(/([bcdfghjklmnpqrstvxz\u1E00-\u1EFF\u02BB])w(?=[bcdfghjklmnpqrstvxyz\u1E00-\u1EFF\u02BB]|$)/g, '$1\u00FA');
     flat = flat.replace(/([bcdfghjklmnpqrstvxz\u1E00-\u1EFF\u02BB])y(?=[bcdfghjklmnpqrstvxyz\u1E00-\u1EFF\u02BB]|$)/g, '$1\u00ED');
 
-    // Second pass: break remaining consonant clusters with predicted 'a'
-    // Arabic doesn't allow initial or 3+ consonant clusters, so insert vowels
+    // Tokenize into sound units (digraphs count as 1 unit)
+    var units = [];
+    var j = 0;
+    while (j < flat.length) {
+      var di = flat.substring(j, j + 2);
+      if (DIGRAPHS.indexOf(di) >= 0) {
+        units.push(di);
+        j += 2;
+      } else {
+        units.push(flat[j]);
+        j++;
+      }
+    }
+
+    // Break consonant clusters between sound units
     var out = [];
     var consRun = 0;
-    var isBreaker = function(ch) { return isVowelChar(ch) || ch === '-' || ch === ' ' || ch === '\'' || ch === '\u02BB'; };
-    for (var j = 0; j < flat.length; j++) {
-      var ch = flat[j];
-      if (isBreaker(ch)) {
+    var isBreaker = function(u) { return u.length === 1 && (isVowelChar(u) || u === '-' || u === ' ' || u === '\'' || u === '\u02BB'); };
+    for (var k = 0; k < units.length; k++) {
+      var u = units[k];
+      if (isBreaker(u)) {
         consRun = 0;
-        out.push({t: ch, p: false});
+        out.push({t: u, p: false});
       } else {
         consRun++;
-        out.push({t: ch, p: false});
-        // Insert 'a' when: 2+ consonants are followed by another consonant,
-        // OR 1 consonant at word start followed by consonant (no initial clusters in Arabic)
-        var atStart = (consRun === 1 && (j === 0 || (j > 0 && isBreaker(flat[j - 1]))));
-        if ((consRun >= 2 || atStart) && j + 1 < flat.length) {
-          var next = flat[j + 1];
+        out.push({t: u, p: false});
+        var atStart = (consRun === 1 && (k === 0 || (k > 0 && isBreaker(units[k - 1]))));
+        if ((consRun >= 2 || atStart) && k + 1 < units.length) {
+          var next = units[k + 1];
           if (next && !isBreaker(next)) {
             out.push({t: 'a', p: true});
             consRun = 0;
@@ -293,6 +307,43 @@
       'البهائیه': 'al-Bah\u00E1\'\u00EDyyih',
       'خدا': 'Khud\u00E1',
       'پروردگار': 'Parvardig\u00E1r',
+      // Common Persian words
+      'ای': 'Ay', 'این': '\u00EDn', 'آن': '\u00E1n',
+      'است': 'ast', 'نیست': 'n\u00EDst',
+      'در': 'dar', 'بر': 'bar', 'هر': 'har',
+      'شو': 'shav', 'شد': 'shud', 'شده': 'shudih',
+      'بود': 'b\u00FAd', 'باشد': 'b\u00E1shad',
+      'کرد': 'kard', 'گفت': 'guft',
+      'خود': 'khud', 'چون': 'ch\u00FAn', 'چه': 'chih',
+      'اگر': 'agar', 'ولی': 'val\u00ED',
+      'باید': 'b\u00E1yad', 'شاید': 'sh\u00E1yad',
+      'یعنی': 'ya\'n\u00ED', 'زیرا': 'z\u00EDr\u00E1',
+      'بلکه': 'balkih', 'اول': 'avval',
+      'اوّل': 'avval', 'دیگر': 'd\u00EDgar',
+      'عالم': '\'\u00E1lam', 'علم': '\'ilm',
+      'قدم': 'qadam', 'بردار': 'bard\u00E1r',
+      'گذار': 'gudh\u00E1r', 'پاک': 'p\u00E1k',
+      'فقر': 'faqr', 'غنا': 'ghin\u00E1',
+      'بقا': 'baq\u00E1', 'فنا': 'fan\u00E1',
+      'حبّ': '\u1E25ubb', 'ربّ': 'rabb',
+      'مسکین': 'misk\u00EDn', 'مسکینی': 'misk\u00EDn\u00ED',
+      'غنایت': 'ghin\u00E1yat',
+      'سلطان': 'sul\u1E6D\u00E1n',
+      'ملکوت': 'malak\u00FAt',
+      'وحدانیت': 'va\u1E25d\u00E1n\u00EDyyat',
+      'فردانیت': 'fard\u00E1n\u00EDyyat',
+      'بحر': 'ba\u1E25r', 'شهود': 'shuh\u00FAd',
+      'غیب': 'ghayb', 'مالک': 'm\u00E1lik',
+      'گواهی': 'guv\u00E1h\u00ED',
+      'فرزند': 'farzand',
+      'آلایش': '\u00E1l\u00E1yish',
+      'آسایش': '\u00E1s\u00E1yish',
+      'افلاک': 'afl\u00E1k',
+      'کمال': 'kam\u00E1l',
+      'تعالی': 'ta\'\u00E1l\u00E1',
+      'شأن': 'sha\'n', 'شأنه': 'sha\'nih',
+      'العظمه': 'al-\'A\u1E93amih',
+      'الاقتدار': 'al-Iqtid\u00E1r',
     };
     for (var k in terms) KNOWN[normalizeKey(k)] = terms[k];
   })();
@@ -317,8 +368,10 @@
         }
         var predicted = false;
         var toTranslit = part;
-        // If no tashkeel, try dictionary lookup
-        if (!hasTashkeel(part) && vowelDict) {
+        // Check if word has actual vowel marks (not just shadda/sukun)
+        var hasVowelMarks = /[\u064E\u064F\u0650\u064B\u064C\u064D\u0670]/.test(part);
+        // If no vowel marks, try dictionary lookup (even if it has shadda/sukun)
+        if (!hasVowelMarks && vowelDict) {
           var nk = normalizeKey(part);
           // Try direct lookup
           var found = vowelDict[nk];
@@ -344,14 +397,13 @@
             toTranslit = found;
             predicted = true;
           }
-        } else if (hasTashkeel(part)) {
+        } else if (hasVowelMarks) {
           predicted = false;
         }
         var chars = Array.from(toTranslit);
         var segs = transliterateSegment(chars, predicted);
-        // If no dictionary match and no tashkeel, break consonant clusters
-        // by inserting predicted 'a' between 3+ consecutive consonants
-        if (!predicted && !hasTashkeel(part)) {
+        // If no dictionary match and no vowel marks, break consonant clusters
+        if (!predicted && !hasVowelMarks) {
           segs = breakClusters(segs);
         }
         allSegs = allSegs.concat(segs);
@@ -381,10 +433,10 @@
   }
 
   function cleanOutput(s) {
-    // Fix á followed by 'l' → 'al-' (definite article), only at word start
-    s = s.replace(/(^|[ \n])\u00E1l(?=[a-z\u00E1\u00ED\u00FA\u02BB\u1E00-\u1EFF])/g, '$1al-');
-    // Also mid-compound (after ' or - boundary)
-    s = s.replace(/([\'\-])\u00E1l(?=[a-z\u00E1\u00ED\u00FA\u02BB\u1E00-\u1EFF])/g, '$1al-');
+    // Fix ál → al- (definite article) only when followed by consonant (not á/í/ú vowel)
+    // This avoids converting آلایش (áláyish) which starts with alif-madda, not al-
+    s = s.replace(/(^|[ \n])\u00E1l(?=[bcdfghjklmnpqrstvwxyz\u02BB\u1E00-\u1EFF])/g, '$1al-');
+    s = s.replace(/([\'\-])\u00E1l(?=[bcdfghjklmnpqrstvwxyz\u02BB\u1E00-\u1EFF])/g, '$1al-');
     // Sun letter assimilation: al-XX → aX-X (consume doubled consonant from shadda)
     s = s.replace(/al-([tdrzsnl\u1E63\u1E0D\u1E6D\u1E93\u1E25])\1*/g, function(m, c) {
       return 'a' + c + '-' + c;
