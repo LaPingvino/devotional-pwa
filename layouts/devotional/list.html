@@ -534,6 +534,33 @@
   }
   .dev-item-text p { margin-bottom: .8rem; }
 
+  /* Comparison columns in print */
+  .compare-bar { display: none !important; }
+  .dev-item-columns {
+    gap: 1rem;
+  }
+  .dev-item-col {
+    max-height: none;
+    overflow: visible;
+    border: none;
+    border-top: 1px solid #ccc;
+    border-radius: 0;
+    padding: .5rem 0;
+    font-size: .95rem;
+    line-height: 1.8;
+    break-inside: avoid;
+  }
+  .dev-item-col-header {
+    font-size: .7rem;
+    color: #666;
+    border-bottom: none;
+    padding-bottom: 0;
+    margin-bottom: .3rem;
+  }
+  .dev-item-col p { margin-bottom: .6rem; }
+  /* Translit predicted vowels: show lighter in print */
+  .translit-line .vp, .translit-col .vp { opacity: .5; color: #888; }
+
   .dev-star-sep {
     margin: .8rem 0;
     font-size: 1.2rem;
