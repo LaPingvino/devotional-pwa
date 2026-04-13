@@ -956,6 +956,22 @@ p { margin-bottom: .5rem; }
 .about-details { margin: 1rem 0; }
 .about-details summary { cursor: pointer; color: var(--accent); font-weight: 500; }
 
+/* Transliteration toggle */
+.translit-toggle {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: .2rem .5rem;
+  font-size: .75rem;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-family: serif;
+  transition: all .15s;
+}
+.translit-toggle:hover { border-color: var(--accent); color: var(--accent); }
+.translit-toggle.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
 /* Full screen expand */
 .btn-expand {
   background: none;
