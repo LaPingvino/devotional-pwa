@@ -203,9 +203,13 @@ continuously improving it. Here&rsquo;s an honest picture of where things stand:
   <li><strong>~100 unidentified prayers</strong> (TMP codes) remain. Some are regional
     texts not in the Phelps inventory, some are composite entries, some I simply
     haven&rsquo;t been able to identify yet.</li>
-  <li><strong>About 5% of matches used LLM assistance</strong> (translating short
-    excerpts to English for identification). Most are correct, but some may be
-    wrong &mdash; especially for short prayers or prayers with similar openings.</li>
+  <li><strong>Most matching was done with LLM assistance</strong> &mdash; initial bulk
+    matching of 10,000+ prayers across 500+ languages was done through extensive
+    Gemini sessions, followed by ongoing cleanup with Claude. The LLM helps
+    translate excerpts, identify prayers by context, and flag suspicious matches.
+    The results are then verified and corrected manually, but some errors
+    inevitably remain &mdash; especially for short prayers or prayers with similar
+    openings in less-common languages.</li>
   <li><strong>Categories come from the source sites</strong> and occasionally have
     errors.</li>
   <li><strong>Transliteration</strong> uses heuristics and statistical prediction &mdash;
