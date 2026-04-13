@@ -1282,18 +1282,31 @@
         });
       }
 
-      // Full screen expand
+      // Full screen expand — works with both single text and comparison columns
       var expandBtn = div.querySelector('.dev-item-expand');
       if (expandBtn) {
         expandBtn.addEventListener('click', function() {
+          var columnsEl = div.querySelector('.dev-item-columns');
           var textEl = div.querySelector('.dev-item-text');
-          if (!textEl) return;
+          if (!columnsEl && !textEl) return;
           var overlay = document.createElement('div');
           overlay.className = 'expanded-overlay';
           var metaHtml = div.querySelector('.dev-item-meta') ? div.querySelector('.dev-item-meta').innerHTML : '';
+          var contentHtml = '';
+          if (columnsEl) {
+            // Clone the columns grid, remove max-height for fullscreen
+            contentHtml = '<div class="dev-item-columns" style="' + columnsEl.style.cssText + '">';
+            columnsEl.querySelectorAll('.dev-item-col').forEach(function(col) {
+              contentHtml += '<div class="' + col.className + '"' + (col.dir ? ' dir="' + col.dir + '"' : '') +
+                ' style="max-height:none;overflow:visible">' + col.innerHTML + '</div>';
+            });
+            contentHtml += '</div>';
+          } else {
+            contentHtml = '<div' + (isRtl ? ' dir="rtl"' : '') + '>' + textEl.innerHTML + '</div>';
+          }
           overlay.innerHTML = '<button class="expand-close">\u2716</button>' +
             (metaHtml ? '<div style="color:var(--text-secondary);font-size:.85rem;margin-bottom:1rem">' + metaHtml + '</div>' : '') +
-            '<div' + (isRtl ? ' dir="rtl"' : '') + '>' + textEl.innerHTML + '</div>';
+            contentHtml;
           document.body.appendChild(overlay);
           overlay.querySelector('.expand-close').addEventListener('click', function() { overlay.remove(); });
           var escHandler = function(e) { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', escHandler); } };
