@@ -78,8 +78,8 @@
         <ol class="verse-list" start="1">
           {{ range .verses }}
           <li class="verse" id="surah-{{ $surahNum }}-ayah-{{ .ayah }}" data-surah="{{ $surahNum }}" data-ayah="{{ .ayah }}" value="{{ .ayah }}">
-            <input type="checkbox" class="range-marker" data-surah="{{ $surahNum }}" data-ayah="{{ .ayah }}">
             <span class="ayah-text">{{ .text }}</span>
+            <input type="checkbox" class="range-marker" data-surah="{{ $surahNum }}" data-ayah="{{ .ayah }}">
           </li>
           {{ end }}
         </ol>

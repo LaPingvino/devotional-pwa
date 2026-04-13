@@ -84,7 +84,6 @@
           <td class="il-src il-el">{{ .el }}</td>
           {{ end }}
 
-          <td class="il-marker"><input type="checkbox" class="range-marker" data-num="{{ .num }}"></td>
           <td class="il-num">{{ .num }}</td>
 
           {{/* Translation columns */}}
@@ -94,6 +93,7 @@
           {{ if $.Params.book.has_arabic }}
           <td class="il-trans il-ar" dir="rtl">{{ .ar }}</td>
           {{ end }}
+          <td class="il-marker"><input type="checkbox" class="range-marker" data-num="{{ .num }}"></td>
         </tr>
         {{ end }}
         </tbody>

@@ -94,9 +94,11 @@
         {{ $bookIdx = add $bookIdx 1 }}
         <section class="writing-entry" id="{{ .phelps }}" data-order="{{ .order }}">
           <div class="writing-entry-label">
-            <input type="checkbox" class="range-marker" data-order="{{ .order }}"><a href="#{{ .phelps }}" class="entry-num" title="Link to this section">{{ $bookIdx }}</a>
+            <a href="#{{ .phelps }}" class="entry-num" title="Link to this section">{{ $bookIdx }}</a>
             {{ if and $showNames .name }}<a href="#{{ .phelps }}" class="entry-name">{{ .name }}</a>{{ end }}
             {{ if $showEntryLinks }}<a href="/phelps/{{ .phelps | lower }}/" class="phelps-link" title="View in inventory">{{ .phelps }}</a>{{ end }}
+            <span style="flex:1"></span>
+            <input type="checkbox" class="range-marker" data-order="{{ .order }}">
             <button class="btn-add-devotional" data-phelps="{{ .phelps }}" aria-label="Add to devotional" title="Add to devotional program">+</button>
           </div>
           <div class="writing-text">{{ .text | safeHTML }}</div>
