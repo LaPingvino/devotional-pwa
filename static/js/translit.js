@@ -148,7 +148,7 @@
   btn.id = 'translit-btn';
   btn.className = 'translit-toggle';
   btn.title = 'Toggle transliteration (Arabic/Persian)';
-  btn.textContent = 'Aa\u0650';
+  btn.textContent = '\u0628b';
   btn.style.display = 'none';
   btn.addEventListener('click', toggle);
 
