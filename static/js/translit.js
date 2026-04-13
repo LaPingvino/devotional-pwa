@@ -52,6 +52,17 @@
             .replace(/[\u0623\u0625\u0622]/g, '\u0627'); // Hamza variants → plain alif
   }
 
+  // Lighter normalization for KNOWN table — preserves hamza/alif variants
+  // to avoid collisions like إن (inna) vs آن (ān) vs أن (anna)
+  function normalizeKnownKey(word) {
+    var s = stripTashkeel(word);
+    return s.replace(/\u0643/g, '\u06A9')
+            .replace(/\u064A/g, '\u06CC')
+            .replace(/\u0649/g, '\u06CC')
+            .replace(/\u0640/g, '');
+    // NOTE: does NOT normalize hamza variants
+  }
+
   // Transliterate a single segment. Returns array of {t: text, p: bool} segments.
   // p=true means predicted (uncertain) vowels.
   function transliterateSegment(chars, predicted) {
@@ -271,10 +282,47 @@
       'الاهی': 'Il\u00E1h\u00ED',
       'ربی': 'Rabb\u00ED',
       'یا': 'Y\u00E1',
-      'ان': 'inn',
-      'انک': 'innaka',
-      'انه': 'innahu',
-      'انا': 'inn\u00E1',
+      // إنّ (inna) vs أنّ (anna) vs آن (ān) — hamza-specific
+      'إن': 'inna', 'إنّ': 'inna',
+      'أن': 'anna', 'أنّ': 'anna',
+      'ان': 'inna', // unpointed default (most common in Bahá'í texts)
+      'إنک': 'innaka', 'انک': 'innaka',
+      'إنه': 'innahu', 'انه': 'innahu',
+      'إنا': 'inn\u00E1', 'انا': 'inn\u00E1',
+      // على ('alá, preposition) vs علی ('Alí, name)
+      'على': '\'al\u00E1',
+      'علی': '\'Al\u00ED',
+      // Common Arabic particles/prepositions
+      'ما': 'm\u00E1',
+      'من': 'min',
+      'هذا': 'h\u00E1dh\u00E1',
+      'هذه': 'h\u00E1dhihi',
+      'ذلک': 'dh\u00E1lika',
+      'کل': 'kull',
+      'کلّ': 'kull',
+      'بعد': 'ba\'d',
+      'قبل': 'qabl',
+      'حتی': '\u1E25att\u00E1',
+      'بین': 'bayn',
+      'عند': '\'ind',
+      'فی': 'f\u00ED',
+      'الذی': 'alladh\u00ED',
+      'الّذی': 'alladh\u00ED',
+      'التی': 'allat\u00ED',
+      'الّتی': 'allat\u00ED',
+      'الذین': 'alladh\u00EDn',
+      'هو': 'huwa',
+      'هی': 'hiya',
+      'قد': 'qad',
+      'ثم': 'thumm',
+      'ثمّ': 'thumm',
+      'أو': 'aw',
+      'لم': 'lam',
+      'لن': 'lan',
+      'إذا': 'idh\u00E1',
+      'اذا': 'idh\u00E1',
+      'كان': 'k\u00E1na',
+      'کان': 'k\u00E1na',
       // More common terms
       'اکبر': 'Akbar', 'اكبر': 'Akbar',
       'بسمالله': 'Bismi\'ll\u00E1h',
@@ -345,7 +393,7 @@
       'العظمه': 'al-\'A\u1E93amih',
       'الاقتدار': 'al-Iqtid\u00E1r',
     };
-    for (var k in terms) KNOWN[normalizeKey(k)] = terms[k];
+    for (var k in terms) KNOWN[normalizeKnownKey(k)] = terms[k];
   })();
 
   // Main transliterate: returns {text: string, html: string}
@@ -361,9 +409,9 @@
       // Check if this part is Arabic
       if (/[\u0621-\u065F\u0670-\u06FF]/.test(part)) {
         // Check known-word map first (exact Bahá'í transliteration)
-        var nkPart = normalizeKey(part);
-        if (KNOWN[nkPart]) {
-          allSegs.push({t: KNOWN[nkPart], p: false});
+        var knownKey = normalizeKnownKey(part);
+        if (KNOWN[knownKey]) {
+          allSegs.push({t: KNOWN[knownKey], p: false});
           continue;
         }
         var predicted = false;
