@@ -1021,8 +1021,8 @@ p { margin-bottom: .5rem; }
 .range-marker:checked { border-color: var(--accent); background: var(--accent); }
 /* Bible: thin column on the left */
 td.il-marker { width: 18px; padding: 2px 3px; vertical-align: top; padding-top: .45em; }
-/* Quran: left margin */
-.verse .range-marker { position: absolute; left: -1.4em; top: .55em; }
+/* Quran: inline before text, pulled into margin */
+.verse .range-marker { margin-left: -1.6em; margin-right: .4em; }
 /* Writings: inline before paragraph number */
 .writing-entry-label .range-marker { margin-right: .4em; position: relative; top: -1px; }
 .verse-sel.range-selected, .ayah-sel.range-selected { background: var(--accent); color: #fff; border-radius: 3px; padding: 0 3px; }
