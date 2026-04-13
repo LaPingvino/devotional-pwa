@@ -15,6 +15,8 @@ community.</p>
 <nav class="about-toc">
   <a href="#what">What this site does</a>
   <a href="#how">How it works</a>
+  <a href="#translit">Transliteration</a>
+  <a href="#compare">Comparison tool</a>
   <a href="#suggestions">Suggestions</a>
   <a href="#quality">Data quality</a>
   <a href="#help">How you can help</a>
@@ -36,18 +38,24 @@ brings them together:</p>
     and other sources.</li>
   <li><strong>Writings</strong> &mdash; the Hidden Words, Kit&aacute;b-i-Aqdas,
     Kit&aacute;b-i-&Iacute;q&aacute;n, Gleanings, Prayers &amp; Meditations,
-    Some Answered Questions, Tablets of Bah&aacute;&rsquo;u&rsquo;ll&aacute;h, Days of
-    Remembrance, and Ridv&aacute;n Messages in multiple languages.</li>
+    Some Answered Questions, Tablets of Bah&aacute;&rsquo;u&rsquo;ll&aacute;h, Tablets of the
+    Divine Plan, Days of Remembrance, and Ridv&aacute;n Messages in multiple languages.</li>
   <li><strong>Bible</strong> (KJV with marginal notes, Hebrew OT, Greek &amp; Syriac NT,
-    Van Dyck Arabic) and <strong>Qur&rsquo;an</strong> with translations.</li>
+    Van Dyck Arabic, plus 26 Bolls.life translations) and <strong>Qur&rsquo;an</strong>
+    in 13 translations.</li>
   <li><strong>Cross-referencing</strong> via the
     <a href="https://bahai-library.com/encyclopaedia_phelps_index" target="_blank" rel="noopener">Phelps Index</a>
     &mdash; a catalog of 29,000+ Bah&aacute;&rsquo;&iacute; Holy Writings, each identified by a
     unique code.</li>
-  <li><strong>Tools</strong> &mdash; a
-    <a href="/daily/">daily devotion</a> page,
-    a <a href="/devotional/">devotional program</a> builder you can share with a link or QR code,
+  <li><strong>Tools</strong> &mdash;
+    <a href="/daily/">daily devotions</a> (random readings, obligatory prayer, 95 Allah-u-Abh&aacute; counter with audio/vibration feedback, Qiblih compass),
+    a <a href="/devotional/">devotional program</a> builder with side-by-side language comparison,
+    Arabic/Persian transliteration reading aid,
     and downloadable PDFs.</li>
+  <li><strong>22 interface languages</strong> &mdash; English, German, Spanish, French,
+    Portuguese, Dutch, Polish, Italian, Russian, Arabic, Persian, Japanese,
+    Chinese (Simplified &amp; Traditional), Esperanto, Romanian, Swedish,
+    Hungarian, Korean, Turkish, Finnish, and Greek.</li>
 </ul>
 
 <!-- ============================================================ -->
@@ -70,13 +78,66 @@ spot&rdquo;). Matching each source entry to its PIN involves:</p>
     the Phelps inventory&rsquo;s catalog of first lines.</li>
   <li><strong>Using LLM assistance to translate excerpts</strong> from less-common
     languages into English for matching when automated methods fall short.</li>
+  <li><strong>Fingerprint vectors</strong> &mdash; 31-dimensional structural and semantic
+    vectors for language-agnostic similarity matching.</li>
   <li><strong>Manual review</strong> for ambiguous or high-stakes matches.</li>
 </ul>
 
 <p>The database is hosted on
 <a href="https://www.dolthub.com/repositories/holywritings/bahaiwritings" target="_blank" rel="noopener">DoltHub</a>
 (a version-controlled SQL database) and the site source is on
-<a href="https://github.com/LaPingvino/devotional-pwa" target="_blank" rel="noopener">GitHub</a>.</p>
+<a href="https://github.com/LaPingvino/devotional-pwa" target="_blank" rel="noopener">GitHub</a>.
+The site rebuilds automatically via Cloudflare Pages, pulling fresh data from
+DoltHub on each deploy.</p>
+
+<!-- ============================================================ -->
+<h2 id="translit">Arabic/Persian transliteration</h2>
+
+<p>The <strong>&#x0628;b</strong> button in the header toggles a Latin-script reading aid
+for Arabic and Persian text. It uses Bah&aacute;&rsquo;&iacute;-style transliteration
+(acute accents: &aacute; &iacute; &uacute;) and works on any page.</p>
+
+<p>For vocalized text (with tashkeel/harakat), the transliteration reads the
+vowel marks directly. For unvocalized text (most Arabic and Persian online),
+it predicts vowels using three layers:</p>
+
+<ol>
+  <li><strong>Known words</strong> &mdash; ~80 hand-curated Bah&aacute;&rsquo;&iacute; terms
+    (All&aacute;h, Bah&aacute;&rsquo;u&rsquo;ll&aacute;h, Kit&aacute;b, etc.) with exact transliteration.</li>
+  <li><strong>Vowel dictionary</strong> &mdash; 2,000 words mined from vocalized texts in the
+    database.</li>
+  <li><strong>Bigram statistics</strong> &mdash; consonant-pair vowel probabilities (822 Arabic,
+    587 Persian) for words not in the dictionary. Persian-specific letters
+    (&lrm;&#x067E; &#x0686; &#x0698; &#x06AF;&lrm;) automatically select the Persian table.</li>
+</ol>
+
+<p>Predicted (uncertain) vowels are shown at <span style="opacity:.45">reduced opacity</span>
+so you can distinguish them from confirmed vowels.
+Sun letter assimilation (al- &rarr; ar-/ash-/etc.), liaison rules
+(bismi&rsquo;ll&aacute;h), and sentence capitalization are applied automatically.</p>
+
+<p>The transliteration also appears as <strong>Arabic (Latin)</strong> and
+<strong>Persian (Latin)</strong> in the language pickers, including the comparison
+tool and devotional program &mdash; so you can view transliterated text alongside
+the original or other translations.</p>
+
+<!-- ============================================================ -->
+<h2 id="compare">Language comparison tool</h2>
+
+<p>The <a href="/devotional/">devotional program</a> includes a side-by-side comparison
+mode. Click <strong>Compare</strong> and add languages from the picker to see texts
+in multiple languages aligned in columns.</p>
+
+<ul>
+  <li>Any number of language columns, including transliteration.</li>
+  <li>Each column is independently scrollable with RTL support.</li>
+  <li>The comparison is included in shared links and QR codes
+    (controlled by the &ldquo;Include language&rdquo; checkbox).</li>
+  <li>Works in full-screen mode and prints cleanly.</li>
+</ul>
+
+<p>You can also select verse ranges from the Bible, Qur&rsquo;an, and Writings
+pages using the checkboxes, then add them to a devotional program.</p>
 
 <!-- ============================================================ -->
 <h2 id="suggestions">Devotional suggestions</h2>
@@ -132,23 +193,24 @@ continuously improving it. Here&rsquo;s an honest picture of where things stand:
 <ul>
   <li>Every prayer entry has an identifier &mdash; no untagged entries.</li>
   <li>Cross-language matching for major languages is well-tested.</li>
+  <li>400+ prayer excerpts have proper mnemonic sub-codes for disambiguation.</li>
   <li>Known false positives are blacklisted to prevent recurrence.</li>
+  <li>All 24 Kit&aacute;b-i-&Iacute;q&aacute;n translations aligned to 287 paragraphs.</li>
 </ul>
 
 <h3>What needs work</h3>
 <ul>
-  <li><strong>~46 unidentified prayers</strong> (TMP codes) remain. Some are regional
+  <li><strong>~100 unidentified prayers</strong> (TMP codes) remain. Some are regional
     texts not in the Phelps inventory, some are composite entries, some I simply
     haven&rsquo;t been able to identify yet.</li>
   <li><strong>About 5% of matches used LLM assistance</strong> (translating short
     excerpts to English for identification). Most are correct, but some may be
     wrong &mdash; especially for short prayers or prayers with similar openings.</li>
   <li><strong>Categories come from the source sites</strong> and occasionally have
-    errors (e.g. the Tablet of Wisdom was filed under &ldquo;Children&rdquo;).</li>
-  <li><strong>Some writing sections</strong> (Gleanings, Some Answered Questions,
-    Tablets) still use staging codes and need matching to their real Phelps numbers.</li>
-  <li>The French &ldquo;Prayers &amp; Meditations&rdquo; turned out to be a different
-    compilation entirely, and has been removed pending reimport.</li>
+    errors.</li>
+  <li><strong>Transliteration</strong> uses heuristics and statistical prediction &mdash;
+    predicted vowels are marked but may be wrong, especially for unvocalized
+    Arabic text where multiple readings are possible.</li>
 </ul>
 
 <h3>How I&rsquo;m checking</h3>
@@ -158,6 +220,7 @@ continuously improving it. Here&rsquo;s an honest picture of where things stand:
     miscoded.</li>
   <li>Systematic category audits across the top languages.</li>
   <li>Splitting same-tablet prayers that were incorrectly sharing one code.</li>
+  <li>Fingerprint-vector similarity matching for cross-language verification.</li>
   <li>And of course: reading reports from people who actually use these prayers and
     notice when something is off.</li>
 </ul>
@@ -173,8 +236,10 @@ If you spot something wrong, please tell me &mdash; even a short email helps.</p
     code, in the wrong category, or is missing from a language you know.</li>
   <li><strong>Unidentified prayers</strong> &mdash; browse the
     <a href="/phelps/?q=TMP">TMP entries</a> and let me know if you recognize any.</li>
-  <li><strong>Interface translations</strong> &mdash; the UI supports 13 languages; more are
+  <li><strong>Interface translations</strong> &mdash; the UI supports 22 languages; more are
     welcome.</li>
+  <li><strong>Transliteration corrections</strong> &mdash; if you notice incorrect readings
+    in the Arabic/Persian transliteration, especially for common words.</li>
   <li><strong>Suggestion improvements</strong> &mdash; ideas for better month&ndash;theme
     associations or additional themes for the devotional builder.</li>
   <li><strong>Code contributions</strong> &mdash; the
