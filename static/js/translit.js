@@ -143,19 +143,38 @@
     if (btn) btn.classList.toggle('active', active);
   }
 
-  // Only show button if page has Arabic/Persian content
-  if (hasArabic(document.body.textContent || '')) {
-    var btn = document.createElement('button');
-    btn.id = 'translit-btn';
-    btn.className = 'translit-toggle';
-    btn.title = 'Toggle transliteration';
-    btn.textContent = 'Aa';
-    btn.addEventListener('click', toggle);
-    // Insert near the language picker
-    var header = document.querySelector('.site-header');
-    var langPicker = document.querySelector('.ui-lang-picker');
-    if (header && langPicker) {
-      header.insertBefore(btn, langPicker);
+  // Add button to header — always present, toggle handles the rest
+  var btn = document.createElement('button');
+  btn.id = 'translit-btn';
+  btn.className = 'translit-toggle';
+  btn.title = 'Toggle transliteration (Arabic/Persian)';
+  btn.textContent = 'Aa\u0650';
+  btn.style.display = 'none';
+  btn.addEventListener('click', toggle);
+
+  // Insert into header
+  var header = document.querySelector('.site-header');
+  var langPicker = document.querySelector('.ui-lang-picker');
+  if (header && langPicker) {
+    header.insertBefore(btn, langPicker);
+  }
+
+  // Show button after a short delay (content may load dynamically)
+  function checkAndShow() {
+    if (hasArabic(document.body.textContent || '')) {
+      btn.style.display = '';
     }
+  }
+  checkAndShow();
+  setTimeout(checkAndShow, 2000);
+  // Also check after any fetch-driven content loads
+  var origFetch = window.fetch;
+  if (origFetch) {
+    window.fetch = function() {
+      return origFetch.apply(this, arguments).then(function(r) {
+        setTimeout(checkAndShow, 500);
+        return r;
+      });
+    };
   }
 })();
