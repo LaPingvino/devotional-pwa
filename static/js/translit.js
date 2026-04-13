@@ -214,11 +214,11 @@
       .catch(function() { vowelDict = {}; dictLoading = false; cb(); });
   }
 
-  function addTranslit() {
-    removeTranslit();
-    // Find all text nodes with Arabic/Persian content
+  // Add transliteration annotations within a root element.
+  // Returns array of inserted annotation elements.
+  function addTranslitIn(root) {
     var walker = document.createTreeWalker(
-      document.body,
+      root,
       NodeFilter.SHOW_ELEMENT,
       { acceptNode: function(node) {
         if (node.closest('.site-header, .sidebar, script, style, .translit-line, .nav-dropdown-menu, .ui-lang-menu')) return NodeFilter.FILTER_REJECT;
@@ -227,7 +227,6 @@
         if ((dir === 'rtl' || hasArabic(text)) && node.children.length === 0 && text.trim().length > 0) {
           return NodeFilter.FILTER_ACCEPT;
         }
-        // Check block-level elements with direct Arabic text
         if (hasArabic(text) && (node.tagName === 'P' || node.tagName === 'TD' || node.tagName === 'LI' || node.tagName === 'DIV' || node.tagName === 'SPAN')) {
           for (var cn = node.firstChild; cn; cn = cn.nextSibling) {
             if (cn.nodeType === 3 && hasArabic(cn.textContent)) return NodeFilter.FILTER_ACCEPT;
@@ -240,6 +239,7 @@
     var elements = [];
     var node;
     while (node = walker.nextNode()) elements.push(node);
+    var added = [];
 
     elements.forEach(function(el) {
       var text = el.textContent.trim();
@@ -251,8 +251,14 @@
       line.innerHTML = r.html;
       line.style.cssText = 'font-size:.8em;color:var(--text-secondary);font-style:italic;direction:ltr;text-align:left;margin-top:2px;line-height:1.4;';
       el.parentNode.insertBefore(line, el.nextSibling);
-      annotations.push(line);
+      added.push(line);
     });
+    return added;
+  }
+
+  function addTranslit() {
+    removeTranslit();
+    annotations = addTranslitIn(document.body);
     active = true;
   }
 
@@ -275,6 +281,53 @@
       });
     }
   }
+
+  // Watch for fullscreen overlays and inject a translit toggle button
+  var observer = new MutationObserver(function(mutations) {
+    mutations.forEach(function(m) {
+      m.addedNodes.forEach(function(node) {
+        if (node.nodeType !== 1 || !node.classList.contains('expanded-overlay')) return;
+        if (!hasArabic(node.textContent || '')) return;
+        // Add translit button next to close button
+        var overlayBtn = document.createElement('button');
+        overlayBtn.className = 'translit-toggle overlay-translit';
+        overlayBtn.textContent = '\u0628b';
+        overlayBtn.title = 'Toggle transliteration';
+        var overlayAnnotations = [];
+        var overlayActive = false;
+        overlayBtn.addEventListener('click', function() {
+          if (overlayActive) {
+            overlayAnnotations.forEach(function(el) { if (el.parentNode) el.parentNode.removeChild(el); });
+            overlayAnnotations = [];
+            overlayActive = false;
+            overlayBtn.classList.remove('active');
+          } else {
+            loadDict(function() {
+              overlayAnnotations = addTranslitIn(node);
+              overlayActive = true;
+              overlayBtn.classList.add('active');
+            });
+          }
+        });
+        // Insert after close button
+        var closeBtn = node.querySelector('.expand-close');
+        if (closeBtn) {
+          closeBtn.parentNode.insertBefore(overlayBtn, closeBtn.nextSibling);
+        } else {
+          node.insertBefore(overlayBtn, node.firstChild);
+        }
+        // If main translit is active, auto-enable in overlay too
+        if (active) {
+          loadDict(function() {
+            overlayAnnotations = addTranslitIn(node);
+            overlayActive = true;
+            overlayBtn.classList.add('active');
+          });
+        }
+      });
+    });
+  });
+  observer.observe(document.body, { childList: true });
 
   // Add button to header
   var btn = document.createElement('button');

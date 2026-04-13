@@ -973,6 +973,24 @@ p { margin-bottom: .5rem; }
 .translit-toggle:hover { background: rgba(255,255,255,.4); }
 .translit-toggle.active { background: #fff; color: var(--accent); border-color: #fff; }
 .translit-line .vp { opacity: .45; }
+.overlay-translit {
+  position: fixed;
+  top: 1rem; right: 4rem;
+  z-index: 501;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  width: 2.5rem; height: 2.5rem;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,.15);
+  color: var(--text);
+}
+.overlay-translit:hover { color: var(--accent); border-color: var(--accent); }
+.overlay-translit.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
 /* Full screen expand */
 .btn-expand {
