@@ -1383,10 +1383,11 @@
   });
 
   // ── Comparison mode ──
+  var compareActive = false;
   function renderCompareBar() {
     var bar = $('compare-bar');
     var chips = $('compare-chips');
-    bar.style.display = compareLangs.length > 0 ? '' : 'none';
+    bar.style.display = compareActive ? '' : 'none';
     chips.innerHTML = '';
     // Show primary language first (not removable)
     var priChip = document.createElement('span');
@@ -1415,15 +1416,14 @@
 
   $('btn-compare').addEventListener('click', function(e) {
     e.stopPropagation();
-    if (compareLangs.length === 0) {
-      // Start comparison mode — show bar and open the picker after a tick
-      $('compare-bar').style.display = '';
+    if (!compareActive) {
+      compareActive = true;
       renderCompareBar();
       setTimeout(function() {
         $('compare-lang-dropdown').setAttribute('open', '');
       }, 0);
     } else {
-      // Toggle off
+      compareActive = false;
       compareLangs = [];
       renderCompareBar();
       renderItems();
@@ -1515,6 +1515,7 @@
   });
 
   $('compare-off').addEventListener('click', function() {
+    compareActive = false;
     compareLangs = [];
     renderCompareBar();
     renderItems();
