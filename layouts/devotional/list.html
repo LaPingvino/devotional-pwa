@@ -664,6 +664,8 @@
   let isShared = false;
   let codes = [];
   var hashLang = null; // set by @lang= in hash
+  var compareActive = false;
+  var compareLangs = [];
 
   function parseHash() {
     const h = location.hash.replace('#', '').trim();
@@ -768,7 +770,7 @@
   let allLanguages = [];
   let prayerCache = {}; // lang → {phelps → prayer}
   let writingCache = {}; // `${key}/${lang}` → {phelps → entry}
-  let compareLangs = []; // extra language columns for comparison
+  // compareLangs declared above with other state
 
   // Virtual transliteration languages — handled by resolveCode via -translit suffix
   var TRANSLIT_ENTRIES = [
@@ -1481,7 +1483,6 @@
   });
 
   // ── Comparison mode ──
-  var compareActive = false;
   function renderCompareBar() {
     var bar = $('compare-bar');
     var chips = $('compare-chips');
