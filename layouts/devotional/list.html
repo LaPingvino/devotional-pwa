@@ -649,42 +649,66 @@
   function parseHash() {
     const h = location.hash.replace('#', '').trim();
     if (!h) return [];
-    return h.split(',').map(s => {
-      s = s.trim();
-      if (!s) return null;
+    var segments = h.split(',');
+    var items = [];
+    for (var si = 0; si < segments.length; si++) {
+      var s = segments[si].trim();
+      if (!s) continue;
+      // Extract @compare= directive
+      if (s.startsWith('@compare=')) {
+        var cls = s.substring(9).split('+').filter(Boolean);
+        if (cls.length > 0) {
+          compareLangs = cls;
+          compareActive = true;
+        }
+        continue;
+      }
       // Reference codes use dots in URL (colons conflict with lang suffix)
       var lc = s.toLowerCase();
       if (lc.startsWith('bible.') || lc.startsWith('quran.') ||
           lc.startsWith('iqan.') || lc.startsWith('aqdas.') ||
           lc.startsWith('gleanings.') || lc.startsWith('hw.') || lc.startsWith('pm.') ||
           lc.startsWith('tdp.') || lc.startsWith('esw.') || lc.startsWith('tab.')) {
-        return { code: lc.replace(/\./g, ':') };
+        items.push({ code: lc.replace(/\./g, ':') });
+        continue;
       }
       var parts = s.split(':');
       var code = parts[0].toUpperCase();
       var lang = parts[1] ? parts[1].toLowerCase() : undefined;
-      return code ? { code: code, lang: lang } : null;
-    }).filter(Boolean);
+      if (code) items.push({ code: code, lang: lang });
+    }
+    return items;
   }
 
   function codesToHash(items) {
-    return items.map(function(i) {
+    var parts = items.map(function(i) {
       var c = i.code;
       // Reference codes use dots in URL hash (colons conflict with lang suffix)
       if (c.indexOf(':') >= 0 && !c.match(/^[A-Z]/)) c = c.replace(/:/g, '.');
       return i.lang ? c + ':' + i.lang : c;
-    }).join(',');
+    });
+    // Append comparison languages if active
+    if (compareLangs.length > 0) {
+      parts.push('@compare=' + compareLangs.join('+'));
+    }
+    return parts.join(',');
   }
 
   const hashItems = parseHash();
   if (hashItems.length > 0) {
     isShared = true;
     codes = hashItems;
+    // compareLangs may have been set by @compare= in parseHash
     $('shared-banner').style.display = '';
     $('builder-panel').style.display = 'none';
     $('add-row').style.display = 'none';
   } else {
     codes = getCodes();
+    // Restore comparison state from localStorage
+    try {
+      var saved = JSON.parse(localStorage.getItem(STORAGE_KEY + '_compare') || '[]');
+      if (saved.length > 0) { compareLangs = saved; compareActive = true; }
+    } catch(e) {}
   }
 
   // ── Simple markdown renderer ──
@@ -809,6 +833,7 @@
     const initLang = allLanguages.find(l => l.code === selectedLang);
     if (initLang) langLabel.textContent = initLang.name + ' (' + (initLang.prayer_count || 0) + ')';
 
+    if (compareActive) renderCompareBar();
     renderItems();
     initSuggestions();
   }
@@ -1428,6 +1453,14 @@
     var bar = $('compare-bar');
     var chips = $('compare-chips');
     bar.style.display = compareActive ? '' : 'none';
+    // Persist comparison state
+    if (!isShared) {
+      if (compareLangs.length > 0) {
+        localStorage.setItem(STORAGE_KEY + '_compare', JSON.stringify(compareLangs));
+      } else {
+        localStorage.removeItem(STORAGE_KEY + '_compare');
+      }
+    }
     chips.innerHTML = '';
     // Show primary language first (not removable)
     var priChip = document.createElement('span');
