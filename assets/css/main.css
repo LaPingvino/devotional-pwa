@@ -958,19 +958,20 @@ p { margin-bottom: .5rem; }
 
 /* Transliteration toggle */
 .translit-toggle {
-  background: none;
-  border: 1px solid var(--border);
+  background: rgba(255,255,255,.2);
+  border: 1px solid rgba(255,255,255,.5);
   border-radius: 4px;
-  padding: .2rem .5rem;
+  padding: .15rem .45rem;
   font-size: .75rem;
   font-weight: 600;
   cursor: pointer;
-  color: var(--text-secondary);
+  color: #fff;
   font-family: serif;
   transition: all .15s;
+  margin-right: .3rem;
 }
-.translit-toggle:hover { border-color: var(--accent); color: var(--accent); }
-.translit-toggle.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.translit-toggle:hover { background: rgba(255,255,255,.4); }
+.translit-toggle.active { background: #fff; color: var(--accent); border-color: #fff; }
 
 /* Full screen expand */
 .btn-expand {
