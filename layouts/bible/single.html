@@ -521,32 +521,31 @@
     if (window.__translatePage) window.__translatePage();
   }
 
-  document.querySelectorAll('.range-marker').forEach(function(el) {
-    el.addEventListener('click', function(e) {
-      e.stopPropagation();
-      e.preventDefault();
-      var num = parseInt(el.dataset.num);
-      var ch = el.closest('.bible-chapter');
-      var chNum = ch ? ch.id.replace('ch', '') : '1';
+  // Use event delegation for range markers (handles dynamic content too)
+  document.addEventListener('change', function(e) {
+    var el = e.target;
+    if (!el.classList.contains('range-marker')) return;
+    var num = parseInt(el.dataset.num);
+    var ch = el.closest('.bible-chapter');
+    var chNum = ch ? ch.id.replace('ch', '') : '1';
 
-      if (rangeStart === null || chNum !== rangeChapter) {
-        clearRange();
-        rangeStart = num;
-        rangeEnd = num;
-        rangeChapter = chNum;
-        el.checked = true;
-        showRangeBanner();
-      } else {
-        rangeEnd = num;
-        var lo = Math.min(rangeStart, rangeEnd);
-        var hi = Math.max(rangeStart, rangeEnd);
-        ch.querySelectorAll('.range-marker').forEach(function(v) {
-          var n = parseInt(v.dataset.num);
-          v.checked = (n >= lo && n <= hi);
-        });
-        showRangeBanner();
-      }
-    });
+    if (rangeStart === null || chNum !== rangeChapter) {
+      clearRange();
+      rangeStart = num;
+      rangeEnd = num;
+      rangeChapter = chNum;
+      el.checked = true;
+      showRangeBanner();
+    } else {
+      rangeEnd = num;
+      var lo = Math.min(rangeStart, rangeEnd);
+      var hi = Math.max(rangeStart, rangeEnd);
+      ch.querySelectorAll('.range-marker').forEach(function(v) {
+        var n = parseInt(v.dataset.num);
+        v.checked = (n >= lo && n <= hi);
+      });
+      showRangeBanner();
+    }
   });
 })();
 </script>

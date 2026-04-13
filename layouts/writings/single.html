@@ -486,27 +486,25 @@ a.entry-name:hover { text-decoration: underline; }
     });
     wBanner.querySelector('.range-cancel').addEventListener('click', clearWRange);
   }
-  document.querySelectorAll('.writing-entry .range-marker').forEach(function(el) {
-    el.addEventListener('click', function(e) {
-      e.stopPropagation();
-      e.preventDefault();
-      var order = parseInt(el.dataset.order);
-      var book = el.closest('.writing-book');
-      if (wRangeStart === null || book !== wRangeBook) {
-        clearWRange();
-        wRangeStart = order; wRangeEnd = order; wRangeBook = book;
-        el.checked = true;
-        showWBanner();
-      } else {
-        wRangeEnd = order;
-        var lo = Math.min(wRangeStart, wRangeEnd), hi = Math.max(wRangeStart, wRangeEnd);
-        book.querySelectorAll('.range-marker').forEach(function(m) {
-          var o = parseInt(m.dataset.order);
-          m.checked = (o >= lo && o <= hi);
-        });
-        showWBanner();
-      }
-    });
+  document.addEventListener('change', function(e) {
+    var el = e.target;
+    if (!el.classList.contains('range-marker')) return;
+    var order = parseInt(el.dataset.order);
+    var book = el.closest('.writing-book');
+    if (wRangeStart === null || book !== wRangeBook) {
+      clearWRange();
+      wRangeStart = order; wRangeEnd = order; wRangeBook = book;
+      el.checked = true;
+      showWBanner();
+    } else {
+      wRangeEnd = order;
+      var lo = Math.min(wRangeStart, wRangeEnd), hi = Math.max(wRangeStart, wRangeEnd);
+      book.querySelectorAll('.range-marker').forEach(function(m) {
+        var o = parseInt(m.dataset.order);
+        m.checked = (o >= lo && o <= hi);
+      });
+      showWBanner();
+    }
   });
 
   // Show hint once

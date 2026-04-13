@@ -583,28 +583,24 @@
       document.addEventListener('keydown', function esc(e) { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', esc); } });
     });
   }
-  document.querySelectorAll('.surah-section .range-marker').forEach(function(el) {
-    el.style.cursor = 'pointer';
-    el.title = 'Click to start selection, click another to set range';
-    el.addEventListener('click', function(e) {
-      e.stopPropagation();
-      e.preventDefault();
-      var surah = el.dataset.surah, ayah = parseInt(el.dataset.ayah);
-      if (qRangeStart === null || surah !== qRangeSurah) {
-        clearQRange();
-        qRangeStart = ayah; qRangeEnd = ayah; qRangeSurah = surah;
-        el.checked = true;
-        showQBanner();
-      } else {
-        qRangeEnd = ayah;
-        var lo = Math.min(qRangeStart, qRangeEnd), hi = Math.max(qRangeStart, qRangeEnd);
-        el.closest('.surah-section').querySelectorAll('.range-marker').forEach(function(v) {
-          var n = parseInt(v.dataset.ayah);
-          v.checked = (n >= lo && n <= hi);
-        });
-        showQBanner();
-      }
-    });
+  document.addEventListener('change', function(e) {
+    var el = e.target;
+    if (!el.classList.contains('range-marker')) return;
+    var surah = el.dataset.surah, ayah = parseInt(el.dataset.ayah);
+    if (qRangeStart === null || surah !== qRangeSurah) {
+      clearQRange();
+      qRangeStart = ayah; qRangeEnd = ayah; qRangeSurah = surah;
+      el.checked = true;
+      showQBanner();
+    } else {
+      qRangeEnd = ayah;
+      var lo = Math.min(qRangeStart, qRangeEnd), hi = Math.max(qRangeStart, qRangeEnd);
+      el.closest('.surah-section').querySelectorAll('.range-marker').forEach(function(v) {
+        var n = parseInt(v.dataset.ayah);
+        v.checked = (n >= lo && n <= hi);
+      });
+      showQBanner();
+    }
   });
 
   // Init
