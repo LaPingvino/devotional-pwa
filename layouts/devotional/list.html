@@ -26,8 +26,16 @@
     <div class="dev-toolbar">
       <button class="btn-action" id="btn-share" title="Copy shareable link" data-i18n="dev_share">Share link</button>
       <button class="btn-action" id="btn-qr" title="Show QR code">QR</button>
+      <button class="btn-action" id="btn-compare" title="Compare languages side by side">Compare</button>
       <button class="btn-action" id="btn-print" title="Print / save as PDF" data-i18n="dev_print">Print</button>
       <button class="btn-action btn-danger" id="btn-clear" title="Clear all" data-i18n="dev_clear">Clear</button>
+    </div>
+    <div class="compare-bar" id="compare-bar" style="display:none">
+      <span class="compare-label">Compare:</span>
+      <div class="compare-chips" id="compare-chips"></div>
+      <button class="btn-action btn-small" id="compare-add" title="Add comparison language">+ lang</button>
+      <button class="btn-action btn-small" id="compare-add-translit" title="Add transliteration column">+ translit</button>
+      <button class="btn-action btn-small btn-danger" id="compare-off" title="Exit comparison mode">&times;</button>
     </div>
     <div id="qr-panel" class="qr-panel" style="display:none">
       <div id="qr-screen"></div>
@@ -166,6 +174,74 @@
   margin-bottom: 1rem;
 }
 .dev-hint a { color: var(--accent); }
+
+/* Compare bar */
+.compare-bar {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  flex-wrap: wrap;
+  padding: .4rem .6rem;
+  margin-bottom: .75rem;
+  background: var(--bg-secondary, #f5f5f5);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: .85rem;
+}
+.compare-label {
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-right: .2rem;
+}
+.compare-chips { display: flex; gap: .3rem; flex-wrap: wrap; }
+.compare-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .2rem;
+  background: var(--accent);
+  color: #fff;
+  padding: .15rem .5rem;
+  border-radius: 12px;
+  font-size: .8rem;
+  font-weight: 600;
+}
+.compare-chip .chip-remove {
+  cursor: pointer;
+  opacity: .7;
+  font-size: .9em;
+  margin-left: .1rem;
+}
+.compare-chip .chip-remove:hover { opacity: 1; }
+.compare-chip.translit { background: #7c4dff; }
+
+/* Columnar layout for comparison mode */
+.dev-item-columns {
+  display: grid;
+  gap: .8rem;
+  margin-top: .3rem;
+}
+.dev-item-col {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: .6rem .8rem;
+  font-size: .9rem;
+  line-height: 1.7;
+  max-height: 400px;
+  overflow-y: auto;
+}
+.dev-item-col-header {
+  font-size: .72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--accent);
+  letter-spacing: .04em;
+  margin-bottom: .3rem;
+  padding-bottom: .2rem;
+  border-bottom: 1px solid var(--border);
+}
+.dev-item-col.translit-col .dev-item-col-header { color: #7c4dff; }
+.dev-item-col p { margin-bottom: .5rem; }
 
 /* Items list */
 .dev-items { min-height: 2rem; }
@@ -577,6 +653,7 @@
   let allLanguages = [];
   let prayerCache = {}; // lang → {phelps → prayer}
   let writingCache = {}; // `${key}/${lang}` → {phelps → entry}
+  let compareLangs = []; // extra language columns for comparison (may include 'translit')
 
   function selectLang(code) {
     selectedLang = code;
@@ -1045,7 +1122,17 @@
     for (const entry of codes) {
       const useLang = entry.lang || lang;
       const resolved = await resolveCode(entry.code, useLang);
-      items.push({ code: entry.code, lang: entry.lang, useLang, resolved });
+      const item = { code: entry.code, lang: entry.lang, useLang, resolved };
+      // Pre-fetch comparison languages
+      if (compareLangs.length > 0) {
+        item._compareCache = {};
+        for (const cl of compareLangs) {
+          if (cl !== 'translit' && cl !== useLang) {
+            item._compareCache[cl] = await resolveCode(entry.code, cl);
+          }
+        }
+      }
+      items.push(item);
     }
 
     container.innerHTML = '';
@@ -1071,6 +1158,45 @@
       const lockLabel = item.lang ? item.lang.toUpperCase() : '\u{1F310}';
       const lockTitle = item.lang ? 'Locked to ' + item.lang + ' (click to unlock)' : 'Using global language (click to lock to ' + lang + ')';
 
+      // Build comparison columns if in comparison mode
+      let columnsHtml = '';
+      if (compareLangs.length > 0) {
+        const colLangs = [item.useLang].concat(compareLangs);
+        const ncols = colLangs.length;
+        columnsHtml = '<div class="dev-item-columns" style="grid-template-columns:repeat(' + ncols + ',1fr)">';
+        for (const cl of colLangs) {
+          if (cl === 'translit') {
+            // Transliteration column — transliterate paragraph by paragraph
+            const origText = r ? r.text : '';
+            let translitHtml = '';
+            if (origText && typeof window.__transliterate === 'function') {
+              // Split into paragraphs, transliterate each
+              var paras = origText.split(/\n\n+/);
+              var tParts = [];
+              for (var pi = 0; pi < paras.length; pi++) {
+                var plain = paras[pi].replace(/<[^>]+>/g, '').replace(/[#*_>\[\]()]/g, '').trim();
+                if (!plain) continue;
+                var tr = window.__transliterate(plain);
+                tParts.push('<p>' + (tr.html || tr.text || plain) + '</p>');
+              }
+              translitHtml = tParts.join('') || '<span class="dev-item-na">No transliterable text</span>';
+            } else {
+              translitHtml = '<span class="dev-item-na">Transliteration unavailable</span>';
+            }
+            columnsHtml += '<div class="dev-item-col translit-col"><div class="dev-item-col-header">Translit</div>' + translitHtml + '</div>';
+          } else {
+            // Resolve in this language
+            const colResolved = (cl === item.useLang) ? r : (item._compareCache && item._compareCache[cl]);
+            const colRtlInfo = allLanguages.find(l => l.code === cl);
+            const colRtl = colRtlInfo && colRtlInfo.rtl;
+            const colName = colRtlInfo ? colRtlInfo.name : cl.toUpperCase();
+            const colText = colResolved ? renderMd(colResolved.text) : '<span class="dev-item-na">' + cl + '</span>';
+            columnsHtml += '<div class="dev-item-col"' + (colRtl ? ' dir="rtl"' : '') + '><div class="dev-item-col-header">' + colName + '</div>' + colText + '</div>';
+          }
+        }
+        columnsHtml += '</div>';
+      }
+
       div.innerHTML = `
         <div class="dev-item-header no-print">
           <span class="dev-item-drag" title="Drag to reorder">&#x2630;</span>
@@ -1080,7 +1206,7 @@
           <button class="dev-item-lock${item.lang ? ' locked' : ''}" title="${lockTitle}">${lockLabel}</button>
           ${!isShared ? '<button class="dev-item-remove" title="Remove">&times;</button>' : ''}
         </div>
-        <div class="dev-item-text"${isRtl ? ' dir="rtl"' : ''}>${textHtml}</div>
+        ${compareLangs.length > 0 ? columnsHtml : '<div class="dev-item-text"' + (isRtl ? ' dir="rtl"' : '') + '>' + textHtml + '</div>'}
         <div class="dev-item-pin">${item.code}</div>`;
 
       // Lock/unlock language button
@@ -1204,6 +1330,87 @@
     if (!confirm('Remove all items from your devotional?')) return;
     codes = [];
     saveCodes(codes);
+    renderItems();
+  });
+
+  // ── Comparison mode ──
+  function renderCompareBar() {
+    var bar = $('compare-bar');
+    var chips = $('compare-chips');
+    bar.style.display = compareLangs.length > 0 ? '' : 'none';
+    chips.innerHTML = '';
+    // Show primary language first (not removable)
+    var priChip = document.createElement('span');
+    priChip.className = 'compare-chip';
+    var priInfo = allLanguages.find(function(l) { return l.code === selectedLang; });
+    priChip.textContent = priInfo ? priInfo.name : selectedLang;
+    priChip.style.opacity = '.7';
+    chips.appendChild(priChip);
+    compareLangs.forEach(function(cl, i) {
+      var chip = document.createElement('span');
+      chip.className = 'compare-chip' + (cl === 'translit' ? ' translit' : '');
+      var info = allLanguages.find(function(l) { return l.code === cl; });
+      var label = cl === 'translit' ? 'Translit' : (info ? info.name : cl);
+      chip.innerHTML = label + ' <span class="chip-remove" data-idx="' + i + '">&times;</span>';
+      chips.appendChild(chip);
+    });
+    chips.querySelectorAll('.chip-remove').forEach(function(btn) {
+      btn.addEventListener('click', function() {
+        compareLangs.splice(parseInt(btn.dataset.idx), 1);
+        renderCompareBar();
+        renderItems();
+      });
+    });
+  }
+
+  $('btn-compare').addEventListener('click', function() {
+    if (compareLangs.length === 0) {
+      // Start comparison mode with a language picker
+      showCompareAddLang();
+    } else {
+      // Toggle off
+      compareLangs = [];
+      renderCompareBar();
+      renderItems();
+    }
+  });
+
+  function showCompareAddLang() {
+    var lang = prompt('Enter language code to compare (e.g. fa, ar, de, es, fr):');
+    if (!lang) return;
+    lang = lang.trim().toLowerCase();
+    if (lang === selectedLang || compareLangs.indexOf(lang) >= 0) return;
+    var found = allLanguages.find(function(l) { return l.code === lang; });
+    if (!found && lang !== 'translit') {
+      alert('Language "' + lang + '" not found.');
+      return;
+    }
+    compareLangs.push(lang);
+    renderCompareBar();
+    renderItems();
+  }
+
+  $('compare-add').addEventListener('click', showCompareAddLang);
+
+  $('compare-add-translit').addEventListener('click', function() {
+    if (compareLangs.indexOf('translit') >= 0) return;
+    // Load the dictionary first, then add column
+    if (typeof window.__transliterateWithDict === 'function') {
+      window.__transliterateWithDict('test', function() {
+        compareLangs.push('translit');
+        renderCompareBar();
+        renderItems();
+      });
+    } else {
+      compareLangs.push('translit');
+      renderCompareBar();
+      renderItems();
+    }
+  });
+
+  $('compare-off').addEventListener('click', function() {
+    compareLangs = [];
+    renderCompareBar();
     renderItems();
   });
 

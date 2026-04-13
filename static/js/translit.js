@@ -629,6 +629,18 @@
   });
   observer.observe(document.body, { childList: true });
 
+  // Expose transliterate for use by other components (e.g. comparison view)
+  window.__transliterate = function(text) {
+    if (!vowelDict) {
+      // Synchronous fallback: transliterate without dictionary
+      return transliterate(text);
+    }
+    return transliterate(text);
+  };
+  window.__transliterateWithDict = function(text, cb) {
+    loadDict(function() { cb(transliterate(text)); });
+  };
+
   // Add button to header
   var btn = document.createElement('button');
   btn.id = 'translit-btn';
