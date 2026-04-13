@@ -33,7 +33,13 @@
     <div class="compare-bar" id="compare-bar" style="display:none">
       <span class="compare-label" data-i18n="dev_compare_label">Compare:</span>
       <div class="compare-chips" id="compare-chips"></div>
-      <button class="btn-action btn-small" id="compare-add" title="Add comparison language" data-i18n="dev_compare_add">+ lang</button>
+      <details class="lang-dropdown compare-lang-picker" id="compare-lang-dropdown">
+        <summary class="btn-action btn-small" data-i18n="dev_compare_add">+ lang</summary>
+        <div class="lang-dropdown-panel">
+          <input type="search" class="lang-filter-input" id="compare-lang-filter" placeholder="Filter languages..." autocomplete="off" data-i18n-placeholder="filter_languages">
+          <div class="lang-dropdown-list" id="compare-lang-list"></div>
+        </div>
+      </details>
       <button class="btn-action btn-small" id="compare-add-translit" title="Add transliteration column" data-i18n="dev_compare_translit">+ translit</button>
       <button class="btn-action btn-small btn-danger" id="compare-off" title="Exit comparison mode">&times;</button>
     </div>
@@ -213,6 +219,36 @@
 }
 .compare-chip .chip-remove:hover { opacity: 1; }
 .compare-chip.translit { background: #7c4dff; }
+.compare-lang-picker { position: relative; }
+.compare-lang-picker summary { list-style: none; cursor: pointer; }
+.compare-lang-picker summary::-webkit-details-marker { display: none; }
+.compare-lang-picker .lang-dropdown-panel {
+  position: absolute; top: 100%; left: 0; z-index: 60;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.15);
+  width: 240px; padding: .4rem;
+}
+.compare-lang-picker .lang-filter-input {
+  width: 100%; padding: .3rem .5rem; margin-bottom: .3rem;
+  border: 1px solid var(--border); border-radius: 4px;
+  font-size: .85rem; background: var(--bg-secondary, #f5f5f5);
+  color: inherit;
+}
+.compare-lang-picker .lang-dropdown-list {
+  max-height: 220px; overflow-y: auto;
+}
+.compare-lang-picker .lang-dropdown-list a {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: .3rem .5rem; text-decoration: none; color: inherit;
+  font-size: .85rem; border-radius: 3px;
+}
+.compare-lang-picker .lang-dropdown-list a:hover { background: #fff3ef; }
+.compare-lang-picker .lang-dropdown-list a.added {
+  opacity: .4; pointer-events: none;
+}
+.compare-lang-picker .lang-dropdown-list .lang-code-badge {
+  font-size: .7rem; color: var(--text-secondary);
+}
 
 /* Columnar layout for comparison mode */
 .dev-item-columns {
@@ -1365,8 +1401,10 @@
 
   $('btn-compare').addEventListener('click', function() {
     if (compareLangs.length === 0) {
-      // Start comparison mode with a language picker
-      showCompareAddLang();
+      // Start comparison mode — open the picker
+      $('compare-bar').style.display = '';
+      renderCompareBar();
+      $('compare-lang-dropdown').setAttribute('open', '');
     } else {
       // Toggle off
       compareLangs = [];
@@ -1375,23 +1413,56 @@
     }
   });
 
-  function showCompareAddLang() {
-    var promptText = (typeof window.__t === 'function' ? window.__t('dev_compare_prompt') : '') || 'Enter language code to compare (e.g. fa, ar, de, es, fr):';
-    var lang = prompt(promptText);
-    if (!lang) return;
-    lang = lang.trim().toLowerCase();
-    if (lang === selectedLang || compareLangs.indexOf(lang) >= 0) return;
-    var found = allLanguages.find(function(l) { return l.code === lang; });
-    if (!found && lang !== 'translit') {
-      alert('Language "' + lang + '" not found.');
-      return;
-    }
-    compareLangs.push(lang);
-    renderCompareBar();
-    renderItems();
+  // Populate compare language picker
+  function buildCompareLangList() {
+    var list = $('compare-lang-list');
+    list.innerHTML = '';
+    var sorted = [...allLanguages].sort(function(a, b) {
+      if (a.code === selectedLang) return -1;
+      if (b.code === selectedLang) return 1;
+      return a.name.localeCompare(b.name);
+    });
+    sorted.forEach(function(l) {
+      var a = document.createElement('a');
+      a.href = '#';
+      a.dataset.code = l.code;
+      a.dataset.name = l.name.toLowerCase();
+      var isActive = l.code === selectedLang || compareLangs.indexOf(l.code) >= 0;
+      if (isActive) a.classList.add('added');
+      a.innerHTML = l.name + ' <span class="lang-code-badge">' + l.code + '</span>';
+      a.addEventListener('click', function(e) {
+        e.preventDefault();
+        if (l.code === selectedLang || compareLangs.indexOf(l.code) >= 0) return;
+        compareLangs.push(l.code);
+        renderCompareBar();
+        buildCompareLangList(); // refresh added state
+        renderItems();
+      });
+      list.appendChild(a);
+    });
   }
 
-  $('compare-add').addEventListener('click', showCompareAddLang);
+  // Filter for compare picker
+  var compareFilter = $('compare-lang-filter');
+  compareFilter.addEventListener('input', function() {
+    var q = compareFilter.value.toLowerCase().trim();
+    $('compare-lang-list').querySelectorAll('a').forEach(function(a) {
+      var match = !q || a.dataset.name.includes(q) || a.dataset.code.includes(q);
+      a.style.display = match ? '' : 'none';
+    });
+  });
+
+  var comparePicker = $('compare-lang-dropdown');
+  comparePicker.addEventListener('toggle', function() {
+    if (comparePicker.open) {
+      buildCompareLangList();
+      compareFilter.value = '';
+      compareFilter.focus();
+    }
+  });
+  document.addEventListener('click', function(e) {
+    if (!comparePicker.contains(e.target)) comparePicker.removeAttribute('open');
+  });
 
   $('compare-add-translit').addEventListener('click', function() {
     if (compareLangs.indexOf('translit') >= 0) return;
