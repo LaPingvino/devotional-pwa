@@ -496,7 +496,7 @@
       root,
       NodeFilter.SHOW_ELEMENT,
       { acceptNode: function(node) {
-        if (node.closest('.site-header, .sidebar, script, style, .translit-line, .nav-dropdown-menu, .ui-lang-menu, .prayer-card-header, .prayer-preview')) return NodeFilter.FILTER_REJECT;
+        if (node.closest('.site-header, .sidebar, script, style, .translit-line, .nav-dropdown-menu, .ui-lang-menu')) return NodeFilter.FILTER_REJECT;
         var dir = node.getAttribute('dir');
         var text = node.textContent || '';
         if ((dir === 'rtl' || hasArabic(text)) && node.children.length === 0 && text.trim().length > 0) {
@@ -521,12 +521,23 @@
       if (!text || !hasArabic(text)) return;
       var r = transliterate(text);
       if (!r.text.trim() || r.text === text) return;
-      var line = document.createElement('div');
-      line.className = 'translit-line';
-      line.innerHTML = r.html;
-      line.style.cssText = 'font-size:.8em;color:var(--text-secondary);font-style:italic;direction:ltr;text-align:left;margin-top:2px;line-height:1.4;';
-      el.parentNode.insertBefore(line, el.nextSibling);
-      added.push(line);
+      // Inside prayer card headers: replace text inline (restore on remove)
+      var inHeader = el.closest('.prayer-card-header');
+      if (inHeader) {
+        el.setAttribute('data-translit-orig', el.innerHTML);
+        el.innerHTML = r.html;
+        el.style.direction = 'ltr';
+        el.style.fontStyle = 'italic';
+        el.classList.add('translit-replaced');
+        added.push(el);
+      } else {
+        var line = document.createElement('div');
+        line.className = 'translit-line';
+        line.innerHTML = r.html;
+        line.style.cssText = 'font-size:.8em;color:var(--text-secondary);font-style:italic;direction:ltr;text-align:left;margin-top:2px;line-height:1.4;';
+        el.parentNode.insertBefore(line, el.nextSibling);
+        added.push(line);
+      }
     });
     return added;
   }
@@ -538,7 +549,21 @@
   }
 
   function removeTranslit() {
-    annotations.forEach(function(el) { if (el.parentNode) el.parentNode.removeChild(el); });
+    annotations.forEach(function(el) {
+      if (el.classList && el.classList.contains('translit-replaced')) {
+        // Restore original content for inline-replaced elements
+        var orig = el.getAttribute('data-translit-orig');
+        if (orig !== null) {
+          el.innerHTML = orig;
+          el.removeAttribute('data-translit-orig');
+          el.style.direction = '';
+          el.style.fontStyle = '';
+          el.classList.remove('translit-replaced');
+        }
+      } else if (el.parentNode) {
+        el.parentNode.removeChild(el);
+      }
+    });
     annotations = [];
     active = false;
   }
