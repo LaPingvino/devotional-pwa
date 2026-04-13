@@ -488,6 +488,7 @@ a.entry-name:hover { text-decoration: underline; }
   document.querySelectorAll('.writing-entry .range-marker').forEach(function(el) {
     el.addEventListener('click', function(e) {
       e.stopPropagation();
+      e.preventDefault();
       var order = parseInt(el.dataset.order);
       var book = el.closest('.writing-book');
       if (wRangeStart === null || book !== wRangeBook) {

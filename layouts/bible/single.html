@@ -524,6 +524,7 @@
   document.querySelectorAll('.range-marker').forEach(function(el) {
     el.addEventListener('click', function(e) {
       e.stopPropagation();
+      e.preventDefault();
       var num = parseInt(el.dataset.num);
       var ch = el.closest('.bible-chapter');
       var chNum = ch ? ch.id.replace('ch', '') : '1';

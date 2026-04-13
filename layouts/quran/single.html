@@ -588,6 +588,7 @@
     el.title = 'Click to start selection, click another to set range';
     el.addEventListener('click', function(e) {
       e.stopPropagation();
+      e.preventDefault();
       var surah = el.dataset.surah, ayah = parseInt(el.dataset.ayah);
       if (qRangeStart === null || surah !== qRangeSurah) {
         clearQRange();
