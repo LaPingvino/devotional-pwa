@@ -709,10 +709,12 @@
     allLanguages = await langRes.json();
     window._writingsIndex = await writRes.json();
 
-    // Inject Bible-only languages not in prayer list (source texts + Bolls)
+    // Inject Bible-only languages and transliteration virtual languages
     var extraLangs = [
       {code:'syr',name:'ܣܘܪܝܝܐ Syriac',prayer_count:0,rtl:true},
-      {code:'la',name:'Latina',prayer_count:0}
+      {code:'la',name:'Latina',prayer_count:0},
+      {code:'ar-translit',name:'Arabic (Latin)',prayer_count:0,_translit:true},
+      {code:'fa-translit',name:'Persian (Latin)',prayer_count:0,_translit:true},
     ];
     var existingCodes = new Set(allLanguages.map(function(l) { return l.code; }));
     extraLangs.forEach(function(el) {
@@ -906,8 +908,30 @@
     return verses.filter(function(v) { return v.verse >= verseStart && v.verse <= verseEnd; });
   }
 
+  // ── Transliterate resolved text (for XX-translit virtual languages) ──
+  function transliterateResolved(resolved) {
+    if (!resolved || !resolved.text || typeof window.__transliterate !== 'function') return resolved;
+    var paras = resolved.text.split(/\n\n+/);
+    var tParts = [];
+    for (var i = 0; i < paras.length; i++) {
+      var plain = paras[i].replace(/<[^>]+>/g, '').replace(/[#*_>\[\]()]/g, '').trim();
+      if (!plain) continue;
+      var tr = window.__transliterate(plain);
+      tParts.push((tr.html || tr.text || plain));
+    }
+    var newText = tParts.join('\n\n') || resolved.text;
+    return { text: newText, category: resolved.category, type: resolved.type, name: resolved.name, link: resolved.link, _transliterated: true };
+  }
+
   // ── Resolve a code to text in given language ──
   async function resolveCode(code, lang) {
+    // Handle XX-translit virtual languages: resolve base language, then transliterate
+    if (lang && lang.endsWith('-translit')) {
+      var baseLang = lang.replace(/-translit$/, '');
+      var baseResolved = await resolveCode(code, baseLang);
+      return transliterateResolved(baseResolved);
+    }
+
     // Bible reference
     if (code.startsWith('bible:')) {
       var ref = parseBibleRef(code);
@@ -1158,20 +1182,12 @@
       const useLang = entry.lang || lang;
       const resolved = await resolveCode(entry.code, useLang);
       const item = { code: entry.code, lang: entry.lang, useLang, resolved };
-      // Pre-fetch comparison languages
+      // Pre-fetch comparison languages (resolveCode handles -translit internally)
       if (compareLangs.length > 0) {
         item._compareCache = {};
-        var fetchLangs = new Set();
         for (const cl of compareLangs) {
-          if (isTranslitCode(cl)) {
-            fetchLangs.add(translitSrc(cl)); // need ar or fa for translit
-          } else {
-            fetchLangs.add(cl);
-          }
-        }
-        for (const fl of fetchLangs) {
-          if (fl !== useLang) {
-            item._compareCache[fl] = await resolveCode(entry.code, fl);
+          if (cl !== useLang) {
+            item._compareCache[cl] = await resolveCode(entry.code, cl);
           }
         }
       }
@@ -1208,36 +1224,16 @@
         const ncols = colLangs.length;
         columnsHtml = '<div class="dev-item-columns" style="grid-template-columns:repeat(' + ncols + ',1fr)">';
         for (const cl of colLangs) {
-          if (isTranslitCode(cl)) {
-            // Transliteration column — use cached ar/fa source text
-            var srcLang = translitSrc(cl);
-            var srcResolved = (srcLang === item.useLang) ? r : (item._compareCache && item._compareCache[srcLang]);
-            var srcText = srcResolved ? srcResolved.text : '';
-            var tEntry = TRANSLIT_ENTRIES.find(function(te) { return te.code === cl; });
-            var colLabel = tEntry ? tEntry.name : 'Latin';
-            let translitHtml = '';
-            if (srcText && typeof window.__transliterate === 'function') {
-              var paras = srcText.split(/\n\n+/);
-              var tParts = [];
-              for (var pi = 0; pi < paras.length; pi++) {
-                var plain = paras[pi].replace(/<[^>]+>/g, '').replace(/[#*_>\[\]()]/g, '').trim();
-                if (!plain) continue;
-                var tr = window.__transliterate(plain);
-                tParts.push('<p>' + (tr.html || tr.text || plain) + '</p>');
-              }
-              translitHtml = tParts.join('') || '<span class="dev-item-na">Not available in ' + srcLang + '</span>';
-            } else {
-              translitHtml = '<span class="dev-item-na">Not available in ' + srcLang + '</span>';
-            }
-            columnsHtml += '<div class="dev-item-col translit-col"><div class="dev-item-col-header">' + colLabel + '</div>' + translitHtml + '</div>';
-          } else {
-            // Resolve in this language
+          {
             const colResolved = (cl === item.useLang) ? r : (item._compareCache && item._compareCache[cl]);
-            const colRtlInfo = allLanguages.find(l => l.code === cl);
+            const isTranslit = isTranslitCode(cl);
+            const tEntry = isTranslit ? TRANSLIT_ENTRIES.find(function(te) { return te.code === cl; }) : null;
+            const colRtlInfo = !isTranslit ? allLanguages.find(l => l.code === cl) : null;
             const colRtl = colRtlInfo && colRtlInfo.rtl;
-            const colName = colRtlInfo ? colRtlInfo.name : cl.toUpperCase();
+            const colName = tEntry ? tEntry.name : (colRtlInfo ? colRtlInfo.name : cl.toUpperCase());
             const colText = colResolved ? renderMd(colResolved.text) : '<span class="dev-item-na">' + cl + '</span>';
-            columnsHtml += '<div class="dev-item-col"' + (colRtl ? ' dir="rtl"' : '') + '><div class="dev-item-col-header">' + colName + '</div>' + colText + '</div>';
+            const colClass = isTranslit ? ' translit-col' : '';
+            columnsHtml += '<div class="dev-item-col' + colClass + '"' + (colRtl ? ' dir="rtl"' : '') + '><div class="dev-item-col-header">' + colName + '</div>' + colText + '</div>';
           }
         }
         columnsHtml += '</div>';
@@ -1425,14 +1421,12 @@
   });
 
   // Populate compare language picker (includes translit virtual entries)
-  // Translit virtual languages: fetch ar/fa text, then transliterate
+  // Virtual transliteration languages — handled by resolveCode via -translit suffix
   var TRANSLIT_ENTRIES = [
-    {code: 'translit-ar', src: 'ar', name: 'Arabic (Latin)', nameLC: 'arabic latin translit transliteration'},
-    {code: 'translit-fa', src: 'fa', name: 'Persian (Latin)', nameLC: 'persian farsi latin translit transliteration'},
+    {code: 'ar-translit', name: 'Arabic (Latin)', nameLC: 'arabic latin translit transliteration transliterated'},
+    {code: 'fa-translit', name: 'Persian (Latin)', nameLC: 'persian farsi latin translit transliteration transliterated'},
   ];
-  var TRANSLIT_BADGE = 'Latin';
-  function isTranslitCode(c) { return c === 'translit-ar' || c === 'translit-fa'; }
-  function translitSrc(c) { return c === 'translit-fa' ? 'fa' : 'ar'; }
+  function isTranslitCode(c) { return c && c.endsWith('-translit'); }
 
   function buildCompareLangList() {
     var list = $('compare-lang-list');
@@ -1445,7 +1439,7 @@
       a.dataset.code = te.code;
       a.dataset.name = te.nameLC;
       if (compareLangs.indexOf(te.code) >= 0) a.classList.add('added');
-      a.innerHTML = te.name + ' <span class="lang-code-badge" style="color:#7c4dff">' + TRANSLIT_BADGE + '</span>';
+      a.innerHTML = te.name + ' <span class="lang-code-badge" style="color:#7c4dff">(transliterated)</span>';
       a.addEventListener('click', function(e) {
         e.preventDefault();
         if (compareLangs.indexOf(te.code) >= 0) return;
