@@ -974,9 +974,9 @@
       };
     }
     // tab:BH00053:5 or tab:BH00053:10-20 (Tablets of Bahá'u'lláh)
-    m = code.match(/^tab:([A-Z]{2}\d{5}):(\d+)(?:-(\d+))?$/);
+    m = code.match(/^tab:([a-zA-Z]{2}\d{5}):(\d+)(?:-(\d+))?$/i);
     if (m) {
-      var base = m[1], start = parseInt(m[2]), end = m[3] ? parseInt(m[3]) : start;
+      var base = m[1].toUpperCase(), start = parseInt(m[2]), end = m[3] ? parseInt(m[3]) : start;
       var wanted = phelpsRange(base, start, end, 3);
       return {
         key: 'tablets', title: "Tablets of Bahá'u'lláh",
