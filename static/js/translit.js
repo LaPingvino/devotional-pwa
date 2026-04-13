@@ -189,7 +189,7 @@
   // Digraphs that represent single sounds — don't break these
   var DIGRAPHS = ['sh','th','dh','kh','ch','zh','gh'];
 
-  function breakClusters(segs) {
+  function breakClusters(segs, origChars, origIndices) {
     // Flatten to get raw consonant/vowel structure
     var flat = '';
     for (var i = 0; i < segs.length; i++) flat += segs[i].t;
@@ -215,7 +215,27 @@
       }
     }
 
-    // Break consonant clusters between sound units
+    // Break consonant clusters using bigram vowel predictions
+    // Detect if text is likely Persian (has Persian-specific letters)
+    var isPersian = origChars && origChars.some(function(c) {
+      return '\u067E\u0686\u0698\u06AF'.indexOf(c) >= 0;
+    });
+    var bg = bigramData ? (isPersian ? bigramData.fa : bigramData.ar) : null;
+
+    // Map unit indices to original Arabic letter indices
+    // Each non-breaker unit corresponds to one Arabic letter (digraphs = 1 letter)
+    var unitToOrig = [];
+    var origIdx = 0;
+    for (var ui = 0; ui < units.length; ui++) {
+      var uu = units[ui];
+      if (uu.length === 1 && (isVowelChar(uu) || uu === '-' || uu === ' ' || uu === '\'' || uu === '\u02BB')) {
+        unitToOrig.push(-1);
+      } else {
+        unitToOrig.push(origIdx);
+        origIdx++;
+      }
+    }
+
     var out = [];
     var consRun = 0;
     var isBreaker = function(u) { return u.length === 1 && (isVowelChar(u) || u === '-' || u === ' ' || u === '\'' || u === '\u02BB'); };
@@ -231,7 +251,20 @@
         if ((consRun >= 2 || atStart) && k + 1 < units.length) {
           var next = units[k + 1];
           if (next && !isBreaker(next)) {
-            out.push({t: 'a', p: true});
+            // Use bigram prediction if available, otherwise 'a'
+            var vowel = 'a';
+            if (bg && origChars) {
+              var oi1 = unitToOrig[k], oi2 = unitToOrig[k + 1];
+              if (oi1 >= 0 && oi2 >= 0 && oi1 < origChars.length && oi2 < origChars.length) {
+                var bgKey = origChars[oi1] + origChars[oi2];
+                if (bg[bgKey]) vowel = bg[bgKey];
+                else if (atStart) {
+                  var initKey = '^' + origChars[oi1];
+                  if (bg[initKey]) vowel = bg[initKey];
+                }
+              }
+            }
+            out.push({t: vowel, p: true});
             consRun = 0;
           }
         }
@@ -454,7 +487,13 @@
         var segs = transliterateSegment(chars, predicted);
         // If no dictionary match and no vowel marks, break consonant clusters
         if (!predicted && !hasVowelMarks) {
-          segs = breakClusters(segs);
+          // Build mapping from Arabic letters to transliteration output indices
+          var origLetters = Array.from(part).filter(function(c) {
+            return L[c] !== undefined;
+          });
+          // origIndices maps unit index → index into origLetters
+          // (approximate: unit count roughly matches letter count for non-digraph letters)
+          segs = breakClusters(segs, origLetters, null);
         }
         allSegs = allSegs.concat(segs);
       } else {
@@ -518,6 +557,7 @@
   var active = false;
   var annotations = [];
   var vowelDict = null; // loaded lazily
+  var bigramData = null; // consonant-pair vowel predictions
   var dictLoading = false;
 
   function loadDict(cb) {
@@ -531,9 +571,15 @@
     }
     dictLoading = true;
     var origFetchFn = window.__origFetch || window.fetch;
-    origFetchFn('/data/ar_vowels.json')
-      .then(function(r) { return r.json(); })
-      .then(function(d) { vowelDict = d; dictLoading = false; cb(); })
+    Promise.all([
+      origFetchFn('/data/ar_vowels.json').then(function(r) { return r.json(); }),
+      origFetchFn('/data/ar_bigrams.json').then(function(r) { return r.json(); }).catch(function() { return null; })
+    ]).then(function(results) {
+      vowelDict = results[0];
+      bigramData = results[1];
+      dictLoading = false;
+      cb();
+    })
       .catch(function() { vowelDict = {}; dictLoading = false; cb(); });
   }
 
