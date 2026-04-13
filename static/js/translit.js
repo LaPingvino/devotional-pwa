@@ -3,7 +3,7 @@
   // Letter mappings (Bahá'í-style transliteration with acute accents)
   var L = {
     // Arabic
-    '\u0621':'\'','\u0627':'a','\u0623':'a','\u0625':'i','\u0622':'\u00E1',
+    '\u0621':'\'','\u0627':'a','\u0623':'\'','\u0625':'\'','\u0622':'\u00E1',
     '\u0628':'b','\u062A':'t','\u062B':'th','\u062C':'j','\u062D':'\u1E25',
     '\u062E':'kh','\u062F':'d','\u0630':'dh','\u0631':'r','\u0632':'z',
     '\u0633':'s','\u0634':'sh','\u0635':'\u1E63','\u0636':'\u1E0D','\u0637':'\u1E6D',
@@ -94,7 +94,9 @@
       // Letter
       if (L[c] !== undefined) {
         var base = L[c];
-        var isAlif = (c === '\u0627' || c === '\u0623' || c === '\u0625' || c === '\u0622');
+        // Only plain alif and alif-madda are carrier letters (silent)
+        // أ (hamza-above) and إ (hamza-below) are consonants (glottal stop)
+        var isAlif = (c === '\u0627' || c === '\u0622');
         var isWaw = (c === '\u0648');
         var isYa = (c === '\u064A' || c === '\u06CC');
         i++;
@@ -316,16 +318,15 @@
       'الاهی': 'Il\u00E1h\u00ED',
       'ربی': 'Rabb\u00ED',
       'یا': 'Y\u00E1',
-      // إنّ (inna) vs أنّ (anna) vs آن (ān) — hamza-specific
-      'إن': 'inna', 'إنّ': 'inna',
-      'أن': 'anna', 'أنّ': 'anna',
-      'ان': 'inna', // unpointed default (most common in Bahá'í texts)
+      // Short ambiguous words — only unvocalized defaults
+      // (vocalized text uses tashkeel directly)
+      'ان': 'inna', // unpointed default
       'إنک': 'innaka', 'انک': 'innaka',
       'إنه': 'innahu', 'انه': 'innahu',
       'إنا': 'inn\u00E1', 'انا': 'inn\u00E1',
       // على ('alá, preposition) vs علی ('Alí, name)
-      'على': '\'al\u00E1',
-      'علی': '\'Al\u00ED',
+      'على': '\u02BBal\u00E1',
+      'علی': '\u02BBAl\u00ED',
       // Common Arabic particles/prepositions
       'ما': 'm\u00E1',
       'من': 'min',
@@ -357,6 +358,10 @@
       'اذا': 'idh\u00E1',
       'كان': 'k\u00E1na',
       'کان': 'k\u00E1na',
+      'ذلک': 'dh\u00E1lika',
+      'ذلك': 'dh\u00E1lika',
+      'أنت': 'anta',
+      'أنتم': 'antum',
       // More common terms
       'اکبر': 'Akbar', 'اكبر': 'Akbar',
       'بسمالله': 'Bismi\'ll\u00E1h',
@@ -442,16 +447,13 @@
       var part = parts[pi];
       // Check if this part is Arabic
       if (/[\u0621-\u065F\u0670-\u06FF]/.test(part)) {
-        // Check known-word map — but only for unvocalized text
-        // (vocalized text should use its own tashkeel, not KNOWN overrides)
-        var hasVowelMarks = /[\u064E\u064F\u0650\u064B\u064C\u064D\u0670]/.test(part);
-        if (!hasVowelMarks) {
-          var knownKey = normalizeKnownKey(part);
-          if (KNOWN[knownKey]) {
-            allSegs.push({t: KNOWN[knownKey], p: false});
-            continue;
-          }
+        // Check known-word map (always — curated entries are reliable)
+        var knownKey = normalizeKnownKey(part);
+        if (KNOWN[knownKey]) {
+          allSegs.push({t: KNOWN[knownKey], p: false});
+          continue;
         }
+        var hasVowelMarks = /[\u064E\u064F\u0650\u064B\u064C\u064D\u0670]/.test(part);
         var predicted = false;
         var toTranslit = part;
         // If no vowel marks, try dictionary lookup (even if it has shadda/sukun)
@@ -543,6 +545,11 @@
     s = s.replace(/([aeiou\u00E1\u00ED\u00FA]) All\u00E1h/g, '$1\'ll\u00E1h');
     // Liaison: word ending in consonant + i + space + al-X → 'l-X (genitive construct)
     s = s.replace(/i (al-)/g, 'i\'$1');
+    // Word-initial hamza: 'a/'i at word start → a/i (hamza is silent initially)
+    s = s.replace(/(^|[ \n])'([aiu])/g, '$1$2');
+    // Also after al- prefix: al'a → al-a (hamza after definite article)
+    s = s.replace(/al'([aiu\u00E1\u00ED\u00FA])/g, 'al-$1');
+    // But mid-word glottal stop after wa- prefix stays: wa'anta (not waanta)
     // Capitalize start of sentences (after . ! ? or start of string)
     s = s.replace(/(^|[.!?]\s*)([a-z\u00E1\u00ED\u00FA\u1E00-\u1EFF\u02BB])/g, function(m, pre, ch) {
       return pre + ch.toUpperCase();
