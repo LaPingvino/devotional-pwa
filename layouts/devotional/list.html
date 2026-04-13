@@ -1161,9 +1161,17 @@
       // Pre-fetch comparison languages
       if (compareLangs.length > 0) {
         item._compareCache = {};
+        var fetchLangs = new Set();
         for (const cl of compareLangs) {
-          if (cl !== 'translit' && cl !== useLang) {
-            item._compareCache[cl] = await resolveCode(entry.code, cl);
+          if (isTranslitCode(cl)) {
+            fetchLangs.add(translitSrc(cl)); // need ar or fa for translit
+          } else {
+            fetchLangs.add(cl);
+          }
+        }
+        for (const fl of fetchLangs) {
+          if (fl !== useLang) {
+            item._compareCache[fl] = await resolveCode(entry.code, fl);
           }
         }
       }
@@ -1200,13 +1208,16 @@
         const ncols = colLangs.length;
         columnsHtml = '<div class="dev-item-columns" style="grid-template-columns:repeat(' + ncols + ',1fr)">';
         for (const cl of colLangs) {
-          if (cl === 'translit') {
-            // Transliteration column — transliterate paragraph by paragraph
-            const origText = r ? r.text : '';
+          if (isTranslitCode(cl)) {
+            // Transliteration column — use cached ar/fa source text
+            var srcLang = translitSrc(cl);
+            var srcResolved = (srcLang === item.useLang) ? r : (item._compareCache && item._compareCache[srcLang]);
+            var srcText = srcResolved ? srcResolved.text : '';
+            var tEntry = TRANSLIT_ENTRIES.find(function(te) { return te.code === cl; });
+            var colLabel = tEntry ? tEntry.name : 'Latin';
             let translitHtml = '';
-            if (origText && typeof window.__transliterate === 'function') {
-              // Split into paragraphs, transliterate each
-              var paras = origText.split(/\n\n+/);
+            if (srcText && typeof window.__transliterate === 'function') {
+              var paras = srcText.split(/\n\n+/);
               var tParts = [];
               for (var pi = 0; pi < paras.length; pi++) {
                 var plain = paras[pi].replace(/<[^>]+>/g, '').replace(/[#*_>\[\]()]/g, '').trim();
@@ -1214,11 +1225,11 @@
                 var tr = window.__transliterate(plain);
                 tParts.push('<p>' + (tr.html || tr.text || plain) + '</p>');
               }
-              translitHtml = tParts.join('') || '<span class="dev-item-na">No transliterable text</span>';
+              translitHtml = tParts.join('') || '<span class="dev-item-na">Not available in ' + srcLang + '</span>';
             } else {
-              translitHtml = '<span class="dev-item-na">Transliteration unavailable</span>';
+              translitHtml = '<span class="dev-item-na">Not available in ' + srcLang + '</span>';
             }
-            columnsHtml += '<div class="dev-item-col translit-col"><div class="dev-item-col-header">Translit</div>' + translitHtml + '</div>';
+            columnsHtml += '<div class="dev-item-col translit-col"><div class="dev-item-col-header">' + colLabel + '</div>' + translitHtml + '</div>';
           } else {
             // Resolve in this language
             const colResolved = (cl === item.useLang) ? r : (item._compareCache && item._compareCache[cl]);
@@ -1383,9 +1394,10 @@
     chips.appendChild(priChip);
     compareLangs.forEach(function(cl, i) {
       var chip = document.createElement('span');
-      chip.className = 'compare-chip' + (cl === 'translit' ? ' translit' : '');
+      chip.className = 'compare-chip' + (isTranslitCode(cl) ? ' translit' : '');
       var info = allLanguages.find(function(l) { return l.code === cl; });
-      var label = cl === 'translit' ? 'Translit' : (info ? info.name : cl);
+      var tEntry = TRANSLIT_ENTRIES.find(function(te) { return te.code === cl; });
+      var label = tEntry ? tEntry.name : (info ? info.name : cl);
       chip.innerHTML = label + ' <span class="chip-remove" data-idx="' + i + '">&times;</span>';
       chips.appendChild(chip);
     });
@@ -1413,39 +1425,40 @@
   });
 
   // Populate compare language picker (includes translit virtual entries)
+  // Translit virtual languages: fetch ar/fa text, then transliterate
   var TRANSLIT_ENTRIES = [
-    {code: 'translit', name: 'Arabic (Latin)', nameLC: 'arabic latin translit transliteration'},
-    {code: 'translit', name: 'Persian (Latin)', nameLC: 'persian farsi latin translit transliteration'},
+    {code: 'translit-ar', src: 'ar', name: 'Arabic (Latin)', nameLC: 'arabic latin translit transliteration'},
+    {code: 'translit-fa', src: 'fa', name: 'Persian (Latin)', nameLC: 'persian farsi latin translit transliteration'},
   ];
+  var TRANSLIT_BADGE = 'Latin';
+  function isTranslitCode(c) { return c === 'translit-ar' || c === 'translit-fa'; }
+  function translitSrc(c) { return c === 'translit-fa' ? 'fa' : 'ar'; }
 
   function buildCompareLangList() {
     var list = $('compare-lang-list');
     list.innerHTML = '';
 
     // Translit entry at top
-    var translitAdded = compareLangs.indexOf('translit') >= 0;
     TRANSLIT_ENTRIES.forEach(function(te) {
       var a = document.createElement('a');
       a.href = '#';
-      a.dataset.code = 'translit';
+      a.dataset.code = te.code;
       a.dataset.name = te.nameLC;
-      if (translitAdded) a.classList.add('added');
-      a.innerHTML = te.name + ' <span class="lang-code-badge" style="color:#7c4dff">translit</span>';
+      if (compareLangs.indexOf(te.code) >= 0) a.classList.add('added');
+      a.innerHTML = te.name + ' <span class="lang-code-badge" style="color:#7c4dff">' + TRANSLIT_BADGE + '</span>';
       a.addEventListener('click', function(e) {
         e.preventDefault();
-        if (translitAdded) return;
-        if (typeof window.__transliterateWithDict === 'function') {
-          window.__transliterateWithDict('test', function() {
-            compareLangs.push('translit');
-            renderCompareBar();
-            buildCompareLangList();
-            renderItems();
-          });
-        } else {
-          compareLangs.push('translit');
+        if (compareLangs.indexOf(te.code) >= 0) return;
+        var doAdd = function() {
+          compareLangs.push(te.code);
           renderCompareBar();
           buildCompareLangList();
           renderItems();
+        };
+        if (typeof window.__transliterateWithDict === 'function') {
+          window.__transliterateWithDict('test', doAdd);
+        } else {
+          doAdd();
         }
       });
       list.appendChild(a);
