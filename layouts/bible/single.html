@@ -479,15 +479,36 @@
     var code = 'bible:' + BOOK_ID + ':' + rangeChapter + ':' + lo + (hi > lo ? '-' + hi : '');
     rangeBanner = document.createElement('div');
     rangeBanner.className = 'range-banner';
-    rangeBanner.innerHTML = '<span>' + BOOK_ID.charAt(0).toUpperCase() + BOOK_ID.slice(1) + ' ' + rangeChapter + ':' + lo + (hi > lo ? '\u2013' + hi : '') + '</span> ' +
+    var label = BOOK_ID.charAt(0).toUpperCase() + BOOK_ID.slice(1) + ' ' + rangeChapter + ':' + lo + (hi > lo ? '\u2013' + hi : '');
+    rangeBanner.innerHTML = '<span>' + label + '</span> ' +
+      '<button class="btn-action btn-small range-fullscreen" title="Full screen">\u26F6</button> ' +
       '<button class="btn-action btn-small range-add">' + window.__t('verse_add') + '</button> ' +
       '<button class="btn-action btn-small range-cancel">\u2715</button>';
-    document.querySelector('.main-content').prepend(rangeBanner);
+    document.body.appendChild(rangeBanner);
     rangeBanner.querySelector('.range-add').addEventListener('click', function() {
       addCode(code);
       clearRange();
     });
     rangeBanner.querySelector('.range-cancel').addEventListener('click', clearRange);
+    rangeBanner.querySelector('.range-fullscreen').addEventListener('click', function() {
+      var ch = document.getElementById('ch' + rangeChapter);
+      if (!ch) return;
+      var rows = ch.querySelectorAll('.interlinear tbody tr');
+      var html = '';
+      rows.forEach(function(row) {
+        var num = row.querySelector('.il-num');
+        var n = num ? parseInt(num.textContent) : 0;
+        if (n < lo || n > hi) return;
+        var trans = row.querySelector('.il-bolls') || row.querySelector('.il-en:not([style*="display: none"])') || row.querySelector('.il-ar:not([style*="display: none"])');
+        if (trans) html += '<p><sup>' + n + '</sup> ' + trans.innerHTML + '</p>';
+      });
+      var overlay = document.createElement('div');
+      overlay.className = 'expanded-overlay';
+      overlay.innerHTML = '<button class="expand-close">\u2716</button><h2>' + label + '</h2>' + html;
+      document.body.appendChild(overlay);
+      overlay.querySelector('.expand-close').addEventListener('click', function() { overlay.remove(); });
+      document.addEventListener('keydown', function esc(e) { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', esc); } });
+    });
   }
 
   // Show verse selection hint (once per session)

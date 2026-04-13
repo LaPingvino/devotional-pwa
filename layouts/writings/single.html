@@ -445,9 +445,25 @@ a.entry-name:hover { text-decoration: underline; }
     wBanner = document.createElement('div');
     wBanner.className = 'range-banner';
     wBanner.innerHTML = '<span>' + label + '</span> ' +
+      '<button class="btn-action btn-small range-fullscreen" title="Full screen">\u26F6</button> ' +
       '<button class="btn-action btn-small range-add">' + window.__t('verse_add') + '</button> ' +
       '<button class="btn-action btn-small range-cancel">\u2715</button>';
     document.body.appendChild(wBanner);
+    wBanner.querySelector('.range-fullscreen').addEventListener('click', function() {
+      var html = '';
+      book.querySelectorAll('.writing-entry').forEach(function(e) {
+        var order = parseInt(e.dataset.order);
+        if (order < lo || order > hi) return;
+        var text = e.querySelector('.writing-text');
+        if (text) html += '<div style="margin-bottom:1.5rem"><sup style="color:var(--text-secondary)">' + order + '</sup> ' + text.innerHTML + '</div>';
+      });
+      var overlay = document.createElement('div');
+      overlay.className = 'expanded-overlay';
+      overlay.innerHTML = '<button class="expand-close">\u2716</button><h2>' + label + '</h2>' + html;
+      document.body.appendChild(overlay);
+      overlay.querySelector('.expand-close').addEventListener('click', function() { overlay.remove(); });
+      document.addEventListener('keydown', function esc(ev) { if (ev.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', esc); } });
+    });
     wBanner.querySelector('.range-add').addEventListener('click', function() {
       var codes = getCodes();
       if (shortCode) {

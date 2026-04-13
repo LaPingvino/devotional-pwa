@@ -555,15 +555,33 @@
     var code = 'quran:' + qRangeSurah + ':' + lo + (hi > lo ? '-' + hi : '');
     qBanner = document.createElement('div');
     qBanner.className = 'range-banner';
-    qBanner.innerHTML = '<span>Surah ' + qRangeSurah + ':' + lo + (hi > lo ? '\u2013' + hi : '') + '</span> ' +
+    var label = 'Surah ' + qRangeSurah + ':' + lo + (hi > lo ? '\u2013' + hi : '');
+    qBanner.innerHTML = '<span>' + label + '</span> ' +
+      '<button class="btn-action btn-small range-fullscreen" title="Full screen">\u26F6</button> ' +
       '<button class="btn-action btn-small range-add">' + window.__t('verse_add') + '</button> ' +
       '<button class="btn-action btn-small range-cancel">\u2715</button>';
-    document.querySelector('.main-content').prepend(qBanner);
+    document.body.appendChild(qBanner);
     qBanner.querySelector('.range-add').addEventListener('click', function() {
       addCode(code);
       clearQRange();
     });
     qBanner.querySelector('.range-cancel').addEventListener('click', clearQRange);
+    qBanner.querySelector('.range-fullscreen').addEventListener('click', function() {
+      var verses = document.querySelectorAll('.verse[data-surah="' + qRangeSurah + '"]');
+      var html = '';
+      verses.forEach(function(v) {
+        var ayah = parseInt(v.dataset.ayah);
+        if (ayah < lo || ayah > hi) return;
+        var text = v.querySelector('.ayah-text');
+        if (text) html += '<p><sup>' + ayah + '</sup> ' + text.innerHTML + '</p>';
+      });
+      var overlay = document.createElement('div');
+      overlay.className = 'expanded-overlay';
+      overlay.innerHTML = '<button class="expand-close">\u2716</button><h2>' + label + '</h2>' + html;
+      document.body.appendChild(overlay);
+      overlay.querySelector('.expand-close').addEventListener('click', function() { overlay.remove(); });
+      document.addEventListener('keydown', function esc(e) { if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', esc); } });
+    });
   }
   document.querySelectorAll('.surah-section .range-marker').forEach(function(el) {
     el.style.cursor = 'pointer';
