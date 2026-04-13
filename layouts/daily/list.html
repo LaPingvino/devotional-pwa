@@ -908,14 +908,33 @@
     setTimeout(function() { beep(1047, 0.5, 'sine', 0.3); }, 500);
   }
 
+  // ── Vibration patterns (matching beep tiers) ──
+  function vibrateNormal() { if (navigator.vibrate) navigator.vibrate(15); }
+  function vibrate19() { if (navigator.vibrate) navigator.vibrate([30, 40, 60]); }
+  function vibrate95() { if (navigator.vibrate) navigator.vibrate([60, 40, 60, 40, 100]); }
+
   // ── Allah-u-Abha counter ──
+  // Feedback modes: 'none' → 'sound' → 'vibrate' → 'both'
+  var FEEDBACK_MODES = ['none', 'sound', 'vibrate', 'both'];
+  var FEEDBACK_ICONS = {none: '\uD83D\uDD07', sound: '\uD83D\uDD0A', vibrate: '\uD83D\uDCF3', both: '\uD83D\uDD14'};
+
   function initAbha() {
     let count = loadState('abha', 0);
-    let beepOn = loadState('abha_beep', false);
+    // Migrate old boolean beep setting
+    let mode = loadState('abha_feedback', null);
+    if (mode === null) {
+      const oldBeep = loadState('abha_beep', false);
+      mode = oldBeep ? 'sound' : 'none';
+    }
+    if (FEEDBACK_MODES.indexOf(mode) < 0) mode = 'none';
+
     const btn = $('abha-btn');
     const countEl = $('abha-count');
     const doneEl = $('abha-done');
-    const beepBtn = $('abha-beep');
+    const fbBtn = $('abha-beep');
+
+    const wantSound = () => mode === 'sound' || mode === 'both';
+    const wantVibrate = () => mode === 'vibrate' || mode === 'both';
 
     function render() {
       countEl.textContent = count;
@@ -923,38 +942,48 @@
       btn.classList.toggle('done', done);
       doneEl.style.display = done ? '' : 'none';
     }
-    function renderBeep() {
-      beepBtn.textContent = beepOn ? '\uD83D\uDD0A' : '\uD83D\uDD07';
-      beepBtn.classList.toggle('on', beepOn);
+    function renderFeedback() {
+      fbBtn.textContent = FEEDBACK_ICONS[mode];
+      fbBtn.classList.toggle('on', mode !== 'none');
     }
+
+    function doFeedback(level) {
+      if (wantSound()) {
+        if (level === 95) beep95();
+        else if (level === 19) beep19();
+        else beepNormal();
+      }
+      if (wantVibrate()) {
+        if (level === 95) vibrate95();
+        else if (level === 19) vibrate19();
+        else vibrateNormal();
+      }
+    }
+
     render();
-    renderBeep();
+    renderFeedback();
 
     btn.addEventListener('click', () => {
       if (count < 95) {
         count++;
         saveState('abha', count);
         render();
-        // Haptic feedback
-        if (navigator.vibrate) navigator.vibrate(count >= 95 ? [50, 30, 50] : 15);
-        // Beep feedback
-        if (beepOn) {
-          if (count === 95) beep95();
-          else if (count % 19 === 0) beep19();
-          else beepNormal();
-        }
+        if (count === 95) doFeedback(95);
+        else if (count % 19 === 0) doFeedback(19);
+        else doFeedback(1);
       } else {
-        if (navigator.vibrate) navigator.vibrate([50, 30, 50]);
-        if (beepOn) beep95();
+        doFeedback(95);
       }
     });
 
-    beepBtn.addEventListener('click', () => {
-      beepOn = !beepOn;
-      saveState('abha_beep', beepOn);
-      renderBeep();
-      // Play a sample beep when enabling so user knows it works
-      if (beepOn) beepNormal();
+    fbBtn.addEventListener('click', () => {
+      const idx = FEEDBACK_MODES.indexOf(mode);
+      mode = FEEDBACK_MODES[(idx + 1) % FEEDBACK_MODES.length];
+      saveState('abha_feedback', mode);
+      renderFeedback();
+      // Sample feedback so user knows what they picked
+      if (wantSound()) beepNormal();
+      if (wantVibrate()) vibrateNormal();
     });
 
     $('abha-undo').addEventListener('click', () => {
