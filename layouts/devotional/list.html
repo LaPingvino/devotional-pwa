@@ -688,7 +688,14 @@
   let allLanguages = [];
   let prayerCache = {}; // lang → {phelps → prayer}
   let writingCache = {}; // `${key}/${lang}` → {phelps → entry}
-  let compareLangs = []; // extra language columns for comparison (may include 'translit')
+  let compareLangs = []; // extra language columns for comparison
+
+  // Virtual transliteration languages — handled by resolveCode via -translit suffix
+  var TRANSLIT_ENTRIES = [
+    {code: 'ar-translit', name: 'Arabic (Latin)', nameLC: 'arabic latin translit transliteration transliterated'},
+    {code: 'fa-translit', name: 'Persian (Latin)', nameLC: 'persian farsi latin translit transliteration transliterated'},
+  ];
+  function isTranslitCode(c) { return c && c.endsWith('-translit'); }
 
   function selectLang(code) {
     selectedLang = code;
@@ -1406,12 +1413,15 @@
     });
   }
 
-  $('btn-compare').addEventListener('click', function() {
+  $('btn-compare').addEventListener('click', function(e) {
+    e.stopPropagation();
     if (compareLangs.length === 0) {
-      // Start comparison mode — open the picker
+      // Start comparison mode — show bar and open the picker after a tick
       $('compare-bar').style.display = '';
       renderCompareBar();
-      $('compare-lang-dropdown').setAttribute('open', '');
+      setTimeout(function() {
+        $('compare-lang-dropdown').setAttribute('open', '');
+      }, 0);
     } else {
       // Toggle off
       compareLangs = [];
@@ -1420,14 +1430,7 @@
     }
   });
 
-  // Populate compare language picker (includes translit virtual entries)
-  // Virtual transliteration languages — handled by resolveCode via -translit suffix
-  var TRANSLIT_ENTRIES = [
-    {code: 'ar-translit', name: 'Arabic (Latin)', nameLC: 'arabic latin translit transliteration transliterated'},
-    {code: 'fa-translit', name: 'Persian (Latin)', nameLC: 'persian farsi latin translit transliteration transliterated'},
-  ];
-  function isTranslitCode(c) { return c && c.endsWith('-translit'); }
-
+  // Populate compare language picker
   function buildCompareLangList() {
     var list = $('compare-lang-list');
     list.innerHTML = '';
@@ -1508,7 +1511,7 @@
     }
   });
   document.addEventListener('click', function(e) {
-    if (!comparePicker.contains(e.target)) comparePicker.removeAttribute('open');
+    if (!comparePicker.contains(e.target) && e.target.id !== 'btn-compare') comparePicker.removeAttribute('open');
   });
 
   $('compare-off').addEventListener('click', function() {
