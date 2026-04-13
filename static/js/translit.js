@@ -542,6 +542,10 @@
     s = s.replace(/([aeiou\u00E1\u00ED\u00FA]) All\u00E1h/g, '$1\'ll\u00E1h');
     // Liaison: word ending in consonant + i + space + al-X → 'l-X (genitive construct)
     s = s.replace(/i (al-)/g, 'i\'$1');
+    // Capitalize start of sentences (after . ! ? or start of string)
+    s = s.replace(/(^|[.!?]\s*)([a-z\u00E1\u00ED\u00FA\u1E00-\u1EFF\u02BB])/g, function(m, pre, ch) {
+      return pre + ch.toUpperCase();
+    });
     return s;
   }
 
