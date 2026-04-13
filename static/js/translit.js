@@ -307,10 +307,9 @@
     // Double-alif cleanup
     s = s.replace(/a\u00E1/g, '\u00E1');
     s = s.replace(/\u00E1\u00E1/g, '\u00E1');
-    // Strip trailing grammatical case vowels on words (the -u, -i endings)
-    s = s.replace(/([bcdfghjklmnpqrstvwxyz\u1E00-\u1EFF])([ui])(?=[ \n,.]|$)/g, '$1');
-    // Strip tanwin endings (-an, -un, -in) at word end
-    s = s.replace(/(an|un|in)(?=[ \n,.]|$)/g, '');
+    // Strip only lone grammatical -u at absolute word end (nominative case marker)
+    // Don't strip -i (could be genitive or Persian ezafe) or -an/-in/-un (real endings)
+    s = s.replace(/([bcdfghjklmnpqrstvwxyz\u1E00-\u1EFF])u(?=[ \n,.]|$)/g, '$1');
     return s;
   }
 
