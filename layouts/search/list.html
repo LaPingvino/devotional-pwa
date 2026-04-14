@@ -21,7 +21,10 @@
 
   <div style="display:flex; gap:.5rem; align-items:center; margin-bottom:.5rem; flex-wrap:wrap;">
     <div id="exp-status" style="font-size:.85rem; color:var(--text-secondary);"></div>
-    <div style="margin-left:auto; font-size:.8rem; color:var(--text-secondary);">
+    <div style="margin-left:auto; display:flex; gap:.5rem; align-items:center; font-size:.8rem; color:var(--text-secondary);">
+      <label>Show: <select id="display-lang" style="padding:.15rem .3rem; border:1px solid var(--border); border-radius:3px; font-size:.8rem; background:var(--bg); color:var(--text);">
+        <option value="en">English</option>
+      </select></label>
       Sort:
       <button class="sort-btn active" data-sort="count" title="Most translations first">Languages ↓</button>
       <button class="sort-btn" data-sort="code" title="Alphabetical by code">Code ↑</button>
@@ -80,56 +83,72 @@ function phelpsUrl(pin) {
   return `/phelps/${pin.toLowerCase()}/`;
 }
 
-// Grouped data: { phelps -> { first, langs: [code,...], texts: "all texts joined" } }
+// Grouped data: { phelps -> { firsts: {lang: text}, langs: [code,...], searchBlob } }
 let grouped = {};
 let sortedKeys = [];
 let filtered = [];
 let activePrefix = '';
 let searchTerm = '';
 let sortMode = 'count';
+let displayLang = 'en';
+let allLangNames = {};
 
 async function loadData() {
   const res = await fetch('/data/search.json');
   const raw = await res.json();
 
   // Group by phelps code
+  const langCounts = {};
   raw.forEach(e => {
     let g = grouped[e.p];
     if (!g) {
-      g = { p: e.p, langs: new Set(), texts: [], first: '' };
+      g = { p: e.p, langs: new Set(), texts: [], firsts: {} };
       grouped[e.p] = g;
     }
     g.langs.add(e.l);
-    // Keep text snippet for searching (truncate each to save memory)
     g.texts.push(e.t.slice(0, 200).toLowerCase());
-    // Use English text as display first line, or first available
-    if (e.l === 'en' && !g.first) {
-      let t = e.t;
-      // Strip ## headers for display
-      t = t.replace(/^##\s+[^\n]+\n*/g, '').trim();
-      g.first = t.slice(0, 150);
+    // Store first line per language (strip ## headers)
+    if (!g.firsts[e.l]) {
+      let t = e.t.replace(/^##\s+[^\n]+\n*/g, '').trim();
+      g.firsts[e.l] = t.slice(0, 150);
     }
+    // Track language counts and names
+    langCounts[e.l] = (langCounts[e.l] || 0) + 1;
+    if (e.ln) allLangNames[e.l] = e.ln;
   });
 
-  // Fill in first line from any language if no English
+  // Finalize groups
   for (const p in grouped) {
     const g = grouped[p];
-    if (!g.first && g.texts.length > 0) {
-      let t = g.texts[0];
-      // Try to get a non-header line
-      const orig = raw.find(e => e.p === p);
-      if (orig) {
-        let ot = orig.t.replace(/^##\s+[^\n]+\n*/g, '').trim();
-        g.first = ot.slice(0, 150);
-      }
-    }
-    // Convert Set to sorted array and join texts for search
     g.langsArr = Array.from(g.langs).sort();
     g.n = g.langsArr.length;
     g.searchBlob = g.texts.join(' ');
-    delete g.texts; // free memory
+    delete g.texts;
     delete g.langs;
   }
+
+  // Populate display language dropdown with languages sorted by entry count
+  const langSelect = document.getElementById('display-lang');
+  const uiLang = (window.__uiLang || 'en').split('-')[0];
+  const sortedLangs = Object.keys(langCounts)
+    .filter(l => allLangNames[l])
+    .sort((a, b) => {
+      // UI language first, then by count
+      if (a === uiLang || a === window.__uiLang) return -1;
+      if (b === uiLang || b === window.__uiLang) return 1;
+      return langCounts[b] - langCounts[a];
+    });
+  langSelect.innerHTML = '';
+  sortedLangs.forEach(l => {
+    const opt = document.createElement('option');
+    opt.value = l;
+    opt.textContent = (allLangNames[l] || l) + ' (' + langCounts[l] + ')';
+    langSelect.appendChild(opt);
+  });
+  // Default to UI language if available, else English
+  displayLang = sortedLangs.includes(uiLang) ? uiLang :
+                sortedLangs.includes('en') ? 'en' : sortedLangs[0];
+  langSelect.value = displayLang;
 
   sortedKeys = Object.keys(grouped);
   document.getElementById('exp-status').textContent = sortedKeys.length.toLocaleString() + ' prayer codes loaded';
@@ -175,7 +194,7 @@ function renderTable() {
   rows.forEach(p => {
     const g = grouped[p];
     const pinLink = `<a href="${phelpsUrl(p)}">${p}</a>`;
-    const desc = g.first || '';
+    const desc = g.firsts[displayLang] || g.firsts['en'] || Object.values(g.firsts)[0] || '';
     const descShort = desc.length > 120 ? desc.slice(0, 120) + '…' : desc;
     const author = authorFromPin(p);
 
@@ -226,6 +245,12 @@ document.querySelectorAll('.sort-btn').forEach(btn => {
     sortMode = btn.dataset.sort;
     applyFilters();
   });
+});
+
+// Display language
+document.getElementById('display-lang').addEventListener('change', e => {
+  displayLang = e.target.value;
+  renderTable();
 });
 
 // Search with debounce
