@@ -13,6 +13,7 @@
     <button class="prefix-btn" data-prefix="BHU">BHU</button>
     <button class="prefix-btn" data-prefix="ABU">ABU</button>
     <button class="prefix-btn" data-prefix="BBU">BBU</button>
+    <button class="prefix-btn" data-prefix="UH" title="Universal House of Justice">UH</button>
     <button class="prefix-btn" data-prefix="TMP">TMP</button>
     <button class="prefix-btn" data-prefix="X">X</button>
     <input type="search" class="search-box" id="exp-search" placeholder="Search code, first line, subjects…">
@@ -62,6 +63,11 @@ const AUTHORS = {
   AB: "ʻAbdu'l-Bahá", ABU: "ʻAbdu'l-Bahá",
   BB: "The Báb", BBU: "The Báb",
   XBH: "Bahá'u'lláh", XAB: "ʻAbdu'l-Bahá",
+  UHR: "Universal House of Justice",
+  UHRSEA: "Universal House of Justice", UHRPAC: "Universal House of Justice",
+  UHRWCA: "Universal House of Justice", UHRLAC: "Universal House of Justice",
+  UHRAFR: "Universal House of Justice", UHREUR: "Universal House of Justice",
+  UHRNAM: "Universal House of Justice", UHRSAS: "Universal House of Justice",
 };
 
 function authorFromPin(pin) {
@@ -101,6 +107,8 @@ function applyFilters() {
     if (activePrefix) {
       if (activePrefix === 'X') {
         if (!e.p.startsWith('X')) return false;
+      } else if (activePrefix === 'UH') {
+        if (!e.p.startsWith('UH')) return false;
       } else if (pre !== activePrefix) return false;
     }
     if (searchTerm) {
