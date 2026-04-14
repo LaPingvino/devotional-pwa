@@ -2,7 +2,7 @@
 <div class="main-content">
   <h1 data-i18n="search_title">Search</h1>
   <p style="color:var(--text-secondary); margin-bottom:1rem;">
-    Browse all prayers and writings by Phelps code. Sorted by number of translations.
+    Browse all prayers and writings by Phelps code. Search works across all languages.
   </p>
 
   <div class="inventory-controls">
@@ -16,7 +16,7 @@
     <button class="prefix-btn" data-prefix="UH" title="Universal House of Justice">UH</button>
     <button class="prefix-btn" data-prefix="TMP">TMP</button>
     <button class="prefix-btn" data-prefix="X">X</button>
-    <input type="search" class="search-box" id="exp-search" placeholder="Search code, first line, subjects…">
+    <input type="search" class="search-box" id="exp-search" placeholder="Search in any language…">
   </div>
 
   <div style="display:flex; gap:.5rem; align-items:center; margin-bottom:.5rem; flex-wrap:wrap;">
@@ -31,10 +31,10 @@
   <table class="inventory-table" id="exp-table">
     <thead>
       <tr>
-        <th style="cursor:pointer" id="th-code">Code</th>
+        <th>Code</th>
         <th>Author</th>
-        <th>First line / Description</th>
-        <th style="cursor:pointer; text-align:right" id="th-langs"># Langs</th>
+        <th>First line</th>
+        <th style="text-align:right"># Langs</th>
         <th>Languages</th>
       </tr>
     </thead>
@@ -63,21 +63,12 @@ const AUTHORS = {
   AB: "ʻAbdu'l-Bahá", ABU: "ʻAbdu'l-Bahá",
   BB: "The Báb", BBU: "The Báb",
   XBH: "Bahá'u'lláh", XAB: "ʻAbdu'l-Bahá",
-  UHR: "Universal House of Justice",
-  UHRSEA: "Universal House of Justice", UHRPAC: "Universal House of Justice",
-  UHRWCA: "Universal House of Justice", UHRLAC: "Universal House of Justice",
-  UHRAFR: "Universal House of Justice", UHREUR: "Universal House of Justice",
-  UHRNAM: "Universal House of Justice", UHRSAS: "Universal House of Justice",
+  UH: "Universal House of Justice", UHR: "Universal House of Justice",
 };
 
 function authorFromPin(pin) {
   const m = pin.match(/^([A-Z]+)/);
   return m ? (AUTHORS[m[1]] || '') : '';
-}
-
-function prefixFromPin(pin) {
-  const m = pin.match(/^([A-Z]+)/);
-  return m ? m[1] : '';
 }
 
 function phelpsUrl(pin) {
@@ -89,42 +80,86 @@ function phelpsUrl(pin) {
   return `/phelps/${pin.toLowerCase()}/`;
 }
 
-let allEntries = [];
+// Grouped data: { phelps -> { first, langs: [code,...], texts: "all texts joined" } }
+let grouped = {};
+let sortedKeys = [];
 let filtered = [];
 let activePrefix = '';
 let searchTerm = '';
-let sortMode = 'count'; // 'count' or 'code'
+let sortMode = 'count';
 
-async function loadExplorer() {
-  const res = await fetch('/data/explorer.json');
-  allEntries = await res.json();
+async function loadData() {
+  const res = await fetch('/data/search.json');
+  const raw = await res.json();
+
+  // Group by phelps code
+  raw.forEach(e => {
+    let g = grouped[e.p];
+    if (!g) {
+      g = { p: e.p, langs: new Set(), texts: [], first: '' };
+      grouped[e.p] = g;
+    }
+    g.langs.add(e.l);
+    // Keep text snippet for searching (truncate each to save memory)
+    g.texts.push(e.t.slice(0, 200).toLowerCase());
+    // Use English text as display first line, or first available
+    if (e.l === 'en' && !g.first) {
+      let t = e.t;
+      // Strip ## headers for display
+      t = t.replace(/^##\s+[^\n]+\n*/g, '').trim();
+      g.first = t.slice(0, 150);
+    }
+  });
+
+  // Fill in first line from any language if no English
+  for (const p in grouped) {
+    const g = grouped[p];
+    if (!g.first && g.texts.length > 0) {
+      let t = g.texts[0];
+      // Try to get a non-header line
+      const orig = raw.find(e => e.p === p);
+      if (orig) {
+        let ot = orig.t.replace(/^##\s+[^\n]+\n*/g, '').trim();
+        g.first = ot.slice(0, 150);
+      }
+    }
+    // Convert Set to sorted array and join texts for search
+    g.langsArr = Array.from(g.langs).sort();
+    g.n = g.langsArr.length;
+    g.searchBlob = g.texts.join(' ');
+    delete g.texts; // free memory
+    delete g.langs;
+  }
+
+  sortedKeys = Object.keys(grouped);
+  document.getElementById('exp-status').textContent = sortedKeys.length.toLocaleString() + ' prayer codes loaded';
   applyFilters();
 }
 
+function matchesPrefix(pin) {
+  if (!activePrefix) return true;
+  if (activePrefix === 'X') return pin.startsWith('X');
+  if (activePrefix === 'UH') return pin.startsWith('UH');
+  const m = pin.match(/^([A-Z]+)/);
+  return m && m[1] === activePrefix;
+}
+
 function applyFilters() {
-  filtered = allEntries.filter(e => {
-    const pre = prefixFromPin(e.p);
-    if (activePrefix) {
-      if (activePrefix === 'X') {
-        if (!e.p.startsWith('X')) return false;
-      } else if (activePrefix === 'UH') {
-        if (!e.p.startsWith('UH')) return false;
-      } else if (pre !== activePrefix) return false;
-    }
-    if (searchTerm) {
-      const q = searchTerm.toLowerCase();
-      return e.p.toLowerCase().includes(q)
-          || (e.f || '').toLowerCase().includes(q)
-          || (e.t || '').toLowerCase().includes(q)
-          || (e.s || '').toLowerCase().includes(q);
-    }
-    return true;
+  const q = searchTerm.toLowerCase();
+  filtered = sortedKeys.filter(p => {
+    if (!matchesPrefix(p)) return false;
+    if (!q) return true;
+    const g = grouped[p];
+    // Search code first (fast)
+    if (p.toLowerCase().includes(q)) return true;
+    // Then search across all language texts
+    return g.searchBlob.includes(q);
   });
 
   if (sortMode === 'count') {
-    filtered.sort((a, b) => b.n - a.n || a.p.localeCompare(b.p));
+    filtered.sort((a, b) => grouped[b].n - grouped[a].n || a.localeCompare(b));
   } else {
-    filtered.sort((a, b) => a.p.localeCompare(b.p));
+    filtered.sort();
   }
 
   renderTable();
@@ -137,31 +172,31 @@ function renderTable() {
 
   const rows = filtered.slice(0, 500);
   let html = '';
-  rows.forEach(e => {
-    const pinLink = `<a href="${phelpsUrl(e.p)}">${e.p}</a>`;
-    const desc = e.f || e.t || '';
+  rows.forEach(p => {
+    const g = grouped[p];
+    const pinLink = `<a href="${phelpsUrl(p)}">${p}</a>`;
+    const desc = g.first || '';
     const descShort = desc.length > 120 ? desc.slice(0, 120) + '…' : desc;
-    const author = authorFromPin(e.p);
+    const author = authorFromPin(p);
 
-    // Show first 10 languages as chips, rest as count
-    const langs = e.l || [];
+    const langs = g.langsArr;
     let langHtml = '';
     const show = langs.slice(0, 12);
     show.forEach(l => {
-      langHtml += `<a class="lang-chip" href="/prayers/${l}/#${e.p}" title="${l}">${l}</a>`;
+      langHtml += `<a class="lang-chip" href="/prayers/${l}/#${p}" title="${l}">${l}</a>`;
     });
     if (langs.length > 12) {
       langHtml += `<span style="font-size:.7rem;color:var(--text-secondary)">+${langs.length - 12}</span>`;
     }
 
-    const countStyle = e.n >= 50 ? 'font-weight:700;color:var(--accent)' :
-                       e.n >= 10 ? 'font-weight:600' : 'color:var(--text-secondary)';
+    const countStyle = g.n >= 50 ? 'font-weight:700;color:var(--accent)' :
+                       g.n >= 10 ? 'font-weight:600' : 'color:var(--text-secondary)';
 
     html += `<tr>
       <td class="pin-cell">${pinLink}</td>
       <td style="font-size:.75rem; color:var(--text-secondary); white-space:nowrap">${author}</td>
       <td style="font-size:.85rem">${descShort}</td>
-      <td style="text-align:right; ${countStyle}">${e.n}</td>
+      <td style="text-align:right; ${countStyle}">${g.n}</td>
       <td style="font-size:.8rem; max-width:200px">${langHtml}</td>
     </tr>`;
   });
@@ -193,14 +228,14 @@ document.querySelectorAll('.sort-btn').forEach(btn => {
   });
 });
 
-// Search
+// Search with debounce
 let searchTimer;
 document.getElementById('exp-search').addEventListener('input', e => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(() => {
     searchTerm = e.target.value.trim();
     applyFilters();
-  }, 200);
+  }, 300);
 });
 
 // URL params
@@ -216,6 +251,6 @@ if (urlParams.get('prefix')) {
   });
 }
 
-loadExplorer();
+loadData();
 </script>
 {{ partial "foot.html" . }}
