@@ -49,7 +49,10 @@
       {{ $baseL := replaceRE "[a-z]{3}$" "" $pinL }}
       {{ $suffix := strings.TrimPrefix $baseL $pinL }}
       {{ $plainText := replaceRE `#+\s+[^\n]+` "" .text }}
+      {{ $isCJK := or (eq $lang "ja") (eq $lang "ko") (eq $lang "zh-Hans") (eq $lang "zh-Hant") }}
       {{ $wc := len (findRE `\S+` $plainText) }}
+      {{ $wcLabel := printf "~%dw" $wc }}
+      {{ if $isCJK }}{{ $wc = strings.CountRunes $plainText }}{{ $charUnit := cond (eq $lang "ko") "자" "字" }}{{ $wcLabel = printf "~%d%s" $wc $charUnit }}{{ end }}
       {{ $preview := replaceRE `\s+` " " (replaceRE `[*#\[\]()>]` "" $plainText) | truncate 60 "…" }}
       <article class="prayer-card folded" id="{{ $pin }}"
                data-cat="{{ .category }}"
@@ -59,7 +62,7 @@
           <span class="prayer-toggle" aria-hidden="true">▶</span>
           {{ with .name }}<span class="prayer-name">{{ . }}</span>{{ end }}
           <span class="prayer-preview">{{ $preview }}</span>
-          <span class="word-count">~{{ $wc }}w</span>
+          <span class="word-count">{{ $wcLabel }}</span>
           <span class="prayer-phelps">
             <a href="/phelps/{{ $baseL }}/{{ if $suffix }}#{{ $suffix }}{{ end }}" title="All translations">{{ $pin }}</a>
             <a href="/inventory/?pin={{ $baseL | upper }}" title="Inventory entry" style="opacity:.6; font-size:.8em; margin-left:.3em">↗</a>
