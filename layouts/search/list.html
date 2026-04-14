@@ -131,6 +131,44 @@ let displayLang = 'en';
 let displayLang2 = '';
 let allLangNames = {};
 
+const loadedPrayerLangs = new Set();
+async function loadPrayerFirstLines(lang) {
+  if (!lang || loadedPrayerLangs.has(lang)) return;
+  loadedPrayerLangs.add(lang);
+  try {
+    const res = await fetch(`/data/prayers/${lang}.json`);
+    if (!res.ok) return;
+    const data = await res.json();
+    const prayers = data.prayers || [];
+    prayers.forEach(p => {
+      const g = grouped[p.phelps];
+      if (!g) return; // prayer not in search index — skip
+      if (g.firsts[lang]) return; // already have first line from search.json
+      let t = (p.text || '').replace(/<[^>]*>/g, '').replace(/^##\s+[^\n]+\n*/g, '').trim();
+      if (t) g.firsts[lang] = t.slice(0, 150);
+    });
+    // Also add prayer codes not yet in grouped (prayer-only entries)
+    prayers.forEach(p => {
+      if (grouped[p.phelps]) {
+        // Ensure lang is in langsArr if not already
+        if (!grouped[p.phelps].langsArr.includes(lang)) {
+          grouped[p.phelps].langsArr.push(lang);
+          grouped[p.phelps].langsArr.sort();
+          grouped[p.phelps].n = grouped[p.phelps].langsArr.length;
+        }
+        return;
+      }
+      let t = (p.text || '').replace(/<[^>]*>/g, '').replace(/^##\s+[^\n]+\n*/g, '').trim();
+      const firsts = {};
+      if (t) firsts[lang] = t.slice(0, 150);
+      grouped[p.phelps] = {
+        p: p.phelps, langsArr: [lang], n: 1, searchBlob: (t || '').slice(0, 200).toLowerCase(), firsts: firsts
+      };
+      sortedKeys.push(p.phelps);
+    });
+  } catch(e) { /* lang file doesn't exist, that's fine */ }
+}
+
 async function loadData() {
   const res = await fetch('/data/search.json');
   const raw = await res.json();
@@ -176,13 +214,19 @@ async function loadData() {
       return langCounts[b] - langCounts[a];
     });
 
-  buildLangPicker('lang1', sorted, langCounts, bestMatch, function(code) {
+  // Also include prayer-only languages in the counts/picker
+  // (some languages only have prayers, not writings)
+  await loadPrayerFirstLines(bestMatch);
+
+  buildLangPicker('lang1', sorted, langCounts, bestMatch, async function(code) {
     displayLang = code;
+    await loadPrayerFirstLines(code);
     renderTable();
   });
-  buildLangPicker('lang2', sorted, langCounts, '', function(code) {
+  buildLangPicker('lang2', sorted, langCounts, '', async function(code) {
     displayLang2 = code;
     document.getElementById('th-second').style.display = code ? '' : 'none';
+    if (code) await loadPrayerFirstLines(code);
     renderTable();
   });
 
