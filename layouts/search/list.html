@@ -432,6 +432,18 @@ function renderTable() {
       … ${(filtered.length - 500).toLocaleString()} more. Refine your search.
     </td></tr>`;
   }
+  // Re-apply transliteration if active
+  if (window.__translitActive && window.__translitActive()) {
+    // Remove old table annotations, re-add on new content
+    var table = document.getElementById('exp-table');
+    table.querySelectorAll('.translit-line, .translit-replaced').forEach(function(el) {
+      if (el.classList.contains('translit-replaced')) {
+        var orig = el.getAttribute('data-translit-orig');
+        if (orig) { el.innerHTML = orig; el.removeAttribute('data-translit-orig'); el.classList.remove('translit-replaced'); }
+      } else { el.remove(); }
+    });
+    if (window.__addTranslitIn) window.__addTranslitIn(table);
+  }
 }
 
 // Prefix buttons

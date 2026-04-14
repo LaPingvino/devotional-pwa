@@ -602,7 +602,7 @@
       root,
       NodeFilter.SHOW_ELEMENT,
       { acceptNode: function(node) {
-        if (node.closest('.site-header, .sidebar, script, style, .translit-line, .nav-dropdown-menu, .ui-lang-menu, .inventory-table, .inventory-controls, .search-lang-dropdown')) return NodeFilter.FILTER_REJECT;
+        if (node.closest('.site-header, .sidebar, script, style, .translit-line, .nav-dropdown-menu, .ui-lang-menu, .search-lang-dropdown')) return NodeFilter.FILTER_REJECT;
         var dir = node.getAttribute('dir');
         var text = node.textContent || '';
         if ((dir === 'rtl' || hasArabic(text)) && node.children.length === 0 && text.trim().length > 0) {
@@ -653,6 +653,10 @@
     annotations = addTranslitIn(document.body);
     active = true;
   }
+
+  // Expose for dynamic content (search table re-renders)
+  window.__translitActive = function() { return active; };
+  window.__addTranslitIn = function(root) { annotations = annotations.concat(addTranslitIn(root)); };
 
   function removeTranslit() {
     annotations.forEach(function(el) {
