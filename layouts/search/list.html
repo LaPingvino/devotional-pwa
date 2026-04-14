@@ -1,289 +1,213 @@
 {{ partial "head.html" (dict "Title" "Search" "Lang" "en") }}
 <div class="main-content">
   <h1 data-i18n="search_title">Search</h1>
-  <p style="color:var(--text-secondary); margin-bottom:1rem;" data-i18n="search_desc">
-    Search across prayers and writings in all languages.
+  <p style="color:var(--text-secondary); margin-bottom:1rem;">
+    Browse all prayers and writings by Phelps code. Sorted by number of translations.
   </p>
 
-  <div style="display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:1rem; align-items:start;">
-    <input type="search" id="q" placeholder="Search text, code, or keyword…" data-i18n-placeholder="search_placeholder" autofocus
-           style="flex:1; min-width:200px; padding:.6rem .8rem; border:1px solid var(--border); border-radius:6px; font-size:1rem; background:var(--bg); color:var(--text);">
-    <details class="search-lang-dropdown" id="lang-dropdown">
-      <summary id="lang-label" data-i18n="search_all_languages">All languages</summary>
-      <div class="search-lang-panel">
-        <input type="search" class="search-lang-filter" id="lang-filter-input" placeholder="Filter languages..." data-i18n-placeholder="filter_languages" autocomplete="off">
-        <div class="search-tier-bar" id="lang-tiers">
-          <button class="tier-btn active" data-min="5">5+</button>
-          <button class="tier-btn" data-min="20">20+</button>
-          <button class="tier-btn" data-min="50">50+</button>
-          <button class="tier-btn" data-min="1">All</button>
-        </div>
-        <div class="search-lang-list" id="lang-list"></div>
-      </div>
-    </details>
-    <select id="cat-filter" style="padding:.5rem; border:1px solid var(--border); border-radius:6px; background:var(--bg); color:var(--text);">
-      <option value="" data-i18n="search_all_types">All types</option>
-      <option value="prayer" data-i18n="prayers_count">Prayers</option>
-      <option value="Hidden Words" data-i18n="writing_hidden_words">Hidden Words</option>
-      <option value="Kitáb-i-Aqdas" data-i18n="writing_aqdas">Kitáb-i-Aqdas</option>
-      <option value="Kitáb-i-Íqán" data-i18n="writing_iqan">Kitáb-i-Íqán</option>
-      <option value="Gleanings" data-i18n="writing_gleanings">Gleanings</option>
-      <option value="Prayers & Meditations" data-i18n="writing_pm">Prayers & Meditations</option>
-      <option value="Some Answered Questions" data-i18n="writing_saq">Some Answered Questions</option>
-      <option value="Tablets of Bahá'u'lláh" data-i18n="writing_tablets">Tablets</option>
-      <option value="Days of Remembrance" data-i18n="writing_days">Days of Remembrance</option>
-      <option value="Ridván Messages" data-i18n="writing_ridvan">Ridván Messages</option>
-      <option value="Tablets of the Divine Plan" data-i18n="writing_divineplan">Tablets of the Divine Plan</option>
-      <option value="Other Tablets" data-i18n="writing_other_tablets">Other Tablets</option>
-    </select>
+  <div class="inventory-controls">
+    <button class="prefix-btn active" data-prefix="">All</button>
+    <button class="prefix-btn" data-prefix="BH" title="Bahá'u'lláh">BH</button>
+    <button class="prefix-btn" data-prefix="AB" title="ʻAbdu'l-Bahá">AB</button>
+    <button class="prefix-btn" data-prefix="BB" title="The Báb">BB</button>
+    <button class="prefix-btn" data-prefix="BHU">BHU</button>
+    <button class="prefix-btn" data-prefix="ABU">ABU</button>
+    <button class="prefix-btn" data-prefix="BBU">BBU</button>
+    <button class="prefix-btn" data-prefix="TMP">TMP</button>
+    <button class="prefix-btn" data-prefix="X">X</button>
+    <input type="search" class="search-box" id="exp-search" placeholder="Search code, first line, subjects…">
   </div>
 
-  <div id="status" style="font-size:.85rem; color:var(--text-secondary); margin-bottom:.5rem;"></div>
-  <div id="results"></div>
+  <div style="display:flex; gap:.5rem; align-items:center; margin-bottom:.5rem; flex-wrap:wrap;">
+    <div id="exp-status" style="font-size:.85rem; color:var(--text-secondary);"></div>
+    <div style="margin-left:auto; font-size:.8rem; color:var(--text-secondary);">
+      Sort:
+      <button class="sort-btn active" data-sort="count" title="Most translations first">Languages ↓</button>
+      <button class="sort-btn" data-sort="code" title="Alphabetical by code">Code ↑</button>
+    </div>
+  </div>
+
+  <table class="inventory-table" id="exp-table">
+    <thead>
+      <tr>
+        <th style="cursor:pointer" id="th-code">Code</th>
+        <th>Author</th>
+        <th>First line / Description</th>
+        <th style="cursor:pointer; text-align:right" id="th-langs"># Langs</th>
+        <th>Languages</th>
+      </tr>
+    </thead>
+    <tbody id="exp-body">
+      <tr><td colspan="5" style="padding:1rem; color:var(--text-secondary)">Loading…</td></tr>
+    </tbody>
+  </table>
 </div>
 
 <style>
-/* Language dropdown */
-.search-lang-dropdown { position: relative; }
-.search-lang-dropdown summary {
-  padding: .5rem .8rem; border: 1px solid var(--border); border-radius: 6px;
-  background: var(--bg); font-size: .9rem; cursor: pointer; list-style: none; color: var(--text); white-space: nowrap;
+.sort-btn {
+  padding: .15rem .5rem; border: 1px solid var(--border); border-radius: 3px;
+  background: var(--surface); cursor: pointer; font-size: .8rem; color: var(--text-secondary);
 }
-.search-lang-dropdown summary::-webkit-details-marker { display: none; }
-.search-lang-panel {
-  position: fixed; top: auto; left: 1rem; right: 1rem;
-  margin-top: 2px;
-  background: var(--surface, #fff); border: 1px solid var(--border); border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0,0,0,.15); max-width: 320px; max-height: 400px;
-  overflow: hidden; z-index: 200; display: flex; flex-direction: column;
+.sort-btn:hover, .sort-btn.active { border-color: var(--accent); color: var(--accent); background: #fff3ef; }
+.lang-chip {
+  display:inline-block; padding:.05rem .3rem; margin:.05rem; background:#f0f0f0;
+  border-radius:3px; font-size:.7rem; color:var(--text); text-decoration:none;
 }
-.search-lang-filter {
-  margin: .4rem; padding: .3rem .5rem; border: 1px solid var(--border); border-radius: 4px;
-  font-size: .85rem; background: var(--bg); color: var(--text);
-}
-.search-tier-bar { display: flex; gap: .3rem; padding: .3rem .4rem 0; }
-.tier-btn {
-  flex: 1; padding: .15rem .3rem; border: 1px solid var(--border); border-radius: 4px;
-  font-size: .75rem; cursor: pointer; background: var(--bg); color: var(--text-secondary); text-align: center;
-}
-.tier-btn:hover { border-color: var(--accent); color: var(--accent); }
-.tier-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
-.search-lang-list { overflow-y: auto; max-height: 300px; }
-.search-lang-list a {
-  display: flex; justify-content: space-between; padding: .3rem .6rem;
-  font-size: .85rem; color: var(--text); text-decoration: none; cursor: pointer;
-}
-.search-lang-list a:hover { background: #fff3ef; }
-.search-lang-list a.active { font-weight: 700; color: var(--accent); }
-.lang-count-badge { font-size: .75rem; color: var(--text-secondary); }
-
-.search-result { padding:.8rem; margin-bottom:.5rem; border:1px solid var(--border); border-radius:6px; }
-.search-result:hover { background: var(--bg-hover, #f8f8f8); }
-.search-result .sr-header { display:flex; gap:.5rem; align-items:baseline; flex-wrap:wrap; }
-.search-result .sr-code { font-family:monospace; font-weight:600; color:var(--accent); text-decoration:none; }
-.search-result .sr-lang { font-size:.8rem; color:var(--text-secondary); }
-.search-result .sr-cat { font-size:.75rem; padding:.1rem .4rem; background:var(--accent); color:#fff; border-radius:3px; }
-.search-result .sr-text { margin-top:.3rem; font-size:.9rem; line-height:1.4; color:var(--text); }
-.search-result .sr-text mark { background:#ffe066; padding:0 2px; border-radius:2px; }
-.search-result .sr-add { margin-left:auto; cursor:pointer; background:none; border:1px solid var(--border); border-radius:4px; padding:.2rem .5rem; font-size:.8rem; color:var(--text-secondary); }
-.search-result .sr-add:hover { background:var(--accent); color:#fff; border-color:var(--accent); }
+.lang-chip:hover { background:#ff7954; color:#fff; }
 </style>
 
 <script>
-(function() {
-  var data = null;
-  var DKEY = 'hw_devotional_codes';
-  function codeStr(item) { return typeof item === 'string' ? item : item.code; }
-  function hasCode(c) { try { return JSON.parse(localStorage.getItem(DKEY) || '[]').some(function(i) { return codeStr(i) === c; }); } catch(e) { return false; } }
-  function addCode(c) { try { var codes = JSON.parse(localStorage.getItem(DKEY) || '[]'); if (!codes.some(function(i) { return codeStr(i) === c; })) { codes.push({code: c}); localStorage.setItem(DKEY, JSON.stringify(codes)); } } catch(e) {} }
+const AUTHORS = {
+  BH: "Bahá'u'lláh", BHU: "Bahá'u'lláh",
+  AB: "ʻAbdu'l-Bahá", ABU: "ʻAbdu'l-Bahá",
+  BB: "The Báb", BBU: "The Báb",
+  XBH: "Bahá'u'lláh", XAB: "ʻAbdu'l-Bahá",
+};
 
-  var qInput = document.getElementById('q');
-  var catFilter = document.getElementById('cat-filter');
-  var statusEl = document.getElementById('status');
-  var resultsEl = document.getElementById('results');
-  var langDropdown = document.getElementById('lang-dropdown');
-  var langLabel = document.getElementById('lang-label');
-  var langList = document.getElementById('lang-list');
-  var langFilterInput = document.getElementById('lang-filter-input');
-  var selectedLang = '';
-  var langCounts = {};
-  var langNamesMap = {};
+function authorFromPin(pin) {
+  const m = pin.match(/^([A-Z]+)/);
+  return m ? (AUTHORS[m[1]] || '') : '';
+}
 
-  function selectLang(code) {
-    selectedLang = code;
-    if (code) {
-      langLabel.textContent = (langNamesMap[code] || code) + ' (' + (langCounts[code] || 0) + ')';
-    } else {
-      langLabel.textContent = window.__t('search_all_languages');
-    }
-    langList.querySelectorAll('a').forEach(function(a) { a.classList.toggle('active', a.dataset.code === code); });
-    langDropdown.removeAttribute('open');
-    doSearch();
+function prefixFromPin(pin) {
+  const m = pin.match(/^([A-Z]+)/);
+  return m ? m[1] : '';
+}
+
+function phelpsUrl(pin) {
+  const n = pin.length;
+  const suffix = pin.slice(n - 3);
+  if (/^[A-Z]{3}$/.test(suffix) && /\d/.test(pin[n - 4])) {
+    return `/phelps/${pin.slice(0, n - 3).toLowerCase()}/#${suffix.toLowerCase()}`;
   }
+  return `/phelps/${pin.toLowerCase()}/`;
+}
 
-  statusEl.textContent = window.__t('search_loading');
-  fetch('/data/search.json').then(function(r) { return r.json(); }).then(function(d) {
-    data = d;
-    statusEl.textContent = data.length.toLocaleString() + ' ' + window.__t('search_entries_loaded');
+let allEntries = [];
+let filtered = [];
+let activePrefix = '';
+let searchTerm = '';
+let sortMode = 'count'; // 'count' or 'code'
 
-    // Count per language
-    data.forEach(function(e) {
-      if (!langCounts[e.l]) langCounts[e.l] = 0;
-      langCounts[e.l]++;
-      if (e.ln) langNamesMap[e.l] = e.ln;
-    });
+async function loadExplorer() {
+  const res = await fetch('/data/explorer.json');
+  allEntries = await res.json();
+  applyFilters();
+}
 
-    // "All" option
-    var allLink = document.createElement('a');
-    allLink.href = '#'; allLink.dataset.code = ''; allLink.dataset.name = 'all'; allLink.dataset.count = '99999';
-    allLink.innerHTML = '<b>' + window.__t('search_all_languages') + '</b><span class="lang-count-badge">' + data.length + '</span>';
-    allLink.classList.add('active');
-    allLink.addEventListener('click', function(ev) { ev.preventDefault(); selectLang(''); });
-    langList.appendChild(allLink);
-
-    // Sort by count desc, UI language first
-    var uiBase = (window.__uiLang || 'en').split('-')[0];
-    var uiFull = window.__uiLang || 'en';
-    var sorted = Object.keys(langCounts).filter(function(l) { return langNamesMap[l]; })
-      .sort(function(a,b) {
-        var aUi = (a === uiFull || a === uiBase) ? 1 : 0;
-        var bUi = (b === uiFull || b === uiBase) ? 1 : 0;
-        if (aUi !== bUi) return bUi - aUi;
-        return langCounts[b] - langCounts[a];
-      });
-    sorted.forEach(function(l) {
-      var a = document.createElement('a');
-      a.href = '#'; a.dataset.code = l; a.dataset.name = (langNamesMap[l] || '').toLowerCase(); a.dataset.count = langCounts[l];
-      a.innerHTML = langNamesMap[l] + ' <span style="color:var(--text-secondary);font-size:.8em">' + l + '</span><span class="lang-count-badge">' + langCounts[l] + '</span>';
-      a.addEventListener('click', function(ev) { ev.preventDefault(); selectLang(l); });
-      langList.appendChild(a);
-    });
-
-    // Tier filter + text filter
-    var minEntries = 5;
-    function filterLangs() {
-      var q = langFilterInput.value.toLowerCase().trim();
-      langList.querySelectorAll('a').forEach(function(a) {
-        if (a.dataset.code === '') { a.style.display = ''; return; } // always show "All"
-        var nameMatch = !q || a.dataset.name.indexOf(q) >= 0 || a.dataset.code.indexOf(q) >= 0;
-        var countOk = parseInt(a.dataset.count) >= minEntries;
-        a.style.display = (nameMatch && countOk) ? '' : 'none';
-      });
+function applyFilters() {
+  filtered = allEntries.filter(e => {
+    const pre = prefixFromPin(e.p);
+    if (activePrefix) {
+      if (activePrefix === 'X') {
+        if (!e.p.startsWith('X')) return false;
+      } else if (pre !== activePrefix) return false;
     }
-    document.getElementById('lang-tiers').querySelectorAll('.tier-btn').forEach(function(btn) {
-      btn.addEventListener('click', function() {
-        document.getElementById('lang-tiers').querySelectorAll('.tier-btn').forEach(function(b) { b.classList.remove('active'); });
-        btn.classList.add('active');
-        minEntries = parseInt(btn.dataset.min);
-        filterLangs();
-      });
-    });
-    langFilterInput.addEventListener('input', filterLangs);
-    document.addEventListener('click', function(e) { if (!langDropdown.contains(e.target)) langDropdown.removeAttribute('open'); });
-    langDropdown.addEventListener('toggle', function() {
-      if (langDropdown.open) { langFilterInput.value = ''; langFilterInput.focus(); filterLangs(); }
-    });
-
-    // Check URL params
-    var params = new URLSearchParams(window.location.search);
-    if (params.get('q')) qInput.value = params.get('q');
-    if (params.get('lang')) selectLang(params.get('lang'));
-    if (params.get('cat')) catFilter.value = params.get('cat');
-    if (qInput.value || selectedLang) doSearch();
+    if (searchTerm) {
+      const q = searchTerm.toLowerCase();
+      return e.p.toLowerCase().includes(q)
+          || (e.f || '').toLowerCase().includes(q)
+          || (e.t || '').toLowerCase().includes(q)
+          || (e.s || '').toLowerCase().includes(q);
+    }
+    return true;
   });
 
-  var debounce = null;
-  function onInput() {
-    clearTimeout(debounce);
-    debounce = setTimeout(doSearch, 200);
+  if (sortMode === 'count') {
+    filtered.sort((a, b) => b.n - a.n || a.p.localeCompare(b.p));
+  } else {
+    filtered.sort((a, b) => a.p.localeCompare(b.p));
   }
-  qInput.addEventListener('input', onInput);
-  catFilter.addEventListener('change', doSearch);
 
-  function doSearch() {
-    if (!data) return;
-    var query = qInput.value.trim().toLowerCase();
-    var lang = selectedLang;
-    var cat = catFilter.value;
+  renderTable();
+}
 
-    if (!query && !lang && !cat) {
-      statusEl.textContent = data.length.toLocaleString() + ' ' + window.__t('search_entries_type');
-      resultsEl.innerHTML = '';
-      return;
+function renderTable() {
+  const tbody = document.getElementById('exp-body');
+  const status = document.getElementById('exp-status');
+  status.textContent = `${filtered.length.toLocaleString()} prayer codes`;
+
+  const rows = filtered.slice(0, 500);
+  let html = '';
+  rows.forEach(e => {
+    const pinLink = `<a href="${phelpsUrl(e.p)}">${e.p}</a>`;
+    const desc = e.f || e.t || '';
+    const descShort = desc.length > 120 ? desc.slice(0, 120) + '…' : desc;
+    const author = authorFromPin(e.p);
+
+    // Show first 10 languages as chips, rest as count
+    const langs = e.l || [];
+    let langHtml = '';
+    const show = langs.slice(0, 12);
+    show.forEach(l => {
+      langHtml += `<a class="lang-chip" href="/prayers/${l}/#${e.p}" title="${l}">${l}</a>`;
+    });
+    if (langs.length > 12) {
+      langHtml += `<span style="font-size:.7rem;color:var(--text-secondary)">+${langs.length - 12}</span>`;
     }
 
-    var results = [];
-    var words = query.split(/\s+/).filter(function(w) { return w.length > 0; });
+    const countStyle = e.n >= 50 ? 'font-weight:700;color:var(--accent)' :
+                       e.n >= 10 ? 'font-weight:600' : 'color:var(--text-secondary)';
 
-    for (var i = 0; i < data.length; i++) {
-      var e = data[i];
-      if (lang && e.l !== lang) continue;
-      if (cat) {
-        if (cat === 'prayer' && e.c) continue;
-        if (cat !== 'prayer' && e.c !== cat) continue;
-      }
-      if (words.length === 0) {
-        results.push(e);
-        if (results.length >= 200) break;
-        continue;
-      }
-      // All words must match somewhere (phelps, text, lang_name, category)
-      var haystack = (e.p + ' ' + e.t + ' ' + (e.ln || '') + ' ' + (e.c || '')).toLowerCase();
-      var allMatch = true;
-      for (var w = 0; w < words.length; w++) {
-        if (haystack.indexOf(words[w]) < 0) { allMatch = false; break; }
-      }
-      if (allMatch) {
-        results.push(e);
-        if (results.length >= 200) break;
-      }
-    }
-
-    statusEl.textContent = results.length >= 200 ? window.__t('search_results_200') : results.length + ' ' + window.__t('search_results');
-
-    // Update URL
-    var url = new URL(window.location);
-    if (query) url.searchParams.set('q', query); else url.searchParams.delete('q');
-    if (lang) url.searchParams.set('lang', lang); else url.searchParams.delete('lang');
-    if (cat) url.searchParams.set('cat', cat); else url.searchParams.delete('cat');
-    history.replaceState(null, '', url);
-
-    // Render
-    var html = '';
-    results.forEach(function(e) {
-      var text = e.t;
-      // Highlight matching words
-      if (words.length > 0) {
-        words.forEach(function(w) {
-          var re = new RegExp('(' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
-          text = text.replace(re, '<mark>$1</mark>');
-        });
-      }
-      var catBadge = e.c ? '<span class="sr-cat">' + e.c + '</span>' : '<span class="sr-cat" style="background:#888">' + window.__t('search_prayer') + '</span>';
-      var addBtn = '<button class="sr-add" data-code="' + e.p + '" title="' + window.__t('search_add_devotional') + '">+</button>';
-      html += '<div class="search-result">'
-        + '<div class="sr-header">'
-        + '<a href="' + e.u + '" class="sr-code">' + e.p + '</a>'
-        + '<span class="sr-lang">' + (e.ln || e.l) + '</span>'
-        + catBadge
-        + addBtn
-        + '</div>'
-        + '<div class="sr-text">' + text + '</div>'
-        + '</div>';
-    });
-    resultsEl.innerHTML = html;
-
-    // Wire up add buttons
-    resultsEl.querySelectorAll('.sr-add').forEach(function(btn) {
-      var code = btn.dataset.code;
-      if (hasCode(code)) { btn.textContent = '\u2713'; btn.style.background = 'var(--accent)'; btn.style.color = '#fff'; }
-      btn.addEventListener('click', function(ev) {
-        ev.preventDefault();
-        addCode(code);
-        btn.textContent = '\u2713'; btn.style.background = 'var(--accent)'; btn.style.color = '#fff';
-      });
-    });
+    html += `<tr>
+      <td class="pin-cell">${pinLink}</td>
+      <td style="font-size:.75rem; color:var(--text-secondary); white-space:nowrap">${author}</td>
+      <td style="font-size:.85rem">${descShort}</td>
+      <td style="text-align:right; ${countStyle}">${e.n}</td>
+      <td style="font-size:.8rem; max-width:200px">${langHtml}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+  if (filtered.length > 500) {
+    tbody.innerHTML += `<tr><td colspan="5" style="color:var(--text-secondary); padding:.5rem">
+      … ${(filtered.length - 500).toLocaleString()} more. Refine your search.
+    </td></tr>`;
   }
-})();
+}
+
+// Prefix buttons
+document.querySelectorAll('.prefix-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.prefix-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    activePrefix = btn.dataset.prefix;
+    applyFilters();
+  });
+});
+
+// Sort buttons
+document.querySelectorAll('.sort-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    sortMode = btn.dataset.sort;
+    applyFilters();
+  });
+});
+
+// Search
+let searchTimer;
+document.getElementById('exp-search').addEventListener('input', e => {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => {
+    searchTerm = e.target.value.trim();
+    applyFilters();
+  }, 200);
+});
+
+// URL params
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('q')) {
+  document.getElementById('exp-search').value = urlParams.get('q');
+  searchTerm = urlParams.get('q');
+}
+if (urlParams.get('prefix')) {
+  activePrefix = urlParams.get('prefix');
+  document.querySelectorAll('.prefix-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.prefix === activePrefix);
+  });
+}
+
+loadExplorer();
 </script>
 {{ partial "foot.html" . }}

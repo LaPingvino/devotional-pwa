@@ -525,6 +525,74 @@ func main() {
 	writeJSON(filepath.Join(staticDir, "search.json"), searchEntries)
 	log.Printf("  %d search entries", len(searchEntries))
 
+	// 8. Generate prayer explorer: one entry per phelps code with translation count
+	log.Println("→ generating prayer explorer (grouped by phelps, sorted by translation count)...")
+	type ExplorerEntry struct {
+		Phelps   string   `json:"p"`
+		Count    int      `json:"n"`
+		Langs    []string `json:"l"`
+		First    string   `json:"f,omitempty"`
+		Title    string   `json:"t,omitempty"`
+		Subjects string   `json:"s,omitempty"`
+	}
+	explorerMap := map[string]*ExplorerEntry{}
+	for _, e := range searchEntries {
+		ee, ok := explorerMap[e.Phelps]
+		if !ok {
+			ee = &ExplorerEntry{Phelps: e.Phelps}
+			explorerMap[e.Phelps] = ee
+		}
+		// Add language if not already present
+		found := false
+		for _, l := range ee.Langs {
+			if l == e.Language { found = true; break }
+		}
+		if !found {
+			ee.Langs = append(ee.Langs, e.Language)
+			ee.Count = len(ee.Langs)
+		}
+	}
+	// Also add prayer entries (some may not be in search index)
+	for pin, langs := range phelpsLangs {
+		ee, ok := explorerMap[pin]
+		if !ok {
+			ee = &ExplorerEntry{Phelps: pin}
+			explorerMap[pin] = ee
+		}
+		for _, lr := range langs {
+			found := false
+			for _, l := range ee.Langs {
+				if l == lr.Language { found = true; break }
+			}
+			if !found {
+				ee.Langs = append(ee.Langs, lr.Language)
+			}
+		}
+		ee.Count = len(ee.Langs)
+	}
+	// Enrich with inventory data
+	for pin, ee := range explorerMap {
+		if inv, ok := invMap[pin]; ok {
+			ee.First = inv.FirstLine
+			ee.Title = inv.Title
+			ee.Subjects = inv.Subjects
+		}
+	}
+	// Sort by count desc
+	explorerList := make([]ExplorerEntry, 0, len(explorerMap))
+	for _, ee := range explorerMap {
+		sort.Strings(ee.Langs)
+		explorerList = append(explorerList, *ee)
+	}
+	sort.Slice(explorerList, func(i, j int) bool {
+		if explorerList[i].Count != explorerList[j].Count {
+			return explorerList[i].Count > explorerList[j].Count
+		}
+		return explorerList[i].Phelps < explorerList[j].Phelps
+	})
+	writeJSON(filepath.Join(staticDir, "explorer.json"), explorerList)
+	log.Printf("  %d explorer entries", len(explorerList))
+
 	log.Println("Done!")
 }
 
