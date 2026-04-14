@@ -21,16 +21,24 @@
 
   <div style="display:flex; gap:.5rem; align-items:center; margin-bottom:.5rem; flex-wrap:wrap;">
     <div id="exp-status" style="font-size:.85rem; color:var(--text-secondary);"></div>
-    <div style="margin-left:auto; display:flex; gap:.5rem; align-items:center; font-size:.8rem; color:var(--text-secondary);">
-      <label>Show: <select id="display-lang" style="padding:.15rem .3rem; border:1px solid var(--border); border-radius:3px; font-size:.8rem; background:var(--bg); color:var(--text);">
-        <option value="en">English</option>
-      </select></label>
-      <label>+ <select id="display-lang2" style="padding:.15rem .3rem; border:1px solid var(--border); border-radius:3px; font-size:.8rem; background:var(--bg); color:var(--text);">
-        <option value="">none</option>
-      </select></label>
+    <div style="margin-left:auto; display:flex; gap:.3rem; align-items:center; font-size:.8rem; color:var(--text-secondary);">
+      <details class="search-lang-dropdown" id="lang1-dropdown">
+        <summary id="lang1-label">English</summary>
+        <div class="search-lang-panel">
+          <input type="search" class="search-lang-filter" id="lang1-filter" placeholder="Filter…" autocomplete="off">
+          <div class="search-lang-list" id="lang1-list"></div>
+        </div>
+      </details>
+      <details class="search-lang-dropdown" id="lang2-dropdown">
+        <summary id="lang2-label">+ compare</summary>
+        <div class="search-lang-panel">
+          <input type="search" class="search-lang-filter" id="lang2-filter" placeholder="Filter…" autocomplete="off">
+          <div class="search-lang-list" id="lang2-list"></div>
+        </div>
+      </details>
       Sort:
-      <button class="sort-btn active" data-sort="count" title="Most translations first">Languages ↓</button>
-      <button class="sort-btn" data-sort="code" title="Alphabetical by code">Code ↑</button>
+      <button class="sort-btn active" data-sort="count">Languages ↓</button>
+      <button class="sort-btn" data-sort="code">Code ↑</button>
     </div>
   </div>
 
@@ -62,6 +70,32 @@
   border-radius:3px; font-size:.7rem; color:var(--text); text-decoration:none;
 }
 .lang-chip:hover { background:#ff7954; color:#fff; }
+/* Language picker (reused from old search) */
+.search-lang-dropdown { position: relative; }
+.search-lang-dropdown summary {
+  padding: .3rem .6rem; border: 1px solid var(--border); border-radius: 4px;
+  background: var(--bg); font-size: .8rem; cursor: pointer; list-style: none; color: var(--text); white-space: nowrap;
+}
+.search-lang-dropdown summary::-webkit-details-marker { display: none; }
+.search-lang-panel {
+  position: fixed; top: auto; left: 1rem; right: 1rem;
+  margin-top: 2px;
+  background: var(--surface, #fff); border: 1px solid var(--border); border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.15); max-width: 320px; max-height: 400px;
+  overflow: hidden; z-index: 200; display: flex; flex-direction: column;
+}
+.search-lang-filter {
+  margin: .4rem; padding: .3rem .5rem; border: 1px solid var(--border); border-radius: 4px;
+  font-size: .85rem; background: var(--bg); color: var(--text);
+}
+.search-lang-list { overflow-y: auto; max-height: 300px; }
+.search-lang-list a {
+  display: flex; justify-content: space-between; padding: .3rem .6rem;
+  font-size: .85rem; color: var(--text); text-decoration: none; cursor: pointer;
+}
+.search-lang-list a:hover { background: #fff3ef; }
+.search-lang-list a.active { font-weight: 700; color: var(--accent); }
+.lang-count-badge { font-size: .75rem; color: var(--text-secondary); }
 </style>
 
 <script>
@@ -87,7 +121,6 @@ function phelpsUrl(pin) {
   return `/phelps/${pin.toLowerCase()}/`;
 }
 
-// Grouped data: { phelps -> { firsts: {lang: text}, langs: [code,...], searchBlob } }
 let grouped = {};
 let sortedKeys = [];
 let filtered = [];
@@ -102,7 +135,6 @@ async function loadData() {
   const res = await fetch('/data/search.json');
   const raw = await res.json();
 
-  // Group by phelps code
   const langCounts = {};
   raw.forEach(e => {
     let g = grouped[e.p];
@@ -112,17 +144,14 @@ async function loadData() {
     }
     g.langs.add(e.l);
     g.texts.push(e.t.slice(0, 200).toLowerCase());
-    // Store first line per language (strip ## headers)
     if (!g.firsts[e.l]) {
       let t = e.t.replace(/^##\s+[^\n]+\n*/g, '').trim();
       g.firsts[e.l] = t.slice(0, 150);
     }
-    // Track language counts and names
     langCounts[e.l] = (langCounts[e.l] || 0) + 1;
     if (e.ln) allLangNames[e.l] = e.ln;
   });
 
-  // Finalize groups
   for (const p in grouped) {
     const g = grouped[p];
     g.langsArr = Array.from(g.langs).sort();
@@ -132,43 +161,92 @@ async function loadData() {
     delete g.langs;
   }
 
-  // Populate display language dropdown with languages sorted by entry count
-  const langSelect = document.getElementById('display-lang');
-  const uiFull = window.__uiLang || 'en';
-  const uiBase = uiFull.split('-')[0];
-  // Find best UI language match: exact → base → 'en'
-  const allLangs = Object.keys(langCounts).filter(l => allLangNames[l]);
-  const uiMatch = allLangs.find(l => l === uiFull) || allLangs.find(l => l === uiBase) || 'en';
-  const sortedLangs = allLangs.sort((a, b) => {
-    // UI language match first, then English, then by count
-    const aUi = (a === uiMatch) ? 2 : (a === 'en') ? 1 : 0;
-    const bUi = (b === uiMatch) ? 2 : (b === 'en') ? 1 : 0;
-    if (aUi !== bUi) return bUi - aUi;
-    return langCounts[b] - langCounts[a];
-  });
-  langSelect.innerHTML = '';
-  sortedLangs.forEach(l => {
-    const opt = document.createElement('option');
-    opt.value = l;
-    opt.textContent = (allLangNames[l] || l) + ' (' + langCounts[l] + ')';
-    langSelect.appendChild(opt);
-  });
-  displayLang = sortedLangs.includes(uiMatch) ? uiMatch : 'en';
-  langSelect.value = displayLang;
+  // Build language pickers
+  const uiLang = window.__uiLang || 'en';
+  const uiBase = uiLang.split('-')[0];
+  const bestMatch = allLangNames[uiLang] ? uiLang : allLangNames[uiBase] ? uiBase : 'en';
+  displayLang = bestMatch;
 
-  // Populate second language dropdown (same list, with "none" option)
-  const langSelect2 = document.getElementById('display-lang2');
-  langSelect2.innerHTML = '<option value="">— none —</option>';
-  sortedLangs.forEach(l => {
-    const opt = document.createElement('option');
-    opt.value = l;
-    opt.textContent = (allLangNames[l] || l) + ' (' + langCounts[l] + ')';
-    langSelect2.appendChild(opt);
+  const sorted = Object.keys(langCounts).filter(l => allLangNames[l])
+    .sort((a, b) => {
+      if (a === bestMatch) return -1;
+      if (b === bestMatch) return 1;
+      if (a === 'en') return -1;
+      if (b === 'en') return 1;
+      return langCounts[b] - langCounts[a];
+    });
+
+  buildLangPicker('lang1', sorted, langCounts, bestMatch, function(code) {
+    displayLang = code;
+    renderTable();
+  });
+  buildLangPicker('lang2', sorted, langCounts, '', function(code) {
+    displayLang2 = code;
+    document.getElementById('th-second').style.display = code ? '' : 'none';
+    renderTable();
   });
 
   sortedKeys = Object.keys(grouped);
   document.getElementById('exp-status').textContent = sortedKeys.length.toLocaleString() + ' prayer codes loaded';
   applyFilters();
+}
+
+function buildLangPicker(id, langs, counts, initial, onSelect) {
+  const dropdown = document.getElementById(id + '-dropdown');
+  const label = document.getElementById(id + '-label');
+  const list = document.getElementById(id + '-list');
+  const filterInput = document.getElementById(id + '-filter');
+
+  // "None" option for lang2
+  if (id === 'lang2') {
+    const none = document.createElement('a');
+    none.href = '#'; none.dataset.code = ''; none.dataset.name = '';
+    none.innerHTML = '<b>— none —</b>';
+    none.classList.add('active');
+    none.addEventListener('click', function(ev) { ev.preventDefault(); select(''); });
+    list.appendChild(none);
+    label.textContent = '+ compare';
+  }
+
+  langs.forEach(l => {
+    const a = document.createElement('a');
+    a.href = '#'; a.dataset.code = l; a.dataset.name = (allLangNames[l] || '').toLowerCase();
+    a.innerHTML = (allLangNames[l] || l) + ' <span style="color:var(--text-secondary);font-size:.8em">' + l + '</span><span class="lang-count-badge">' + counts[l] + '</span>';
+    if (l === initial) a.classList.add('active');
+    a.addEventListener('click', function(ev) { ev.preventDefault(); select(l); });
+    list.appendChild(a);
+  });
+
+  if (initial && allLangNames[initial]) {
+    label.textContent = allLangNames[initial];
+  }
+
+  function select(code) {
+    list.querySelectorAll('a').forEach(a => a.classList.toggle('active', a.dataset.code === code));
+    if (code) {
+      label.textContent = allLangNames[code] || code;
+    } else {
+      label.textContent = id === 'lang2' ? '+ compare' : 'All';
+    }
+    dropdown.removeAttribute('open');
+    onSelect(code);
+  }
+
+  // Filter
+  filterInput.addEventListener('input', function() {
+    const q = this.value.toLowerCase().trim();
+    list.querySelectorAll('a').forEach(a => {
+      if (a.dataset.code === '' && id === 'lang2') { a.style.display = ''; return; }
+      const match = !q || (a.dataset.name || '').indexOf(q) >= 0 || (a.dataset.code || '').indexOf(q) >= 0;
+      a.style.display = match ? '' : 'none';
+    });
+  });
+
+  // Close on outside click
+  document.addEventListener('click', function(e) { if (!dropdown.contains(e.target)) dropdown.removeAttribute('open'); });
+  dropdown.addEventListener('toggle', function() {
+    if (dropdown.open) { filterInput.value = ''; filterInput.focus(); filterInput.dispatchEvent(new Event('input')); }
+  });
 }
 
 function matchesPrefix(pin) {
@@ -185,9 +263,7 @@ function applyFilters() {
     if (!matchesPrefix(p)) return false;
     if (!q) return true;
     const g = grouped[p];
-    // Search code first (fast)
     if (p.toLowerCase().includes(q)) return true;
-    // Then search across all language texts
     return g.searchBlob.includes(q);
   });
 
@@ -213,14 +289,15 @@ function renderTable() {
     const desc = g.firsts[displayLang] || g.firsts['en'] || Object.values(g.firsts)[0] || '';
     const maxLen = displayLang2 ? 80 : 120;
     const descShort = desc.length > maxLen ? desc.slice(0, maxLen) + '…' : desc;
+
     let secondCol = '';
     if (displayLang2) {
       const desc2 = g.firsts[displayLang2] || '';
       const d2 = desc2.length > 80 ? desc2.slice(0, 80) + '…' : desc2;
       secondCol = `<td style="font-size:.8rem; color:var(--text-secondary)">${d2 || '<span style="opacity:.3">—</span>'}</td>`;
     }
-    const author = authorFromPin(p);
 
+    const author = authorFromPin(p);
     const langs = g.langsArr;
     let langHtml = '';
     const show = langs.slice(0, 12);
@@ -270,17 +347,6 @@ document.querySelectorAll('.sort-btn').forEach(btn => {
     sortMode = btn.dataset.sort;
     applyFilters();
   });
-});
-
-// Display languages
-document.getElementById('display-lang').addEventListener('change', e => {
-  displayLang = e.target.value;
-  renderTable();
-});
-document.getElementById('display-lang2').addEventListener('change', e => {
-  displayLang2 = e.target.value;
-  document.getElementById('th-second').style.display = displayLang2 ? '' : 'none';
-  renderTable();
 });
 
 // Search with debounce
