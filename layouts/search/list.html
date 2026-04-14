@@ -20,7 +20,17 @@
   </div>
 
   <div style="display:flex; gap:.5rem; align-items:center; margin-bottom:.5rem; flex-wrap:wrap;">
-    <div id="exp-status" style="font-size:.85rem; color:var(--text-secondary);"></div>
+    <div style="display:flex; gap:.3rem; align-items:center; flex-wrap:wrap;">
+      <details class="search-lang-dropdown" id="filter-lang-dropdown">
+        <summary id="filter-lang-label" style="font-size:.8rem">Filter language…</summary>
+        <div class="search-lang-panel">
+          <input type="search" class="search-lang-filter" id="filter-lang-filter" placeholder="Filter…" autocomplete="off">
+          <div class="search-lang-list" id="filter-lang-list"></div>
+        </div>
+      </details>
+      <div id="filter-lang-chips" style="display:flex; gap:.2rem; flex-wrap:wrap;"></div>
+    </div>
+    <div id="exp-status" style="font-size:.85rem; color:var(--text-secondary); margin-left:.5rem;"></div>
     <div style="margin-left:auto; display:flex; gap:.3rem; align-items:center; font-size:.8rem; color:var(--text-secondary);">
       <details class="search-lang-dropdown" id="lang1-dropdown">
         <summary id="lang1-label">English</summary>
@@ -130,6 +140,7 @@ let sortMode = 'count';
 let displayLang = 'en';
 let displayLang2 = '';
 let allLangNames = {};
+let filterLangs = []; // [{code, mode: 'has'|'missing'}]
 
 const loadedPrayerLangs = new Set();
 async function loadPrayerFirstLines(lang) {
@@ -218,6 +229,16 @@ async function loadData() {
   // (some languages only have prayers, not writings)
   await loadPrayerFirstLines(bestMatch);
 
+  // Filter language picker
+  buildLangPicker('filter-lang', sorted, langCounts, '', function(code) {
+    if (!code) return;
+    // Add as "has" filter by default; click chip to toggle to "missing"
+    if (filterLangs.find(f => f.code === code)) return; // already added
+    filterLangs.push({code: code, mode: 'has'});
+    renderFilterChips();
+    applyFilters();
+  });
+
   buildLangPicker('lang1', sorted, langCounts, bestMatch, async function(code) {
     displayLang = code;
     await loadPrayerFirstLines(code);
@@ -233,6 +254,35 @@ async function loadData() {
   sortedKeys = Object.keys(grouped);
   document.getElementById('exp-status').textContent = sortedKeys.length.toLocaleString() + ' prayer codes loaded';
   applyFilters();
+}
+
+const FILTER_MODES = [
+  {mode: 'has',     label: '✓', bg: '#e8f5e9', color: '#2e7d32', border: '#a5d6a7', tip: 'Must exist in this language'},
+  {mode: 'any',     label: '~', bg: '#e3f2fd', color: '#1565c0', border: '#90caf9', tip: 'Exists in at least one "any" language'},
+  {mode: 'missing', label: '✗', bg: '#ffebee', color: '#c62828', border: '#ef9a9a', tip: 'Must NOT exist in this language'},
+];
+function renderFilterChips() {
+  const container = document.getElementById('filter-lang-chips');
+  container.innerHTML = '';
+  filterLangs.forEach((f, i) => {
+    const style = FILTER_MODES.find(m => m.mode === f.mode);
+    const chip = document.createElement('span');
+    chip.style.cssText = `display:inline-flex;align-items:center;gap:.2rem;padding:.15rem .4rem;border-radius:4px;font-size:.75rem;cursor:pointer;user-select:none;background:${style.bg};color:${style.color};border:1px solid ${style.border}`;
+    chip.title = style.tip + ' (click to cycle mode, × to remove)';
+    chip.innerHTML = style.label + ' ' + (allLangNames[f.code] || f.code) + ' <span style="opacity:.5;font-size:.9em;margin-left:.2rem;padding:0 2px">×</span>';
+    chip.addEventListener('click', function(ev) {
+      const rect = chip.getBoundingClientRect();
+      if (ev.clientX - rect.left > rect.width - 22) {
+        filterLangs.splice(i, 1);
+      } else {
+        const idx = FILTER_MODES.findIndex(m => m.mode === f.mode);
+        f.mode = FILTER_MODES[(idx + 1) % FILTER_MODES.length].mode;
+      }
+      renderFilterChips();
+      applyFilters();
+    });
+    container.appendChild(chip);
+  });
 }
 
 function buildLangPicker(id, langs, counts, initial, onSelect) {
@@ -305,8 +355,19 @@ function applyFilters() {
   const q = searchTerm.toLowerCase();
   filtered = sortedKeys.filter(p => {
     if (!matchesPrefix(p)) return false;
-    if (!q) return true;
     const g = grouped[p];
+    // Language filter: has (must have), missing (must not have), any (at least one)
+    const anyFilters = filterLangs.filter(f => f.mode === 'any');
+    if (anyFilters.length > 0) {
+      if (!anyFilters.some(f => g.langsArr.includes(f.code))) return false;
+    }
+    for (const f of filterLangs) {
+      if (f.mode === 'any') continue; // handled above
+      const hasLang = g.langsArr.includes(f.code);
+      if (f.mode === 'has' && !hasLang) return false;
+      if (f.mode === 'missing' && hasLang) return false;
+    }
+    if (!q) return true;
     if (p.toLowerCase().includes(q)) return true;
     return g.searchBlob.includes(q);
   });
