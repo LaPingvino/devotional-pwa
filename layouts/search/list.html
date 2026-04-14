@@ -134,15 +134,18 @@ async function loadData() {
 
   // Populate display language dropdown with languages sorted by entry count
   const langSelect = document.getElementById('display-lang');
-  const uiLang = (window.__uiLang || 'en').split('-')[0];
-  const sortedLangs = Object.keys(langCounts)
-    .filter(l => allLangNames[l])
-    .sort((a, b) => {
-      // UI language first, then by count
-      if (a === uiLang || a === window.__uiLang) return -1;
-      if (b === uiLang || b === window.__uiLang) return 1;
-      return langCounts[b] - langCounts[a];
-    });
+  const uiFull = window.__uiLang || 'en';
+  const uiBase = uiFull.split('-')[0];
+  // Find best UI language match: exact → base → 'en'
+  const allLangs = Object.keys(langCounts).filter(l => allLangNames[l]);
+  const uiMatch = allLangs.find(l => l === uiFull) || allLangs.find(l => l === uiBase) || 'en';
+  const sortedLangs = allLangs.sort((a, b) => {
+    // UI language match first, then English, then by count
+    const aUi = (a === uiMatch) ? 2 : (a === 'en') ? 1 : 0;
+    const bUi = (b === uiMatch) ? 2 : (b === 'en') ? 1 : 0;
+    if (aUi !== bUi) return bUi - aUi;
+    return langCounts[b] - langCounts[a];
+  });
   langSelect.innerHTML = '';
   sortedLangs.forEach(l => {
     const opt = document.createElement('option');
@@ -150,9 +153,7 @@ async function loadData() {
     opt.textContent = (allLangNames[l] || l) + ' (' + langCounts[l] + ')';
     langSelect.appendChild(opt);
   });
-  // Default to UI language if available, else English
-  displayLang = sortedLangs.includes(uiLang) ? uiLang :
-                sortedLangs.includes('en') ? 'en' : sortedLangs[0];
+  displayLang = sortedLangs.includes(uiMatch) ? uiMatch : 'en';
   langSelect.value = displayLang;
 
   // Populate second language dropdown (same list, with "none" option)
