@@ -25,6 +25,9 @@
       <label>Show: <select id="display-lang" style="padding:.15rem .3rem; border:1px solid var(--border); border-radius:3px; font-size:.8rem; background:var(--bg); color:var(--text);">
         <option value="en">English</option>
       </select></label>
+      <label>+ <select id="display-lang2" style="padding:.15rem .3rem; border:1px solid var(--border); border-radius:3px; font-size:.8rem; background:var(--bg); color:var(--text);">
+        <option value="">none</option>
+      </select></label>
       Sort:
       <button class="sort-btn active" data-sort="count" title="Most translations first">Languages ↓</button>
       <button class="sort-btn" data-sort="code" title="Alphabetical by code">Code ↑</button>
@@ -36,7 +39,8 @@
       <tr>
         <th>Code</th>
         <th>Author</th>
-        <th>First line</th>
+        <th id="th-first">First line</th>
+        <th id="th-second" style="display:none">Compare</th>
         <th style="text-align:right"># Langs</th>
         <th>Languages</th>
       </tr>
@@ -91,6 +95,7 @@ let activePrefix = '';
 let searchTerm = '';
 let sortMode = 'count';
 let displayLang = 'en';
+let displayLang2 = '';
 let allLangNames = {};
 
 async function loadData() {
@@ -150,6 +155,16 @@ async function loadData() {
                 sortedLangs.includes('en') ? 'en' : sortedLangs[0];
   langSelect.value = displayLang;
 
+  // Populate second language dropdown (same list, with "none" option)
+  const langSelect2 = document.getElementById('display-lang2');
+  langSelect2.innerHTML = '<option value="">— none —</option>';
+  sortedLangs.forEach(l => {
+    const opt = document.createElement('option');
+    opt.value = l;
+    opt.textContent = (allLangNames[l] || l) + ' (' + langCounts[l] + ')';
+    langSelect2.appendChild(opt);
+  });
+
   sortedKeys = Object.keys(grouped);
   document.getElementById('exp-status').textContent = sortedKeys.length.toLocaleString() + ' prayer codes loaded';
   applyFilters();
@@ -195,7 +210,14 @@ function renderTable() {
     const g = grouped[p];
     const pinLink = `<a href="${phelpsUrl(p)}">${p}</a>`;
     const desc = g.firsts[displayLang] || g.firsts['en'] || Object.values(g.firsts)[0] || '';
-    const descShort = desc.length > 120 ? desc.slice(0, 120) + '…' : desc;
+    const maxLen = displayLang2 ? 80 : 120;
+    const descShort = desc.length > maxLen ? desc.slice(0, maxLen) + '…' : desc;
+    let secondCol = '';
+    if (displayLang2) {
+      const desc2 = g.firsts[displayLang2] || '';
+      const d2 = desc2.length > 80 ? desc2.slice(0, 80) + '…' : desc2;
+      secondCol = `<td style="font-size:.8rem; color:var(--text-secondary)">${d2 || '<span style="opacity:.3">—</span>'}</td>`;
+    }
     const author = authorFromPin(p);
 
     const langs = g.langsArr;
@@ -215,13 +237,15 @@ function renderTable() {
       <td class="pin-cell">${pinLink}</td>
       <td style="font-size:.75rem; color:var(--text-secondary); white-space:nowrap">${author}</td>
       <td style="font-size:.85rem">${descShort}</td>
+      ${secondCol}
       <td style="text-align:right; ${countStyle}">${g.n}</td>
       <td style="font-size:.8rem; max-width:200px">${langHtml}</td>
     </tr>`;
   });
   tbody.innerHTML = html;
   if (filtered.length > 500) {
-    tbody.innerHTML += `<tr><td colspan="5" style="color:var(--text-secondary); padding:.5rem">
+    const cols = displayLang2 ? 6 : 5;
+    tbody.innerHTML += `<tr><td colspan="${cols}" style="color:var(--text-secondary); padding:.5rem">
       … ${(filtered.length - 500).toLocaleString()} more. Refine your search.
     </td></tr>`;
   }
@@ -247,9 +271,14 @@ document.querySelectorAll('.sort-btn').forEach(btn => {
   });
 });
 
-// Display language
+// Display languages
 document.getElementById('display-lang').addEventListener('change', e => {
   displayLang = e.target.value;
+  renderTable();
+});
+document.getElementById('display-lang2').addEventListener('change', e => {
+  displayLang2 = e.target.value;
+  document.getElementById('th-second').style.display = displayLang2 ? '' : 'none';
   renderTable();
 });
 
