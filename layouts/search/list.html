@@ -275,7 +275,7 @@ function buildLangPicker(id, langs, counts, initial, onSelect) {
     none.classList.add('active');
     none.addEventListener('click', function(ev) { ev.preventDefault(); select(''); });
     list.appendChild(none);
-    label.textContent = '+ compare';
+    label.textContent = window.__t('search_compare');
   }
 
   langs.forEach(l => {
@@ -296,7 +296,7 @@ function buildLangPicker(id, langs, counts, initial, onSelect) {
     if (code) {
       label.textContent = allLangNames[code] || code;
     } else {
-      label.textContent = id === 'lang2' ? '+ compare' : 'All';
+      label.textContent = id === 'lang2' ? window.__t('search_compare') : 'All';
     }
     dropdown.removeAttribute('open');
     onSelect(code);

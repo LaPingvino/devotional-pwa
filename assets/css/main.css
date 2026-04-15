@@ -657,6 +657,7 @@ body {
   width: 100%;
   border-collapse: collapse;
   font-size: .85rem;
+  table-layout: fixed;
 }
 .inventory-table th {
   text-align: left;
@@ -666,8 +667,11 @@ body {
   font-size: .75rem;
   text-transform: uppercase;
   letter-spacing: .05em;
+  resize: horizontal;
+  overflow: hidden;
 }
 .inventory-table td { overflow: hidden; text-overflow: ellipsis; }
+.subj-cell { max-height: 3.5em; overflow-y: auto; font-size: .7rem; }
 .inventory-table td {
   padding: .35rem .5rem;
   border-bottom: 1px solid #f0f0f0;

@@ -216,9 +216,9 @@ function renderTable() {
     let subjHtml = '';
     if (showSubj && e.subjects) {
       const tags = e.subjects.split(', @').map((s, i) => (i === 0 ? s.replace(/^@/, '') : s).trim()).filter(Boolean);
-      subjHtml = tags.map(s => `<span class="subj-tag" data-subj="${s}" style="display:inline-block;padding:.1rem .3rem;margin:.1rem;background:#f0f0f0;border-radius:3px;font-size:.65rem;cursor:pointer;white-space:nowrap" title="${s}">${s.length > 25 ? s.slice(0, 23) + '…' : s}</span>`).join('');
+      subjHtml = '<div class="subj-cell">' + tags.map(s => `<span class="subj-tag" data-subj="${s}" style="display:inline-block;padding:.05rem .25rem;margin:.05rem;background:#f0f0f0;border-radius:3px;font-size:.65rem;cursor:pointer;white-space:nowrap" title="${s}">${s.length > 30 ? s.slice(0, 28) + '…' : s}</span>`).join('') + '</div>';
     }
-    const subjTd = showSubj ? `<td class="col-subj" style="max-width:250px">${subjHtml}</td>` : '';
+    const subjTd = showSubj ? `<td class="col-subj">${subjHtml}</td>` : '';
 
     const showTrans = colToggles.trans.checked;
     const transTd = showTrans ? transCell : '';
