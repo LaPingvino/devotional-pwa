@@ -1,21 +1,21 @@
-{{ partial "head.html" (dict "Title" "Prayer Inventory" "Lang" "en") }}
+{{ partial "head.html" (dict "Title" "Partial Inventory" "Lang" "en") }}
 <div class="main-content">
-  <h1>Prayer Inventory</h1>
-  <p style="color:var(--text-secondary); margin-bottom:1rem;">
+  <h1 data-i18n="inventory_title">Partial Inventory</h1>
+  <p style="color:var(--text-secondary); margin-bottom:1rem;" data-i18n="inventory_subtitle">
     Partial inventory of Bahá'í Holy Writings by Steven Phelps, indexed by PIN, with first lines and translations.
-    Try the <a href="/search/">Search page</a> to full-text search prayers and writings available on this website.
+    Try the Search page to full-text search prayers and writings available on this website.
   </p>
 
   <div class="inventory-controls">
-    <button class="prefix-btn active" data-prefix="">All</button>
+    <button class="prefix-btn active" data-prefix="" data-i18n="all">All</button>
     <button class="prefix-btn" data-prefix="BH" title="Bahá'u'lláh">BH</button>
     <button class="prefix-btn" data-prefix="AB" title="ʻAbdu'l-Bahá">AB</button>
     <button class="prefix-btn" data-prefix="BB" title="The Báb">BB</button>
     <button class="prefix-btn" data-prefix="BHU">BHU</button>
     <button class="prefix-btn" data-prefix="ABU">ABU</button>
     <button class="prefix-btn" data-prefix="BBU">BBU</button>
-    <button class="prefix-btn translated-only" data-translated="1" title="Only entries with translations">✓ Translated</button>
-    <input type="search" class="search-box" id="inv-search" placeholder="Search PIN, first line, title, subjects…">
+    <button class="prefix-btn translated-only" data-translated="1" title="Only entries with translations" data-i18n="inventory_translated">✓ Translated</button>
+    <input type="search" class="search-box" id="inv-search" data-i18n-placeholder="inventory_search" placeholder="Search PIN, first line, title, subjects…">
   </div>
 
   <div id="inv-status" style="font-size:.8rem; color:var(--text-secondary); margin-bottom:.5rem;"></div>
@@ -24,13 +24,13 @@
     <thead>
       <tr>
         <th>PIN</th>
-        <th>Author</th>
-        <th>First line (English)</th>
-        <th>Translations</th>
+        <th data-i18n="search_col_author">Author</th>
+        <th data-i18n="inventory_first_line">First line (English)</th>
+        <th data-i18n="inventory_translations">Translations</th>
       </tr>
     </thead>
     <tbody id="inv-body">
-      <tr><td colspan="4" style="padding:1rem; color:var(--text-secondary)">Loading…</td></tr>
+      <tr><td colspan="4" style="padding:1rem; color:var(--text-secondary)" data-i18n="loading">Loading…</td></tr>
     </tbody>
   </table>
 </div>
@@ -97,7 +97,7 @@ function langChips(langs, pin) {
 function renderTable() {
   const tbody = document.getElementById('inv-body');
   const status = document.getElementById('inv-status');
-  status.textContent = `${filtered.length.toLocaleString()} entries`;
+  status.textContent = `${filtered.length.toLocaleString()} ${window.__t('inventory_entries')}`;
 
   const rows = filtered.slice(0, 500);
   let html = '';

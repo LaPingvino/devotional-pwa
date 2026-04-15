@@ -119,7 +119,7 @@
         </div>
         ${phelpsData.subcodes.map(sc => renderSubcode(sc, multi)).join('')}
         <p style="margin-top:1.5rem; font-size:.85rem; color:var(--text-secondary)">
-          <a href="/prayers/">← All languages</a>
+          <a href="/phelps/" data-i18n="inventory_back">← Back to Inventory</a>
         </p>`;
     } else {
       // Fallback: load from inventory.json
@@ -158,7 +158,7 @@
           translations: e.langs || [], writing_refs: []
         }, matching.length > 1)).join('')}
         <p style="margin-top:1.5rem; font-size:.85rem; color:var(--text-secondary)">
-          <a href="/prayers/">← All languages</a>
+          <a href="/phelps/" data-i18n="inventory_back">← Back to Inventory</a>
         </p>`;
     }
 
