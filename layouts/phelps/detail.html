@@ -58,6 +58,20 @@
       <div class="prayer-texts" data-code="${code}" style="margin-top:.8rem;"></div>`;
   }
 
+  // Simple markdown renderer (same as devotional page)
+  function renderMd(text) {
+    if (!text) return '';
+    return text
+      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
+      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
+      .replace(/^# (.+)$/gm, '<h2>$1</h2>')
+      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
+      .replace(/\n{2,}/g, '</p><p>')
+      .replace(/\n/g, '<br>')
+      .replace(/^/, '<p>').replace(/$/, '</p>');
+  }
+
   // Load and display prayer texts for a given code
   const textCache = {};
   async function loadPrayerTexts(code, container, translations) {
@@ -82,14 +96,12 @@
         const match = prayers.find(p => p.phelps === code);
         if (match) {
           const dir = ['ar','fa','he','ur','ps','ku','sd','yi'].includes(lang) ? ' dir="rtl"' : '';
-          const text = match.text.replace(/^##?\s+[^\n]+\n*/, '').trim();
-          const preview = text.slice(0, 200);
-          const full = text.length > 200 ? text : '';
+          const rendered = renderMd(match.text);
           html += `<details class="prayer-text-card" style="margin-bottom:.4rem; border:1px solid var(--border); border-radius:6px;">
             <summary style="padding:.4rem .6rem; font-size:.8rem; cursor:pointer;">
               <strong>${t.lang_name}</strong> <span style="opacity:.5">${lang}</span>
             </summary>
-            <div style="padding:.5rem .8rem; font-size:.85rem; line-height:1.6; white-space:pre-wrap;"${dir}>${text}</div>
+            <div class="prayer-text" style="padding:.5rem .8rem; font-size:.85rem; line-height:1.6;"${dir}>${rendered}</div>
           </details>`;
         }
       }
