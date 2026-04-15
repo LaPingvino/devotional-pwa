@@ -87,6 +87,8 @@
   }
 
   filter();
+  // Re-run after i18n loads so translated strings replace stub keys
+  var _check = setInterval(function() { if (window.__i18n) { clearInterval(_check); filter(); } }, 50);
 })();
 </script>
 {{ partial "foot.html" . }}
