@@ -21,10 +21,12 @@
   <div style="display:flex; gap:.5rem; align-items:center; margin-bottom:.5rem; flex-wrap:wrap;">
     <div id="inv-status" style="font-size:.8rem; color:var(--text-secondary);"></div>
     <div style="margin-left:auto; font-size:.75rem; color:var(--text-secondary); display:flex; gap:.4rem; flex-wrap:wrap;">
-      <label title="Original language first line"><input type="checkbox" id="col-orig"> Original</label>
-      <label title="Original language"><input type="checkbox" id="col-lang"> Lang</label>
-      <label title="Word count"><input type="checkbox" id="col-wc"> Words</label>
-      <label title="Subjects"><input type="checkbox" id="col-subj"> Subjects</label>
+      <label><input type="checkbox" id="col-author" checked> Author</label>
+      <label><input type="checkbox" id="col-en" checked> English</label>
+      <label><input type="checkbox" id="col-orig"> Original</label>
+      <label><input type="checkbox" id="col-lang"> Lang</label>
+      <label><input type="checkbox" id="col-wc"> Words</label>
+      <label><input type="checkbox" id="col-subj"> Subjects</label>
     </div>
   </div>
 
@@ -42,9 +44,9 @@
   <table class="inventory-table" id="inv-table">
     <thead>
       <tr>
-        <th>PIN</th>
-        <th data-i18n="search_col_author">Author</th>
-        <th data-i18n="inventory_first_line">First line (English)</th>
+        <th style="min-width:60px">PIN</th>
+        <th class="col-author" data-i18n="search_col_author">Author</th>
+        <th class="col-en" data-i18n="inventory_first_line">First line (English)</th>
         <th class="col-orig" style="display:none">Original</th>
         <th class="col-lang" style="display:none">Lang</th>
         <th class="col-wc" style="display:none">Words</th>
@@ -89,7 +91,7 @@ const LANG_NAMES = { Ara: 'Arabic', Eng: 'English', Per: 'Persian', Trk: 'Turkis
 const colToggles = {};
 
 // Column toggles
-['orig','lang','wc','subj'].forEach(col => {
+['author','en','orig','lang','wc','subj'].forEach(col => {
   const cb = document.getElementById('col-' + col);
   colToggles[col] = cb;
   cb.addEventListener('change', () => {
@@ -197,13 +199,17 @@ function renderTable() {
       ? `<td style="font-size:.8rem">${chips}</td>`
       : `<td style="text-align:center;opacity:.3;font-size:.85rem">—</td>`;
 
+    const showAuthor = colToggles.author.checked;
+    const showEn = colToggles.en.checked;
     const showOrig = colToggles.orig.checked;
     const showLang = colToggles.lang.checked;
     const showWc = colToggles.wc.checked;
     const showSubj = colToggles.subj.checked;
 
     const borderStyle = sameGroup ? 'border-top:1px dashed #eee' : '';
-    const origTd = showOrig ? `<td class="col-orig" style="font-size:.8rem; direction:auto">${e.first_line_orig || ''}</td>` : '';
+    const authorTd = showAuthor ? `<td class="col-author" style="font-size:.8rem; color:var(--text-secondary)">${sameGroup ? '' : authorFromPin(e.pin)}</td>` : '';
+    const enTd = showEn ? `<td class="col-en">${e.first_line || ''}</td>` : '';
+    const origTd = showOrig ? `<td class="col-orig" style="font-size:.85rem; direction:auto">${e.first_line_orig || ''}</td>` : '';
     const langTd = showLang ? `<td class="col-lang" style="font-size:.75rem; color:var(--text-secondary)">${LANG_NAMES[e.language] || e.language || ''}</td>` : '';
     const wcTd = showWc ? `<td class="col-wc" style="font-size:.8rem; text-align:right; color:var(--text-secondary)">${e.word_count || ''}</td>` : '';
     let subjHtml = '';
@@ -215,9 +221,7 @@ function renderTable() {
 
     html += `<tr style="${borderStyle}">
       <td class="pin-cell">${pinLink}</td>
-      <td style="font-size:.8rem; color:var(--text-secondary)">${sameGroup ? '' : authorFromPin(e.pin)}</td>
-      <td>${e.first_line || ''}</td>
-      ${origTd}${langTd}${wcTd}${subjTd}
+      ${authorTd}${enTd}${origTd}${langTd}${wcTd}${subjTd}
       ${transCell}
     </tr>`;
   });
@@ -233,7 +237,7 @@ function renderTable() {
       applyFilters();
     });
   });
-  const totalCols = 4 + (showOrig?1:0) + (showLang?1:0) + (showWc?1:0) + (showSubj?1:0);
+  const totalCols = 1 + (showAuthor?1:0) + (showEn?1:0) + (showOrig?1:0) + (showLang?1:0) + (showWc?1:0) + (showSubj?1:0) + 1;
   if (filtered.length > 500) {
     tbody.innerHTML += `<tr><td colspan="${totalCols}" style="color:var(--text-secondary); padding:.5rem">
       … ${(filtered.length - 500).toLocaleString()} more. Refine your search.
