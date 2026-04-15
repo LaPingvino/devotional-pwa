@@ -100,24 +100,50 @@
       };
       var menu = document.getElementById('ui-lang-menu');
       var btn = document.getElementById('ui-lang-btn');
-      if (menu && btn) {
-        Object.keys(uiLangs).forEach(function(code) {
-          if (!T[code]) return;
+      var langList = document.getElementById('ui-lang-list');
+      var langSearch = document.getElementById('ui-lang-search');
+      if (menu && btn && langList) {
+        // English names for search
+        var enNames = {
+          'en':'English','es':'Spanish','de':'German','fr':'French',
+          'pt':'Portuguese','nl':'Dutch','pl':'Polish','it':'Italian',
+          'ru':'Russian','ar':'Arabic','fa':'Persian','ja':'Japanese',
+          'zh-Hans':'Chinese Simplified','zh-Hant':'Chinese Traditional',
+          'eo':'Esperanto','ro':'Romanian','sv':'Swedish','hu':'Hungarian',
+          'ko':'Korean','tr':'Turkish','fi':'Finnish','el':'Greek'
+        };
+        // Sort by native name
+        var codes = Object.keys(uiLangs).filter(function(c) { return T[c]; });
+        codes.sort(function(a, b) { return uiLangs[a].localeCompare(uiLangs[b]); });
+        codes.forEach(function(code) {
           var a = document.createElement('a');
           a.href = '#';
           a.dataset.lang = code;
-          a.textContent = uiLangs[code];
+          a.dataset.search = (uiLangs[code] + ' ' + (enNames[code]||'') + ' ' + code).toLowerCase();
+          a.innerHTML = uiLangs[code] + ' <span style="opacity:.5;font-size:.8em">' + code + '</span>';
           if (code === lang || code === base) a.classList.add('active');
           a.addEventListener('click', function(e) {
             e.preventDefault();
             window.__setUiLang(code);
             menu.classList.remove('open');
+            langSearch.value = '';
+            langList.querySelectorAll('a').forEach(function(el) { el.style.display = ''; });
           });
-          menu.appendChild(a);
+          langList.appendChild(a);
         });
+        if (langSearch) {
+          langSearch.addEventListener('input', function() {
+            var q = this.value.toLowerCase().trim();
+            langList.querySelectorAll('a').forEach(function(a) {
+              a.style.display = !q || a.dataset.search.includes(q) ? '' : 'none';
+            });
+          });
+          langSearch.addEventListener('click', function(e) { e.stopPropagation(); });
+        }
         btn.addEventListener('click', function(e) {
           e.stopPropagation();
           menu.classList.toggle('open');
+          if (menu.classList.contains('open')) langSearch.focus();
         });
         document.addEventListener('click', function(e) {
           if (!menu.contains(e.target) && e.target !== btn) menu.classList.remove('open');
@@ -133,7 +159,10 @@
   <button class="pwa-install-btn" id="pwa-install" aria-label="Install app" title="Install as app" style="display:none">&#x2B07;</button>
   <div class="ui-lang-picker">
     <button class="ui-lang-btn" id="ui-lang-btn" aria-label="UI Language" title="Interface language">&#x1F310;</button>
-    <div class="ui-lang-menu" id="ui-lang-menu"></div>
+    <div class="ui-lang-menu" id="ui-lang-menu">
+      <input type="search" class="ui-lang-search" id="ui-lang-search" placeholder="Filter…" autocomplete="off">
+      <div id="ui-lang-list"></div>
+    </div>
   </div>
   <button class="nav-toggle" id="nav-toggle" aria-label="Menu">&#x2630;</button>
   <nav id="site-nav">
