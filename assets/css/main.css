@@ -699,6 +699,21 @@ body {
   }
   .translations-grid { grid-template-columns: 1fr; }
 }
+@media (max-width: 600px) {
+  .inventory-table { table-layout: auto; }
+  .inventory-table thead { display: none; }
+  .inventory-table, .inventory-table tbody, .inventory-table tr, .inventory-table td { display: block; width: 100%; }
+  .inventory-table tr {
+    border: 1px solid var(--border); border-radius: 6px;
+    margin-bottom: .5rem; padding: .5rem;
+  }
+  .inventory-table td { padding: .15rem .3rem; border: none; }
+  .inventory-table td.pin-cell { font-size: 1rem; font-weight: 700; }
+  .inventory-table td:empty { display: none; }
+  .inventory-controls { flex-wrap: wrap; }
+  .inventory-controls .prefix-btn { font-size: .7rem; padding: .2rem .4rem; }
+  .search-box { min-width: 100% !important; }
+}
 
 /* ── Utility ─────────────────────────────────────────── */
 h1 { font-size: 1.5rem; margin-bottom: .5rem; }
