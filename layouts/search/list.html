@@ -80,31 +80,7 @@
   border-radius:3px; font-size:.7rem; color:var(--text); text-decoration:none;
 }
 .lang-chip:hover { background:#ff7954; color:#fff; }
-/* Language picker (reused from old search) */
-.search-lang-dropdown { position: relative; }
-.search-lang-dropdown summary {
-  padding: .3rem .6rem; border: 1px solid var(--border); border-radius: 4px;
-  background: var(--bg); font-size: .8rem; cursor: pointer; list-style: none; color: var(--text); white-space: nowrap;
-}
-.search-lang-dropdown summary::-webkit-details-marker { display: none; }
-.search-lang-panel {
-  position: fixed; top: auto; left: 1rem; right: 1rem;
-  margin-top: 2px;
-  background: var(--surface, #fff); border: 1px solid var(--border); border-radius: 6px;
-  box-shadow: 0 4px 12px rgba(0,0,0,.15); max-width: 320px; max-height: 400px;
-  overflow: hidden; z-index: 200; display: flex; flex-direction: column;
-}
-.search-lang-filter {
-  margin: .4rem; padding: .3rem .5rem; border: 1px solid var(--border); border-radius: 4px;
-  font-size: .85rem; background: var(--bg); color: var(--text);
-}
-.search-lang-list { overflow-y: auto; max-height: 300px; }
-.search-lang-list a {
-  display: flex; justify-content: space-between; padding: .3rem .6rem;
-  font-size: .85rem; color: var(--text); text-decoration: none; cursor: pointer;
-}
-.search-lang-list a:hover { background: #fff3ef; }
-.search-lang-list a.active { font-weight: 700; color: var(--accent); }
+/* search-lang-dropdown styles now in main.css */
 .lang-count-badge { font-size: .75rem; color: var(--text-secondary); }
 </style>
 
