@@ -247,6 +247,7 @@ function renderTable() {
       … ${(filtered.length - 500).toLocaleString()} more. Refine your search.
     </td></tr>`;
   }
+  enableResize(document.getElementById('inv-table'));
 }
 
 // Prefix buttons
@@ -282,6 +283,16 @@ const pinParam = urlParams.get('pin');
 if (pinParam) {
   document.getElementById('inv-search').value = pinParam;
   searchTerm = pinParam;
+}
+
+function enableResize(table) {
+  if (window.innerWidth <= 600) return; // skip on mobile
+  // Let browser compute auto widths, then freeze them for resizing
+  requestAnimationFrame(() => {
+    const ths = table.querySelectorAll('thead th');
+    ths.forEach(th => { if (th.offsetWidth) th.style.width = th.offsetWidth + 'px'; });
+    table.classList.add('resizable');
+  });
 }
 
 loadInventory();

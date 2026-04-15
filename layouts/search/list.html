@@ -436,6 +436,16 @@ function renderTable() {
     });
     if (window.__addTranslitIn) window.__addTranslitIn(table);
   }
+  enableResize(document.getElementById('exp-table'));
+}
+
+function enableResize(table) {
+  if (window.innerWidth <= 600) return;
+  requestAnimationFrame(() => {
+    const ths = table.querySelectorAll('thead th');
+    ths.forEach(th => { if (th.offsetWidth) th.style.width = th.offsetWidth + 'px'; });
+    table.classList.add('resizable');
+  });
 }
 
 // Prefix buttons

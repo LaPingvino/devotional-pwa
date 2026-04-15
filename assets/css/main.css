@@ -657,8 +657,8 @@ body {
   width: 100%;
   border-collapse: collapse;
   font-size: .85rem;
-  table-layout: fixed;
 }
+.inventory-table.resizable { table-layout: fixed; }
 .inventory-table th {
   text-align: left;
   padding: .4rem .5rem;
@@ -667,6 +667,8 @@ body {
   font-size: .75rem;
   text-transform: uppercase;
   letter-spacing: .05em;
+}
+.inventory-table.resizable th {
   resize: horizontal;
   overflow: hidden;
 }
