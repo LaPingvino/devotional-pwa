@@ -54,7 +54,49 @@
           ${filter}
           <div class="lang-dropdown-list">${links}</div>
         </div>
-      </details>`;
+      </details>
+      <div class="prayer-texts" data-code="${code}" style="margin-top:.8rem;"></div>`;
+  }
+
+  // Load and display prayer texts for a given code
+  const textCache = {};
+  async function loadPrayerTexts(code, container, translations) {
+    if (!translations || translations.length === 0) return;
+    // Show a "Load texts" button first
+    const btn = document.createElement('button');
+    btn.textContent = `Show prayer texts (${translations.length} languages)`;
+    btn.style.cssText = 'font-size:.8rem; padding:.3rem .8rem; border:1px solid var(--border); border-radius:4px; background:var(--surface); color:var(--accent); cursor:pointer; margin-bottom:.5rem;';
+    btn.addEventListener('click', async () => {
+      btn.textContent = 'Loading…';
+      btn.disabled = true;
+      let html = '';
+      for (const t of translations) {
+        const lang = t.language.toLowerCase();
+        if (!textCache[lang]) {
+          try {
+            const r = await fetch(`/data/prayers/${lang}.json`);
+            if (r.ok) textCache[lang] = await r.json();
+          } catch (_) {}
+        }
+        const prayers = textCache[lang] || [];
+        const match = prayers.find(p => p.phelps === code);
+        if (match) {
+          const dir = ['ar','fa','he','ur','ps','ku','sd','yi'].includes(lang) ? ' dir="rtl"' : '';
+          const text = match.text.replace(/^##?\s+[^\n]+\n*/, '').trim();
+          const preview = text.slice(0, 200);
+          const full = text.length > 200 ? text : '';
+          html += `<details class="prayer-text-card" style="margin-bottom:.4rem; border:1px solid var(--border); border-radius:6px;">
+            <summary style="padding:.4rem .6rem; font-size:.8rem; cursor:pointer;">
+              <strong>${t.lang_name}</strong> <span style="opacity:.5">${lang}</span>
+            </summary>
+            <div style="padding:.5rem .8rem; font-size:.85rem; line-height:1.6; white-space:pre-wrap;"${dir}>${text}</div>
+          </details>`;
+        }
+      }
+      if (!html) html = '<p style="font-size:.8rem; color:var(--text-secondary)">No prayer texts found for this code.</p>';
+      container.innerHTML = html;
+    });
+    container.appendChild(btn);
   }
 
   function renderWritingRefs(refs) {
@@ -179,6 +221,19 @@
           a.style.display = (!q || a.dataset.code.includes(q) || a.dataset.name.includes(q)) ? '' : 'none';
         });
       });
+    });
+
+    // Wire up prayer text loaders
+    const allSubcodes = phelpsData ? phelpsData.subcodes : null;
+    document.querySelectorAll('.prayer-texts').forEach(container => {
+      const code = container.dataset.code;
+      // Find translations for this code
+      let trans = [];
+      if (allSubcodes) {
+        const sc = allSubcodes.find(s => s.code === code);
+        if (sc) trans = sc.translations || [];
+      }
+      if (trans.length > 0) loadPrayerTexts(code, container, trans);
     });
   } catch (err) {
     document.getElementById('detail-root').innerHTML =
