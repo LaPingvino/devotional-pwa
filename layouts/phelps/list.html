@@ -95,6 +95,7 @@ const colToggles = {};
   cb.addEventListener('change', () => {
     document.querySelectorAll('.col-' + col).forEach(el => el.style.display = cb.checked ? '' : 'none');
     if (col === 'subj') document.getElementById('subject-filter').style.display = cb.checked ? '' : 'none';
+    renderTable();
   });
 });
 
@@ -205,7 +206,12 @@ function renderTable() {
     const origTd = showOrig ? `<td class="col-orig" style="font-size:.8rem; direction:auto">${e.first_line_orig || ''}</td>` : '';
     const langTd = showLang ? `<td class="col-lang" style="font-size:.75rem; color:var(--text-secondary)">${LANG_NAMES[e.language] || e.language || ''}</td>` : '';
     const wcTd = showWc ? `<td class="col-wc" style="font-size:.8rem; text-align:right; color:var(--text-secondary)">${e.word_count || ''}</td>` : '';
-    const subjTd = showSubj ? `<td class="col-subj" style="font-size:.7rem; color:var(--text-secondary); max-width:200px">${(e.subjects || '').replace(/@/g, '')}</td>` : '';
+    let subjHtml = '';
+    if (showSubj && e.subjects) {
+      const tags = e.subjects.split(', @').map((s, i) => (i === 0 ? s.replace(/^@/, '') : s).trim()).filter(Boolean);
+      subjHtml = tags.map(s => `<span class="subj-tag" data-subj="${s}" style="display:inline-block;padding:.1rem .3rem;margin:.1rem;background:#f0f0f0;border-radius:3px;font-size:.65rem;cursor:pointer;white-space:nowrap" title="${s}">${s.length > 25 ? s.slice(0, 23) + '…' : s}</span>`).join('');
+    }
+    const subjTd = showSubj ? `<td class="col-subj" style="max-width:250px">${subjHtml}</td>` : '';
 
     html += `<tr style="${borderStyle}">
       <td class="pin-cell">${pinLink}</td>
@@ -216,6 +222,17 @@ function renderTable() {
     </tr>`;
   });
   tbody.innerHTML = html;
+  // Wire subject tag clicks
+  tbody.querySelectorAll('.subj-tag').forEach(tag => {
+    tag.addEventListener('click', () => {
+      const s = tag.dataset.subj;
+      activeSubject = activeSubject === s ? '' : s;
+      document.getElementById('subj-active').textContent = activeSubject ? '✕ ' + activeSubject : '';
+      const list = document.getElementById('subj-list');
+      if (list) list.querySelectorAll('a').forEach(el => el.classList.toggle('active', el.dataset.subj === activeSubject));
+      applyFilters();
+    });
+  });
   const totalCols = 4 + (showOrig?1:0) + (showLang?1:0) + (showWc?1:0) + (showSubj?1:0);
   if (filtered.length > 500) {
     tbody.innerHTML += `<tr><td colspan="${totalCols}" style="color:var(--text-secondary); padding:.5rem">

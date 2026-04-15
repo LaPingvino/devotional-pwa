@@ -1128,7 +1128,7 @@ func queryInventory() []InventoryEntry {
 		COALESCE(Title,''),
 		COALESCE(` + "`First line (translated)`" + `,''),
 		COALESCE(` + "`First line (original)`" + `,''),
-		COALESCE(Language,''),
+		COALESCE(CAST(Language AS CHAR),''),
 		COALESCE(` + "`Word count`" + `,''),
 		COALESCE(Subjects,''),
 		COALESCE(Notes,''),
