@@ -153,11 +153,12 @@ function applyFilters() {
     if (activePrefix && e.prefix !== activePrefix) return false;
     if (activeSubject && !(e.subjects || '').includes(activeSubject)) return false;
     if (searchTerm) {
-      const q = searchTerm.toLowerCase();
+      const norm = window.normalizeAr || (x => x);
+      const q = norm(searchTerm.toLowerCase());
       return e.pin.toLowerCase().includes(q)
-          || (e.first_line || '').toLowerCase().includes(q)
-          || (e.first_line_orig || '').toLowerCase().includes(q)
-          || (e.title || '').toLowerCase().includes(q)
+          || norm((e.first_line || '').toLowerCase()).includes(q)
+          || norm((e.first_line_orig || '').toLowerCase()).includes(q)
+          || norm((e.title || '').toLowerCase()).includes(q)
           || (e.subjects || '').toLowerCase().includes(q)
           || (e.notes || '').toLowerCase().includes(q);
     }

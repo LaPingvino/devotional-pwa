@@ -198,6 +198,7 @@ async function loadData() {
     g.langsArr = Array.from(g.langs).sort();
     g.n = g.langsArr.length;
     g.searchBlob = g.texts.join(' ');
+    if (window.normalizeAr) g.searchBlob = normalizeAr(g.searchBlob);
     delete g.texts;
     delete g.langs;
   }
@@ -344,7 +345,8 @@ function matchesPrefix(pin) {
 }
 
 function applyFilters() {
-  const q = searchTerm.toLowerCase();
+  let q = searchTerm.toLowerCase();
+  if (window.normalizeAr) q = normalizeAr(q);
   filtered = sortedKeys.filter(p => {
     if (!matchesPrefix(p)) return false;
     const g = grouped[p];
@@ -441,9 +443,15 @@ function renderTable() {
 
 function enableResize(table) {
   if (window.innerWidth <= 600) return;
+  // Reset to auto-size first so the browser computes natural widths
+  table.classList.remove('resizable');
+  table.querySelectorAll('thead th').forEach(th => { th.style.width = ''; });
   requestAnimationFrame(() => {
     const ths = table.querySelectorAll('thead th');
-    ths.forEach(th => { if (th.offsetWidth) th.style.width = th.offsetWidth + 'px'; });
+    ths.forEach(th => {
+      if (th.offsetWidth && th.style.display !== 'none')
+        th.style.width = th.offsetWidth + 'px';
+    });
     table.classList.add('resizable');
   });
 }
