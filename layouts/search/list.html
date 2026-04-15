@@ -1,7 +1,7 @@
 {{ partial "head.html" (dict "Title" "Search" "Lang" "en") }}
 <div class="main-content">
   <h1 data-i18n="search_title">Search</h1>
-  <p style="color:var(--text-secondary); margin-bottom:1rem;">
+  <p style="color:var(--text-secondary); margin-bottom:1rem;" data-i18n="search_subtitle">
     Browse all prayers and writings by Phelps code. Search works across all languages.
   </p>
 
@@ -16,13 +16,13 @@
     <button class="prefix-btn" data-prefix="UH" title="Universal House of Justice">UH</button>
     <button class="prefix-btn" data-prefix="TMP">TMP</button>
     <button class="prefix-btn" data-prefix="X">X</button>
-    <input type="search" class="search-box" id="exp-search" placeholder="Search in any language…">
+    <input type="search" class="search-box" id="exp-search" data-i18n-placeholder="search_placeholder" placeholder="Search in any language…">
   </div>
 
   <div style="display:flex; gap:.5rem; align-items:center; margin-bottom:.5rem; flex-wrap:wrap;">
     <div style="display:flex; gap:.3rem; align-items:center; flex-wrap:wrap;">
       <details class="search-lang-dropdown" id="filter-lang-dropdown">
-        <summary id="filter-lang-label" style="font-size:.8rem">Filter language…</summary>
+        <summary id="filter-lang-label" style="font-size:.8rem" data-i18n="search_filter_lang">Filter language…</summary>
         <div class="search-lang-panel">
           <input type="search" class="search-lang-filter" id="filter-lang-filter" placeholder="Filter…" autocomplete="off">
           <div class="search-lang-list" id="filter-lang-list"></div>
@@ -40,31 +40,31 @@
         </div>
       </details>
       <details class="search-lang-dropdown" id="lang2-dropdown">
-        <summary id="lang2-label">+ compare</summary>
+        <summary id="lang2-label" data-i18n="search_compare">+ compare</summary>
         <div class="search-lang-panel">
           <input type="search" class="search-lang-filter" id="lang2-filter" placeholder="Filter…" autocomplete="off">
           <div class="search-lang-list" id="lang2-list"></div>
         </div>
       </details>
-      Sort:
-      <button class="sort-btn active" data-sort="count">Languages ↓</button>
-      <button class="sort-btn" data-sort="code">Code ↑</button>
+      <span data-i18n="search_sort">Sort:</span>
+      <button class="sort-btn active" data-sort="count" data-i18n="search_sort_langs">Languages ↓</button>
+      <button class="sort-btn" data-sort="code" data-i18n="search_sort_code">Code ↑</button>
     </div>
   </div>
 
   <table class="inventory-table" id="exp-table">
     <thead>
       <tr>
-        <th>Code</th>
-        <th>Author</th>
-        <th id="th-first">First line</th>
-        <th id="th-second" style="display:none">Compare</th>
-        <th style="text-align:right"># Langs</th>
-        <th>Languages</th>
+        <th data-i18n="search_col_code">Code</th>
+        <th data-i18n="search_col_author">Author</th>
+        <th id="th-first" data-i18n="search_col_first">First line</th>
+        <th id="th-second" style="display:none" data-i18n="search_col_compare">Compare</th>
+        <th style="text-align:right" data-i18n="search_col_count"># Langs</th>
+        <th data-i18n="search_col_languages">Languages</th>
       </tr>
     </thead>
     <tbody id="exp-body">
-      <tr><td colspan="5" style="padding:1rem; color:var(--text-secondary)">Loading…</td></tr>
+      <tr><td colspan="5" style="padding:1rem; color:var(--text-secondary)" data-i18n="loading">Loading…</td></tr>
     </tbody>
   </table>
 </div>
@@ -252,7 +252,7 @@ async function loadData() {
   });
 
   sortedKeys = Object.keys(grouped);
-  document.getElementById('exp-status').textContent = sortedKeys.length.toLocaleString() + ' prayer codes loaded';
+  document.getElementById('exp-status').textContent = sortedKeys.length.toLocaleString() + ' ' + window.__t('search_codes_loaded');
   applyFilters();
 }
 
@@ -384,7 +384,7 @@ function applyFilters() {
 function renderTable() {
   const tbody = document.getElementById('exp-body');
   const status = document.getElementById('exp-status');
-  status.textContent = `${filtered.length.toLocaleString()} prayer codes`;
+  status.textContent = `${filtered.length.toLocaleString()} ${window.__t('search_codes')}`;
 
   const rows = filtered.slice(0, 500);
   let html = '';
