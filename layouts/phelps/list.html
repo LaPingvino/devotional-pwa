@@ -18,7 +18,26 @@
     <input type="search" class="search-box" id="inv-search" data-i18n-placeholder="inventory_search" placeholder="Search PIN, first line, title, subjects…">
   </div>
 
-  <div id="inv-status" style="font-size:.8rem; color:var(--text-secondary); margin-bottom:.5rem;"></div>
+  <div style="display:flex; gap:.5rem; align-items:center; margin-bottom:.5rem; flex-wrap:wrap;">
+    <div id="inv-status" style="font-size:.8rem; color:var(--text-secondary);"></div>
+    <div style="margin-left:auto; font-size:.75rem; color:var(--text-secondary); display:flex; gap:.4rem; flex-wrap:wrap;">
+      <label title="Original language first line"><input type="checkbox" id="col-orig"> Original</label>
+      <label title="Original language"><input type="checkbox" id="col-lang"> Lang</label>
+      <label title="Word count"><input type="checkbox" id="col-wc"> Words</label>
+      <label title="Subjects"><input type="checkbox" id="col-subj"> Subjects</label>
+    </div>
+  </div>
+
+  <div id="subject-filter" style="display:none; margin-bottom:.5rem;">
+    <details class="search-lang-dropdown" id="subj-dropdown">
+      <summary style="font-size:.8rem">Filter by subject…</summary>
+      <div class="search-lang-panel">
+        <input type="search" class="search-lang-filter" id="subj-search" placeholder="Filter…" autocomplete="off">
+        <div class="search-lang-list" id="subj-list" style="max-height:250px"></div>
+      </div>
+    </details>
+    <span id="subj-active" style="font-size:.8rem; color:var(--accent);"></span>
+  </div>
 
   <table class="inventory-table" id="inv-table">
     <thead>
@@ -26,11 +45,15 @@
         <th>PIN</th>
         <th data-i18n="search_col_author">Author</th>
         <th data-i18n="inventory_first_line">First line (English)</th>
+        <th class="col-orig" style="display:none">Original</th>
+        <th class="col-lang" style="display:none">Lang</th>
+        <th class="col-wc" style="display:none">Words</th>
+        <th class="col-subj" style="display:none">Subjects</th>
         <th data-i18n="inventory_translations">Translations</th>
       </tr>
     </thead>
     <tbody id="inv-body">
-      <tr><td colspan="4" style="padding:1rem; color:var(--text-secondary)" data-i18n="loading">Loading…</td></tr>
+      <tr><td colspan="8" style="padding:1rem; color:var(--text-secondary)" data-i18n="loading">Loading…</td></tr>
     </tbody>
   </table>
 </div>
@@ -61,23 +84,78 @@ let filtered = [];
 let activePrefix = '';
 let translatedOnly = false;
 let searchTerm = '';
+let activeSubject = '';
+const LANG_NAMES = { Ara: 'Arabic', Eng: 'English', Per: 'Persian', Trk: 'Turkish' };
+const colToggles = {};
+
+// Column toggles
+['orig','lang','wc','subj'].forEach(col => {
+  const cb = document.getElementById('col-' + col);
+  colToggles[col] = cb;
+  cb.addEventListener('change', () => {
+    document.querySelectorAll('.col-' + col).forEach(el => el.style.display = cb.checked ? '' : 'none');
+    if (col === 'subj') document.getElementById('subject-filter').style.display = cb.checked ? '' : 'none';
+  });
+});
 
 async function loadInventory() {
   const res = await fetch('/data/inventory.json');
   allEntries = await res.json();
+  buildSubjectList();
   applyFilters();
+}
+
+function buildSubjectList() {
+  const counts = {};
+  allEntries.forEach(e => {
+    if (!e.subjects) return;
+    e.subjects.split(', @').forEach((s, i) => {
+      s = (i === 0 ? s.replace(/^@/, '') : s).trim();
+      if (s) counts[s] = (counts[s] || 0) + 1;
+    });
+  });
+  const sorted = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
+  const list = document.getElementById('subj-list');
+  sorted.forEach(s => {
+    const a = document.createElement('a');
+    a.href = '#'; a.dataset.subj = s;
+    a.dataset.search = s.toLowerCase();
+    a.innerHTML = `${s} <span style="opacity:.5;font-size:.8em">${counts[s]}</span>`;
+    a.addEventListener('click', ev => {
+      ev.preventDefault();
+      activeSubject = activeSubject === s ? '' : s;
+      document.getElementById('subj-active').textContent = activeSubject ? '✕ ' + activeSubject : '';
+      document.getElementById('subj-dropdown').open = false;
+      list.querySelectorAll('a').forEach(el => el.classList.toggle('active', el.dataset.subj === activeSubject));
+      applyFilters();
+    });
+    list.appendChild(a);
+  });
+  document.getElementById('subj-search').addEventListener('input', function() {
+    const q = this.value.toLowerCase().trim();
+    list.querySelectorAll('a').forEach(a => a.style.display = !q || a.dataset.search.includes(q) ? '' : 'none');
+  });
+  document.getElementById('subj-active').addEventListener('click', () => {
+    activeSubject = '';
+    document.getElementById('subj-active').textContent = '';
+    list.querySelectorAll('a').forEach(el => el.classList.remove('active'));
+    applyFilters();
+  });
 }
 
 function applyFilters() {
   filtered = allEntries.filter(e => {
     if (translatedOnly && !e.translations) return false;
     if (activePrefix && e.prefix !== activePrefix) return false;
+    if (activeSubject && !(e.subjects || '').includes(activeSubject)) return false;
     if (searchTerm) {
       const q = searchTerm.toLowerCase();
       return e.pin.toLowerCase().includes(q)
           || (e.first_line || '').toLowerCase().includes(q)
+          || (e.first_line_orig || '').toLowerCase().includes(q)
           || (e.title || '').toLowerCase().includes(q)
-          || (e.subjects || '').toLowerCase().includes(q);
+          || (e.subjects || '').toLowerCase().includes(q)
+          || (e.notes || '').toLowerCase().includes(q);
     }
     return true;
   });
@@ -118,17 +196,29 @@ function renderTable() {
       ? `<td style="font-size:.8rem">${chips}</td>`
       : `<td style="text-align:center;opacity:.3;font-size:.85rem">—</td>`;
 
+    const showOrig = colToggles.orig.checked;
+    const showLang = colToggles.lang.checked;
+    const showWc = colToggles.wc.checked;
+    const showSubj = colToggles.subj.checked;
+
     const borderStyle = sameGroup ? 'border-top:1px dashed #eee' : '';
+    const origTd = showOrig ? `<td class="col-orig" style="font-size:.8rem; direction:auto">${e.first_line_orig || ''}</td>` : '';
+    const langTd = showLang ? `<td class="col-lang" style="font-size:.75rem; color:var(--text-secondary)">${LANG_NAMES[e.language] || e.language || ''}</td>` : '';
+    const wcTd = showWc ? `<td class="col-wc" style="font-size:.8rem; text-align:right; color:var(--text-secondary)">${e.word_count || ''}</td>` : '';
+    const subjTd = showSubj ? `<td class="col-subj" style="font-size:.7rem; color:var(--text-secondary); max-width:200px">${(e.subjects || '').replace(/@/g, '')}</td>` : '';
+
     html += `<tr style="${borderStyle}">
       <td class="pin-cell">${pinLink}</td>
       <td style="font-size:.8rem; color:var(--text-secondary)">${sameGroup ? '' : authorFromPin(e.pin)}</td>
       <td>${e.first_line || ''}</td>
+      ${origTd}${langTd}${wcTd}${subjTd}
       ${transCell}
     </tr>`;
   });
   tbody.innerHTML = html;
+  const totalCols = 4 + (showOrig?1:0) + (showLang?1:0) + (showWc?1:0) + (showSubj?1:0);
   if (filtered.length > 500) {
-    tbody.innerHTML += `<tr><td colspan="4" style="color:var(--text-secondary); padding:.5rem">
+    tbody.innerHTML += `<tr><td colspan="${totalCols}" style="color:var(--text-secondary); padding:.5rem">
       … ${(filtered.length - 500).toLocaleString()} more. Refine your search.
     </td></tr>`;
   }
