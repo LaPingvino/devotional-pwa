@@ -464,26 +464,26 @@
 }
 .compass-needle {
   position: absolute;
-  top: 15%;
+  top: 10%;
   left: 50%;
   width: 4px;
-  height: 35%;
+  height: 40%;
   margin-left: -2px;
-  background: var(--accent);
+  background: linear-gradient(to top, #ccc 40%, var(--accent) 40%);
   border-radius: 2px;
   transform-origin: bottom center;
 }
 .compass-needle::after {
   content: '';
   position: absolute;
-  top: -8px;
+  top: -10px;
   left: 50%;
   transform: translateX(-50%);
   width: 0;
   height: 0;
-  border-left: 6px solid transparent;
-  border-right: 6px solid transparent;
-  border-bottom: 10px solid var(--accent);
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 14px solid var(--accent);
 }
 .bearing-text {
   font-size: 1.1rem;
@@ -1124,6 +1124,10 @@
         }
       }
       if (window.DeviceOrientationEvent) {
+        // Prefer deviceorientationabsolute (Chrome Android) for true north heading
+        if ('ondeviceorientationabsolute' in window) {
+          window.addEventListener('deviceorientationabsolute', onAbsoluteOrientation, true);
+        }
         if (typeof DeviceOrientationEvent.requestPermission === 'function') {
           DeviceOrientationEvent.requestPermission().then(state => {
             if (state === 'granted') {
@@ -1145,14 +1149,23 @@
       }
     }
 
+    var useAbsoluteOrientation = false;
     function onOrientation(e) {
-      // webkitCompassHeading for iOS, alpha for Android
+      if (useAbsoluteOrientation) return; // prefer absolute event if available
       if (e.webkitCompassHeading !== undefined) {
         deviceHeading = e.webkitCompassHeading;
       } else if (e.alpha !== null) {
         deviceHeading = (360 - e.alpha) % 360;
       }
       updateCompass();
+    }
+    function onAbsoluteOrientation(e) {
+      if (e.alpha !== null) {
+        useAbsoluteOrientation = true;
+        deviceHeading = (360 - e.alpha) % 360;
+        $('compass').style.display = '';
+        updateCompass();
+      }
     }
 
     function compassDir(deg) {
