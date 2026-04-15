@@ -31,7 +31,7 @@
       <div id="filter-lang-chips" style="display:flex; gap:.2rem; flex-wrap:wrap;"></div>
     </div>
     <div id="exp-status" style="font-size:.85rem; color:var(--text-secondary); margin-left:.5rem;"></div>
-    <div style="margin-left:auto; display:flex; gap:.3rem; align-items:center; font-size:.8rem; color:var(--text-secondary);">
+    <div style="display:flex; gap:.3rem; align-items:center; font-size:.8rem; color:var(--text-secondary); flex-wrap:wrap;">
       <details class="search-lang-dropdown" id="lang1-dropdown">
         <summary id="lang1-label">English</summary>
         <div class="search-lang-panel">
@@ -82,6 +82,22 @@
 .lang-chip:hover { background:#ff7954; color:#fff; }
 /* search-lang-dropdown styles now in main.css */
 .lang-count-badge { font-size: .75rem; color: var(--text-secondary); }
+
+/* Mobile: card layout instead of table */
+@media (max-width: 600px) {
+  #exp-table thead { display: none; }
+  #exp-table, #exp-table tbody, #exp-table tr, #exp-table td { display: block; width: 100%; }
+  #exp-table tr {
+    border: 1px solid var(--border); border-radius: 6px;
+    margin-bottom: .5rem; padding: .5rem; position: relative;
+  }
+  #exp-table td { padding: .15rem .3rem; border: none; }
+  #exp-table td.pin-cell { font-size: 1rem; font-weight: 700; }
+  #exp-table td:empty { display: none; }
+  .inventory-controls { flex-wrap: wrap; }
+  .inventory-controls .prefix-btn { font-size: .7rem; padding: .2rem .4rem; }
+  .search-box { min-width: 100% !important; }
+}
 </style>
 
 <script>
