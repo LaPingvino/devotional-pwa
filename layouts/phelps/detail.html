@@ -89,7 +89,7 @@
         if (!textCache[lang]) {
           try {
             const r = await fetch(`/data/prayers/${lang}.json`);
-            if (r.ok) textCache[lang] = await r.json();
+            if (r.ok) { const d = await r.json(); textCache[lang] = d.prayers || d; }
           } catch (_) {}
         }
         const prayers = textCache[lang] || [];
