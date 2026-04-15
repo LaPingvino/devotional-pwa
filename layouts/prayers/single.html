@@ -16,7 +16,7 @@
   <aside class="sidebar">
     {{ if $allBooks }}
     <div class="sidebar-section" id="book-bar">
-      <div class="sidebar-heading">Prayerbook</div>
+      <div class="sidebar-heading" data-i18n="prayerbook">Prayerbook</div>
       <select id="book-select" style="width:100%; padding:.3rem .5rem; margin-bottom:.5rem; background:var(--bg-secondary,#f5f5f5); border:1px solid var(--border,#ddd); border-radius:4px; color:inherit; font-size:.9rem">
         {{ range $allBooks }}
         <option value="{{ .code }}"{{ if eq .code $defaultBook }} selected{{ end }}>{{ .name }}</option>
@@ -25,7 +25,7 @@
     </div>
     {{ end }}
     <div class="sidebar-section" id="cat-section"{{ if $prayerbooks }} style="margin-top:1rem"{{ end }}>
-      <div class="sidebar-heading">Categories</div>
+      <div class="sidebar-heading" data-i18n="categories">Categories</div>
       <div id="cat-list"></div>
     </div>
     <div class="sidebar-section" style="margin-top:1rem">
@@ -34,7 +34,7 @@
       <a href="/downloads/prayers_{{ $lang }}.epub" class="dl-link" download>EPUB</a>
     </div>
     <div class="sidebar-section" style="margin-top:.5rem">
-      <a href="/" style="padding:.4rem 1rem; display:block; font-size:.85rem; color:var(--text-secondary)" data-i18n="nav_all_languages">← All languages</a>
+      <a href="/prayers/" style="padding:.4rem 1rem; display:block; font-size:.85rem; color:var(--text-secondary)" data-i18n="nav_all_languages">← All languages</a>
     </div>
   </aside>
 
