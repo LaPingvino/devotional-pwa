@@ -651,6 +651,7 @@ var writingTypes = []struct {
 	{"ridvan", "Ridván Messages", "Universal House of Justice", "ridvan", true, true},
 	{"divineplan", "Tablets of the Divine Plan", "'Abdu'l-Bahá", "divineplan", false, false},
 	{"lawh", "Other Tablets", "Bahá'u'lláh", "lawh", false, false},
+	{"gpb", "God Passes By", "Shoghi Effendi", "book", true, true},
 }
 
 // generateWritings returns a reverse index: base phelps code → []WritingRef
