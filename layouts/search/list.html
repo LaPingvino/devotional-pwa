@@ -10,13 +10,18 @@
     <button class="prefix-btn" data-prefix="BH" title="Bahá'u'lláh">BH</button>
     <button class="prefix-btn" data-prefix="AB" title="ʻAbdu'l-Bahá">AB</button>
     <button class="prefix-btn" data-prefix="BB" title="The Báb">BB</button>
-    <button class="prefix-btn" data-prefix="BHU">BHU</button>
-    <button class="prefix-btn" data-prefix="ABU">ABU</button>
-    <button class="prefix-btn" data-prefix="BBU">BBU</button>
-    <button class="prefix-btn" data-prefix="UH" title="Universal House of Justice">UH</button>
     <button class="prefix-btn" data-prefix="SE" title="Shoghi Effendi">SE</button>
-    <button class="prefix-btn" data-prefix="TMP">TMP</button>
-    <button class="prefix-btn" data-prefix="X">X</button>
+    <button class="prefix-btn" data-prefix="UH" title="Universal House of Justice">UH</button>
+    <details class="prefix-more-dropdown" id="prefix-more">
+      <summary class="prefix-btn prefix-more-btn">More</summary>
+      <div class="prefix-more-panel">
+        <button class="prefix-btn" data-prefix="BHU" title="Bahá'u'lláh (utterance)">BHU</button>
+        <button class="prefix-btn" data-prefix="ABU" title="ʻAbdu'l-Bahá (utterance)">ABU</button>
+        <button class="prefix-btn" data-prefix="BBU" title="The Báb (utterance)">BBU</button>
+        <button class="prefix-btn" data-prefix="TMP" title="Unresolved">TMP</button>
+        <button class="prefix-btn" data-prefix="X" title="Unverified">X</button>
+      </div>
+    </details>
     <input type="search" class="search-box" id="exp-search" data-i18n-placeholder="search_placeholder" placeholder="Search in any language…">
   </div>
 
@@ -83,6 +88,20 @@
 .lang-chip:hover { background:#ff7954; color:#fff; }
 /* search-lang-dropdown styles now in main.css */
 .lang-count-badge { font-size: .75rem; color: var(--text-secondary); }
+.prefix-more-dropdown { position: relative; display: inline-block; }
+.prefix-more-btn { cursor: pointer; }
+.prefix-more-btn::-webkit-details-marker { display: none; }
+.prefix-more-btn::after { content: ' \25BE'; font-size: .7em; }
+.prefix-more-panel {
+  position: absolute; top: 100%; left: 0; z-index: 10;
+  background: var(--surface, #fff); border: 1px solid var(--border);
+  border-radius: 6px; box-shadow: 0 4px 12px rgba(0,0,0,.1);
+  padding: .3rem; display: flex; flex-direction: column; gap: .2rem;
+  margin-top: .3rem; min-width: max-content;
+}
+.prefix-more-dropdown.has-active > summary {
+  border-color: var(--accent); background: #fff3ef; color: var(--accent);
+}
 
 /* Mobile: card layout instead of table */
 @media (max-width: 600px) {
@@ -113,7 +132,13 @@ const AUTHORS = {
 
 function authorFromPin(pin) {
   const m = pin.match(/^([A-Z]+)/);
-  return m ? (AUTHORS[m[1]] || '') : '';
+  if (!m) return '';
+  const alpha = m[1];
+  for (let len = alpha.length; len >= 2; len--) {
+    const prefix = alpha.slice(0, len);
+    if (AUTHORS[prefix]) return AUTHORS[prefix];
+  }
+  return '';
 }
 
 function phelpsUrl(pin) {
@@ -342,6 +367,7 @@ function matchesPrefix(pin) {
   if (!activePrefix) return true;
   if (activePrefix === 'X') return pin.startsWith('X');
   if (activePrefix === 'UH') return pin.startsWith('UH');
+  if (activePrefix === 'SE') return pin.startsWith('SE');
   const m = pin.match(/^([A-Z]+)/);
   return m && m[1] === activePrefix;
 }
@@ -459,11 +485,16 @@ function enableResize(table) {
 }
 
 // Prefix buttons
-document.querySelectorAll('.prefix-btn').forEach(btn => {
+document.querySelectorAll('.prefix-btn[data-prefix]').forEach(btn => {
   btn.addEventListener('click', () => {
     document.querySelectorAll('.prefix-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     activePrefix = btn.dataset.prefix;
+    const more = document.getElementById('prefix-more');
+    if (more) {
+      more.classList.toggle('has-active', more.contains(btn) && !!activePrefix);
+      if (more.contains(btn)) more.removeAttribute('open');
+    }
     applyFilters();
   });
 });
