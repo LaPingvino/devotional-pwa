@@ -1253,14 +1253,27 @@
         };
       }
     }
-    // gpb:chapter or gpb:start-end (God Passes By)
+    // gpb:chapter:para or gpb:chapter:start-end (God Passes By paragraphs)
+    m = code.match(/^gpb:(\d+):(\d+)(?:-(\d+))?$/);
+    if (m) {
+      var ch = parseInt(m[1]), start = parseInt(m[2]), end = m[3] ? parseInt(m[3]) : start;
+      var chCode = 'SEGPB' + (ch < 10 ? '0' : '') + ch;
+      return {
+        key: 'gpb', title: "God Passes By",
+        label: "GPB " + ch + ":" + start + (end > start ? '\u2013' + end : ''),
+        filter: function(e) { return e.phelps === chCode && e.order >= start && e.order <= end; }
+      };
+    }
+    // gpb:chapter or gpb:start-end (whole chapters)
     m = code.match(/^gpb:(\d+)(?:-(\d+))?$/);
     if (m) {
       var start = parseInt(m[1]), end = m[2] ? parseInt(m[2]) : start;
+      var codes = [];
+      for (var c = start; c <= end; c++) codes.push('SEGPB' + (c < 10 ? '0' : '') + c);
       return {
         key: 'gpb', title: "God Passes By",
         label: "GPB Ch " + start + (end > start ? '\u2013' + end : ''),
-        filter: function(e) { return e.order >= start && e.order <= end; }
+        filter: function(e) { return codes.indexOf(e.phelps) >= 0; }
       };
     }
     return null;

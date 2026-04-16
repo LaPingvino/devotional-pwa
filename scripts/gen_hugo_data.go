@@ -639,19 +639,20 @@ var writingTypes = []struct {
 	DBType     string
 	SingleBook bool // treat all entries as one book (don't group by base code)
 	ShowNames  bool // show entry names in the UI (useful for SAQ titles, Gleanings Roman numerals)
+	SplitParas bool // split text on \n\n into individual paragraph entries
 }{
-	{"hidden-words", "The Hidden Words", "Bahá'u'lláh", "hidden_words", false, false},
-	{"aqdas", "Kitáb-i-Aqdas", "Bahá'u'lláh", "aqdas", true, false},
-	{"iqan", "Kitáb-i-Íqán", "Bahá'u'lláh", "iqan", true, false},
-	{"gleanings", "Gleanings", "Bahá'u'lláh", "gleanings", true, true},
-	{"pm", "Prayers & Meditations", "Bahá'u'lláh", "pm", true, false},
-	{"saq", "Some Answered Questions", "'Abdu'l-Bahá", "saq", true, true},
-	{"tablets", "Tablets of Bahá'u'lláh", "Bahá'u'lláh", "tablets", false, false},
-	{"days", "Days of Remembrance", "Bahá'u'lláh", "days_remembrance", true, true},
-	{"ridvan", "Ridván Messages", "Universal House of Justice", "ridvan", true, true},
-	{"divineplan", "Tablets of the Divine Plan", "'Abdu'l-Bahá", "divineplan", false, false},
-	{"lawh", "Other Tablets", "Bahá'u'lláh", "lawh", false, false},
-	{"gpb", "God Passes By", "Shoghi Effendi", "book", true, true},
+	{"hidden-words", "The Hidden Words", "Bahá'u'lláh", "hidden_words", false, false, false},
+	{"aqdas", "Kitáb-i-Aqdas", "Bahá'u'lláh", "aqdas", true, false, false},
+	{"iqan", "Kitáb-i-Íqán", "Bahá'u'lláh", "iqan", true, false, false},
+	{"gleanings", "Gleanings", "Bahá'u'lláh", "gleanings", true, true, false},
+	{"pm", "Prayers & Meditations", "Bahá'u'lláh", "pm", true, false, false},
+	{"saq", "Some Answered Questions", "'Abdu'l-Bahá", "saq", true, true, false},
+	{"tablets", "Tablets of Bahá'u'lláh", "Bahá'u'lláh", "tablets", false, false, false},
+	{"days", "Days of Remembrance", "Bahá'u'lláh", "days_remembrance", true, true, false},
+	{"ridvan", "Ridván Messages", "Universal House of Justice", "ridvan", true, true, false},
+	{"divineplan", "Tablets of the Divine Plan", "'Abdu'l-Bahá", "divineplan", false, false, false},
+	{"lawh", "Other Tablets", "Bahá'u'lláh", "lawh", false, false, false},
+	{"gpb", "God Passes By", "Shoghi Effendi", "book", false, false, true},
 }
 
 // generateWritings returns a reverse index: base phelps code → []WritingRef
@@ -741,10 +742,39 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 				}
 			}
 
+			// Split paragraphs if requested (e.g. GPB: each chapter → book, each paragraph → entry)
+			paraCount := 0
+			if wt.SplitParas {
+				for i := range books {
+					var split []WritingEntry
+					for _, e := range books[i].Entries {
+						paras := strings.Split(e.Text, "\n\n")
+						for _, p := range paras {
+							p = strings.TrimSpace(p)
+							if p == "" {
+								continue
+							}
+							split = append(split, WritingEntry{
+								Phelps: e.Phelps,
+								Name:   "",
+								Text:   "<p>" + p + "</p>",
+								Order:  len(split) + 1,
+							})
+						}
+					}
+					books[i].Entries = split
+					paraCount += len(split)
+				}
+			}
+
+			entryCount := len(entries)
+			if wt.SplitParas {
+				entryCount = paraCount
+			}
 			wlangs = append(wlangs, WritingLang{
 				Code:  lang,
 				Name:  name,
-				Count: len(entries),
+				Count: entryCount,
 				RTL:   rtlLangs[lang],
 			})
 			wlf := WritingLangFile{Books: books}

@@ -381,7 +381,10 @@ a.entry-name:hover { text-decoration: underline; }
       if (tablet) return 'tdp:' + tablet + ':' + from + (to > from ? '-' + to : '');
       return null;
     },
-    'gpb':          function(base, from, to) { return 'gpb:' + from + (to > from ? '-' + to : ''); }
+    'gpb':          function(base, from, to) {
+      var ch = base.replace('SEGPB', '').replace(/^0/, '');
+      return 'gpb:' + ch + ':' + from + (to > from ? '-' + to : '');
+    }
   };
 
   document.querySelectorAll('.range-add-btn').forEach(function(btn) {
