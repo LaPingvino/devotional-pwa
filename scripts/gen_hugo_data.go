@@ -23,6 +23,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -617,7 +618,8 @@ type WritingEntry struct {
 	Phelps string `json:"phelps"`
 	Name   string `json:"name,omitempty"`
 	Text   string `json:"text"`
-	Order  int    `json:"order"`
+	Order  int    `json:"order"`           // numeric position for sorting / range-selection
+	Label  string `json:"label,omitempty"` // display label; differs from Order for chapter:para works (Íqán: "1:1", "2:186")
 }
 
 // WritingBook groups entries under a book/tablet heading
@@ -677,11 +679,13 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 		if typeData[dbType] == nil {
 			typeData[dbType] = map[string][]WritingEntry{}
 		}
+		fallbackOrder := len(typeData[dbType][lang]) + 1
 		typeData[dbType][lang] = append(typeData[dbType][lang], WritingEntry{
 			Phelps: phelps,
 			Name:   name,
 			Text:   text,
-			Order:  len(typeData[dbType][lang]) + 1,
+			Order:  writingEntryNumber(phelps, fallbackOrder),
+			Label:  writingEntryLabel(phelps),
 		})
 	}
 
@@ -845,6 +849,72 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 // BH00001G037 → BH00001, BH00113P01 → BH00113, UHR2024 → UHR2024
 // Strategy: the base is always the first 7 chars IF char 8+ is a non-letter
 // or a single letter followed by digits.
+// writingEntryNumber returns the canonical entry number from the last three
+// characters of a phelps code, which encodes the verse / paragraph / section
+// number for multi-entry works:
+//   - HW Arabic   BH00386A71 → "A71" → 71  (and A00 → 0 for the preamble)
+//   - HW Persian  BH00113P83 → "P83" → 83  (P00 preamble, P83 conclusion)
+//   - Aqdas       BH00001190 → "190" → 190
+//   - Íqán        BH000022186 → "186" (paragraph within chapter)
+//   - Gleanings   BH00001G166 → "G166" → 166
+// Standalone 7-char prayer codes have no suffix and fall back to sequential
+// position.
+// writingEntryLabel returns a human-readable display label that may differ
+// from the numeric Order. Currently used for Íqán to show "chapter:paragraph"
+// (BH000021001 → "1:1"), otherwise returns empty so the UI falls back to Order.
+func writingEntryLabel(pin string) string {
+	// Íqán: BH00002 base, 11-char total, digit-only suffix of length 4 where
+	// the first digit is the chapter and the rest is the paragraph.
+	if len(pin) == 11 && strings.HasPrefix(pin, "BH00002") {
+		suffix := pin[7:]
+		allDigits := true
+		for _, c := range suffix {
+			if c < '0' || c > '9' {
+				allDigits = false
+				break
+			}
+		}
+		if allDigits {
+			chapter := suffix[:1]
+			para := strings.TrimLeft(suffix[1:], "0")
+			if para == "" {
+				para = "0"
+			}
+			return chapter + ":" + para
+		}
+	}
+	return ""
+}
+
+func writingEntryNumber(pin string, fallback int) int {
+	if len(pin) < 10 {
+		return fallback
+	}
+	// Íqán uses 11-char chapter-prefixed codes that duplicate paragraph
+	// numbers across chapters. Keep sequential Order; Label carries "ch:para".
+	if len(pin) > 10 && pin[7] >= '0' && pin[7] <= '9' {
+		return fallback
+	}
+	suffix := pin[len(pin)-3:]
+	// Strip a single leading uppercase letter (A/P for HW, G for Gleanings, …)
+	if suffix[0] >= 'A' && suffix[0] <= 'Z' {
+		suffix = suffix[1:]
+	}
+	if suffix == "" {
+		return fallback
+	}
+	for _, c := range suffix {
+		if c < '0' || c > '9' {
+			return fallback
+		}
+	}
+	n, err := strconv.Atoi(suffix)
+	if err != nil {
+		return fallback
+	}
+	return n
+}
+
 func writingBaseCode(pin string) string {
 	if len(pin) <= 7 {
 		return pin

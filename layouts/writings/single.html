@@ -36,7 +36,7 @@
           {{/* Single book with named entries: show entry titles as TOC */}}
           {{ range (index $entries 0).entries }}
           <a href="#{{ .phelps }}" class="toc-entry">
-            <span class="toc-entry-num">{{ .order }}</span>
+            <span class="toc-entry-num">{{ with .label }}{{ . }}{{ else }}{{ .order }}{{ end }}</span>
             <span class="toc-entry-name">{{ .name }}</span>
           </a>
           {{ end }}
@@ -89,12 +89,10 @@
           <button class="btn-action btn-small range-add-btn">Add to devotional</button>
         </div>
 
-        {{ $bookIdx := 0 }}
         {{ range .entries }}
-        {{ $bookIdx = add $bookIdx 1 }}
         <section class="writing-entry" id="{{ .phelps }}" data-order="{{ .order }}">
           <div class="writing-entry-label">
-            <a href="#{{ .phelps }}" class="entry-num" title="Link to this section">{{ $bookIdx }}</a>
+            <a href="#{{ .phelps }}" class="entry-num" title="Link to this section">{{ with .label }}{{ . }}{{ else }}{{ .order }}{{ end }}</a>
             {{ if and $showNames .name }}<a href="#{{ .phelps }}" class="entry-name">{{ .name }}</a>{{ end }}
             {{ if $showEntryLinks }}<a href="/phelps/{{ .phelps | lower }}/" class="phelps-link" title="View in inventory">{{ .phelps }}</a>{{ end }}
             <span style="flex:1"></span>
