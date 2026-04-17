@@ -713,6 +713,13 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 					Entries: entries,
 				}}
 			} else {
+				// Fixed book titles for bases where the first entry's name
+				// doesn't yield the right title under the strip-digits heuristic
+				// (e.g. HW preamble entry is named "…— Preamble").
+				fixedTitles := map[string]string{
+					"BH00386": "Arabic Hidden Words",
+					"BH00113": "Persian Hidden Words",
+				}
 				// Group by base Phelps code
 				bookMap := map[string]*WritingBook{}
 				var bookOrder []string
@@ -721,13 +728,18 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 					if bk, ok := bookMap[base]; ok {
 						bk.Entries = append(bk.Entries, e)
 					} else {
-						// Strip trailing section marker to get book title
-						// "Persian Hidden Word 1" → "Persian Hidden Words"
-						// "Epistle to the Son of the Wolf §1" → "Epistle to the Son of the Wolf"
-						// "Lawḥ-i-Karmil (Tablet of Carmel)" → unchanged
-						title := strings.TrimRight(e.Name, " 0123456789§¶")
-						if title != e.Name && strings.HasSuffix(title, "Word") {
-							title += "s" // pluralize: "Persian Hidden Word" → "Persian Hidden Words"
+						var title string
+						if ft, ok := fixedTitles[base]; ok {
+							title = ft
+						} else {
+							// Strip trailing section marker to get book title
+							// "Persian Hidden Word 1" → "Persian Hidden Words"
+							// "Epistle to the Son of the Wolf §1" → "Epistle to the Son of the Wolf"
+							// "Lawḥ-i-Karmil (Tablet of Carmel)" → unchanged
+							title = strings.TrimRight(e.Name, " 0123456789§¶")
+							if title != e.Name && strings.HasSuffix(title, "Word") {
+								title += "s" // pluralize: "Persian Hidden Word" → "Persian Hidden Words"
+							}
 						}
 						bookMap[base] = &WritingBook{
 							Base:    base,
