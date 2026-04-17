@@ -58,19 +58,7 @@
       <div class="prayer-texts" data-code="${code}" style="margin-top:.8rem;"></div>`;
   }
 
-  // Simple markdown renderer (same as devotional page)
-  function renderMd(text) {
-    if (!text) return '';
-    return text
-      .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-      .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-      .replace(/^# (.+)$/gm, '<h2>$1</h2>')
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*([^*\n]+)\*/g, '<em>$1</em>')
-      .replace(/\n{2,}/g, '</p><p>')
-      .replace(/\n/g, '<br>')
-      .replace(/^/, '<p>').replace(/$/, '</p>');
-  }
+  // renderMd provided by /js/render-md.js (loaded in foot.html)
 
   // Load and display prayer texts for a given code
   const textCache = {};

@@ -717,12 +717,71 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 					Entries: entries,
 				}}
 			} else {
-				// Fixed book titles for bases where the first entry's name
-				// doesn't yield the right title under the strip-digits heuristic
-				// (e.g. HW preamble entry is named "…— Preamble").
-				fixedTitles := map[string]string{
-					"BH00386": "Arabic Hidden Words",
-					"BH00113": "Persian Hidden Words",
+				// Fixed, localized book titles for bases where the first
+				// entry's name doesn't yield the right title under the
+				// strip-digits heuristic (e.g. HW preamble entry is named
+				// "…— Preamble"). Missing translations fall back to English.
+				// TODO: lift to i18n/*.yaml once we agree on the key naming.
+				localizedTitles := map[string]map[string]string{
+					"BH00386": {
+						"en": "Arabic Hidden Words",
+						"ar": "الكلمات المكنونة العربية",
+						"fa": "کلمات مکنونه عربی",
+						"de": "Die Arabischen Verborgenen Worte",
+						"fr": "Les Paroles Cachées en arabe",
+						"es": "Las Palabras Ocultas en árabe",
+						"it": "Le Parole Celate in arabo",
+						"pt": "As Palavras Ocultas em árabe",
+						"nl": "De Arabische Verborgen Woorden",
+						"ru": "Сокровенные Слова (арабские)",
+						"zh-Hans": "隐言经(阿拉伯文)",
+						"zh-Hant": "隱言經(阿拉伯文)",
+						"ja":      "アラビア語の隠されし言葉",
+						"ko":      "아랍어 감추어진 말씀",
+						"tr":      "Arapça Gizli Sözler",
+						"pl":      "Słowa Ukryte (arabskie)",
+						"sv":      "De Fördolda Orden (arabiska)",
+						"hu":      "Arab Rejtett Szavak",
+						"fi":      "Kätketyt sanat (arabia)",
+						"el":      "Αραβικές Κρυμμένες Λέξεις",
+						"ro":      "Cuvintele Ascunse (arabă)",
+						"eo":      "Kaŝitaj Vortoj (araba)",
+					},
+					"BH00113": {
+						"en": "Persian Hidden Words",
+						"ar": "الكلمات المكنونة الفارسية",
+						"fa": "کلمات مکنونه فارسی",
+						"de": "Die Persischen Verborgenen Worte",
+						"fr": "Les Paroles Cachées en persan",
+						"es": "Las Palabras Ocultas en persa",
+						"it": "Le Parole Celate in persiano",
+						"pt": "As Palavras Ocultas em persa",
+						"nl": "De Perzische Verborgen Woorden",
+						"ru": "Сокровенные Слова (персидские)",
+						"zh-Hans": "隐言经(波斯文)",
+						"zh-Hant": "隱言經(波斯文)",
+						"ja":      "ペルシア語の隠されし言葉",
+						"ko":      "페르시아어 감추어진 말씀",
+						"tr":      "Farsça Gizli Sözler",
+						"pl":      "Słowa Ukryte (perskie)",
+						"sv":      "De Fördolda Orden (persiska)",
+						"hu":      "Perzsa Rejtett Szavak",
+						"fi":      "Kätketyt sanat (persia)",
+						"el":      "Περσικές Κρυμμένες Λέξεις",
+						"ro":      "Cuvintele Ascunse (persană)",
+						"eo":      "Kaŝitaj Vortoj (persa)",
+					},
+				}
+				fixedTitle := func(base, lng string) string {
+					if byLang, ok := localizedTitles[base]; ok {
+						if t, ok := byLang[lng]; ok {
+							return t
+						}
+						if t, ok := byLang["en"]; ok {
+							return t
+						}
+					}
+					return ""
 				}
 				// Group by base Phelps code
 				bookMap := map[string]*WritingBook{}
@@ -733,7 +792,7 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 						bk.Entries = append(bk.Entries, e)
 					} else {
 						var title string
-						if ft, ok := fixedTitles[base]; ok {
+						if ft := fixedTitle(base, lang); ft != "" {
 							title = ft
 						} else {
 							// Strip trailing section marker to get book title

@@ -99,7 +99,7 @@
             <input type="checkbox" class="range-marker" data-order="{{ .order }}">
             <button class="btn-add-devotional" data-phelps="{{ .phelps }}" aria-label="Add to devotional" title="Add to devotional program">+</button>
           </div>
-          <div class="writing-text">{{ .text | safeHTML }}</div>
+          <div class="writing-text">{{ .text | markdownify }}</div>
         </section>
         {{ end }}
       </div>
