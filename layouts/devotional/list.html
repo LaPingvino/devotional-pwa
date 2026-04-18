@@ -884,9 +884,21 @@
       if (!res.ok) { writingCache[cacheKey] = {}; return {}; }
       const data = await res.json();
       const map = {};
+      const all = [];
       (data.books || []).forEach(b => {
-        (b.entries || []).forEach(e => { map[e.phelps] = { ...e, bookTitle: b.title }; });
+        (b.entries || []).forEach(e => {
+          const entry = { ...e, bookTitle: b.title };
+          all.push(entry);
+          // For types where entries share phelps (e.g. GPB paragraphs): merge text so
+          // a direct phelps lookup yields the full chapter instead of only the last paragraph.
+          if (!map[e.phelps]) {
+            map[e.phelps] = entry;
+          } else {
+            map[e.phelps] = { ...map[e.phelps], text: (map[e.phelps].text || '') + '\n' + (entry.text || '') };
+          }
+        });
       });
+      Object.defineProperty(map, '_all', { value: all, enumerable: false });
       writingCache[cacheKey] = map;
       return map;
     } catch { writingCache[cacheKey] = {}; return {}; }
@@ -1089,7 +1101,7 @@
       var wMap = await getWritingMap(writingShort.key, lang);
       if (!wMap) wMap = await getWritingMap(writingShort.key, 'en');
       if (wMap) {
-        var entries = Object.values(wMap);
+        var entries = wMap._all || Object.values(wMap);
         var matching = entries.filter(writingShort.filter);
         if (matching.length > 0) {
           var text = matching.map(function(e) { return e.text; }).join('\n');
@@ -1240,6 +1252,29 @@
           filter: function(e) { return e.phelps && e.phelps.startsWith(base); }
         };
       }
+    }
+    // gpb:fw:para or gpb:rp:para (Foreword / Reference Points)
+    m = code.match(/^gpb:(fw|rp):(\d+)(?:-(\d+))?$/i);
+    if (m) {
+      var chCode = 'SEGPB' + m[1].toUpperCase();
+      var start = parseInt(m[2]), end = m[3] ? parseInt(m[3]) : start;
+      var label = m[1].toUpperCase();
+      return {
+        key: 'gpb', title: "God Passes By",
+        label: "GPB " + label + " \u00b6" + start + (end > start ? '\u2013' + end : ''),
+        filter: function(e) { return e.phelps === chCode && e.order >= start && e.order <= end; }
+      };
+    }
+    // gpb:fw or gpb:rp (whole Foreword / Reference Points)
+    m = code.match(/^gpb:(fw|rp)$/i);
+    if (m) {
+      var chCode = 'SEGPB' + m[1].toUpperCase();
+      var label = m[1].toUpperCase();
+      return {
+        key: 'gpb', title: "God Passes By",
+        label: "GPB " + label,
+        filter: function(e) { return e.phelps === chCode; }
+      };
     }
     // gpb:chapter:para or gpb:chapter:start-end (God Passes By paragraphs)
     m = code.match(/^gpb:(\d+):(\d+)(?:-(\d+))?$/);
