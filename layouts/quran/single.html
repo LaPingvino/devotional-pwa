@@ -219,24 +219,29 @@
 .verse-list {
   padding: .5rem 0;
   margin: 0;
-  padding-left: 3.2rem;
-}
-.verse-list li {
-  padding-left: .5rem;
+  list-style: none;
 }
 .verse {
   padding: .4rem 0;
   line-height: 1.8;
   border-bottom: 1px solid #f0f0f0;
   position: relative;
+  gap: .5em;
 }
 .verse:last-child {
   border-bottom: none;
 }
-.verse::marker {
+/* main.css applies display:flex to .verse for the range-checkbox layout,
+   which suppresses the native ::marker. Re-create the ayah number via ::before. */
+.verse::before {
+  content: attr(value);
   color: var(--accent);
   font-size: .8rem;
   font-weight: 600;
+  min-width: 2.4rem;
+  text-align: right;
+  flex-shrink: 0;
+  padding-right: .3rem;
 }
 .ayah-text {
   font-size: .95rem;
