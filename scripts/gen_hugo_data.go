@@ -599,11 +599,12 @@ func main() {
 
 // WritingType metadata for the writings index
 type WritingType struct {
-	Key       string          `json:"key"`
-	Title     string          `json:"title"`
-	Author    string          `json:"author"`
-	ShowNames bool            `json:"show_names,omitempty"`
-	Langs     []WritingLang   `json:"langs"`
+	Key        string        `json:"key"`
+	Title      string        `json:"title"`
+	Author     string        `json:"author"`
+	ShowNames  bool          `json:"show_names,omitempty"`
+	SingleBook bool          `json:"single_book,omitempty"`
+	Langs      []WritingLang `json:"langs"`
 }
 
 type WritingLang struct {
@@ -862,11 +863,12 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 		sort.Slice(wlangs, func(i, j int) bool { return wlangs[i].Name < wlangs[j].Name })
 
 		writingsIndex = append(writingsIndex, WritingType{
-			Key:       wt.Key,
-			Title:     wt.Title,
-			Author:    wt.Author,
-			ShowNames: wt.ShowNames,
-			Langs:     wlangs,
+			Key:        wt.Key,
+			Title:      wt.Title,
+			Author:     wt.Author,
+			ShowNames:  wt.ShowNames,
+			SingleBook: wt.SingleBook,
+			Langs:      wlangs,
 		})
 		log.Printf("  %s: %d languages", wt.Key, len(wlangs))
 	}

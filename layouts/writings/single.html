@@ -4,7 +4,8 @@
 {{ $allLangs := .Params.allLangs }}
 {{ $key := .Params.writingKey }}
 {{ $showNames := .Params.showNames }}
-{{ $multiBook := gt (len $entries) 1 }}
+{{/* Multi-book mode is driven by the config (SingleBook=false) so the tablet header renders even when only one tablet currently exists in this type. */}}
+{{ $multiBook := not .Params.singleBook }}
 {{/* Show per-entry inventory links only for types with distinct codes per entry (SAQ, Gleanings, PM, Days, Ridvan) */}}
 {{ $showEntryLinks := and (not $multiBook) $showNames }}
 
