@@ -1717,53 +1717,94 @@
 
   // ── Bahá'í Calendar + Thematic Suggestions ──
   const BADI_MONTHS = [
-    { name: 'Bahá', en: 'Splendour', cats: ['Praise and Gratitude', 'Spiritual Growth', 'Nearness to God'] },
-    { name: 'Jalál', en: 'Glory', cats: ['Praise and Gratitude', 'Steadfastness', 'Trust in God'] },
-    { name: 'Jamál', en: 'Beauty', cats: ['Praise and Gratitude', 'Spiritual Growth', 'Nearness to God'] },
-    { name: '\u2018Aẓamat', en: 'Grandeur', cats: ['Praise and Gratitude', 'Firmness in the Covenant', 'Triumph of the Cause'] },
-    { name: 'Núr', en: 'Light', cats: ['Enlightenment', 'Guidance', 'Teaching'] },
-    { name: 'Raḥmat', en: 'Mercy', cats: ['Forgiveness', 'Healing', 'Humanity'] },
-    { name: 'Kalimát', en: 'Words', cats: ['Teaching', 'Guidance', 'Firmness in the Covenant'] },
-    { name: 'Kamál', en: 'Perfection', cats: ['Spiritual Growth', 'Detachment', 'Steadfastness'] },
-    { name: 'Asmá\u2019', en: 'Names', cats: ['Praise and Gratitude', 'Nearness to God', 'Trust in God'] },
-    { name: '\u2018Izzat', en: 'Might', cats: ['Aid and Assistance', 'Protection', 'Steadfastness'] },
-    { name: 'Mashíyyat', en: 'Will', cats: ['Tests and Difficulties', 'Trust in God', 'Detachment'] },
-    { name: '\u2018Ilm', en: 'Knowledge', cats: ['Enlightenment', 'Guidance', 'Children'] },
-    { name: 'Qudrat', en: 'Power', cats: ['Aid and Assistance', 'Triumph of the Cause', 'Steadfastness'] },
-    { name: 'Qawl', en: 'Speech', cats: ['Teaching', 'Gatherings', 'Unity'] },
-    { name: 'Masá\u2019il', en: 'Questions', cats: ['Guidance', 'Spiritual Growth', 'Enlightenment'] },
-    { name: 'Sharaf', en: 'Honour', cats: ['Service', 'Humanity', 'Justice'] },
-    { name: 'Sulṭán', en: 'Sovereignty', cats: ['Firmness in the Covenant', 'Triumph of the Cause', 'Tablets of Visitation'] },
-    { name: 'Mulk', en: 'Dominion', cats: ['Praise and Gratitude', 'Spiritual Assembly', 'Unity'] },
-    { name: '\u2018Alá\u2019', en: 'Loftiness', cats: ['The Fast', 'Nearness to God', 'Detachment'] },
+    { name: 'Bahá', en: 'Splendour', cats: ['Praise and Gratitude', 'Spiritual Growth', 'Nearness to God'],
+      keywords: { en: ['splendour','splendor','glory','radiance','effulgence'], ar: ['بهاء','مجد','جلال'], fa: ['بهاء','جلال','شکوه'], pt: ['esplendor','glória','majestade'], de: ['Pracht','Herrlichkeit','Glanz'] } },
+    { name: 'Jalál', en: 'Glory', cats: ['Praise and Gratitude', 'Steadfastness'],
+      keywords: { en: ['glory','glorious','glorify'], ar: ['جلال','جليل'], fa: ['جلال','شکوه'], pt: ['glória','glorioso'], de: ['Herrlichkeit','glorreich'] } },
+    { name: 'Jamál', en: 'Beauty', cats: ['Praise and Gratitude', 'Spiritual Growth', 'Nearness to God'],
+      keywords: { en: ['beauty','beautiful','comely'], ar: ['جمال','جميل'], fa: ['جمال','زیبا'], pt: ['beleza','belo','bela'], de: ['Schönheit','schön'] } },
+    { name: '‘Aẓamat', en: 'Grandeur', cats: ['Praise and Gratitude', 'Firmness in the Covenant', 'Triumph of the Cause'],
+      keywords: { en: ['grandeur','greatness','majesty'], ar: ['عظمة','عظيم'], fa: ['عظمت','بزرگی','کبریا'], pt: ['grandeza','majestade'], de: ['Erhabenheit','Majestät','Größe'] } },
+    { name: 'Núr', en: 'Light', cats: ['Guidance', 'Teaching'],
+      keywords: { en: ['light','illumine','luminous','radiance'], ar: ['نور','ضياء','أنوار'], fa: ['نور','روشن','تابان'], pt: ['luz','iluminar','luminoso'], de: ['Licht','leuchten','erleuchten'] } },
+    { name: 'Raḥmat', en: 'Mercy', cats: ['Forgiveness', 'Healing', 'Humanity'],
+      keywords: { en: ['mercy','merciful','compassion'], ar: ['رحمة','رحيم','رحمن'], fa: ['رحمت','بخشنده','مهربان'], pt: ['misericórdia','clêmência','compaixão'], de: ['Barmherzigkeit','Erbarmen','Gnade'] } },
+    { name: 'Kalimát', en: 'Words', cats: ['Teaching', 'Firmness in the Covenant'],
+      keywords: { en: ['utterance','speech'], ar: ['كلمات','كلمة','قول'], fa: ['کلمات','کلمه','سخن'], pt: ['palavra','palavras'], de: ['Wort','Worte','Äußerung'] } },
+    { name: 'Kamál', en: 'Perfection', cats: ['Spiritual Growth', 'Detachment', 'Steadfastness'],
+      keywords: { en: ['perfection','perfect'], ar: ['كمال','كامل'], fa: ['کمال','کامل'], pt: ['perfeição','perfeito'], de: ['Vollkommenheit','vollkommen'] } },
+    { name: 'Asmá’', en: 'Names', cats: ['Praise and Gratitude', 'Nearness to God'],
+      keywords: { en: ['Thy name','Thy names'], ar: ['اسم','أسماء'], fa: ['اسم','اسماء','نام'], pt: ['nome'], de: ['Name','Namen'] } },
+    { name: '‘Izzat', en: 'Might', cats: ['Aid and Assistance', 'Protection', 'Steadfastness'],
+      keywords: { en: ['might','mighty'], ar: ['عزة','قوة'], fa: ['عزت','قدرت'], pt: ['poderoso','força'], de: ['Macht','mächtig'] } },
+    { name: 'Mashíyyat', en: 'Will', cats: ['Tests and Difficulties', 'Detachment'],
+      keywords: { en: ['Thy will','purpose','desire'], ar: ['مشيئة','إرادة'], fa: ['مشیت','اراده','خواست'], pt: ['vontade','desejo'], de: ['Wille','Willen'] } },
+    { name: '‘Ilm', en: 'Knowledge', cats: ['Spiritual Growth', 'Guidance'],
+      keywords: { en: ['knowledge','wisdom','understanding'], ar: ['علم','حكمة'], fa: ['علم','دانش','حکمت'], pt: ['conhecimento','sabedoria'], de: ['Wissen','Weisheit','Erkenntnis'] } },
+    { name: 'Qudrat', en: 'Power', cats: ['Aid and Assistance', 'Triumph of the Cause', 'Steadfastness'],
+      keywords: { en: ['power','powerful','omnipotent'], ar: ['قدرة','قادر'], fa: ['قدرت','توانا'], pt: ['poder','poderoso'], de: ['Macht','Kraft','Allmacht'] } },
+    { name: 'Qawl', en: 'Speech', cats: ['Teaching', 'Gatherings', 'Unity'],
+      keywords: { en: ['speech','speak','utterance'], ar: ['قول','كلام'], fa: ['قول','سخن','گفتار'], pt: ['discurso','falar','fala'], de: ['Rede','sprechen'] } },
+    { name: 'Masá’il', en: 'Questions', cats: ['Guidance', 'Spiritual Growth'],
+      keywords: { en: ['question','seek','ask'], ar: ['مسائل','سؤال'], fa: ['مسائل','پرسش','سوال'], pt: ['pergunta','buscar'], de: ['Frage','fragen','suchen'] } },
+    { name: 'Sharaf', en: 'Honour', cats: ['Service', 'Humanity'],
+      keywords: { en: ['honour','honor','noble'], ar: ['شرف','شريف'], fa: ['شرف','افتخار','عزت'], pt: ['honra','honrar'], de: ['Ehre','ehren'] } },
+    { name: 'Sulṭán', en: 'Sovereignty', cats: ['Firmness in the Covenant', 'Triumph of the Cause', 'Tablets of Visitation'],
+      keywords: { en: ['sovereignty','sovereign','king'], ar: ['سلطان','ملك'], fa: ['سلطان','پادشاه','سلطنت'], pt: ['soberania','soberano'], de: ['Souveränität','Herrschaft'] } },
+    { name: 'Mulk', en: 'Dominion', cats: ['Praise and Gratitude', 'Unity'],
+      keywords: { en: ['dominion','realm','kingdom'], ar: ['ملك','ملكوت','مملكة'], fa: ['ملک','ملکوت','قلمرو'], pt: ['domínio','reino'], de: ['Herrschaft','Reich','Königreich'] } },
+    { name: '‘Alá’', en: 'Loftiness', cats: ['The Fast', 'Nearness to God', 'Detachment'],
+      keywords: { en: ['lofty','loftiness','exalted','sublime'], ar: ['علاء','علي','رفيع'], fa: ['علا','بلند','متعال'], pt: ['sublime','exaltado'], de: ['Erhabenheit','erhaben','hoch'] } },
   ];
-  const AYYAM_I_HA = { name: 'Ayyám-i-Há', en: 'Intercalary Days', cats: ['Intercalary Days', 'Gatherings', 'Humanity', 'Fund'] };
+  const AYYAM_I_HA = { name: 'Ayyám-i-Há', en: 'Intercalary Days', cats: ['Intercalary Days', 'Gatherings', 'Humanity', 'Fund'],
+    keywords: { en: ['Ayyám','Ayyam','intercalary'], ar: ['أيام','هاء'], fa: ['ایام','هاء'], pt: ['Ayyám-i-Há','intercalar'], de: ['Ayyám-i-Há'] } };
 
   const HOLY_DAYS = [
-    { name: 'Naw-Rúz', month: 3, day: 20, cats: ['Naw-Rúz', 'Praise and Gratitude'] },
-    { name: 'Riḍván (1st day)', month: 4, day: 21, cats: ['Ridván', 'Praise and Gratitude', 'Firmness in the Covenant'] },
-    { name: 'Riḍván (9th day)', month: 4, day: 29, cats: ['Ridván', 'Praise and Gratitude'] },
-    { name: 'Riḍván (12th day)', month: 5, day: 2, cats: ['Ridván', 'Praise and Gratitude', 'Unity'] },
-    { name: 'Declaration of the Báb', month: 5, day: 23, cats: ['Declaration of the Báb', 'Tablets of Visitation'] },
-    { name: 'Ascension of Bahá\u2019u\u2019lláh', month: 5, day: 29, cats: ['Ascension of Bahá\u2019u\u2019lláh', 'Tablets of Visitation'] },
-    { name: 'Martyrdom of the Báb', month: 7, day: 9, cats: ['Martyrdom of the Báb', 'Tablets of Visitation', 'Sacrifice'] },
-    { name: 'Birth of the Báb', month: 10, day: null, cats: ['Birth of The Báb', 'Praise and Gratitude'] },
-    { name: 'Birth of Bahá\u2019u\u2019lláh', month: 10, day: null, cats: ['Birth of Bahá\u2019u\u2019lláh', 'Praise and Gratitude'] },
-    { name: 'Day of the Covenant', month: 11, day: 25, cats: ['Firmness in the Covenant', 'Praise and Gratitude'] },
-    { name: 'Ascension of \u2018Abdu\u2019l-Bahá', month: 11, day: 28, cats: ['Tablets of Visitation', 'Departed'] },
+    { name: 'Naw-Rúz', month: 3, day: 20, cats: ['Naw-Rúz', 'Praise and Gratitude'],
+      keywords: { en: ['Naw-Ruz','Naw-Rúz','new year','Nowruz'], ar: ['نوروز'], fa: ['نوروز'], pt: ['Naw-Rúz','ano novo'], de: ['Naw-Rúz','Neujahr'] } },
+    { name: 'Riḍván (1st day)', month: 4, day: 21, cats: ['Ridván', 'Praise and Gratitude', 'Firmness in the Covenant'],
+      keywords: { en: ['Ridván','Ridvan','Rizwan','paradise'], ar: ['رضوان','جنة'], fa: ['رضوان','بهشت'], pt: ['Riḍván','paraíso'], de: ['Riḍván','Paradies'] } },
+    { name: 'Riḍván (9th day)', month: 4, day: 29, cats: ['Ridván', 'Praise and Gratitude'],
+      keywords: { en: ['Ridván','Ridvan','Rizwan','paradise'], ar: ['رضوان','جنة'], fa: ['رضوان','بهشت'], pt: ['Riḍván','paraíso'], de: ['Riḍván','Paradies'] } },
+    { name: 'Riḍván (12th day)', month: 5, day: 2, cats: ['Ridván', 'Praise and Gratitude', 'Unity'],
+      keywords: { en: ['Ridván','Ridvan','Rizwan','paradise'], ar: ['رضوان','جنة'], fa: ['رضوان','بهشت'], pt: ['Riḍván','paraíso'], de: ['Riḍván','Paradies'] } },
+    { name: 'Declaration of the Báb', month: 5, day: 23, cats: ['Declaration of the Báb', 'Tablets of Visitation'],
+      keywords: { en: ['Báb','declaration','declared','herald'], ar: ['الباب','باب','إعلان'], fa: ['باب','اعلام'], pt: ['Báb','declaração'], de: ['Báb','Verkündigung'] } },
+    { name: 'Ascension of Bahá\u2019u\u2019lláh', month: 5, day: 29, cats: ['Ascension of Bahá\u2019u\u2019lláh', 'Tablets of Visitation'],
+      keywords: { en: ['ascension','farewell','Bahá'], ar: ['صعود','رحيل','بهاء'], fa: ['صعود','رحلت','بهاء'], pt: ['ascensão','Bahá'], de: ['Hinscheiden','Aufstieg','Bahá'] } },
+    { name: 'Martyrdom of the Báb', month: 7, day: 9, cats: ['Martyrdom of the Báb', 'Tablets of Visitation', 'Sacrifice'],
+      keywords: { en: ['Báb','martyrdom','martyr','sacrifice'], ar: ['باب','شهادة','استشهاد'], fa: ['باب','شهادت','قربانی'], pt: ['Báb','martírio'], de: ['Báb','Martyrium'] } },
+    { name: 'Birth of the Báb', month: 10, day: null, cats: ['Birth of The Báb', 'Praise and Gratitude'],
+      keywords: { en: ['Báb','birth','born'], ar: ['باب','ميلاد','مولد'], fa: ['باب','تولد','میلاد'], pt: ['Báb','nascimento'], de: ['Báb','Geburt'] } },
+    { name: 'Birth of Bahá\u2019u\u2019lláh', month: 10, day: null, cats: ['Birth of Bahá\u2019u\u2019lláh', 'Praise and Gratitude'],
+      keywords: { en: ['Bahá','birth','born'], ar: ['بهاء','ميلاد'], fa: ['بهاء','تولد'], pt: ['Bahá','nascimento'], de: ['Bahá','Geburt'] } },
+    { name: 'Day of the Covenant', month: 11, day: 25, cats: ['Firmness in the Covenant', 'Praise and Gratitude'],
+      keywords: { en: ['Covenant','testament','firmness'], ar: ['عهد','ميثاق'], fa: ['عهد','میثاق','پیمان'], pt: ['Aliança','Convênio'], de: ['Bund','Testament'] } },
+    { name: 'Ascension of \u2018Abdu\u2019l-Bahá', month: 11, day: 28, cats: ['Tablets of Visitation', 'Departed'],
+      keywords: { en: ['ascension',"Abdu'l-Bahá",'Abdul-Baha','Master'], ar: ['عبدالبهاء','صعود'], fa: ['عبدالبهاء','صعود'], pt: ["Abdu'l-Bahá",'ascensão'], de: ["Abdu'l-Bahá",'Hinscheiden'] } },
   ];
 
   const SPECIAL_THEMES = [
-    { name: 'Morning Devotions', cats: ['Morning', 'Praise and Gratitude'] },
-    { name: 'Evening Devotions', cats: ['Evening', 'Praise and Gratitude'] },
-    { name: 'Healing', cats: ['Healing', 'Aid and Assistance', 'Tests and Difficulties'] },
-    { name: 'Children', cats: ['Children', 'Families', 'Youth'] },
-    { name: 'Unity', cats: ['Unity', 'Gatherings', 'Humanity'] },
-    { name: 'Marriage', cats: ['Marriage', 'Families'] },
-    { name: 'Departed', cats: ['Departed', 'Tablets of Visitation'] },
-    { name: 'Teaching', cats: ['Teaching', 'Triumph of the Cause', 'Service'] },
-    { name: 'Tests & Difficulties', cats: ['Tests and Difficulties', 'Trust in God', 'Aid and Assistance'] },
-    { name: 'Nineteen Day Feast', cats: ['Gatherings', 'Unity', 'Spiritual Assembly', 'Praise and Gratitude'] },
+    { name: 'Morning Devotions', cats: ['Morning', 'Praise and Gratitude'],
+      keywords: { en: ['morning','dawn','risen','awake'], ar: ['صباح','فجر'], fa: ['صبح','بامداد'], pt: ['manhã','madrugada'], de: ['Morgen','Dämmerung'] } },
+    { name: 'Evening Devotions', cats: ['Evening', 'Praise and Gratitude'],
+      keywords: { en: ['evening','night','retire'], ar: ['مساء','ليل'], fa: ['شب','غروب'], pt: ['noite','tarde'], de: ['Abend','Nacht'] } },
+    { name: 'Healing', cats: ['Healing', 'Aid and Assistance', 'Tests and Difficulties'],
+      keywords: { en: ['heal','health','sick','remedy'], ar: ['شفاء','صحة','مريض'], fa: ['شفا','سلامت','بیمار'], pt: ['cura','saúde','doente'], de: ['Heilung','heilen','Gesundheit','krank'] } },
+    { name: 'Children', cats: ['Children', 'Families', 'Youth'],
+      keywords: { en: ['child','children','infant'], ar: ['طفل','أطفال'], fa: ['کودک','اطفال','بچه'], pt: ['criança','crianças'], de: ['Kind','Kinder'] } },
+    { name: 'Unity', cats: ['Unity', 'Gatherings', 'Humanity'],
+      keywords: { en: ['unity','unite','oneness'], ar: ['وحدة','اتحاد'], fa: ['وحدت','اتحاد','یگانگی'], pt: ['unidade','unir'], de: ['Einheit','vereinen'] } },
+    { name: 'Marriage', cats: ['Marriage', 'Families'],
+      keywords: { en: ['marriage','bride','wed','maidservant'], ar: ['زواج','عرس','عروس'], fa: ['ازدواج','عروس','زوج'], pt: ['casamento','matrimônio','noiva'], de: ['Ehe','Heirat','Braut'] } },
+    { name: 'Departed', cats: ['Departed', 'Tablets of Visitation'],
+      keywords: { en: ['departed','dead','death','deceased'], ar: ['راحل','ميت','متوفى'], fa: ['درگذشته','مرده','فوت'], pt: ['falecido','morto','morte'], de: ['verstorben','Tod','Toten'] } },
+    { name: 'Teaching', cats: ['Teaching', 'Triumph of the Cause', 'Service'],
+      keywords: { en: ['teach','teacher','proclaim'], ar: ['تعليم','معلم','بلّغ'], fa: ['تعلیم','معلم','تبلیغ'], pt: ['ensinar','professor','proclamar'], de: ['lehren','Lehrer','verkünden'] } },
+    { name: 'Tests & Difficulties', cats: ['Tests and Difficulties', 'Aid and Assistance'],
+      keywords: { en: ['test','trial','tribulation','difficulty'], ar: ['امتحان','بلاء','ابتلاء'], fa: ['امتحان','بلا','سختی'], pt: ['provação','tribulação','dificuldade'], de: ['Prüfung','Trübsal','Schwierigkeit'] } },
+    { name: 'Nineteen Day Feast', cats: ['Gatherings', 'Unity', 'Spiritual Assembly', 'Praise and Gratitude'],
+      keywords: { en: ['gathering','assembly','company'], ar: ['اجتماع','جمع'], fa: ['اجتماع','محفل','جمع'], pt: ['reunião','assembleia'], de: ['Versammlung','Zusammenkunft'] } },
   ];
 
   // Scripture selections — direct codes rather than category-based
@@ -1835,6 +1876,34 @@
     return (ny % 4 === 0 && (ny % 100 !== 0 || ny % 400 === 0));
   }
 
+  // Languages we score against (match prayers even when not in user's display lang)
+  const KEYWORD_LANGS = ['en', 'ar', 'fa', 'pt', 'de'];
+
+  // Normalize for fuzzy search: lowercase + strip Unicode combining marks
+  function normSearch(s) {
+    return (s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  // Score keyword matches in text by length-ratio proximity (exact word = 1.0,
+  // delight / enlighten < 0.8). Stems like 'lightly' get a +0.2 prefix bonus.
+  // Total per keyword capped at 3 to prevent long prayers from dominating.
+  function keywordScore(normText, rawKeyword) {
+    const kw = normSearch(rawKeyword);
+    if (!kw || kw.length < 2) return 0;
+    // Split on non-letter, non-combining-mark (keeping Arabic/Persian letters intact)
+    const words = normText.split(/[^\p{L}]+/u);
+    let total = 0;
+    for (const w of words) {
+      if (!w || w.length < kw.length) continue;
+      if (w.indexOf(kw) < 0) continue;
+      let prox = kw.length / w.length;
+      if (prox < 0.3) continue;
+      if (w.startsWith(kw)) prox += 0.2;
+      total += prox;
+    }
+    return Math.min(3, total);
+  }
+
   function initSuggestions() {
     const tabsEl = $('suggestions-tabs');
     const listEl = $('suggestions-list');
@@ -1845,14 +1914,16 @@
     const badi = getBadiDate(now);
     const gMonth = now.getMonth() + 1, gDay = now.getDate();
 
-    // Check for holy day (within ±1 day)
+    // Check for holy day within ±3 days (people prepare beforehand and celebrate on free days)
     let activeHolyDay = null;
     for (const hd of HOLY_DAYS) {
-      if (hd.month === gMonth && hd.day && Math.abs(hd.day - gDay) <= 1) {
+      if (hd.month === gMonth && hd.day && Math.abs(hd.day - gDay) <= 3) {
         activeHolyDay = hd;
         break;
       }
     }
+    // Nineteen Day Feast is active around the turn of a Bahá'í month (day 18-19 or 1-2)
+    const isFeastActive = !badi.ayyamiha && (badi.day <= 2 || badi.day >= 18);
 
     // Build tabs
     const tabs = [];
@@ -1956,25 +2027,60 @@
         return;
       }
 
-      // Always select from English (canonical categories + translation counts)
-      const enMap = await getPrayerMap('en');
-      const localMap = lang !== 'en' ? await getPrayerMap(lang) : enMap;
-      const matching = [];
-      for (const p of Object.values(enMap)) {
-        if (tab.cats.includes(p.category) && p.source !== 'llm-translation') {
-          // Use local language text if available, fall back to English
-          const local = localMap[p.phelps];
-          matching.push({ ...p, text: local ? local.text : p.text, hasLocal: !!local });
+      // Load en + the 4 reference languages + user's display lang in parallel
+      const mapPromises = {};
+      for (const kl of KEYWORD_LANGS) mapPromises[kl] = getPrayerMap(kl);
+      if (!mapPromises[lang]) mapPromises[lang] = getPrayerMap(lang);
+      const maps = {};
+      for (const k of Object.keys(mapPromises)) maps[k] = await mapPromises[k];
+      const enMap = maps.en;
+      const localMap = maps[lang] || enMap;
+
+      // Union of all phelps codes across the loaded language maps
+      const allCodes = new Set();
+      for (const m of Object.values(maps)) for (const k of Object.keys(m)) allCodes.add(k);
+
+      // Score each prayer: category match (2) + keyword proximity (capped 3 per kw)
+      // + log2(1 + langCount) + 3 if user's display language is available
+      const allScored = [];
+      for (const code of allCodes) {
+        const enP = enMap[code];
+        const local = localMap[code];
+        const repr = enP || local || maps.ar[code] || maps.fa[code] || maps.pt[code] || maps.de[code];
+        if (!repr || repr.source === 'llm-translation') continue;
+
+        let themeScore = 0;  // category + keyword signal — prayer must have some theme relevance
+
+        if (tab.cats && enP && enP.category && tab.cats.indexOf(enP.category) >= 0) themeScore += 2;
+
+        if (tab.keywords) {
+          for (const kl of KEYWORD_LANGS) {
+            const kws = tab.keywords[kl];
+            if (!kws || !kws.length) continue;
+            const langP = maps[kl] && maps[kl][code];
+            if (!langP || !langP.text) continue;
+            const nt = normSearch(langP.text);
+            for (const kw of kws) themeScore += keywordScore(nt, kw);
+          }
         }
+
+        if (themeScore <= 0) continue;
+
+        const langCount = (repr.translations || []).length;
+        const universalBonus = Math.log2(1 + langCount) + (local ? 3 : 0);
+
+        allScored.push({ ...repr, text: local ? local.text : (enP ? enP.text : repr.text), hasLocal: !!local, _score: themeScore + universalBonus });
       }
+
+      let matching = allScored;
 
       if (matching.length === 0) {
         listEl.innerHTML = '<p style="color:var(--text-secondary);font-size:.85rem">No prayers found for this theme</p>';
         return;
       }
 
-      // Sort by number of translations (most widely available first)
-      matching.sort((a, b) => (b.translations || []).length - (a.translations || []).length);
+      // Sort by score (translation count breaks ties)
+      matching.sort((a, b) => (b._score - a._score) || ((b.translations || []).length - (a.translations || []).length));
 
       listEl.innerHTML = '';
       const isRtlW = allLanguages.find(l => l.code === lang); const isRtl = isRtlW && isRtlW.rtl;
