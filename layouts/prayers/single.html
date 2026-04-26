@@ -19,34 +19,58 @@
     <div class="sidebar-section" id="book-bar">
       <div class="sidebar-heading" data-i18n="prayerbook">Prayerbook</div>
       {{/* Re-groups the current prayer set by another book's category
-           structure. Runtime hides options with poor coverage. */}}
-      <select id="book-select" style="width:100%; padding:.3rem .5rem; margin-bottom:.5rem; background:var(--bg-secondary,#f5f5f5); border:1px solid var(--border,#ddd); border-radius:4px; color:inherit; font-size:.9rem">
+           structure. Runtime hides options with poor coverage. The hidden
+           <select> is kept as the canonical state holder; the visible UI
+           is a filterable details/list overlay. */}}
+      <select id="book-select" hidden>
         {{ range $prayerbooks }}
         <option value="{{ .code }}"{{ if eq .code $defaultBook }} selected{{ end }}>{{ .name }}</option>
         {{ end }}
       </select>
+      <details class="picker-dropdown" id="book-picker">
+        <summary class="picker-summary"><span class="picker-summary-label">{{ $defaultBook }}</span> <span class="picker-caret">▾</span></summary>
+        <div class="picker-panel">
+          <input type="search" class="picker-filter" placeholder="Filter…" data-i18n-placeholder="filter_languages" autocomplete="off">
+          <div class="picker-list">
+            {{ range $prayerbooks }}
+            <a href="#" class="picker-item" data-value="{{ .code }}" data-search="{{ .name | lower }} {{ .code | lower }}">{{ .name }} <code class="picker-code">{{ .code }}</code></a>
+            {{ end }}
+          </div>
+        </div>
+      </details>
     </div>
     {{ end }}
     {{/* Switch-to picker: jump to ANY other /prayers/<code>/ page, both
-         books and languages. Native <select> gets free type-to-search.
-         Optgroups separate the two kinds; books appear first to match the
-         landing-page priority. */}}
+         books and languages. Books appear first to match landing priority. */}}
     <div class="sidebar-section" id="switch-to-section" style="margin-top:.6rem">
       <div class="sidebar-heading" data-i18n="switch_to">Switch to</div>
-      <select id="switch-to-select" style="width:100%; padding:.3rem .5rem; background:var(--bg-secondary,#f5f5f5); border:1px solid var(--border,#ddd); border-radius:4px; color:inherit; font-size:.9rem">
-        <option value="" data-i18n="switch_to_pick">— pick another collection —</option>
-        <optgroup label="📖 Prayer books" data-i18n-label="prayer_books">
-          {{ range $allBooks }}
-          {{ $bSafe := lower (replace .code ":" "-") }}
-          <option value="{{ $bSafe }}">{{ .name }} ({{ .code }})</option>
-          {{ end }}
-        </optgroup>
-        <optgroup label="Languages" data-i18n-label="languages">
-          {{ range site.Data.languages }}
-          <option value="{{ .code | lower }}">{{ .name }} ({{ .code }})</option>
-          {{ end }}
-        </optgroup>
-      </select>
+      <details class="picker-dropdown" id="switch-picker">
+        <summary class="picker-summary"><span class="picker-summary-label" data-i18n="switch_to_pick">— pick another collection —</span> <span class="picker-caret">▾</span></summary>
+        <div class="picker-panel">
+          <input type="search" class="picker-filter" placeholder="Filter…" data-i18n-placeholder="filter_languages" autocomplete="off">
+          <label class="picker-min" title="Hide collections with fewer than N prayers">
+            <span data-i18n="prayers_many_only">Many prayers only</span>
+            <select class="picker-min-select">
+              <option value="1">1+</option>
+              <option value="2">2+</option>
+              <option value="5" selected>5+</option>
+              <option value="10">10+</option>
+              <option value="20">20+</option>
+            </select>
+          </label>
+          <div class="picker-list">
+            <div class="picker-group-label" data-group="book">📖 <span data-i18n="prayer_books">Prayer books</span></div>
+            {{ range $allBooks }}
+            {{ $bSafe := lower (replace .code ":" "-") }}
+            <a href="/prayers/{{ $bSafe }}/" class="picker-item" data-value="{{ $bSafe }}" data-count="{{ .count }}" data-kind="book" data-search="{{ .name | lower }} {{ .code | lower }} book"><span>{{ .name }}</span> <code class="picker-code">{{ .code }} · {{ .count }}</code></a>
+            {{ end }}
+            <div class="picker-group-label" data-group="language" data-i18n="languages">Languages</div>
+            {{ range site.Data.languages }}
+            <a href="/prayers/{{ .code | lower }}/" class="picker-item" data-value="{{ .code | lower }}" data-count="{{ .prayer_count }}" data-kind="language" data-search="{{ .name | lower }} {{ .code | lower }} language"><span>{{ .name }}</span> <code class="picker-code">{{ .code }} · {{ .prayer_count }}</code></a>
+            {{ end }}
+          </div>
+        </div>
+      </details>
     </div>
     <div class="sidebar-section" id="cat-section" style="margin-top:1rem">
       <div class="sidebar-heading" data-i18n="categories">Categories</div>
@@ -100,6 +124,10 @@
         bookSelectEl: document.getElementById('book-select'),
         categoriesEl: document.getElementById('cat-list')
       });
+      // After the renderer's coverage filter has marked low-coverage book
+      // <option> elements as hidden+disabled, mirror that into the picker
+      // UI so users don't see books with <5% coverage of this page's prayers.
+      syncBookPickerFromSelect();
     }).catch(function (e) {
       var root = document.getElementById('prayer-list-root');
       if (root) root.innerHTML = '<p style="color:var(--text-secondary)">Failed to load: ' + e.message + '</p>';
@@ -115,24 +143,177 @@
     document.addEventListener('DOMContentLoaded', boot);
   }
 
-  // Switch-to picker: navigate to /prayers/<chosen>/ on selection.
-  // Pre-selects the current page's safe code so picking it again is a no-op.
-  function wireSwitchTo() {
-    var sel = document.getElementById('switch-to-select');
-    if (!sel) return;
-    var cur = pageLang;
+  // Mirror the renderer's runtime book-coverage filter (which sets
+  // option.hidden + option.disabled on the bare <select>) into the picker
+  // UI so the dropdown only shows books with meaningful coverage of this
+  // page's prayers. Called after renderPrayerList completes.
+  function syncBookPickerFromSelect() {
+    var sel = document.getElementById('book-select');
+    var picker = document.getElementById('book-picker');
+    if (!sel || !picker) return;
+    var byVal = {};
     Array.from(sel.options).forEach(function (o) {
-      if (o.value === cur) o.selected = true;
+      byVal[o.value] = { hidden: !!o.hidden, label: o.textContent };
     });
-    sel.addEventListener('change', function () {
-      if (sel.value) location.href = '/prayers/' + sel.value + '/';
+    picker.querySelectorAll('.picker-item').forEach(function (it) {
+      var info = byVal[it.dataset.value];
+      if (!info) return;
+      if (info.hidden) {
+        it.classList.add('picker-item-low-coverage');
+        it.style.display = 'none';
+      } else {
+        it.classList.remove('picker-item-low-coverage');
+        // Reflect the runtime "(N/total)" coverage hint in the picker label.
+        var code = it.querySelector('.picker-code');
+        if (code) {
+          var m = info.label.match(/\((\d+\/\d+)\)\s*$/);
+          if (m) code.textContent = it.dataset.value + ' · ' + m[1];
+        }
+      }
     });
   }
+  window.__syncBookPickerFromSelect = syncBookPickerFromSelect;
+
+  // Wire the filterable picker dropdowns. Used by both the prayerbook
+  // picker (re-categorize current prayers by another book) and the
+  // switch-to picker (navigate to another /prayers/<code>/ page).
+  function wirePicker(rootId, opts) {
+    var root = document.getElementById(rootId);
+    if (!root) return;
+    var input = root.querySelector('.picker-filter');
+    var minSel = root.querySelector('.picker-min-select');
+    var items = Array.from(root.querySelectorAll('.picker-item'));
+    var groupLabels = Array.from(root.querySelectorAll('.picker-group-label'));
+    var summary = root.querySelector('.picker-summary-label');
+
+    function refresh() {
+      var q = (input && input.value || '').toLowerCase().trim();
+      var min = minSel ? parseInt(minSel.value, 10) : 1;
+      var shownPerGroup = {};
+      items.forEach(function (it) {
+        var hay = it.dataset.search || '';
+        var count = parseInt(it.dataset.count || '0', 10);
+        var ok = (!q || hay.indexOf(q) >= 0) && count >= min;
+        it.style.display = ok ? '' : 'none';
+        if (ok) {
+          var k = it.dataset.kind || '_';
+          shownPerGroup[k] = (shownPerGroup[k] || 0) + 1;
+        }
+      });
+      // Hide group labels whose group has no visible items.
+      groupLabels.forEach(function (g) {
+        var k = g.dataset.group || '_';
+        g.style.display = shownPerGroup[k] ? '' : 'none';
+      });
+    }
+
+    if (input) {
+      input.addEventListener('input', refresh);
+      input.addEventListener('click', function (e) { e.stopPropagation(); });
+    }
+    if (minSel) {
+      minSel.addEventListener('change', refresh);
+      minSel.addEventListener('click', function (e) { e.stopPropagation(); });
+    }
+    items.forEach(function (it) {
+      it.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (opts && typeof opts.onPick === 'function') {
+          opts.onPick(it.dataset.value, it);
+        } else if (it.getAttribute('href') && it.getAttribute('href') !== '#') {
+          location.href = it.getAttribute('href');
+        }
+        root.removeAttribute('open');
+      });
+    });
+    // Auto-focus filter on open.
+    root.addEventListener('toggle', function () {
+      if (root.open && input) setTimeout(function () { input.focus(); }, 0);
+    });
+    // Initial filter pass.
+    refresh();
+
+    return { refresh: refresh, summary: summary };
+  }
+
+  function wirePickers() {
+    // Prayerbook picker: pick changes the underlying <select>'s value and
+    // dispatches 'change' so the renderer's existing listener picks it up.
+    var bookSel = document.getElementById('book-select');
+    var bookPicker = wirePicker('book-picker', {
+      onPick: function (code) {
+        if (!bookSel) return;
+        bookSel.value = code;
+        bookSel.dispatchEvent(new Event('change', { bubbles: true }));
+        var p = document.getElementById('book-picker');
+        var lbl = p && p.querySelector('.picker-summary-label');
+        if (lbl) lbl.textContent = code;
+      },
+    });
+    // Reflect initial book selection on the summary label.
+    if (bookSel && bookPicker && bookPicker.summary) {
+      bookPicker.summary.textContent = bookSel.value || defaultBook;
+    }
+
+    // Switch-to picker: items already have href="/prayers/<safe>/" so the
+    // default click handler will navigate. We just need filtering.
+    wirePicker('switch-picker');
+  }
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', wireSwitchTo);
+    document.addEventListener('DOMContentLoaded', wirePickers);
   } else {
-    wireSwitchTo();
+    wirePickers();
   }
 })();
 </script>
+
+<style>
+.picker-dropdown { position: relative; margin-bottom: .5rem; }
+.picker-summary {
+  list-style: none; cursor: pointer;
+  display: flex; justify-content: space-between; align-items: center;
+  padding: .35rem .55rem; border: 1px solid var(--border, #ddd);
+  border-radius: 4px; background: var(--bg-secondary, #f5f5f5);
+  font-size: .9rem;
+}
+.picker-summary::-webkit-details-marker { display: none; }
+.picker-summary-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.picker-caret { opacity: .5; font-size: .8em; }
+.picker-panel {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 50;
+  margin-top: .2rem; padding: .4rem;
+  background: var(--surface, #fff); border: 1px solid var(--border, #ddd);
+  border-radius: 6px; box-shadow: 0 4px 16px rgba(0,0,0,.15);
+}
+.picker-filter {
+  width: 100%; padding: .3rem .5rem;
+  border: 1px solid var(--border, #ddd); border-radius: 4px;
+  background: var(--bg-secondary, #f5f5f5); color: inherit;
+  font-size: .85rem; box-sizing: border-box;
+}
+.picker-min {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-top: .35rem; font-size: .75rem; color: var(--text-secondary, #888);
+}
+.picker-min select {
+  padding: .15rem .3rem; font-size: .75rem;
+  background: var(--bg-secondary, #f5f5f5);
+  border: 1px solid var(--border, #ddd); border-radius: 3px; color: inherit;
+}
+.picker-list {
+  max-height: 280px; overflow-y: auto; margin-top: .35rem;
+}
+.picker-group-label {
+  font-size: .7rem; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--text-secondary, #888); padding: .35rem .5rem .15rem;
+}
+.picker-item {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: .5rem; padding: .25rem .5rem; text-decoration: none; color: inherit;
+  border-radius: 3px; font-size: .85rem;
+}
+.picker-item:hover { background: var(--bg-secondary, #f0f0f0); }
+.picker-code { color: var(--text-secondary, #888); font-size: .75em; }
+</style>
 {{ partial "foot.html" . }}

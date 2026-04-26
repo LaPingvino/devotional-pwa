@@ -35,6 +35,15 @@
   {{ $bookInfo := . }}
   {{ $code := .code }}
   {{ $safe := lower (replace $code ":" "-") }}
+  {{/* Derive page-level RTL from the book's primary language: 'ar:bp' → 'ar'.
+       Multilingual books like 'mul-NA:bp' don't match any language and
+       fall through to rtl=false; the renderer still applies per-card RTL
+       based on each prayer's actual lang. */}}
+  {{ $primaryCode := index (split $code ":") 0 }}
+  {{ $rtl := false }}
+  {{ range site.Data.languages }}
+    {{ if eq .code $primaryCode }}{{ $rtl = .rtl }}{{ end }}
+  {{ end }}
   {{ $prayerFile := printf "prayers/%s.json" $safe }}
   {{ with resources.Get $prayerFile }}
     {{ $data := . | transform.Unmarshal }}
@@ -48,7 +57,7 @@
         "langName"    $bookInfo.name
         "bookCode"    $code
         "isBook"      true
-        "rtl"         false
+        "rtl"         $rtl
         "prayerCount" (len $prayers)
         "prayers"     $prayers
         "prayerbooks" site.Data.prayerbooks
