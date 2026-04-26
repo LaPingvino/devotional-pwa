@@ -239,18 +239,17 @@
     }
 
     if (hasVersions) {
-      // Version picker: lets the reader compare translations of THIS prayer
-      // from different sources (bahaiprayers.net, .app, LLM-translation, …).
-      // Primary version is always shown first and never disabled. Alts with
-      // text get a "swap" link; alts without text fall through to a
-      // "view at source" anchor (added once we know a source URL pattern).
-      var vCount = altSources.length + 1; // including primary
+      // Version picker: same .prayer-translations / .lang-dropdown skeleton
+      // as the "Also in" picker so it inherits the same CSS treatment.
+      // Primary version is always first and active; text-less alts (e.g.
+      // future scraped link-only entries) appear as disabled hints.
+      var vCount = altSources.length + 1;
       var vWrap = document.createElement('div');
-      vWrap.className = 'prayer-versions';
+      vWrap.className = 'prayer-translations prayer-versions';
       var primaryLabel = sourceLabel(p.source || 'primary');
       var rows = ['<a href="#" class="version-swap-link active" data-version-idx="0">' +
         escapeHtml(primaryLabel) +
-        ' <span class="version-status">' + escapeHtml(t('version_primary', '(primary)')) + '</span></a>'];
+        ' <span class="lang-code-badge">' + escapeHtml(t('version_primary', 'primary')) + '</span></a>'];
       altSources.forEach(function (a, i) {
         var label = sourceLabel(a.source || 'unknown');
         var idx = i + 1;
@@ -258,15 +257,13 @@
           rows.push('<a href="#" class="version-swap-link" data-version-idx="' + idx + '">' +
             escapeHtml(label) + '</a>');
         } else {
-          // Text-less alt: nothing to swap to. Reserved for future scraped
-          // links that point out to the source without copying the text.
           rows.push('<a href="#" class="version-swap-link" data-version-idx="' + idx + '" style="opacity:.5; pointer-events:none">' +
-            escapeHtml(label) + ' <span class="version-status">' + escapeHtml(t('version_no_text', '(link only)')) + '</span></a>');
+            escapeHtml(label) + ' <span class="lang-code-badge">' + escapeHtml(t('version_no_text', 'link only')) + '</span></a>');
         }
       });
       vWrap.innerHTML =
         '<span class="trans-label">' + escapeHtml(t('versions_label', 'Version:')) + '</span>' +
-        '<details class="lang-dropdown version-dropdown"><summary>' + vCount + ' ' +
+        '<details class="lang-dropdown"><summary>' + vCount + ' ' +
         escapeHtml(vCount === 1 ? t('version_singular', 'source') : t('version_plural', 'sources')) +
         '</summary>' +
         '<div class="lang-dropdown-panel"><div class="lang-dropdown-list">' +
