@@ -55,6 +55,20 @@
           .map(([l,n]) => `<code>${l}</code>=${n}`).join(' ')
       : (langCount === 1 ? `<code>${Object.keys(langs)[0]}</code>` : '');
 
+    // TOC: clickable category chips that smooth-scroll to the matching H2.
+    // Categories get a slugified id so the chip's href reaches them and so
+    // the URL hash deep-links a category for sharing.
+    function slugCat(name) {
+      return 'cat-' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
+    }
+    const tocHtml = cats.length === 0 ? '' : `
+      <details class="book-toc" open>
+        <summary>${cats.length} categor${cats.length === 1 ? 'y' : 'ies'} — jump to:</summary>
+        <div class="book-toc-chips">
+          ${cats.map(c => `<a href="#${slugCat(c.name)}" class="book-toc-chip">${c.name} <span class="book-toc-count">(${c.prayers.length})</span></a>`).join('')}
+        </div>
+      </details>`;
+
     let html = `
       <p style="margin-bottom:.5rem; color:var(--text-secondary); font-size:.85rem">
         <a href="/book/">← All prayer books</a>
@@ -63,10 +77,12 @@
       <p style="color:var(--text-secondary); margin-bottom:1rem">
         <code>${bookData.code}</code> · ${(bookData.prayers || []).length} prayer${bookData.prayers.length === 1 ? '' : 's'}
         ${langSummary ? '· ' + langSummary : ''}
-      </p>`;
+      </p>
+      ${tocHtml}`;
 
     for (const cat of cats) {
-      html += `<h2 style="margin-top:1.5rem; font-size:1.1rem; border-bottom:1px solid var(--border); padding-bottom:.3rem">${cat.name} <span style="color:var(--text-secondary); font-weight:400; font-size:.85rem">(${cat.prayers.length})</span></h2>`;
+      const slug = slugCat(cat.name);
+      html += `<h2 id="${slug}" style="margin-top:1.5rem; font-size:1.1rem; border-bottom:1px solid var(--border); padding-bottom:.3rem">${cat.name} <span style="color:var(--text-secondary); font-weight:400; font-size:.85rem">(${cat.prayers.length})</span> <a href="#${slug}" style="font-size:.7em; opacity:.4; text-decoration:none" title="Permalink to this category">¶</a></h2>`;
       for (const p of cat.prayers) {
         const baseL = p.phelps.toLowerCase().replace(/[a-z]{3}$/, '');
         const suffix = p.phelps.toLowerCase().slice(baseL.length);
@@ -233,5 +249,37 @@
 .book-card-count { margin-left: auto; color: var(--text-secondary); font-size: .85rem; }
 .book-card-langs { margin-top: .35rem; font-size: .8rem; color: var(--text-secondary); }
 .book-card-langs code { background: var(--bg-secondary, #eee); padding: 0 .25em; border-radius: 2px; }
+.book-toc {
+  margin: 1rem 0 1.5rem;
+  padding: .5rem .75rem;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 6px;
+  background: var(--bg-secondary, #fafafa);
+}
+.book-toc summary {
+  cursor: pointer;
+  font-size: .85rem;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+.book-toc-chips {
+  margin-top: .6rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: .35rem;
+}
+.book-toc-chip {
+  display: inline-block;
+  padding: .2rem .55rem;
+  font-size: .8rem;
+  text-decoration: none;
+  color: var(--text);
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #ddd);
+  border-radius: 4px;
+}
+.book-toc-chip:hover { border-color: var(--accent); color: var(--accent); }
+.book-toc-count { color: var(--text-secondary); font-size: .85em; }
+html { scroll-behavior: smooth; }
 </style>
 {{ partial "foot.html" . }}

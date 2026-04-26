@@ -144,7 +144,9 @@ function rebuildCategories() {
       if (!catStats[cat]) {
         let order = 9999;
         try {
-          const bc = JSON.parse(card.dataset.bookCats || '{}');
+          // jsonify of a nil map → "null"; without the `|| {}` guard,
+          // bc[activeBook] would throw and crash the whole script.
+          const bc = JSON.parse(card.dataset.bookCats || '{}') || {};
           if (bc[activeBook]) order = bc[activeBook].cat_order || 9999;
         } catch(e) {}
         catStats[cat] = {count: 0, order};
@@ -205,7 +207,9 @@ function applyBook(book) {
     let cat = card.dataset.nativeCat || '';
     if (book) {
       try {
-        const bc = JSON.parse(card.dataset.bookCats || '{}');
+        // jsonify of nil → "null"; the `|| {}` guard avoids a TypeError
+        // for prayers from sources without PBS entries (bahaiprayers.app etc).
+        const bc = JSON.parse(card.dataset.bookCats || '{}') || {};
         if (bc[book]) cat = bc[book].cat || '';
       } catch(e) {}
     }
@@ -233,11 +237,15 @@ if (bookSelect) {
   // localStorage choice so the user's picked book is never hidden.
   const alwaysShow = new Set(['{{ $defaultBook }}', activeBook]);
 
-  // Count hits per book across all cards.
+  // Count hits per book across all cards. The `|| {}` after JSON.parse
+  // handles "null" (Hugo jsonify of a nil map for prayers without PBS
+  // entries) — without it, Object.keys(null) would throw inside forEach
+  // and abort the rest of this script (including the applyBook below,
+  // which is what populates the category sidebar).
   const hits = {};
   cards.forEach(card => {
     let bc = {};
-    try { bc = JSON.parse(card.dataset.bookCats || '{}'); } catch {}
+    try { bc = JSON.parse(card.dataset.bookCats || '{}') || {}; } catch {}
     Object.keys(bc).forEach(code => { hits[code] = (hits[code] || 0) + 1; });
   });
 
