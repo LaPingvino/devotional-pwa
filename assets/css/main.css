@@ -422,6 +422,32 @@ body {
   text-decoration: none;
 }
 .prayer-phelps a:hover { text-decoration: underline; }
+.prayer-lang-badge {
+  display: inline-block;
+  margin-left: .4em;
+  padding: 1px .4em;
+  font-size: .72em;
+  font-weight: 600;
+  border-radius: 3px;
+  background: var(--bg-secondary, #eee);
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  cursor: default;
+  vertical-align: 1px;
+}
+.prayer-lang-badge.switched {
+  background: var(--accent, #4a90e2);
+  color: white;
+  cursor: pointer;
+}
+.prayer-lang-badge.switched:hover { opacity: .85; }
+.prayer-lang-badge.foreign {
+  background: #e8d5a7;
+  color: #5a4220;
+}
+.prayer-version-link { text-decoration: none; }
+.prayer-version-link:hover { opacity: 1; text-decoration: underline; }
 .prayer-name {
   font-weight: 600;
   font-size: .85rem;

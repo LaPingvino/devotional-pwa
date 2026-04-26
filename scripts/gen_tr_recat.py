@@ -10,7 +10,7 @@ def dq(q):
                        capture_output=True, text=True, cwd=dolt_dir)
     return list(csv.DictReader(io.StringIO(r.stdout)))
 
-all_pbs = dq("SELECT category_name, phelps_code FROM prayer_book_structure WHERE source_language='tr'")
+all_pbs = dq("SELECT category_name, phelps_code FROM prayer_book_structure WHERE source_language='tr:bp'")
 existing_codes = set()
 for r in all_pbs:
     if r["category_name"] not in ("Tests and Difficulties",):
@@ -20,7 +20,7 @@ with open(f"{TMPDIR}/tr_recat_final.sql") as f:
     lines = f.readlines()
 
 sql = ["SET FOREIGN_KEY_CHECKS=0;"]
-sql.append("DELETE FROM prayer_book_structure WHERE source_language='tr' AND category_name='Tests and Difficulties';")
+sql.append("DELETE FROM prayer_book_structure WHERE source_language='tr:bp' AND category_name='Tests and Difficulties';")
 
 skipped = 0
 inserted = 0

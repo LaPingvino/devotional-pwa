@@ -20,7 +20,7 @@ ORDER BY language, phelps""")
 en_cats = {}
 for r in dq("""
 SELECT category_name, GROUP_CONCAT(DISTINCT phelps_code ORDER BY order_in_category) as codes
-FROM prayer_book_structure WHERE source_language='en'
+FROM prayer_book_structure WHERE source_language='en:bp'
 GROUP BY category_name"""):
     en_cats[r['category_name']] = [c.strip() for c in r['codes'].split(',')]
 

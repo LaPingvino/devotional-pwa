@@ -215,7 +215,7 @@ func main() {
 	fmt.Fprintln(os.Stderr, "Loading English categories...")
 	catRows := doltQuery(`
 		SELECT category_name, GROUP_CONCAT(DISTINCT phelps_code ORDER BY order_in_category) as codes
-		FROM prayer_book_structure WHERE source_language='en'
+		FROM prayer_book_structure WHERE source_language='en:bp'
 		GROUP BY category_name`)
 	enCats := map[string][]string{}
 	for _, r := range catRows {

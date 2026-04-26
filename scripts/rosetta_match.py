@@ -109,7 +109,7 @@ def save_vocab_entry(lang, local_term, en_meaning, term_type, source_phelps=None
 def get_category_phelps(en_category):
     """Get ordered phelps codes for an English category."""
     rows = dolt_query(
-        f"SELECT phelps_code FROM prayer_book_structure WHERE source_language='en' "
+        f"SELECT phelps_code FROM prayer_book_structure WHERE source_language='en:bp' "
         f"AND category_name='{en_category.replace(chr(39), chr(39)+chr(39))}' ORDER BY order_in_category"
     )
     return [r['phelps_code'] for r in rows]

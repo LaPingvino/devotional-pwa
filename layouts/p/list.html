@@ -1,0 +1,101 @@
+{{ partial "head.html" (dict "Title" "Prayer" "Lang" "en") }}
+<div class="main-content" id="p-root">
+  <p style="color:var(--text-secondary)" data-i18n="loading">Loading…</p>
+</div>
+
+<script src="/js/render-md.js"></script>
+<script>
+(async function () {
+  const root = document.getElementById('p-root');
+  const params = new URLSearchParams(location.search);
+  const uuid = (params.get('v') || '').toLowerCase().trim();
+
+  if (!uuid) {
+    root.innerHTML = `
+      <h1>Prayer Permalink</h1>
+      <p>Open a prayer with <code>/p/?v=&lt;version-uuid&gt;</code>.</p>
+      <p>You can find a prayer's permalink by clicking its <strong>v</strong>
+        link on any <a href="/prayers/">prayers page</a>.</p>`;
+    return;
+  }
+
+  function err(msg) {
+    root.innerHTML = `<h1>Prayer not found</h1>
+      <p>No prayer matches version UUID <code>${uuid}</code>.</p>
+      <p style="color:var(--text-secondary)">${msg}</p>
+      <p><a href="/prayers/">← Browse prayers by language</a></p>`;
+  }
+
+  let index;
+  try {
+    const r = await fetch('/data/version_index.json');
+    if (!r.ok) throw new Error('index HTTP ' + r.status);
+    index = await r.json();
+  } catch (e) {
+    err('Failed to load version index: ' + e.message);
+    return;
+  }
+
+  const entry = index[uuid];
+  if (!entry) { err('UUID not in index.'); return; }
+  const [lang, phelps] = entry;
+
+  let langData;
+  try {
+    const r = await fetch(`/data/prayers/${lang}.json`);
+    if (!r.ok) throw new Error('lang HTTP ' + r.status);
+    langData = await r.json();
+  } catch (e) {
+    err('Failed to load language data: ' + e.message);
+    return;
+  }
+
+  const prayer = (langData.prayers || []).find(p => p.phelps === phelps);
+  if (!prayer) { err(`Prayer ${phelps} not found in ${lang}.`); return; }
+
+  document.title = (prayer.name ? prayer.name + ' — ' : '') + phelps + " — Bahá'í Prayers";
+
+  const RTL = new Set(['ar', 'fa', 'ur', 'he', 'ug']);
+  const isRtl = RTL.has(lang);
+  const baseL = phelps.toLowerCase().replace(/[a-z]{3}$/, '');
+  const suffix = phelps.toLowerCase().slice(baseL.length);
+
+  // Resolve a friendly language name from the translations or fall back to the code.
+  let langName = lang;
+  for (const t of (prayer.translations || [])) {
+    if (t.language && t.language.toLowerCase() === lang) { langName = t.lang_name; break; }
+  }
+
+  const transHtml = (prayer.translations || []).length === 0 ? '' : `
+    <div class="prayer-translations" style="margin-top:1rem">
+      <span class="trans-label">Also in:</span>
+      <details class="lang-dropdown" open>
+        <summary>${prayer.translations.length} language${prayer.translations.length > 1 ? 's' : ''}</summary>
+        <div class="lang-dropdown-panel">
+          <div class="lang-dropdown-list">
+            ${prayer.translations.map(t =>
+              `<a href="/prayers/${t.language.toLowerCase()}/#${phelps}">${t.lang_name}<span class="lang-code-badge">${t.language}</span></a>`
+            ).join('')}
+          </div>
+        </div>
+      </details>
+    </div>`;
+
+  root.innerHTML = `
+    <article class="prayer-card" style="margin:0">
+      ${prayer.name ? `<h1 style="margin-bottom:.5rem">${prayer.name}</h1>` : ''}
+      <p style="color:var(--text-secondary); margin-bottom:1rem">
+        <a href="/phelps/${baseL}/${suffix ? '#' + suffix : ''}">${phelps}</a>
+        · <span class="prayer-lang-badge">${lang}</span> ${langName}
+        · <a href="/prayers/${lang}/#${phelps}">View in ${langName} prayerbook →</a>
+      </p>
+      <div class="prayer-text"${isRtl ? ' dir="rtl"' : ''}>${window.renderMd ? window.renderMd(prayer.text || '') : (prayer.text || '')}</div>
+      ${prayer.notes ? `<div class="prayer-notes" style="margin-top:1rem; color:var(--text-secondary); font-style:italic">${prayer.notes}</div>` : ''}
+      <p style="color:var(--text-secondary); font-size:.75rem; margin-top:1rem">
+        Permalink: <code>/p/?v=${uuid}</code>
+      </p>
+      ${transHtml}
+    </article>`;
+})();
+</script>
+{{ partial "foot.html" . }}

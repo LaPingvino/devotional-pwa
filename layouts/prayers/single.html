@@ -4,11 +4,10 @@
 {{ $prayerbooks := .Params.prayerbooks }}
 {{ $allBooks := $.Site.Data.prayerbooks }}
 
-{{/* Default prayerbook: native language → English → first available in page's matched books */}}
-{{ $defaultBook := "" }}
-{{ range $prayerbooks }}{{ if and (not $defaultBook) (eq .code $lang) }}{{ $defaultBook = .code }}{{ end }}{{ end }}
-{{ range $prayerbooks }}{{ if and (not $defaultBook) (eq .code "en") }}{{ $defaultBook = .code }}{{ end }}{{ end }}
-{{ if not $defaultBook }}{{ $defaultBook = "en" }}{{ end }}
+{{/* Default prayerbook is resolved data-side in gen_hugo_data.go (pickDefaultBook).
+     Fall back to en:bp if for some reason the data didn't carry a default. */}}
+{{ $defaultBook := .Params.defaultBook }}
+{{ if not $defaultBook }}{{ $defaultBook = "en:bp" }}{{ end }}
 
 {{ partial "head.html" (dict "Title" .Params.langName "Lang" $lang "Params" (dict "rtl" $rtl)) }}
 <div class="page-body">
@@ -57,6 +56,10 @@
       <article class="prayer-card folded" id="{{ $pin }}"
                data-cat="{{ .category }}"
                data-native-cat="{{ .category }}"
+               data-native-text="{{ .text }}"
+               data-native-name="{{ .name }}"
+               data-native-version="{{ .version }}"
+               data-display-lang="{{ $lang }}"
                data-book-cats="{{ .book_cats | jsonify }}">
         <div class="prayer-card-header">
           <span class="prayer-toggle" aria-hidden="true">▶</span>
@@ -66,6 +69,8 @@
           <span class="prayer-phelps">
             <a href="/phelps/{{ $baseL }}/{{ if $suffix }}#{{ $suffix }}{{ end }}" title="All translations">{{ $pin }}</a>
             <a href="/inventory/?pin={{ $baseL | upper }}" title="Inventory entry" style="opacity:.6; font-size:.8em; margin-left:.3em">↗</a>
+            <span class="prayer-lang-badge" title="Currently shown in this language">{{ $lang }}</span>
+            {{ with .version }}<a class="prayer-version-link" href="/p/?v={{ . }}" title="Permalink to this exact translation" style="opacity:.6; font-size:.8em; margin-left:.3em">v</a>{{ end }}
           </span>
           <button class="btn-expand prayer-expand" title="Full screen">&#x26F6;</button>
           <button class="fav-btn" data-phelps="{{ $pin }}" aria-label="Toggle favourite">☆</button>
@@ -89,7 +94,7 @@
               <input type="search" class="lang-filter-input" placeholder="Filter languages…" autocomplete="off">
               {{ end }}
               <div class="lang-dropdown-list">
-                {{ range . }}<a href="/prayers/{{ .language | lower }}/#{{ $pin }}" data-code="{{ .language | lower }}" data-name="{{ .lang_name | lower }}">{{ .lang_name }}<span class="lang-code-badge">{{ .language }}</span></a>
+                {{ range . }}<a href="/prayers/{{ .language | lower }}/#{{ $pin }}" data-code="{{ .language | lower }}" data-name="{{ .lang_name | lower }}" data-lang-name="{{ .lang_name }}" class="lang-switch-link">{{ .lang_name }}<span class="lang-code-badge">{{ .language }}</span></a>
                 {{ end }}
               </div>
             </div>
@@ -104,7 +109,19 @@
 
 <script>
 const BOOK_KEY = 'hw_book_{{ $lang }}';
-let activeBook = localStorage.getItem(BOOK_KEY) || '{{ $defaultBook }}';
+const DEFAULT_BOOK = '{{ $defaultBook }}';
+
+// Migrate stale localStorage values that predate the :bp rename.
+// If the stored book isn't an option in the picker, fall back to the
+// data-side default and overwrite localStorage so this only runs once.
+const knownBookCodes = new Set();
+{{ range $allBooks }}knownBookCodes.add('{{ .code }}');
+{{ end }}
+let activeBook = localStorage.getItem(BOOK_KEY);
+if (!activeBook || !knownBookCodes.has(activeBook)) {
+  activeBook = DEFAULT_BOOK;
+  localStorage.setItem(BOOK_KEY, activeBook);
+}
 let activeCat = '';
 
 // Build the category list dynamically for the current activeBook
@@ -224,6 +241,99 @@ document.querySelectorAll('.btn-add-devotional').forEach(btn => {
     if (codes.some(function(i) { return codeStr(i) === p; })) { codes = codes.filter(function(i) { return codeStr(i) !== p; }); btn.textContent = '+'; btn.classList.remove('added'); }
     else { codes.push({code: p}); btn.textContent = '\u2713'; btn.classList.add('added'); }
     localStorage.setItem(DKEY, JSON.stringify(codes));
+  });
+});
+
+// In-place language switcher: when the user clicks an "Also in: X" link,
+// fetch X's prayers JSON, find this prayer by phelps, and swap the text +
+// name in the existing card without leaving the page. Falls back to the
+// link's normal navigation if anything goes wrong (Cmd-click, fetch fails,
+// prayer missing).
+const _langCache = new Map(); // langCode -> { phelpsIndex, name }
+
+async function loadLangData(code) {
+  if (_langCache.has(code)) return _langCache.get(code);
+  try {
+    const r = await fetch(`/data/prayers/${code}.json`);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const data = await r.json();
+    const phelpsIndex = {};
+    for (const p of data.prayers || []) phelpsIndex[p.phelps] = p;
+    const entry = { phelpsIndex };
+    _langCache.set(code, entry);
+    return entry;
+  } catch (e) {
+    console.warn('lang fetch failed', code, e);
+    return null;
+  }
+}
+
+async function switchPrayerLanguage(card, targetLang, targetLangName) {
+  const phelps = card.id;
+  const data = await loadLangData(targetLang);
+  if (!data) return false;
+  const p = data.phelpsIndex[phelps];
+  if (!p || !p.text) return false;
+  const textEl = card.querySelector('.prayer-text');
+  const nameEl = card.querySelector('.prayer-name');
+  const badgeEl = card.querySelector('.prayer-lang-badge');
+  if (textEl) textEl.innerHTML = window.renderMd ? window.renderMd(p.text) : p.text;
+  if (nameEl && p.name) nameEl.textContent = p.name;
+  if (badgeEl) {
+    badgeEl.textContent = targetLang;
+    badgeEl.title = `Showing in ${targetLangName || targetLang} — click PIN to revert`;
+    badgeEl.classList.add('switched');
+  }
+  // Update permalink to point at this translation's version UUID.
+  const vLink = card.querySelector('.prayer-version-link');
+  if (vLink && p.version) vLink.href = '/p/?v=' + p.version;
+  card.dataset.displayLang = targetLang;
+  // RTL handling: switch direction of just the text element if target is RTL.
+  const RTL_LANGS = new Set(['ar', 'fa', 'ur', 'he', 'ug']);
+  if (textEl) textEl.dir = RTL_LANGS.has(targetLang) ? 'rtl' : 'ltr';
+  return true;
+}
+
+document.querySelectorAll('.lang-switch-link').forEach(link => {
+  link.addEventListener('click', async e => {
+    // Respect modifier-clicks (open in new tab/window).
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+    const card = link.closest('.prayer-card');
+    if (!card) return;
+    const code = link.dataset.code;
+    const name = link.dataset.langName || code;
+    e.preventDefault();
+    const ok = await switchPrayerLanguage(card, code, name);
+    if (!ok) window.location.href = link.href; // graceful fallback
+    // Close the dropdown.
+    const dd = link.closest('.lang-dropdown');
+    if (dd) dd.removeAttribute('open');
+  });
+});
+
+// Click the language badge to revert to the page's native language.
+document.querySelectorAll('.prayer-lang-badge').forEach(badge => {
+  badge.addEventListener('click', e => {
+    e.stopPropagation();
+    const card = badge.closest('.prayer-card');
+    if (!card || !badge.classList.contains('switched')) return;
+    const textEl = card.querySelector('.prayer-text');
+    const nameEl = card.querySelector('.prayer-name');
+    const nativeText = card.dataset.nativeText || '';
+    const nativeName = card.dataset.nativeName || '';
+    if (textEl) {
+      textEl.innerHTML = window.renderMd ? window.renderMd(nativeText) : nativeText;
+      textEl.dir = '';
+    }
+    if (nameEl) nameEl.textContent = nativeName;
+    badge.textContent = '{{ $lang }}';
+    badge.classList.remove('switched');
+    badge.title = 'Currently shown in this language';
+    card.dataset.displayLang = '{{ $lang }}';
+    // Restore native version permalink
+    const vLink = card.querySelector('.prayer-version-link');
+    const nativeVersion = card.dataset.nativeVersion;
+    if (vLink && nativeVersion) vLink.href = '/p/?v=' + nativeVersion;
   });
 });
 

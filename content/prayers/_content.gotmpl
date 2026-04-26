@@ -7,6 +7,7 @@
     {{ $data := . | transform.Unmarshal }}
     {{ $prayers := $data.prayers }}
     {{ $prayerbooks := $data.prayerbooks }}
+    {{ $defaultBook := $data.default_book }}
     {{ $.AddPage (dict
       "path"    (lower $lang)
       "title"   $langInfo.name
@@ -18,6 +19,7 @@
         "prayerCount" $langInfo.prayer_count
         "prayers"     $prayers
         "prayerbooks" $prayerbooks
+        "defaultBook" $defaultBook
       )
     ) }}
   {{ end }}

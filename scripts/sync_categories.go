@@ -1,10 +1,15 @@
-// sync_categories.go — Populate prayer_book_structure from bahaiprayers.net API.
+// sync_categories.go — DEPRECATED. Superseded by rebuild_prayerbooks.py, which
+// handles the full PBS rebuild including the :bp suffix convention and
+// multilingual book codes (mul-NA:bp, nai-CA:bp, nai-US:bp). This script
+// still writes BARE language codes into source_language, which violates the
+// post-rename convention. Kept for archival reference; do not run.
 //
+// Original docstring:
 // Fetches prayers for a given language from the API, matches them to phelps
 // codes in the DB via source_id, and inserts category→phelps mappings into
 // prayer_book_structure.
 //
-// Usage:
+// Usage (DO NOT USE — see rebuild_prayerbooks.py instead):
 //   go run sync_categories.go --lang en          # sync English categories (API lang ID auto-detected)
 //   go run sync_categories.go --langid 1         # sync by API language ID
 //   go run sync_categories.go --lang en --clear  # clear existing before inserting

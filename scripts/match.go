@@ -634,7 +634,7 @@ func classifyVocabType(en string) string {
 
 func getCategoryPhelps(doltDir, enCat string) []string {
 	rows := doltQuery(doltDir, fmt.Sprintf(
-		`SELECT phelps_code FROM prayer_book_structure WHERE source_language='en' `+
+		`SELECT phelps_code FROM prayer_book_structure WHERE source_language='en:bp' `+
 			`AND category_name='%s' ORDER BY order_in_category`, sqlEsc(enCat)))
 	codes := make([]string, 0, len(rows))
 	for _, r := range rows {
@@ -1566,11 +1566,13 @@ type pbsEntry struct {
 	Order        int
 }
 
-// loadPBS loads prayer_book_structure for a given source_language.
+// loadPBS loads prayer_book_structure for a given language's :bp prayerbook.
+// Bare lang codes like "en", "fr" are suffixed to "en:bp", "fr:bp" since
+// PBS source_language values now carry the :bp suffix.
 func loadPBS(doltDir, lang string) []pbsEntry {
 	rows := doltQuery(doltDir, fmt.Sprintf(
 		`SELECT category_name, phelps_code, order_in_category FROM prayer_book_structure `+
-			`WHERE source_language='%s' ORDER BY category_name, order_in_category`, sqlEsc(lang)))
+			`WHERE source_language='%s:bp' ORDER BY category_name, order_in_category`, sqlEsc(lang)))
 	entries := make([]pbsEntry, 0, len(rows))
 	for _, r := range rows {
 		ord, _ := strconv.Atoi(r["order_in_category"])
@@ -1761,7 +1763,7 @@ func resolveEnCategory(header, lang, doltDir string) string {
 func enCategoryToPBSCats(doltDir, keyword string) []string {
 	rows := doltQuery(doltDir, fmt.Sprintf(
 		`SELECT DISTINCT category_name FROM prayer_book_structure `+
-			`WHERE source_language='en' AND category_name LIKE '%%%s%%'`, sqlEsc(keyword)))
+			`WHERE source_language='en:bp' AND category_name LIKE '%%%s%%'`, sqlEsc(keyword)))
 	cats := make([]string, 0, len(rows))
 	for _, r := range rows {
 		cats = append(cats, r["category_name"])
@@ -2451,7 +2453,7 @@ func runVerify(doltDir, lang string, inv map[string]InvEntry, reverify, dryRun b
 	secRows := doltQuery(doltDir, fmt.Sprintf(
 		`SELECT DISTINCT w.source_id, pbs.category_name `+
 			`FROM writings w JOIN prayer_book_structure pbs `+
-			`ON pbs.phelps_code = w.phelps AND pbs.source_language = '%s' `+
+			`ON pbs.phelps_code = w.phelps AND pbs.source_language = '%s:bp' `+
 			`WHERE w.language = '%s' AND w.source='%s'`,
 		sqlEsc(lang), sqlEsc(lang), sqlEsc(prayerSource)))
 	sectionCat := map[string]string{}
@@ -2461,7 +2463,7 @@ func runVerify(doltDir, lang string, inv map[string]InvEntry, reverify, dryRun b
 
 	// Load English category for each phelps code
 	enCatRows := doltQuery(doltDir,
-		`SELECT DISTINCT phelps_code, category_name FROM prayer_book_structure WHERE source_language='en'`)
+		`SELECT DISTINCT phelps_code, category_name FROM prayer_book_structure WHERE source_language='en:bp'`)
 	enCodeCat := map[string]string{}
 	for _, r := range enCatRows {
 		enCodeCat[r["phelps_code"]] = r["category_name"]

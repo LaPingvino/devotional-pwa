@@ -63,6 +63,10 @@ type BookCat struct {
 type LangFile struct {
 	Prayers     []Prayer  `json:"prayers"`
 	Prayerbooks []BookRef `json:"prayerbooks,omitempty"`
+	// DefaultBook is the prayerbook code the page should select on first
+	// load. It's resolved data-side so the template doesn't need to repeat
+	// the fallback chain. Order: own-language :bp → en:bp → first book.
+	DefaultBook string `json:"default_book,omitempty"`
 }
 
 // PrayerSource holds text from one source for the same prayer.
@@ -84,6 +88,10 @@ type Prayer struct {
 	Source        string         `json:"source,omitempty"`
 	Version       string         `json:"version,omitempty"`
 	Notes         string         `json:"notes,omitempty"`
+	// Book is the prayerbook this prayer's native PBS entry belongs to
+	// (e.g. "mul-NA:bp" for an Otjiherero prayer in the Namibian compilation).
+	// Used to compute the default book for the language; not serialized.
+	Book          string             `json:"-"`
 	AltSources    []PrayerSource     `json:"alt_sources,omitempty"`  // additional sources for same prayer
 	BookCats      map[string]BookCat `json:"book_cats,omitempty"`    // prayerbook code → category assignment
 	Translations  []LangRef          `json:"translations,omitempty"` // other languages with this phelps code
@@ -205,6 +213,8 @@ func main() {
 	// 2b. Second pass: write per-language JSON with "Also in:" translation lists + prayerbooks
 	log.Println("→ loading all prayerbook category assignments (single query)...")
 	allBookCats, allPrayerbooks, allBooks := queryAllBookCats(allPrayers)
+	siblings := loadLanguageGroups()
+	log.Printf("  loaded language-group siblings for %d languages", len(siblings))
 	log.Printf("  book_cats loaded for %d languages, %d total prayerbooks", len(allBookCats), len(allBooks))
 	writeJSON(filepath.Join(dataDir, "prayerbooks.json"), allBooks)
 
@@ -231,12 +241,36 @@ func main() {
 		langFile := LangFile{
 			Prayers:     prayers,
 			Prayerbooks: prayerbooks,
+			DefaultBook: pickDefaultBook(lang.Code, prayerbooks, prayers, siblings),
 		}
 		writeJSON(filepath.Join(assetsDir, "prayers", lang.Code+".json"), langFile)
 		// Also write to static/ for client-side JS fetch (daily devotions page)
 		must(os.MkdirAll(filepath.Join(staticDir, "prayers"), 0755))
 		writeJSON(filepath.Join(staticDir, "prayers", lang.Code+".json"), langFile)
 	}
+
+	// Per-prayer permalink index: version UUID → [lang, phelps]
+	// Used by /p/?v=<uuid> to look up which language file holds the rendering.
+	log.Println("→ version index for /p/?v=<uuid> permalinks...")
+	versionIndex := map[string][]string{}
+	for langCode, prayers := range allPrayers {
+		for _, p := range prayers {
+			if p.Version != "" {
+				versionIndex[p.Version] = []string{langCode, p.Phelps}
+			}
+			// Also index alternate sources' versions (same prayer text from
+			// llm-translation, etc.) so permalinks to those resolve too.
+			for _, alt := range p.AltSources {
+				if alt.Version != "" {
+					if _, exists := versionIndex[alt.Version]; !exists {
+						versionIndex[alt.Version] = []string{langCode, p.Phelps}
+					}
+				}
+			}
+		}
+	}
+	log.Printf("  %d version UUIDs indexed", len(versionIndex))
+	writeJSON(filepath.Join(staticDir, "version_index.json"), versionIndex)
 
 	// 3. Group phelps codes by base PIN (strips trailing 3-char alpha mnemonic suffix)
 	log.Println("→ grouping phelps codes by base PIN...")
@@ -1061,11 +1095,12 @@ func queryAllPrayers() map[string][]Prayer {
 		SELECT w.language, w.phelps, w.text, COALESCE(w.name,''), w.source, w.version, COALESCE(w.notes,''),
 		       COALESCE(pbs.category_name,''),
 		       COALESCE(pbs.category_order,0),
-		       COALESCE(pbs.order_in_category,0)
+		       COALESCE(pbs.order_in_category,0),
+		       COALESCE(pbs.source_language,'')
 		FROM writings w
 		LEFT JOIN prayer_book_structure pbs
-		    ON pbs.phelps_code = w.phelps
-		    AND pbs.source_language = w.language
+		    ON pbs.source_id = w.source_id
+		    AND pbs.phelps_code = w.phelps
 		WHERE w.phelps IS NOT NULL AND w.phelps <> ''
 		  AND (w.type IS NULL OR w.type = 'prayer')
 		ORDER BY w.language,
@@ -1079,6 +1114,7 @@ func queryAllPrayers() map[string][]Prayer {
 		lang, phelps, text, name, source, version, notes string
 		catName                                           string
 		catOrd, ordInCat                                  int
+		book                                              string
 	}
 	type group struct {
 		primary rawRow
@@ -1089,7 +1125,7 @@ func queryAllPrayers() map[string][]Prayer {
 	langOrder := map[string][]string{}
 
 	for _, row := range rows[1:] {
-		if len(row) < 10 {
+		if len(row) < 11 {
 			continue
 		}
 		catOrd, ordInCat := 0, 0
@@ -1099,6 +1135,7 @@ func queryAllPrayers() map[string][]Prayer {
 			lang: row[0], phelps: row[1], text: row[2], name: row[3],
 			source: row[4], version: row[5], notes: row[6],
 			catName: row[7], catOrd: catOrd, ordInCat: ordInCat,
+			book: row[10],
 		}
 		if langGroups[r.lang] == nil {
 			langGroups[r.lang] = map[string]*group{}
@@ -1143,6 +1180,7 @@ func queryAllPrayers() map[string][]Prayer {
 				Source:        g.primary.source,
 				Version:       g.primary.version,
 				Notes:         g.primary.notes,
+				Book:          g.primary.book,
 			}
 			if len(g.alts) > 0 {
 				p.AltSources = g.alts
@@ -1236,7 +1274,101 @@ func buildLangBookCats(pbIndex map[string][]prayerBookEntry, langPhelps []string
 	for _, code := range bookOrder {
 		books = append(books, BookRef{Code: code, Name: bookNameMap[code]})
 	}
+	// Sort the picker alphabetically by display name. The data-side default
+	// (pickDefaultBook) chooses what's selected on first load; sort order is
+	// purely for the dropdown's visual order.
+	sort.Slice(books, func(i, j int) bool {
+		return books[i].Name < books[j].Name
+	})
 	return bookCats, books
+}
+
+// loadLanguageGroups returns lang -> list of sibling lang codes from the
+// language_groups table (Belgium, Pacific Oceania, etc.). Used as a
+// closeness fallback when picking a default book — if a language has no
+// own :bp book and isn't in any multilingual book, we'd rather show a
+// linguistic neighbor's book than English.
+func loadLanguageGroups() map[string][]string {
+	rows := doltQuery(`
+		SELECT m1.language, m2.language
+		FROM language_group_members m1
+		JOIN language_group_members m2 ON m2.group_id = m1.group_id AND m2.language <> m1.language
+		ORDER BY m1.language, m2.display_order
+	`)
+	out := map[string][]string{}
+	seen := map[string]map[string]bool{}
+	for _, row := range rows[1:] {
+		if len(row) < 2 {
+			continue
+		}
+		lang, sibling := row[0], row[1]
+		if seen[lang] == nil {
+			seen[lang] = map[string]bool{}
+		}
+		if seen[lang][sibling] {
+			continue
+		}
+		seen[lang][sibling] = true
+		out[lang] = append(out[lang], sibling)
+	}
+	return out
+}
+
+// pickDefaultBook resolves the prayerbook to select on first load for `lang`.
+// Fallback chain:
+//   1. own-language :bp (e.g. "eo:bp" for Esperanto)
+//   2. the most common book among the language's own prayers — this picks
+//      mul-NA:bp for hz/kj/diu/naq, nai-CA:bp for First Nations languages,
+//      etc., based on actual data rather than a hard-coded map
+//   3. linguistically-near sibling's :bp via language_groups (e.g. tpi → fj:bp)
+//   4. en:bp (universal fallback)
+//   5. first available book in the picker
+//   6. "" (no book; caller may hide the picker)
+func pickDefaultBook(lang string, books []BookRef, prayers []Prayer, siblings map[string][]string) string {
+	wantOwn := lang + ":bp"
+	for _, b := range books {
+		if b.Code == wantOwn {
+			return wantOwn
+		}
+	}
+	bookCounts := map[string]int{}
+	for _, p := range prayers {
+		if p.Book != "" {
+			bookCounts[p.Book]++
+		}
+	}
+	if len(bookCounts) > 0 {
+		bestCode, bestCount := "", 0
+		for code, cnt := range bookCounts {
+			if cnt > bestCount || (cnt == bestCount && code < bestCode) {
+				bestCode, bestCount = code, cnt
+			}
+		}
+		if bestCode != "" {
+			return bestCode
+		}
+	}
+	// Linguistic neighbors: if this lang is in a language_group, try the
+	// siblings' :bp books in display order before falling all the way to en.
+	bookSet := map[string]bool{}
+	for _, b := range books {
+		bookSet[b.Code] = true
+	}
+	for _, sibling := range siblings[lang] {
+		want := sibling + ":bp"
+		if bookSet[want] {
+			return want
+		}
+	}
+	for _, b := range books {
+		if b.Code == "en:bp" {
+			return "en:bp"
+		}
+	}
+	if len(books) > 0 {
+		return books[0].Code
+	}
+	return ""
 }
 
 // queryAllBookCats is the public entry point: loads PBS once, then builds

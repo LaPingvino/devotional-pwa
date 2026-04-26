@@ -1632,7 +1632,7 @@ SELECT w.phelps, w.text, COALESCE(w.name,''),
        COALESCE(pbs.order_in_category,'0')
 FROM writings w
 LEFT JOIN prayer_book_structure pbs
-    ON pbs.phelps_code = w.phelps AND pbs.source_language = 'en'
+    ON pbs.phelps_code = w.phelps AND pbs.source_language = 'en:bp'
 WHERE w.language = '%s' AND w.source = '%s'
     AND w.phelps IS NOT NULL AND w.phelps <> ''
     AND (w.type IS NULL OR w.type = 'prayer')
@@ -1671,7 +1671,7 @@ SELECT w.language, w.phelps, w.text, COALESCE(w.name,''),
        COALESCE(pbs.order_in_category,'0')
 FROM writings w
 LEFT JOIN prayer_book_structure pbs
-    ON pbs.phelps_code = w.phelps AND pbs.source_language = 'en'
+    ON pbs.phelps_code = w.phelps AND pbs.source_language = 'en:bp'
 WHERE w.source = '%s'
     AND w.phelps IS NOT NULL AND w.phelps <> ''
     AND (w.type IS NULL OR w.type = 'prayer')
