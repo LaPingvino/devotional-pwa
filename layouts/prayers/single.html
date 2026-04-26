@@ -18,18 +18,37 @@
     {{ if $allBooks }}
     <div class="sidebar-section" id="book-bar">
       <div class="sidebar-heading" data-i18n="prayerbook">Prayerbook</div>
-      {{/* Show only the prayerbooks that actually contain this language's
-           prayers — keeps the picker focused. The full 104-book browser
-           lives at /book/. */}}
+      {{/* Re-groups the current prayer set by another book's category
+           structure. Runtime hides options with poor coverage. */}}
       <select id="book-select" style="width:100%; padding:.3rem .5rem; margin-bottom:.5rem; background:var(--bg-secondary,#f5f5f5); border:1px solid var(--border,#ddd); border-radius:4px; color:inherit; font-size:.9rem">
         {{ range $prayerbooks }}
         <option value="{{ .code }}"{{ if eq .code $defaultBook }} selected{{ end }}>{{ .name }}</option>
         {{ end }}
       </select>
-      <a id="book-view-direct" href="/book/?b={{ $defaultBook }}" style="display:block; font-size:.8rem; color:var(--accent); text-decoration:none; margin-bottom:.3rem" data-i18n-title="book_view_direct_title" title="View this prayerbook on its own page (with prayers in their actual languages — useful for multilingual books)">📖 <span data-i18n="book_view_direct">View this book directly</span> →</a>
     </div>
     {{ end }}
-    <div class="sidebar-section" id="cat-section"{{ if $prayerbooks }} style="margin-top:1rem"{{ end }}>
+    {{/* Switch-to picker: jump to ANY other /prayers/<code>/ page, both
+         books and languages. Native <select> gets free type-to-search.
+         Optgroups separate the two kinds; books appear first to match the
+         landing-page priority. */}}
+    <div class="sidebar-section" id="switch-to-section" style="margin-top:.6rem">
+      <div class="sidebar-heading" data-i18n="switch_to">Switch to</div>
+      <select id="switch-to-select" style="width:100%; padding:.3rem .5rem; background:var(--bg-secondary,#f5f5f5); border:1px solid var(--border,#ddd); border-radius:4px; color:inherit; font-size:.9rem">
+        <option value="" data-i18n="switch_to_pick">— pick another collection —</option>
+        <optgroup label="📖 Prayer books" data-i18n-label="prayer_books">
+          {{ range $allBooks }}
+          {{ $bSafe := lower (replace .code ":" "-") }}
+          <option value="{{ $bSafe }}">{{ .name }} ({{ .code }})</option>
+          {{ end }}
+        </optgroup>
+        <optgroup label="Languages" data-i18n-label="languages">
+          {{ range site.Data.languages }}
+          <option value="{{ .code | lower }}">{{ .name }} ({{ .code }})</option>
+          {{ end }}
+        </optgroup>
+      </select>
+    </div>
+    <div class="sidebar-section" id="cat-section" style="margin-top:1rem">
       <div class="sidebar-heading" data-i18n="categories">Categories</div>
       <div id="cat-list"></div>
     </div>
@@ -39,7 +58,7 @@
       <a href="/downloads/prayers_{{ $lang }}.epub" class="dl-link" download>EPUB</a>
     </div>
     <div class="sidebar-section" style="margin-top:.5rem">
-      <a href="/prayers/" style="padding:.4rem 1rem; display:block; font-size:.85rem; color:var(--text-secondary)" data-i18n="nav_all_languages">← All languages</a>
+      <a href="/prayers/" style="padding:.4rem 1rem; display:block; font-size:.85rem; color:var(--text-secondary)" data-i18n="nav_all_collections">← All collections</a>
     </div>
   </aside>
 
@@ -94,6 +113,25 @@
     // before it. Wait for DOMContentLoaded, by which time defer scripts have
     // executed and renderPrayerList is on window.
     document.addEventListener('DOMContentLoaded', boot);
+  }
+
+  // Switch-to picker: navigate to /prayers/<chosen>/ on selection.
+  // Pre-selects the current page's safe code so picking it again is a no-op.
+  function wireSwitchTo() {
+    var sel = document.getElementById('switch-to-select');
+    if (!sel) return;
+    var cur = pageLang;
+    Array.from(sel.options).forEach(function (o) {
+      if (o.value === cur) o.selected = true;
+    });
+    sel.addEventListener('change', function () {
+      if (sel.value) location.href = '/prayers/' + sel.value + '/';
+    });
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', wireSwitchTo);
+  } else {
+    wireSwitchTo();
   }
 })();
 </script>

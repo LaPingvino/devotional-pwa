@@ -282,8 +282,6 @@
     }
     var sel = state.opts.bookSelectEl;
     if (sel) sel.value = book;
-    var directLink = document.getElementById('book-view-direct');
-    if (directLink) directLink.href = '/book/?b=' + book;
 
     state.cards.forEach(function (card) {
       var cat = card.dataset.nativeCat || '';
