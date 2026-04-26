@@ -54,9 +54,12 @@
 <script id="bootstrap-prayer-list">
 (function () {
   // List of all prayerbooks known to the site (for stale-book localStorage migration).
-  var allBooks = {{ $allBooks | jsonify }};
-  var defaultBook = {{ $defaultBook | jsonify }};
-  var pageLang = {{ $lang | jsonify }};
+  // safeJS prevents Hugo from re-escaping jsonify's output as a string literal
+  // when it's interpolated into a <script> block. Without it, `var x = "eo"`
+  // becomes `var x = "\"eo\""`, which then breaks fetch URLs and array parsing.
+  var allBooks = {{ $allBooks | jsonify | safeJS }};
+  var defaultBook = {{ $defaultBook | jsonify | safeJS }};
+  var pageLang = {{ $lang | jsonify | safeJS }};
   var rtl = {{ $rtl }};
 
   function boot() {
