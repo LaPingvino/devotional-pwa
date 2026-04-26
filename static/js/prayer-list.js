@@ -1,0 +1,740 @@
+// prayer-list.js — Shared renderer for prayer-list views.
+//
+// One entry point: window.renderPrayerList(rootEl, opts).
+// Powers two pages today:
+//   /prayers/<lang>/   (mode: 'language')   — single-language, with book switching
+//   /book/?b=<code>    (mode: 'book')       — single book, often multilingual
+//
+// All previously-divergent features are unified here so adding a feature in
+// one place reaches both pages. See the opts block below for the toggles.
+//
+// Data shapes (do not modify these — owned by scripts/gen_hugo_data.go):
+//   prayer in 'language' mode: {phelps, text, name, category, order_in_cat,
+//     v|version, book_cats?: {<book>: {cat, cat_order}}, translations?: [...]}
+//   prayer in 'book' mode:     {phelps, lang, lang_name, name, text, category,
+//     order_in_cat, v|version}
+//
+// localStorage keys this module reads/writes:
+//   hw_book_<lang>          — selected prayerbook for /prayers/<lang>/
+//   hw_favorites            — array of phelps codes (★)
+//   hw_devotional_codes     — array of {code, lang?, v?} or bare strings (+)
+
+(function () {
+  'use strict';
+
+  var RTL_LANGS = new Set(['ar', 'fa', 'ur', 'he', 'ug']);
+  var FAVS_KEY = 'hw_favorites';
+  var DEV_KEY = 'hw_devotional_codes';
+
+  function t(key, fallback) {
+    if (typeof window.__t === 'function') {
+      var v = window.__t(key);
+      if (v && v !== key) return v;
+    }
+    return fallback != null ? fallback : key;
+  }
+
+  function md(text) {
+    return window.renderMd ? window.renderMd(text || '') : (text || '');
+  }
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function escapeAttr(s) { return escapeHtml(s); }
+
+  function slugCat(name) {
+    return 'cat-' + String(name || '').toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60);
+  }
+
+  function splitPhelps(p) {
+    var lower = String(p || '').toLowerCase();
+    var m = lower.match(/^(.*?)([a-z]{3})$/);
+    if (m) return { base: m[1], suffix: m[2] };
+    return { base: lower, suffix: '' };
+  }
+
+  function wordCount(text, lang) {
+    var plain = String(text || '').replace(/#+\s+[^\n]+/g, '');
+    var isCJK = lang === 'ja' || lang === 'ko' || lang === 'zh-Hans' || lang === 'zh-Hant';
+    if (isCJK) {
+      var n = 0;
+      // Count CJK ideographs + Hangul syllables; cheap approximation.
+      for (var i = 0; i < plain.length; i++) {
+        var c = plain.charCodeAt(i);
+        if ((c >= 0x4E00 && c <= 0x9FFF) ||
+            (c >= 0x3400 && c <= 0x4DBF) ||
+            (c >= 0xAC00 && c <= 0xD7AF)) n++;
+      }
+      var unit = lang === 'ko' ? '자' : '字';
+      return '~' + n + unit;
+    }
+    var matches = plain.match(/\S+/g);
+    return '~' + (matches ? matches.length : 0) + 'w';
+  }
+
+  function previewOf(text) {
+    var p = String(text || '').replace(/#+\s+[^\n]+/g, '')
+      .replace(/[*#\[\]()>]/g, '').replace(/\s+/g, ' ').trim();
+    if (p.length <= 60) return p;
+    return p.slice(0, 60).replace(/\s+\S*$/, '') + '…';
+  }
+
+  // ── Build a single card ───────────────────────────────────────────
+  function buildCard(p, opts) {
+    var pin = p.phelps || '';
+    var parts = splitPhelps(pin);
+    var displayLang = opts.mode === 'book' ? (p.lang || '') : opts.pageLang;
+    var langName = p.lang_name || displayLang;
+    var rtl = opts.mode === 'book' ? RTL_LANGS.has(p.lang) : !!opts.rtl;
+    var vid = p.v || p.version || '';
+    var wcLabel = wordCount(p.text, displayLang);
+    var preview = previewOf(p.text);
+    var bookCats = p.book_cats || null;
+
+    var card = document.createElement('article');
+    card.className = 'prayer-card' + (opts.showFolding ? ' folded' : '');
+    card.id = pin;
+    card.dataset.cat = p.category || '';
+    card.dataset.nativeCat = p.category || '';
+    card.dataset.nativeText = p.text || '';
+    card.dataset.nativeName = p.name || '';
+    card.dataset.nativeVersion = vid;
+    card.dataset.displayLang = displayLang;
+    card.dataset.phelps = pin;
+    if (bookCats) card.dataset.bookCats = JSON.stringify(bookCats);
+    if (opts.mode === 'book') card.dataset.lang = p.lang || '';
+
+    var header = document.createElement('div');
+    header.className = 'prayer-card-header';
+
+    var html = '';
+    if (opts.showFolding) {
+      html += '<span class="prayer-toggle" aria-hidden="true">▶</span>';
+    }
+    if (p.name) {
+      html += '<span class="prayer-name">' + escapeHtml(p.name) + '</span>';
+    }
+    if (opts.showFolding) {
+      html += '<span class="prayer-preview">' + escapeHtml(preview) + '</span>';
+      html += '<span class="word-count">' + escapeHtml(wcLabel) + '</span>';
+    }
+
+    html += '<span class="prayer-phelps">';
+    var href = '/phelps/' + parts.base + '/' + (parts.suffix ? '#' + parts.suffix : '');
+    html += '<a href="' + escapeAttr(href) + '" title="All translations">' + escapeHtml(pin) + '</a>';
+    html += ' <a href="/inventory/?pin=' + escapeAttr(pin.toUpperCase()) + '" title="Inventory entry" style="opacity:.6; font-size:.8em; margin-left:.3em">↗</a>';
+    html += ' <span class="prayer-lang-badge" title="' + escapeAttr(t('prayer_lang_current_title', 'Currently shown in this language')) + '">' + escapeHtml(displayLang) + '</span>';
+    if (opts.showLangSwitch) {
+      html += ' <button class="prayer-revert-btn" type="button" title="' + escapeAttr(t('prayer_lang_revert_title', "Show again in the page's language")) + '" hidden>↶ ' + escapeHtml(t('prayer_lang_revert', 'revert')) + '</button>';
+    }
+    if (vid) {
+      html += ' <a class="prayer-version-link" href="/p/?v=' + escapeAttr(vid) + '" title="' + escapeAttr(t('permalink_to_translation', 'Permalink to this exact translation')) + '" style="font-size:.8em; margin-left:.3em">\u{1F517}</a>';
+    }
+    html += '</span>';
+
+    if (opts.showFullScreen) {
+      html += ' <button class="btn-expand prayer-expand" title="Full screen">⛶</button>';
+    }
+    if (opts.showFavourite) {
+      html += ' <button class="fav-btn" data-phelps="' + escapeAttr(pin) + '" aria-label="Toggle favourite">☆</button>';
+    }
+    html += ' <button class="btn-add-devotional" data-phelps="' + escapeAttr(pin) + '" aria-label="Add to devotional" title="Add to devotional program">+</button>';
+
+    if (opts.mode === 'book') {
+      // In book view, give a quick link out to the language prayerbook.
+      html += ' <a href="/prayers/' + escapeAttr(displayLang) + '/#' + escapeAttr(pin) + '" title="' + escapeAttr(t('prayer_open_in_book', 'Open in language prayerbook')) + '" style="opacity:.6; font-size:.8em; margin-left:.3em">↗</a>';
+    }
+
+    header.innerHTML = html;
+    card.appendChild(header);
+
+    var textEl = document.createElement('div');
+    textEl.className = 'prayer-text';
+    if (rtl) textEl.dir = 'rtl';
+    textEl.innerHTML = md(p.text);
+    card.appendChild(textEl);
+
+    if (p.notes) {
+      var notesEl = document.createElement('div');
+      notesEl.className = 'prayer-notes';
+      notesEl.textContent = p.notes;
+      card.appendChild(notesEl);
+    }
+
+    if (p.source) {
+      var meta = document.createElement('div');
+      meta.className = 'prayer-meta';
+      meta.innerHTML = '<span class="prayer-source">' + escapeHtml(p.source) + '</span>';
+      card.appendChild(meta);
+    }
+
+    if (opts.showLangSwitch && Array.isArray(p.translations) && p.translations.length) {
+      var tCount = p.translations.length;
+      var tWrap = document.createElement('div');
+      tWrap.className = 'prayer-translations';
+      var listHtml = p.translations.map(function (tr) {
+        var code = String(tr.language || '').toLowerCase();
+        var lname = tr.lang_name || tr.language || '';
+        return '<a href="/prayers/' + escapeAttr(code) + '/#' + escapeAttr(pin) + '"' +
+          ' data-code="' + escapeAttr(code) + '"' +
+          ' data-name="' + escapeAttr(String(lname).toLowerCase()) + '"' +
+          ' data-lang-name="' + escapeAttr(lname) + '"' +
+          ' class="lang-switch-link">' + escapeHtml(lname) +
+          '<span class="lang-code-badge">' + escapeHtml(tr.language || '') + '</span></a>';
+      }).join('');
+      var filterInput = tCount > 6
+        ? '<input type="search" class="lang-filter-input" placeholder="' + escapeAttr(t('filter_languages', 'Filter languages…')) + '" autocomplete="off">'
+        : '';
+      var langWord = tCount === 1 ? 'language' : t('languages', 'languages');
+      tWrap.innerHTML =
+        '<span class="trans-label">' + escapeHtml(t('also_in', 'Also in:')) + '</span>' +
+        '<details class="lang-dropdown"><summary>' + tCount + ' ' + escapeHtml(langWord) + '</summary>' +
+        '<div class="lang-dropdown-panel">' + filterInput +
+        '<div class="lang-dropdown-list">' + listHtml + '</div></div></details>';
+      card.appendChild(tWrap);
+    }
+
+    return card;
+  }
+
+  // ── Category sidebar (language mode) ──────────────────────────────
+  function buildCategoryList(state) {
+    var sidebar = state.opts.categoriesEl;
+    if (!sidebar) return;
+    var catStats = {};
+    var total = 0;
+    state.cards.forEach(function (card) {
+      total++;
+      var cat = card.dataset.cat || '';
+      if (!cat) return;
+      if (!catStats[cat]) {
+        var order = 9999;
+        try {
+          var bc = JSON.parse(card.dataset.bookCats || '{}') || {};
+          if (bc[state.activeBook]) order = bc[state.activeBook].cat_order || 9999;
+        } catch (e) {}
+        catStats[cat] = { count: 0, order: order };
+      }
+      catStats[cat].count++;
+    });
+
+    if (state.activeCat && !catStats[state.activeCat]) state.activeCat = '';
+
+    sidebar.innerHTML = '';
+    var allLink = document.createElement('a');
+    allLink.href = '#';
+    allLink.dataset.cat = '';
+    allLink.textContent = t('all_prayers', 'All prayers') + ' (' + total + ')';
+    if (state.activeCat === '') allLink.className = 'active';
+    allLink.addEventListener('click', function (e) {
+      e.preventDefault();
+      applyCategory(state, '');
+    });
+    sidebar.appendChild(allLink);
+
+    Object.keys(catStats).map(function (k) {
+      return [k, catStats[k]];
+    }).sort(function (a, b) {
+      return (a[1].order - b[1].order) || a[0].localeCompare(b[0]);
+    }).forEach(function (pair) {
+      var cat = pair[0], info = pair[1];
+      var link = document.createElement('a');
+      link.href = '#';
+      link.dataset.cat = cat;
+      link.textContent = cat + ' (' + info.count + ')';
+      if (state.activeCat === cat) link.className = 'active';
+      link.addEventListener('click', function (e) {
+        e.preventDefault();
+        applyCategory(state, cat);
+      });
+      sidebar.appendChild(link);
+    });
+  }
+
+  function applyCategory(state, cat) {
+    state.activeCat = cat;
+    if (state.opts.categoriesEl) {
+      state.opts.categoriesEl.querySelectorAll('a').forEach(function (l) {
+        l.classList.toggle('active', l.dataset.cat === cat);
+      });
+    }
+    state.cards.forEach(function (card) {
+      card.classList.toggle('hidden', !(!cat || card.dataset.cat === cat));
+    });
+  }
+
+  // ── Book switching (language mode only) ───────────────────────────
+  function applyBook(state, book) {
+    state.activeBook = book;
+    if (state.opts.pageLang) {
+      try { localStorage.setItem('hw_book_' + state.opts.pageLang, book); } catch (e) {}
+    }
+    var sel = state.opts.bookSelectEl;
+    if (sel) sel.value = book;
+    var directLink = document.getElementById('book-view-direct');
+    if (directLink) directLink.href = '/book/?b=' + book;
+
+    state.cards.forEach(function (card) {
+      var cat = card.dataset.nativeCat || '';
+      if (book) {
+        try {
+          var bc = JSON.parse(card.dataset.bookCats || '{}') || {};
+          if (bc[book]) cat = bc[book].cat || '';
+        } catch (e) {}
+      }
+      card.dataset.cat = cat;
+    });
+    buildCategoryList(state);
+    applyCategory(state, state.activeCat);
+  }
+
+  function setupBookSelect(state) {
+    var sel = state.opts.bookSelectEl;
+    if (!sel) return;
+    var totalPrayers = state.cards.length;
+    var minHits = Math.max(5, Math.ceil(totalPrayers * 0.10));
+    var alwaysShow = new Set([state.opts.defaultBook, state.activeBook].filter(Boolean));
+
+    var hits = {};
+    state.cards.forEach(function (card) {
+      var bc = {};
+      try { bc = JSON.parse(card.dataset.bookCats || '{}') || {}; } catch (e) {}
+      Object.keys(bc).forEach(function (code) {
+        hits[code] = (hits[code] || 0) + 1;
+      });
+    });
+
+    Array.from(sel.options).forEach(function (opt) {
+      var code = opt.value;
+      var n = hits[code] || 0;
+      var native = alwaysShow.has(code);
+      if (!native && n < minHits) {
+        opt.hidden = true;
+        opt.disabled = true;
+      } else {
+        opt.textContent = opt.textContent.replace(/\s*\(\d+\/\d+\)\s*$/, '');
+        opt.textContent = opt.textContent + ' (' + n + '/' + totalPrayers + ')';
+      }
+    });
+    sel.addEventListener('change', function () {
+      applyBook(state, sel.value);
+    });
+  }
+
+  // ── Favourites ────────────────────────────────────────────────────
+  function setupFavourites(root) {
+    var favs;
+    try { favs = new Set(JSON.parse(localStorage.getItem(FAVS_KEY) || '[]')); }
+    catch (e) { favs = new Set(); }
+    function paint() {
+      root.querySelectorAll('.fav-btn').forEach(function (btn) {
+        btn.textContent = favs.has(btn.dataset.phelps) ? '★' : '☆';
+      });
+    }
+    paint();
+    root.querySelectorAll('.fav-btn').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var p = btn.dataset.phelps;
+        if (favs.has(p)) favs.delete(p); else favs.add(p);
+        try { localStorage.setItem(FAVS_KEY, JSON.stringify(Array.from(favs))); } catch (e2) {}
+        paint();
+      });
+    });
+  }
+
+  // ── Devotional buttons ────────────────────────────────────────────
+  function setupDevotional(root, includeLang) {
+    function getCodes() {
+      try { return JSON.parse(localStorage.getItem(DEV_KEY) || '[]'); } catch (e) { return []; }
+    }
+    function codeStr(item) { return typeof item === 'string' ? item : item.code; }
+    function langOf(item) { return typeof item === 'string' ? undefined : item.lang; }
+    function flash(btn, text) {
+      var orig = btn.textContent;
+      btn.textContent = text;
+      btn.disabled = true;
+      setTimeout(function () { btn.textContent = orig; btn.disabled = false; }, 1200);
+    }
+
+    root.querySelectorAll('.btn-add-devotional').forEach(function (btn) {
+      var card = btn.closest('.prayer-card');
+      if (!card) return;
+      var p = btn.dataset.phelps || card.dataset.phelps;
+      var lng = includeLang ? card.dataset.lang : undefined;
+
+      var items = getCodes();
+      var matchExisting = items.some(function (i) {
+        if (codeStr(i) !== p) return false;
+        if (includeLang) return langOf(i) === lng;
+        return true;
+      });
+      if (matchExisting) {
+        btn.textContent = '✓';
+        btn.classList.add('added');
+      }
+
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        e.preventDefault();
+        var its = getCodes();
+        var found = its.findIndex(function (i) {
+          if (codeStr(i) !== p) return false;
+          if (includeLang) return langOf(i) === lng;
+          return true;
+        });
+        if (found >= 0) {
+          its.splice(found, 1);
+          try { localStorage.setItem(DEV_KEY, JSON.stringify(its)); } catch (e2) {}
+          btn.textContent = '+';
+          btn.classList.remove('added');
+        } else {
+          var entry = includeLang ? { code: p, lang: lng } : { code: p };
+          its.push(entry);
+          try { localStorage.setItem(DEV_KEY, JSON.stringify(its)); } catch (e2) {}
+          flash(btn, '✓');
+          btn.classList.add('added');
+        }
+      });
+    });
+  }
+
+  // ── In-place language switching (language mode) ───────────────────
+  var _langCache = new Map();
+  function loadLangData(code) {
+    if (_langCache.has(code)) return Promise.resolve(_langCache.get(code));
+    return fetch('/data/prayers/' + code + '.json').then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function (data) {
+      var idx = {};
+      (data.prayers || []).forEach(function (p) { idx[p.phelps] = p; });
+      var entry = { phelpsIndex: idx };
+      _langCache.set(code, entry);
+      return entry;
+    }).catch(function (e) {
+      console.warn('lang fetch failed', code, e);
+      return null;
+    });
+  }
+
+  function switchPrayerLanguage(card, targetLang, targetLangName, pageLang) {
+    return loadLangData(targetLang).then(function (data) {
+      if (!data) return false;
+      var p = data.phelpsIndex[card.id];
+      if (!p || !p.text) return false;
+      var textEl = card.querySelector('.prayer-text');
+      var nameEl = card.querySelector('.prayer-name');
+      var badge = card.querySelector('.prayer-lang-badge');
+      if (textEl) textEl.innerHTML = md(p.text);
+      if (nameEl && p.name) nameEl.textContent = p.name;
+      if (badge) {
+        badge.textContent = targetLang;
+        badge.title = 'Showing in ' + (targetLangName || targetLang);
+        badge.classList.add('switched');
+      }
+      var revertBtn = card.querySelector('.prayer-revert-btn');
+      if (revertBtn) {
+        revertBtn.hidden = false;
+        revertBtn.textContent = '↶ ' + pageLang;
+        revertBtn.title = 'Switch back to ' + pageLang;
+      }
+      var vLink = card.querySelector('.prayer-version-link');
+      if (vLink) {
+        var id = p.v || p.version;
+        if (id) vLink.href = '/p/?v=' + id;
+      }
+      card.dataset.displayLang = targetLang;
+      if (textEl) textEl.dir = RTL_LANGS.has(targetLang) ? 'rtl' : 'ltr';
+      return true;
+    });
+  }
+
+  function revertPrayerCard(card, pageLang) {
+    var badge = card.querySelector('.prayer-lang-badge');
+    if (!badge || !badge.classList.contains('switched')) return;
+    var textEl = card.querySelector('.prayer-text');
+    var nameEl = card.querySelector('.prayer-name');
+    var nativeText = card.dataset.nativeText || '';
+    var nativeName = card.dataset.nativeName || '';
+    if (textEl) {
+      textEl.innerHTML = md(nativeText);
+      textEl.dir = '';
+    }
+    if (nameEl) nameEl.textContent = nativeName;
+    badge.textContent = pageLang;
+    badge.classList.remove('switched');
+    badge.title = t('prayer_lang_current_title', 'Currently shown in this language');
+    card.dataset.displayLang = pageLang;
+    var vLink = card.querySelector('.prayer-version-link');
+    var nv = card.dataset.nativeVersion;
+    if (vLink && nv) vLink.href = '/p/?v=' + nv;
+    var revertBtn = card.querySelector('.prayer-revert-btn');
+    if (revertBtn) revertBtn.hidden = true;
+  }
+
+  function setupLangSwitching(root, pageLang) {
+    root.querySelectorAll('.lang-switch-link').forEach(function (link) {
+      link.addEventListener('click', function (e) {
+        if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
+        var card = link.closest('.prayer-card');
+        if (!card) return;
+        var code = link.dataset.code;
+        var name = link.dataset.langName || code;
+        e.preventDefault();
+        switchPrayerLanguage(card, code, name, pageLang).then(function (ok) {
+          if (!ok) window.location.href = link.href;
+          var dd = link.closest('.lang-dropdown');
+          if (dd) dd.removeAttribute('open');
+        });
+      });
+    });
+    root.querySelectorAll('.prayer-lang-badge').forEach(function (badge) {
+      badge.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var card = badge.closest('.prayer-card');
+        if (card) revertPrayerCard(card, pageLang);
+      });
+    });
+    root.querySelectorAll('.prayer-revert-btn').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var card = btn.closest('.prayer-card');
+        if (card) revertPrayerCard(card, pageLang);
+      });
+    });
+    root.querySelectorAll('.lang-dropdown').forEach(function (dd) {
+      var input = dd.querySelector('.lang-filter-input');
+      if (!input) return;
+      var links = Array.from(dd.querySelectorAll('.lang-dropdown-list a'));
+      input.addEventListener('input', function () {
+        var q = input.value.toLowerCase().trim();
+        links.forEach(function (a) {
+          a.style.display = (!q || a.dataset.code.includes(q) || a.dataset.name.includes(q)) ? '' : 'none';
+        });
+      });
+    });
+    document.addEventListener('click', function (e) {
+      root.querySelectorAll('.lang-dropdown[open]').forEach(function (dd) {
+        if (!dd.contains(e.target)) dd.removeAttribute('open');
+      });
+    });
+  }
+
+  // ── Folding ───────────────────────────────────────────────────────
+  function setupFolding(root) {
+    root.querySelectorAll('.prayer-card-header').forEach(function (header) {
+      header.addEventListener('click', function (e) {
+        if (e.target.closest('a') || e.target.closest('.fav-btn') ||
+            e.target.closest('.btn-add-devotional') ||
+            e.target.closest('.btn-expand') ||
+            e.target.closest('.prayer-revert-btn')) return;
+        header.closest('.prayer-card').classList.toggle('folded');
+      });
+    });
+  }
+
+  // ── Full-screen overlay ───────────────────────────────────────────
+  function setupFullScreen(root) {
+    root.querySelectorAll('.prayer-expand').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var card = btn.closest('.prayer-card');
+        if (!card) return;
+        var textEl = card.querySelector('.prayer-text');
+        var nameEl = card.querySelector('.prayer-name');
+        if (!textEl) return;
+        card.classList.remove('folded');
+        var overlay = document.createElement('div');
+        overlay.className = 'expanded-overlay';
+        var rtlAttr = (textEl.dir === 'rtl' || card.closest('[dir="rtl"]')) ? ' dir="rtl"' : '';
+        overlay.innerHTML = '<button class="expand-close">✖</button>' +
+          (nameEl ? '<h2 style="margin-bottom:1rem;font-size:1.2rem">' + escapeHtml(nameEl.textContent) + '</h2>' : '') +
+          '<div' + rtlAttr + '>' + textEl.innerHTML + '</div>';
+        document.body.appendChild(overlay);
+        overlay.querySelector('.expand-close').addEventListener('click', function () { overlay.remove(); });
+        var esc = function (ev) {
+          if (ev.key === 'Escape') {
+            overlay.remove();
+            document.removeEventListener('keydown', esc);
+          }
+        };
+        document.addEventListener('keydown', esc);
+      });
+    });
+  }
+
+  // ── TOC + category H2s (book mode) ────────────────────────────────
+  function buildBookGroupedHtml(prayers, opts) {
+    // Group by category in order of appearance.
+    var cats = [];
+    var idx = {};
+    prayers.forEach(function (p) {
+      var k = p.category || '(uncategorised)';
+      if (!(k in idx)) {
+        idx[k] = cats.length;
+        cats.push({ name: k, prayers: [] });
+      }
+      cats[idx[k]].prayers.push(p);
+    });
+    return cats;
+  }
+
+  function renderTOC(cats, mountEl) {
+    if (!mountEl || !cats.length) return;
+    var label = cats.length + ' ' +
+      (cats.length === 1 ? t('book_category', 'category') : t('book_categories', 'categories')) +
+      ' — ' + t('book_jump_to', 'jump to:');
+    var chips = cats.map(function (c) {
+      var slug = slugCat(c.name);
+      return '<a href="#' + slug + '" class="book-toc-chip">' +
+        escapeHtml(c.name) +
+        ' <span class="book-toc-count">(' + c.prayers.length + ')</span></a>';
+    }).join('');
+    mountEl.innerHTML =
+      '<details class="book-toc" open>' +
+        '<summary>' + label + '</summary>' +
+        '<div class="book-toc-chips">' + chips + '</div>' +
+      '</details>';
+  }
+
+  // ── Hash jump ─────────────────────────────────────────────────────
+  function handleHash(root) {
+    var hash = location.hash.slice(1);
+    if (!hash) return;
+    // Category slug?
+    if (/^cat-/.test(hash)) {
+      var catEl = document.getElementById(hash);
+      if (catEl) {
+        setTimeout(function () {
+          catEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 80);
+        return;
+      }
+    }
+    var target = document.getElementById(hash);
+    if (target && target.classList.contains('prayer-card')) {
+      target.classList.remove('folded');
+      setTimeout(function () {
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 100);
+    }
+  }
+
+  // ── Main entry point ──────────────────────────────────────────────
+  function renderPrayerList(rootEl, opts) {
+    if (!rootEl) return;
+    opts = opts || {};
+    opts.mode = opts.mode || 'language';
+    var isBook = opts.mode === 'book';
+    // Per-mode defaults.
+    if (opts.showFolding == null) opts.showFolding = !isBook;
+    if (opts.showFullScreen == null) opts.showFullScreen = !isBook;
+    if (opts.showFavourite == null) opts.showFavourite = !isBook;
+    if (opts.showLangSwitch == null) opts.showLangSwitch = !isBook;
+    if (opts.toc == null) opts.toc = isBook;
+    if (opts.showCategoryAnchor == null) opts.showCategoryAnchor = isBook;
+    if (opts.pageLang == null) opts.pageLang = '';
+
+    var prayers = opts.prayers || [];
+
+    rootEl.innerHTML = '';
+    if (opts.rtl) rootEl.setAttribute('dir', 'rtl');
+
+    var state = {
+      opts: opts,
+      cards: [],
+      activeBook: opts.defaultBook || '',
+      activeCat: ''
+    };
+
+    if (isBook) {
+      // Book mode: group by category, with optional H2 + ¶ anchor.
+      var grouped = buildBookGroupedHtml(prayers, opts);
+      // Mount a TOC if there is a host element.
+      if (opts.toc) {
+        var tocEl = opts.tocEl;
+        if (!tocEl) {
+          tocEl = document.createElement('div');
+          rootEl.appendChild(tocEl);
+        }
+        renderTOC(grouped, tocEl);
+      }
+
+      grouped.forEach(function (cat) {
+        if (opts.showCategoryAnchor) {
+          var slug = slugCat(cat.name);
+          var h = document.createElement('h2');
+          h.id = slug;
+          h.style.cssText = 'margin-top:1.5rem; font-size:1.1rem; border-bottom:1px solid var(--border); padding-bottom:.3rem';
+          h.innerHTML = escapeHtml(cat.name) +
+            ' <span style="color:var(--text-secondary); font-weight:400; font-size:.85rem">(' + cat.prayers.length + ')</span>' +
+            ' <a href="#' + slug + '" style="font-size:.7em; opacity:.4; text-decoration:none" title="Permalink to this category">¶</a>';
+          rootEl.appendChild(h);
+        }
+        cat.prayers.forEach(function (p) {
+          var card = buildCard(p, opts);
+          state.cards.push(card);
+          rootEl.appendChild(card);
+        });
+      });
+    } else {
+      // Language mode: flat list grouped only by data-cat (sidebar filters).
+      prayers.forEach(function (p) {
+        var card = buildCard(p, opts);
+        state.cards.push(card);
+        rootEl.appendChild(card);
+      });
+    }
+
+    // Migrate localStorage book preference (language mode only).
+    if (!isBook && opts.pageLang) {
+      try {
+        var key = 'hw_book_' + opts.pageLang;
+        var stored = localStorage.getItem(key);
+        var known = new Set((opts.allBooks || []).map(function (b) { return b.code; }));
+        if (!stored || !known.has(stored)) {
+          stored = opts.defaultBook;
+          if (stored) localStorage.setItem(key, stored);
+        }
+        state.activeBook = stored || opts.defaultBook || '';
+      } catch (e) {
+        state.activeBook = opts.defaultBook || '';
+      }
+    }
+
+    // Wire up book selector (language mode).
+    if (!isBook && opts.bookSelectEl) {
+      setupBookSelect(state);
+    }
+
+    // Build/refresh categories sidebar (language mode only by default).
+    if (!isBook && opts.categoriesEl) {
+      applyBook(state, state.activeBook);
+    }
+
+    // Common behaviours.
+    if (opts.showFolding) setupFolding(rootEl);
+    if (opts.showFullScreen) setupFullScreen(rootEl);
+    if (opts.showFavourite) setupFavourites(rootEl);
+    setupDevotional(rootEl, isBook); // book mode stores {code,lang}
+    if (opts.showLangSwitch) setupLangSwitching(rootEl, opts.pageLang);
+
+    // Re-translate any data-i18n attributes inside the freshly inserted DOM.
+    if (typeof window.__translatePage === 'function') window.__translatePage();
+    if (typeof window.__markUiLang === 'function') window.__markUiLang();
+
+    // Hash jump (slight delay so layout settles).
+    setTimeout(function () { handleHash(rootEl); }, 50);
+    window.addEventListener('hashchange', function () { handleHash(rootEl); });
+
+    return state;
+  }
+
+  window.renderPrayerList = renderPrayerList;
+})();

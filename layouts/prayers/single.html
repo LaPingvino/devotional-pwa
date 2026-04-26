@@ -45,442 +45,49 @@
     <h1>{{ .Params.langName }}</h1>
     <p style="color:var(--text-secondary); margin-bottom:1rem;">{{ len $prayers }} prayers{{ if $rtl }} · RTL{{ end }}</p>
 
-    <div class="prayer-list" id="prayer-list"{{ if $rtl }} dir="rtl"{{ end }}>
-      {{ range $prayers }}
-      {{ $pin := .phelps }}
-      {{ $pinL := $pin | lower }}
-      {{ $baseL := replaceRE "[a-z]{3}$" "" $pinL }}
-      {{ $suffix := strings.TrimPrefix $baseL $pinL }}
-      {{ $plainText := replaceRE `#+\s+[^\n]+` "" .text }}
-      {{ $isCJK := or (eq $lang "ja") (eq $lang "ko") (eq $lang "zh-Hans") (eq $lang "zh-Hant") }}
-      {{ $wc := len (findRE `\S+` $plainText) }}
-      {{ $wcLabel := printf "~%dw" $wc }}
-      {{ if $isCJK }}{{ $wc = strings.CountRunes $plainText }}{{ $charUnit := cond (eq $lang "ko") "자" "字" }}{{ $wcLabel = printf "~%d%s" $wc $charUnit }}{{ end }}
-      {{ $preview := replaceRE `\s+` " " (replaceRE `[*#\[\]()>]` "" $plainText) | truncate 60 "…" }}
-      <article class="prayer-card folded" id="{{ $pin }}"
-               data-cat="{{ .category }}"
-               data-native-cat="{{ .category }}"
-               data-native-text="{{ .text }}"
-               data-native-name="{{ .name }}"
-               data-native-version="{{ or .v .version }}"
-               data-display-lang="{{ $lang }}"
-               data-book-cats="{{ .book_cats | jsonify }}">
-        <div class="prayer-card-header">
-          <span class="prayer-toggle" aria-hidden="true">▶</span>
-          {{ with .name }}<span class="prayer-name">{{ . }}</span>{{ end }}
-          <span class="prayer-preview">{{ $preview }}</span>
-          <span class="word-count">{{ $wcLabel }}</span>
-          <span class="prayer-phelps">
-            <a href="/phelps/{{ $baseL }}/{{ if $suffix }}#{{ $suffix }}{{ end }}" title="All translations">{{ $pin }}</a>
-            <a href="/inventory/?pin={{ $baseL | upper }}" title="Inventory entry" style="opacity:.6; font-size:.8em; margin-left:.3em">↗</a>
-            <span class="prayer-lang-badge" title="Currently shown in this language">{{ $lang }}</span>
-            {{/* When a per-prayer in-place language switch is active, the JS
-                 reveals .prayer-revert-btn to give an explicit revert affordance
-                 (clicking the badge alone wasn't discoverable enough). */}}
-            <button class="prayer-revert-btn" type="button" title="Show again in the page's language" hidden>↶ revert</button>
-            {{/* Use VersionB36 (short base36) when available, fall back to canonical UUID. */}}
-            {{ with (or .v .version) }}<a class="prayer-version-link" href="/p/?v={{ . }}" title="Permalink to this exact translation — share or save this specific rendering" style="font-size:.8em; margin-left:.3em">🔗</a>{{ end }}
-          </span>
-          <button class="btn-expand prayer-expand" title="Full screen">&#x26F6;</button>
-          <button class="fav-btn" data-phelps="{{ $pin }}" aria-label="Toggle favourite">☆</button>
-          <button class="btn-add-devotional" data-phelps="{{ $pin }}" aria-label="Add to devotional" title="Add to devotional program">+</button>
-        </div>
-        <div class="prayer-text">{{ .text | markdownify }}</div>
-        {{ with .notes }}
-        <div class="prayer-notes">{{ . }}</div>
-        {{ end }}
-        <div class="prayer-meta">
-          {{ with .source }}<span class="prayer-source">{{ . }}</span>{{ end }}
-        </div>
-        {{ with .translations }}
-        {{ $transCount := len . }}
-        <div class="prayer-translations">
-          <span class="trans-label" data-i18n="also_in">Also in:</span>
-          <details class="lang-dropdown">
-            <summary>{{ $transCount }} language{{ if gt $transCount 1 }}s{{ end }}</summary>
-            <div class="lang-dropdown-panel">
-              {{ if gt $transCount 6 }}
-              <input type="search" class="lang-filter-input" placeholder="Filter languages…" autocomplete="off">
-              {{ end }}
-              <div class="lang-dropdown-list">
-                {{ range . }}<a href="/prayers/{{ .language | lower }}/#{{ $pin }}" data-code="{{ .language | lower }}" data-name="{{ .lang_name | lower }}" data-lang-name="{{ .lang_name }}" class="lang-switch-link">{{ .lang_name }}<span class="lang-code-badge">{{ .language }}</span></a>
-                {{ end }}
-              </div>
-            </div>
-          </details>
-        </div>
-        {{ end }}
-      </article>
-      {{ end }}
+    <div class="prayer-list" id="prayer-list-root"{{ if $rtl }} dir="rtl"{{ end }}>
+      <p style="color:var(--text-secondary)" data-i18n="loading">Loading…</p>
     </div>
   </main>
 </div>
 
-<script>
-const BOOK_KEY = 'hw_book_{{ $lang }}';
-const DEFAULT_BOOK = '{{ $defaultBook }}';
+<script id="bootstrap-prayer-list">
+(function () {
+  // List of all prayerbooks known to the site (for stale-book localStorage migration).
+  var allBooks = {{ $allBooks | jsonify }};
+  var defaultBook = {{ $defaultBook | jsonify }};
+  var pageLang = {{ $lang | jsonify }};
+  var rtl = {{ $rtl }};
 
-// Migrate stale localStorage values that predate the :bp rename.
-// If the stored book isn't an option in the picker, fall back to the
-// data-side default and overwrite localStorage so this only runs once.
-const knownBookCodes = new Set();
-{{ range $allBooks }}knownBookCodes.add('{{ .code }}');
-{{ end }}
-let activeBook = localStorage.getItem(BOOK_KEY);
-if (!activeBook || !knownBookCodes.has(activeBook)) {
-  activeBook = DEFAULT_BOOK;
-  localStorage.setItem(BOOK_KEY, activeBook);
-}
-let activeCat = '';
-
-// Build the category list dynamically for the current activeBook
-function rebuildCategories() {
-  const catStats = {}; // cat → {count, order}
-  let total = 0;
-  document.querySelectorAll('.prayer-card').forEach(card => {
-    total++;
-    const cat = card.dataset.cat || '';
-    if (cat) {
-      if (!catStats[cat]) {
-        let order = 9999;
-        try {
-          // jsonify of a nil map → "null"; without the `|| {}` guard,
-          // bc[activeBook] would throw and crash the whole script.
-          const bc = JSON.parse(card.dataset.bookCats || '{}') || {};
-          if (bc[activeBook]) order = bc[activeBook].cat_order || 9999;
-        } catch(e) {}
-        catStats[cat] = {count: 0, order};
-      }
-      catStats[cat].count++;
-    }
-  });
-
-  // Reset activeCat if it no longer exists
-  if (activeCat && !catStats[activeCat]) activeCat = '';
-
-  const catList = document.getElementById('cat-list');
-  catList.innerHTML = '';
-
-  const allLink = document.createElement('a');
-  allLink.href = '#';
-  allLink.dataset.cat = '';
-  allLink.textContent = `All prayers (${total})`;
-  allLink.className = activeCat === '' ? 'active' : '';
-  allLink.addEventListener('click', e => { e.preventDefault(); applyCategory(''); });
-  catList.appendChild(allLink);
-
-  Object.entries(catStats)
-    .sort(([nameA, a], [nameB, b]) => (a.order - b.order) || nameA.localeCompare(nameB))
-    .forEach(([cat, {count}]) => {
-      const link = document.createElement('a');
-      link.href = '#';
-      link.dataset.cat = cat;
-      link.textContent = `${cat} (${count})`;
-      link.className = activeCat === cat ? 'active' : '';
-      link.addEventListener('click', e => { e.preventDefault(); applyCategory(cat); });
-      catList.appendChild(link);
+  function boot() {
+    fetch('/data/prayers/' + pageLang + '.json').then(function (r) {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    }).then(function (data) {
+      window.renderPrayerList(document.getElementById('prayer-list-root'), {
+        prayers: data.prayers || [],
+        pageLang: pageLang,
+        rtl: rtl,
+        mode: 'language',
+        defaultBook: defaultBook,
+        allBooks: allBooks,
+        bookSelectEl: document.getElementById('book-select'),
+        categoriesEl: document.getElementById('cat-list')
+      });
+    }).catch(function (e) {
+      var root = document.getElementById('prayer-list-root');
+      if (root) root.innerHTML = '<p style="color:var(--text-secondary)">Failed to load: ' + e.message + '</p>';
     });
-}
-
-function applyCategory(cat) {
-  activeCat = cat;
-  document.querySelectorAll('#cat-list a').forEach(l => {
-    l.classList.toggle('active', l.dataset.cat === cat);
-  });
-  document.querySelectorAll('.prayer-card').forEach(card => {
-    card.classList.toggle('hidden', !(!cat || card.dataset.cat === cat));
-  });
-}
-
-function applyBook(book) {
-  activeBook = book;
-  localStorage.setItem(BOOK_KEY, book);
-
-  const sel = document.getElementById('book-select');
-  if (sel) sel.value = book;
-
-  // Keep the "View this book directly →" link in sync with the picker.
-  const directLink = document.getElementById('book-view-direct');
-  if (directLink) directLink.href = '/book/?b=' + book;
-
-  document.querySelectorAll('.prayer-card').forEach(card => {
-    let cat = card.dataset.nativeCat || '';
-    if (book) {
-      try {
-        // jsonify of nil → "null"; the `|| {}` guard avoids a TypeError
-        // for prayers from sources without PBS entries (bahaiprayers.app etc).
-        const bc = JSON.parse(card.dataset.bookCats || '{}') || {};
-        if (bc[book]) cat = bc[book].cat || '';
-      } catch(e) {}
-    }
-    card.dataset.cat = cat;
-  });
-
-  rebuildCategories();
-  applyCategory(activeCat);
-}
-
-// Prayerbook select — runtime filtering by page-relative coverage.
-// Each option starts hidden; we count how many prayer-cards on this page
-// have an entry in each book (via data-book-cats), and reveal options
-// where coverage is meaningful: native books ALWAYS show, others need to
-// cover at least max(5, 10% of this page's prayers). Reveals an
-// "X of Y" hint inline so the user can judge how complete a switch will be.
-const bookSelect = document.getElementById('book-select');
-if (bookSelect) {
-  const cards = document.querySelectorAll('.prayer-card');
-  const totalPrayers = cards.length;
-  const minHits = Math.max(5, Math.ceil(totalPrayers * 0.10));
-  // Native books = the books these prayers' source_id rows actually live in.
-  // For a single-language page that's just the lang's own :bp; for hz it's
-  // mul-NA:bp. We capture this from the pre-computed default + any current
-  // localStorage choice so the user's picked book is never hidden.
-  const alwaysShow = new Set(['{{ $defaultBook }}', activeBook]);
-
-  // Count hits per book across all cards. The `|| {}` after JSON.parse
-  // handles "null" (Hugo jsonify of a nil map for prayers without PBS
-  // entries) — without it, Object.keys(null) would throw inside forEach
-  // and abort the rest of this script (including the applyBook below,
-  // which is what populates the category sidebar).
-  const hits = {};
-  cards.forEach(card => {
-    let bc = {};
-    try { bc = JSON.parse(card.dataset.bookCats || '{}') || {}; } catch {}
-    Object.keys(bc).forEach(code => { hits[code] = (hits[code] || 0) + 1; });
-  });
-
-  // Annotate + filter options. Hide low-coverage non-native books.
-  Array.from(bookSelect.options).forEach(opt => {
-    const code = opt.value;
-    const n = hits[code] || 0;
-    const native = alwaysShow.has(code);
-    if (!native && n < minHits) {
-      opt.hidden = true;
-      opt.disabled = true;
-    } else {
-      // Append "(N/total)" to clarify completeness for this page.
-      opt.textContent = opt.textContent.replace(/\s*\(\d+\/\d+\)\s*$/, '');
-      opt.textContent = opt.textContent + ` (${n}/${totalPrayers})`;
-    }
-  });
-
-  bookSelect.addEventListener('change', () => applyBook(bookSelect.value));
-}
-applyBook(activeBook);
-
-// Favourites
-const FAVS_KEY = 'hw_favorites';
-const favs = new Set(JSON.parse(localStorage.getItem(FAVS_KEY) || '[]'));
-function renderFavs() {
-  document.querySelectorAll('.fav-btn').forEach(btn => {
-    btn.textContent = favs.has(btn.dataset.phelps) ? '★' : '☆';
-  });
-}
-renderFavs();
-document.querySelectorAll('.fav-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const p = btn.dataset.phelps;
-    favs.has(p) ? favs.delete(p) : favs.add(p);
-    localStorage.setItem(FAVS_KEY, JSON.stringify([...favs]));
-    renderFavs();
-  });
-});
-
-// "Add to devotional" buttons
-document.querySelectorAll('.btn-add-devotional').forEach(btn => {
-  const p = btn.dataset.phelps;
-  const DKEY = 'hw_devotional_codes';
-  function codeStr(item) { return typeof item === 'string' ? item : item.code; }
-  function isDev() { try { return JSON.parse(localStorage.getItem(DKEY) || '[]').some(function(i) { return codeStr(i) === p; }); } catch { return false; } }
-  if (isDev()) { btn.textContent = '\u2713'; btn.classList.add('added'); }
-  btn.addEventListener('click', e => {
-    e.stopPropagation();
-    let codes = []; try { codes = JSON.parse(localStorage.getItem(DKEY) || '[]'); } catch {}
-    if (codes.some(function(i) { return codeStr(i) === p; })) { codes = codes.filter(function(i) { return codeStr(i) !== p; }); btn.textContent = '+'; btn.classList.remove('added'); }
-    else { codes.push({code: p}); btn.textContent = '\u2713'; btn.classList.add('added'); }
-    localStorage.setItem(DKEY, JSON.stringify(codes));
-  });
-});
-
-// In-place language switcher: when the user clicks an "Also in: X" link,
-// fetch X's prayers JSON, find this prayer by phelps, and swap the text +
-// name in the existing card without leaving the page. Falls back to the
-// link's normal navigation if anything goes wrong (Cmd-click, fetch fails,
-// prayer missing).
-const _langCache = new Map(); // langCode -> { phelpsIndex, name }
-
-async function loadLangData(code) {
-  if (_langCache.has(code)) return _langCache.get(code);
-  try {
-    const r = await fetch(`/data/prayers/${code}.json`);
-    if (!r.ok) throw new Error('HTTP ' + r.status);
-    const data = await r.json();
-    const phelpsIndex = {};
-    for (const p of data.prayers || []) phelpsIndex[p.phelps] = p;
-    const entry = { phelpsIndex };
-    _langCache.set(code, entry);
-    return entry;
-  } catch (e) {
-    console.warn('lang fetch failed', code, e);
-    return null;
   }
-}
 
-async function switchPrayerLanguage(card, targetLang, targetLangName) {
-  const phelps = card.id;
-  const data = await loadLangData(targetLang);
-  if (!data) return false;
-  const p = data.phelpsIndex[phelps];
-  if (!p || !p.text) return false;
-  const textEl = card.querySelector('.prayer-text');
-  const nameEl = card.querySelector('.prayer-name');
-  const badgeEl = card.querySelector('.prayer-lang-badge');
-  if (textEl) textEl.innerHTML = window.renderMd ? window.renderMd(p.text) : p.text;
-  if (nameEl && p.name) nameEl.textContent = p.name;
-  if (badgeEl) {
-    badgeEl.textContent = targetLang;
-    badgeEl.title = `Showing in ${targetLangName || targetLang}`;
-    badgeEl.classList.add('switched');
+  if (window.renderPrayerList) {
+    boot();
+  } else {
+    // /js/prayer-list.js is loaded with `defer`; this inline script may run
+    // before it. Wait for DOMContentLoaded, by which time defer scripts have
+    // executed and renderPrayerList is on window.
+    document.addEventListener('DOMContentLoaded', boot);
   }
-  // Reveal the explicit revert button while a switch is active.
-  const revertBtn = card.querySelector('.prayer-revert-btn');
-  if (revertBtn) {
-    revertBtn.hidden = false;
-    revertBtn.textContent = '↶ {{ $lang }}';
-    revertBtn.title = `Switch back to {{ $lang }}`;
-  }
-  // Update permalink to point at this translation. Prefer short base36 form
-  // (`v` field set at build time); fall back to canonical UUID otherwise.
-  const vLink = card.querySelector('.prayer-version-link');
-  if (vLink) {
-    const id = p.v || p.version;
-    if (id) vLink.href = '/p/?v=' + id;
-  }
-  card.dataset.displayLang = targetLang;
-  // RTL handling: switch direction of just the text element if target is RTL.
-  const RTL_LANGS = new Set(['ar', 'fa', 'ur', 'he', 'ug']);
-  if (textEl) textEl.dir = RTL_LANGS.has(targetLang) ? 'rtl' : 'ltr';
-  return true;
-}
-
-document.querySelectorAll('.lang-switch-link').forEach(link => {
-  link.addEventListener('click', async e => {
-    // Respect modifier-clicks (open in new tab/window).
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) return;
-    const card = link.closest('.prayer-card');
-    if (!card) return;
-    const code = link.dataset.code;
-    const name = link.dataset.langName || code;
-    e.preventDefault();
-    const ok = await switchPrayerLanguage(card, code, name);
-    if (!ok) window.location.href = link.href; // graceful fallback
-    // Close the dropdown.
-    const dd = link.closest('.lang-dropdown');
-    if (dd) dd.removeAttribute('open');
-  });
-});
-
-// Revert a per-prayer in-place language switch to the page's native language.
-// Two affordances: the orange (switched) badge AND a visible "↶ revert" button
-// that appears next to it. The button is the discoverable one; the badge is a
-// click target for users who notice its colour change.
-function revertPrayerCard(card) {
-  const badge = card.querySelector('.prayer-lang-badge');
-  if (!badge || !badge.classList.contains('switched')) return;
-  const textEl = card.querySelector('.prayer-text');
-  const nameEl = card.querySelector('.prayer-name');
-  const nativeText = card.dataset.nativeText || '';
-  const nativeName = card.dataset.nativeName || '';
-  if (textEl) {
-    textEl.innerHTML = window.renderMd ? window.renderMd(nativeText) : nativeText;
-    textEl.dir = '';
-  }
-  if (nameEl) nameEl.textContent = nativeName;
-  badge.textContent = '{{ $lang }}';
-  badge.classList.remove('switched');
-  badge.title = 'Currently shown in this language';
-  card.dataset.displayLang = '{{ $lang }}';
-  // Restore native version permalink
-  const vLink = card.querySelector('.prayer-version-link');
-  const nativeVersion = card.dataset.nativeVersion;
-  if (vLink && nativeVersion) vLink.href = '/p/?v=' + nativeVersion;
-  // Hide the revert button.
-  const revertBtn = card.querySelector('.prayer-revert-btn');
-  if (revertBtn) revertBtn.hidden = true;
-}
-
-document.querySelectorAll('.prayer-lang-badge').forEach(badge => {
-  badge.addEventListener('click', e => {
-    e.stopPropagation();
-    const card = badge.closest('.prayer-card');
-    if (card) revertPrayerCard(card);
-  });
-});
-
-document.querySelectorAll('.prayer-revert-btn').forEach(btn => {
-  btn.addEventListener('click', e => {
-    e.stopPropagation();
-    const card = btn.closest('.prayer-card');
-    if (card) revertPrayerCard(card);
-  });
-});
-
-// Filterable language dropdowns
-document.querySelectorAll('.lang-dropdown').forEach(dd => {
-  const input = dd.querySelector('.lang-filter-input');
-  if (!input) return;
-  const links = Array.from(dd.querySelectorAll('.lang-dropdown-list a'));
-  input.addEventListener('input', () => {
-    const q = input.value.toLowerCase().trim();
-    links.forEach(a => {
-      a.style.display = (!q || a.dataset.code.includes(q) || a.dataset.name.includes(q)) ? '' : 'none';
-    });
-  });
-});
-document.addEventListener('click', e => {
-  document.querySelectorAll('.lang-dropdown[open]').forEach(dd => {
-    if (!dd.contains(e.target)) dd.removeAttribute('open');
-  });
-});
-
-// Foldable prayers — expand hash target, toggle on header click
-const hash = location.hash.slice(1);
-if (hash) {
-  const target = document.getElementById(hash);
-  if (target && target.classList.contains('prayer-card')) {
-    target.classList.remove('folded');
-    setTimeout(() => target.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-  }
-}
-document.querySelectorAll('.prayer-card-header').forEach(header => {
-  header.addEventListener('click', e => {
-    if (e.target.closest('a') || e.target.closest('.fav-btn') || e.target.closest('.btn-add-devotional') || e.target.closest('.btn-expand')) return;
-    header.closest('.prayer-card').classList.toggle('folded');
-  });
-});
-
-// Full screen expand for prayer cards
-document.querySelectorAll('.prayer-expand').forEach(function(btn) {
-  btn.addEventListener('click', function(e) {
-    e.stopPropagation();
-    var card = btn.closest('.prayer-card');
-    if (!card) return;
-    var textEl = card.querySelector('.prayer-text');
-    var nameEl = card.querySelector('.prayer-name');
-    if (!textEl) return;
-    // Unfold first so text is available
-    card.classList.remove('folded');
-    var overlay = document.createElement('div');
-    overlay.className = 'expanded-overlay';
-    var rtl = card.closest('[dir="rtl"]') ? ' dir="rtl"' : '';
-    overlay.innerHTML = '<button class="expand-close">\u2716</button>' +
-      (nameEl ? '<h2 style="margin-bottom:1rem;font-size:1.2rem">' + nameEl.textContent + '</h2>' : '') +
-      '<div' + rtl + '>' + textEl.innerHTML + '</div>';
-    document.body.appendChild(overlay);
-    overlay.querySelector('.expand-close').addEventListener('click', function() { overlay.remove(); });
-    var escHandler = function(ev) { if (ev.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', escHandler); } };
-    document.addEventListener('keydown', escHandler);
-  });
-});
+})();
 </script>
 {{ partial "foot.html" . }}
