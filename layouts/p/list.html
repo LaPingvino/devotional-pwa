@@ -71,6 +71,22 @@
     if (t.language && t.language.toLowerCase() === lang) { langName = t.lang_name; break; }
   }
 
+  // Look up the prayer's native book name (Prayer.Book on the data side) so
+  // the page can offer a "Part of: X →" navigation. Falls back gracefully if
+  // books.json hasn't loaded or the book isn't in the index.
+  let bookHtml = '';
+  if (prayer.book) {
+    try {
+      const r = await fetch('/data/books.json');
+      if (r.ok) {
+        const books = await r.json();
+        const b = books.find(x => x.code === prayer.book);
+        const name = b ? b.name : prayer.book;
+        bookHtml = ` · <a href="/book/?b=${prayer.book}" title="View this book">📖 Part of: ${name}</a>`;
+      }
+    } catch {}
+  }
+
   const transHtml = (prayer.translations || []).length === 0 ? '' : `
     <div class="prayer-translations" style="margin-top:1rem">
       <span class="trans-label">Also in:</span>
@@ -96,7 +112,7 @@
       <p style="color:var(--text-secondary); margin-bottom:1rem">
         <a href="/phelps/${baseL}/${suffix ? '#' + suffix : ''}">${phelps}</a>
         · <span class="prayer-lang-badge">${lang}</span> ${langName}
-        · <a href="/prayers/${lang}/#${phelps}">View in ${langName} prayerbook →</a>
+        · <a href="/prayers/${lang}/#${phelps}">View in ${langName} prayerbook →</a>${bookHtml}
       </p>
       <div class="prayer-text"${isRtl ? ' dir="rtl"' : ''}>${window.renderMd ? window.renderMd(prayer.text || '') : (prayer.text || '')}</div>
       ${prayer.notes ? `<div class="prayer-notes" style="margin-top:1rem; color:var(--text-secondary); font-style:italic">${prayer.notes}</div>` : ''}

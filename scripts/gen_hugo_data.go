@@ -110,8 +110,9 @@ type Prayer struct {
 	Notes         string         `json:"notes,omitempty"`
 	// Book is the prayerbook this prayer's native PBS entry belongs to
 	// (e.g. "mul-NA:bp" for an Otjiherero prayer in the Namibian compilation).
-	// Used to compute the default book for the language; not serialized.
-	Book          string             `json:"-"`
+	// Used to compute the default book for the language; also surfaced to
+	// the client so /p/?v= can show "Part of: <book>" navigation.
+	Book          string             `json:"book,omitempty"`
 	AltSources    []PrayerSource     `json:"alt_sources,omitempty"`  // additional sources for same prayer
 	BookCats      map[string]BookCat `json:"book_cats,omitempty"`    // prayerbook code → category assignment
 	Translations  []LangRef          `json:"translations,omitempty"` // other languages with this phelps code
