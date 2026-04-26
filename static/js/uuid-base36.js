@@ -18,9 +18,12 @@
     if (typeof BigInt === 'undefined') return b36;
     if (!b36) return '';
     if (b36.length === 36 && b36.indexOf('-') >= 0) return b36; // already a UUID
+    // base36 is case-insensitive: 0-9 + a-z. Normalise to lowercase so callers
+    // can paste UPPERCASE forms (QR readers, hand-typed URLs) and we still
+    // round-trip cleanly.
+    b36 = b36.toLowerCase();
     if (!/^[0-9a-z]+$/.test(b36)) return ''; // invalid base36
-    var n;
-    try { n = BigInt(parseInt(0)); n = BigInt(0); } catch { return ''; }
+    var n = BigInt(0);
     var chars = '0123456789abcdefghijklmnopqrstuvwxyz';
     for (var i = 0; i < b36.length; i++) {
       var v = chars.indexOf(b36[i]);
