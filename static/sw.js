@@ -16,6 +16,11 @@ const SHELL_URLS = [
   '/book/',
   '/p/',
   '/writings/',
+  // Index files for the new dynamic routes — needed for /book/ and /p/ to
+  // function on first offline visit. Per-book and per-language JSONs are
+  // fetched on-demand and cached via the stale-while-revalidate fetch handler.
+  '/data/books.json',
+  '/data/version_index.json',
   '/fonts/nine-star.woff2',
   '/favicon.svg',
 ];
