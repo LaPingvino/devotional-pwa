@@ -60,3 +60,4 @@ pids/
 # Temporary files
 tmp/
 temp/.claude/
+bpapp_cache/
