@@ -19,6 +19,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"math/big"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -77,6 +78,22 @@ type PrayerSource struct {
 	Notes   string `json:"notes,omitempty"`
 }
 
+// uuidToBase36 converts a canonical UUID string (36 chars with hyphens)
+// to its base36 representation (~25 chars). Used for compact /p/?v=
+// permalinks. Mirrors the JS implementation in static/js/uuid-base36.js.
+// Returns the input unchanged if it's not a valid UUID.
+func uuidToBase36(uuid string) string {
+	hex := strings.ReplaceAll(uuid, "-", "")
+	if len(hex) != 32 {
+		return uuid
+	}
+	n := new(big.Int)
+	if _, ok := n.SetString(hex, 16); !ok {
+		return uuid
+	}
+	return n.Text(36)
+}
+
 // Prayer for per-language data files
 type Prayer struct {
 	Phelps        string         `json:"phelps"`
@@ -87,6 +104,9 @@ type Prayer struct {
 	OrderInCat    int            `json:"order_in_cat,omitempty"`
 	Source        string         `json:"source,omitempty"`
 	Version       string         `json:"version,omitempty"`
+	// VersionB36 is the base36-encoded form of Version, used by templates
+	// to build short /p/?v=<b36> permalinks without runtime conversion.
+	VersionB36    string         `json:"v,omitempty"`
 	Notes         string         `json:"notes,omitempty"`
 	// Book is the prayerbook this prayer's native PBS entry belongs to
 	// (e.g. "mul-NA:bp" for an Otjiherero prayer in the Namibian compilation).
@@ -1179,6 +1199,7 @@ func queryAllPrayers() map[string][]Prayer {
 				OrderInCat:    g.primary.ordInCat,
 				Source:        g.primary.source,
 				Version:       g.primary.version,
+				VersionB36:    uuidToBase36(g.primary.version),
 				Notes:         g.primary.notes,
 				Book:          g.primary.book,
 			}

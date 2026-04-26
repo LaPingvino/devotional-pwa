@@ -58,7 +58,7 @@
                data-native-cat="{{ .category }}"
                data-native-text="{{ .text }}"
                data-native-name="{{ .name }}"
-               data-native-version="{{ .version }}"
+               data-native-version="{{ or .v .version }}"
                data-display-lang="{{ $lang }}"
                data-book-cats="{{ .book_cats | jsonify }}">
         <div class="prayer-card-header">
@@ -70,7 +70,8 @@
             <a href="/phelps/{{ $baseL }}/{{ if $suffix }}#{{ $suffix }}{{ end }}" title="All translations">{{ $pin }}</a>
             <a href="/inventory/?pin={{ $baseL | upper }}" title="Inventory entry" style="opacity:.6; font-size:.8em; margin-left:.3em">↗</a>
             <span class="prayer-lang-badge" title="Currently shown in this language">{{ $lang }}</span>
-            {{ with .version }}<a class="prayer-version-link" href="/p/?v={{ . }}" title="Permalink to this exact translation" style="opacity:.6; font-size:.8em; margin-left:.3em">v</a>{{ end }}
+            {{/* Use VersionB36 (short base36) when available, fall back to canonical UUID. */}}
+            {{ with (or .v .version) }}<a class="prayer-version-link" href="/p/?v={{ . }}" title="Permalink to this exact translation" style="opacity:.6; font-size:.8em; margin-left:.3em">v</a>{{ end }}
           </span>
           <button class="btn-expand prayer-expand" title="Full screen">&#x26F6;</button>
           <button class="fav-btn" data-phelps="{{ $pin }}" aria-label="Toggle favourite">☆</button>
@@ -284,9 +285,13 @@ async function switchPrayerLanguage(card, targetLang, targetLangName) {
     badgeEl.title = `Showing in ${targetLangName || targetLang} — click PIN to revert`;
     badgeEl.classList.add('switched');
   }
-  // Update permalink to point at this translation's version UUID.
+  // Update permalink to point at this translation. Prefer short base36 form
+  // (`v` field set at build time); fall back to canonical UUID otherwise.
   const vLink = card.querySelector('.prayer-version-link');
-  if (vLink && p.version) vLink.href = '/p/?v=' + p.version;
+  if (vLink) {
+    const id = p.v || p.version;
+    if (id) vLink.href = '/p/?v=' + id;
+  }
   card.dataset.displayLang = targetLang;
   // RTL handling: switch direction of just the text element if target is RTL.
   const RTL_LANGS = new Set(['ar', 'fa', 'ur', 'he', 'ug']);

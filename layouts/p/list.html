@@ -8,9 +8,14 @@
 (async function () {
   const root = document.getElementById('p-root');
   const params = new URLSearchParams(location.search);
-  const uuid = (params.get('v') || '').toLowerCase().trim();
+  const rawV = (params.get('v') || '').toLowerCase().trim();
+  // Accept either canonical UUID (36 chars with hyphens) or base36 (~25 chars).
+  // The version_index is keyed by canonical UUID, so convert if needed.
+  const uuid = (rawV.indexOf('-') >= 0)
+    ? rawV
+    : (window.base36ToUuid ? window.base36ToUuid(rawV) : rawV);
 
-  if (!uuid) {
+  if (!rawV) {
     root.innerHTML = `
       <h1>Prayer Permalink</h1>
       <p>Open a prayer with <code>/p/?v=&lt;version-uuid&gt;</code>.</p>
@@ -21,7 +26,7 @@
 
   function err(msg) {
     root.innerHTML = `<h1>Prayer not found</h1>
-      <p>No prayer matches version UUID <code>${uuid}</code>.</p>
+      <p>No prayer matches version <code>${rawV}</code>.</p>
       <p style="color:var(--text-secondary)">${msg}</p>
       <p><a href="/prayers/">← Browse prayers by language</a></p>`;
   }
@@ -92,7 +97,7 @@
       <div class="prayer-text"${isRtl ? ' dir="rtl"' : ''}>${window.renderMd ? window.renderMd(prayer.text || '') : (prayer.text || '')}</div>
       ${prayer.notes ? `<div class="prayer-notes" style="margin-top:1rem; color:var(--text-secondary); font-style:italic">${prayer.notes}</div>` : ''}
       <p style="color:var(--text-secondary); font-size:.75rem; margin-top:1rem">
-        Permalink: <code>/p/?v=${uuid}</code>
+        Permalink: <code>/p/?v=${rawV}</code>
       </p>
       ${transHtml}
     </article>`;
