@@ -188,11 +188,21 @@
 
     function refresh() {
       var q = (input && input.value || '').toLowerCase().trim();
-      var min = minSel ? parseInt(minSel.value, 10) : 1;
+      // Default min=0 (no count filter) when there's no minSel widget — the
+      // book picker has no count UI and items have no data-count, so we'd
+      // otherwise hide everything (count=0 < min=1).
+      var min = minSel ? parseInt(minSel.value, 10) : 0;
       var shownPerGroup = {};
       items.forEach(function (it) {
+        // Items marked low-coverage by syncBookPickerFromSelect stay hidden
+        // regardless of the type-to-search filter.
+        if (it.classList.contains('picker-item-low-coverage')) {
+          it.style.display = 'none';
+          return;
+        }
         var hay = it.dataset.search || '';
-        var count = parseInt(it.dataset.count || '0', 10);
+        var hasCount = it.hasAttribute('data-count');
+        var count = hasCount ? parseInt(it.dataset.count || '0', 10) : Infinity;
         var ok = (!q || hay.indexOf(q) >= 0) && count >= min;
         it.style.display = ok ? '' : 'none';
         if (ok) {
