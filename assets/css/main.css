@@ -448,6 +448,18 @@ body {
 }
 .prayer-version-link { text-decoration: none; }
 .prayer-version-link:hover { opacity: 1; text-decoration: underline; }
+.prayer-revert-btn {
+  margin-left: .35em;
+  padding: 1px .45em;
+  font-size: .72em;
+  border: 1px solid var(--accent, #4a90e2);
+  background: transparent;
+  color: var(--accent, #4a90e2);
+  border-radius: 3px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.prayer-revert-btn:hover { background: var(--accent, #4a90e2); color: white; }
 .prayer-name {
   font-weight: 600;
   font-size: .85rem;

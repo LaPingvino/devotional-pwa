@@ -21,6 +21,7 @@
         <option value="{{ .code }}"{{ if eq .code $defaultBook }} selected{{ end }}>{{ .name }}</option>
         {{ end }}
       </select>
+      <a id="book-view-direct" href="/book/?b={{ $defaultBook }}" style="display:block; font-size:.8rem; color:var(--accent); text-decoration:none; margin-bottom:.3rem" title="View this prayerbook on its own page (with prayers in their actual languages — useful for multilingual books)">📖 View this book directly →</a>
     </div>
     {{ end }}
     <div class="sidebar-section" id="cat-section"{{ if $prayerbooks }} style="margin-top:1rem"{{ end }}>
@@ -70,8 +71,12 @@
             <a href="/phelps/{{ $baseL }}/{{ if $suffix }}#{{ $suffix }}{{ end }}" title="All translations">{{ $pin }}</a>
             <a href="/inventory/?pin={{ $baseL | upper }}" title="Inventory entry" style="opacity:.6; font-size:.8em; margin-left:.3em">↗</a>
             <span class="prayer-lang-badge" title="Currently shown in this language">{{ $lang }}</span>
+            {{/* When a per-prayer in-place language switch is active, the JS
+                 reveals .prayer-revert-btn to give an explicit revert affordance
+                 (clicking the badge alone wasn't discoverable enough). */}}
+            <button class="prayer-revert-btn" type="button" title="Show again in the page's language" hidden>↶ revert</button>
             {{/* Use VersionB36 (short base36) when available, fall back to canonical UUID. */}}
-            {{ with (or .v .version) }}<a class="prayer-version-link" href="/p/?v={{ . }}" title="Permalink to this exact translation" style="opacity:.6; font-size:.8em; margin-left:.3em">v</a>{{ end }}
+            {{ with (or .v .version) }}<a class="prayer-version-link" href="/p/?v={{ . }}" title="Permalink to this exact translation — share or save this specific rendering" style="font-size:.8em; margin-left:.3em">🔗</a>{{ end }}
           </span>
           <button class="btn-expand prayer-expand" title="Full screen">&#x26F6;</button>
           <button class="fav-btn" data-phelps="{{ $pin }}" aria-label="Toggle favourite">☆</button>
@@ -189,6 +194,10 @@ function applyBook(book) {
   const sel = document.getElementById('book-select');
   if (sel) sel.value = book;
 
+  // Keep the "View this book directly →" link in sync with the picker.
+  const directLink = document.getElementById('book-view-direct');
+  if (directLink) directLink.href = '/book/?b=' + book;
+
   document.querySelectorAll('.prayer-card').forEach(card => {
     let cat = card.dataset.nativeCat || '';
     if (book) {
@@ -282,8 +291,15 @@ async function switchPrayerLanguage(card, targetLang, targetLangName) {
   if (nameEl && p.name) nameEl.textContent = p.name;
   if (badgeEl) {
     badgeEl.textContent = targetLang;
-    badgeEl.title = `Showing in ${targetLangName || targetLang} — click PIN to revert`;
+    badgeEl.title = `Showing in ${targetLangName || targetLang}`;
     badgeEl.classList.add('switched');
+  }
+  // Reveal the explicit revert button while a switch is active.
+  const revertBtn = card.querySelector('.prayer-revert-btn');
+  if (revertBtn) {
+    revertBtn.hidden = false;
+    revertBtn.textContent = '↶ {{ $lang }}';
+    revertBtn.title = `Switch back to {{ $lang }}`;
   }
   // Update permalink to point at this translation. Prefer short base36 form
   // (`v` field set at build time); fall back to canonical UUID otherwise.
@@ -316,29 +332,48 @@ document.querySelectorAll('.lang-switch-link').forEach(link => {
   });
 });
 
-// Click the language badge to revert to the page's native language.
+// Revert a per-prayer in-place language switch to the page's native language.
+// Two affordances: the orange (switched) badge AND a visible "↶ revert" button
+// that appears next to it. The button is the discoverable one; the badge is a
+// click target for users who notice its colour change.
+function revertPrayerCard(card) {
+  const badge = card.querySelector('.prayer-lang-badge');
+  if (!badge || !badge.classList.contains('switched')) return;
+  const textEl = card.querySelector('.prayer-text');
+  const nameEl = card.querySelector('.prayer-name');
+  const nativeText = card.dataset.nativeText || '';
+  const nativeName = card.dataset.nativeName || '';
+  if (textEl) {
+    textEl.innerHTML = window.renderMd ? window.renderMd(nativeText) : nativeText;
+    textEl.dir = '';
+  }
+  if (nameEl) nameEl.textContent = nativeName;
+  badge.textContent = '{{ $lang }}';
+  badge.classList.remove('switched');
+  badge.title = 'Currently shown in this language';
+  card.dataset.displayLang = '{{ $lang }}';
+  // Restore native version permalink
+  const vLink = card.querySelector('.prayer-version-link');
+  const nativeVersion = card.dataset.nativeVersion;
+  if (vLink && nativeVersion) vLink.href = '/p/?v=' + nativeVersion;
+  // Hide the revert button.
+  const revertBtn = card.querySelector('.prayer-revert-btn');
+  if (revertBtn) revertBtn.hidden = true;
+}
+
 document.querySelectorAll('.prayer-lang-badge').forEach(badge => {
   badge.addEventListener('click', e => {
     e.stopPropagation();
     const card = badge.closest('.prayer-card');
-    if (!card || !badge.classList.contains('switched')) return;
-    const textEl = card.querySelector('.prayer-text');
-    const nameEl = card.querySelector('.prayer-name');
-    const nativeText = card.dataset.nativeText || '';
-    const nativeName = card.dataset.nativeName || '';
-    if (textEl) {
-      textEl.innerHTML = window.renderMd ? window.renderMd(nativeText) : nativeText;
-      textEl.dir = '';
-    }
-    if (nameEl) nameEl.textContent = nativeName;
-    badge.textContent = '{{ $lang }}';
-    badge.classList.remove('switched');
-    badge.title = 'Currently shown in this language';
-    card.dataset.displayLang = '{{ $lang }}';
-    // Restore native version permalink
-    const vLink = card.querySelector('.prayer-version-link');
-    const nativeVersion = card.dataset.nativeVersion;
-    if (vLink && nativeVersion) vLink.href = '/p/?v=' + nativeVersion;
+    if (card) revertPrayerCard(card);
+  });
+});
+
+document.querySelectorAll('.prayer-revert-btn').forEach(btn => {
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    const card = btn.closest('.prayer-card');
+    if (card) revertPrayerCard(card);
   });
 });
 

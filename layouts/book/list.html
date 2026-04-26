@@ -1,0 +1,193 @@
+{{ partial "head.html" (dict "Title" "Prayer Books" "Lang" "en") }}
+<div class="main-content" id="book-root">
+  <p style="color:var(--text-secondary)">Loading…</p>
+</div>
+
+<script>
+(async function () {
+  const root = document.getElementById('book-root');
+  const params = new URLSearchParams(location.search);
+  const bookCode = params.get('b');
+
+  if (bookCode) {
+    await renderBook(bookCode);
+  } else {
+    await renderIndex();
+  }
+
+  function safeBookCode(c) { return c.replace(/:/g, '-'); }
+
+  // ── Single-book view: /book/?b=<code> ──
+  async function renderBook(code) {
+    let bookData;
+    try {
+      const r = await fetch('/data/book/' + safeBookCode(code) + '.json');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      bookData = await r.json();
+    } catch (e) {
+      root.innerHTML = `<h1>Book not found</h1>
+        <p>No prayer book matches code <code>${code}</code> (${e.message}).</p>
+        <p><a href="/book/">← Browse all prayer books</a></p>`;
+      return;
+    }
+    document.title = bookData.name + " — Bahá'í Prayers";
+
+    const langs = bookData.lang_counts || {};
+    const langCount = Object.keys(langs).length;
+    const isMul = langCount > 1;
+    const RTL = new Set(['ar', 'fa', 'ur', 'he', 'ug']);
+
+    // Group prayers by category in order of appearance.
+    const cats = []; // [{name, prayers}]
+    const catIdx = {};
+    for (const p of bookData.prayers || []) {
+      const k = p.category || '(uncategorised)';
+      if (!(k in catIdx)) {
+        catIdx[k] = cats.length;
+        cats.push({ name: k, prayers: [] });
+      }
+      cats[catIdx[k]].prayers.push(p);
+    }
+
+    const langSummary = isMul
+      ? `${langCount} languages: ` +
+        Object.entries(langs).sort((a,b) => b[1]-a[1])
+          .map(([l,n]) => `<code>${l}</code>=${n}`).join(' ')
+      : (langCount === 1 ? `<code>${Object.keys(langs)[0]}</code>` : '');
+
+    let html = `
+      <p style="margin-bottom:.5rem; color:var(--text-secondary); font-size:.85rem">
+        <a href="/book/">← All prayer books</a>
+      </p>
+      <h1 style="margin-bottom:.3rem">${bookData.name}</h1>
+      <p style="color:var(--text-secondary); margin-bottom:1rem">
+        <code>${bookData.code}</code> · ${(bookData.prayers || []).length} prayer${bookData.prayers.length === 1 ? '' : 's'}
+        ${langSummary ? '· ' + langSummary : ''}
+      </p>`;
+
+    for (const cat of cats) {
+      html += `<h2 style="margin-top:1.5rem; font-size:1.1rem; border-bottom:1px solid var(--border); padding-bottom:.3rem">${cat.name} <span style="color:var(--text-secondary); font-weight:400; font-size:.85rem">(${cat.prayers.length})</span></h2>`;
+      for (const p of cat.prayers) {
+        const baseL = p.phelps.toLowerCase().replace(/[a-z]{3}$/, '');
+        const suffix = p.phelps.toLowerCase().slice(baseL.length);
+        const isRtl = RTL.has(p.lang);
+        const vid = p.v || p.version || '';
+        html += `
+          <article class="prayer-card" style="margin:.6rem 0; padding:.6rem .8rem; border:1px solid var(--border); border-radius:6px">
+            <div class="prayer-card-header" style="display:flex; gap:.5rem; align-items:baseline; flex-wrap:wrap">
+              ${p.name ? `<span class="prayer-name">${p.name}</span>` : ''}
+              <span class="prayer-phelps" style="margin-left:auto">
+                <a href="/phelps/${baseL}/${suffix ? '#' + suffix : ''}">${p.phelps}</a>
+                <span class="prayer-lang-badge" title="${p.lang_name || p.lang}">${p.lang}</span>
+                ${vid ? `<a class="prayer-version-link" href="/p/?v=${vid}" title="Permalink">v</a>` : ''}
+                <a href="/prayers/${p.lang}/#${p.phelps}" title="Open in language prayerbook" style="opacity:.6; font-size:.8em; margin-left:.3em">↗</a>
+              </span>
+            </div>
+            <div class="prayer-text"${isRtl ? ' dir="rtl"' : ''}>${window.renderMd ? window.renderMd(p.text || '') : (p.text || '')}</div>
+          </article>`;
+      }
+    }
+
+    root.innerHTML = html;
+  }
+
+  // ── Index view: /book/ ──
+  async function renderIndex() {
+    root.innerHTML = `
+      <h1>Prayer Books</h1>
+      <p style="color:var(--text-secondary); margin-bottom:1rem;">
+        Compiled prayer books from <a href="https://bahaiprayers.net">bahaiprayers.net</a>,
+        each with its own selection and ordering. Multilingual books like the
+        <em>Namibian</em> compilation gather prayers from several closely-related
+        languages.
+      </p>
+
+      <div class="lang-controls" style="margin-bottom:1rem">
+        <input type="search" id="book-search" placeholder="Search books or languages…"
+               style="flex:1; min-width:180px; padding:.45rem .75rem; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text); font-size:.95rem;">
+        <label class="filter-toggle" title="Show only multilingual compilations">
+          <input type="checkbox" id="filter-mul"> <span>Multilingual only</span>
+        </label>
+      </div>
+      <p id="book-count-msg" style="font-size:.8rem; color:var(--text-secondary); margin:.4rem 0 .8rem;"></p>
+
+      <div id="book-list"></div>`;
+
+    const list = document.getElementById('book-list');
+    const search = document.getElementById('book-search');
+    const filterMul = document.getElementById('filter-mul');
+    const msg = document.getElementById('book-count-msg');
+
+    let books = [];
+    try {
+      const r = await fetch('/data/books.json');
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      books = await r.json();
+    } catch (e) {
+      list.innerHTML = '<p>Failed to load book index: ' + e.message + '</p>';
+      return;
+    }
+
+    function render() {
+      const q = search.value.toLowerCase().trim();
+      const mulOnly = filterMul.checked;
+      const filtered = books.filter(b => {
+        if (mulOnly && Object.keys(b.langs || {}).length < 2) return false;
+        if (!q) return true;
+        if (b.name.toLowerCase().includes(q)) return true;
+        if (b.code.toLowerCase().includes(q)) return true;
+        return Object.keys(b.langs || {}).some(l => l.toLowerCase().includes(q));
+      });
+      msg.textContent = `${filtered.length} of ${books.length} books`;
+
+      list.innerHTML = filtered.map(b => {
+        const langCount = Object.keys(b.langs || {}).length;
+        const langSummary = langCount > 1
+          ? Object.entries(b.langs).sort((a,c) => c[1]-a[1]).slice(0, 6)
+              .map(([l,n]) => `<code>${l}</code>=${n}`).join(' ')
+          : '';
+        const isMul = langCount > 1;
+        return `<a class="book-card" href="/book/?b=${b.code}">
+          <div class="book-card-header">
+            <span class="book-card-name">${b.name}</span>
+            <span class="book-card-code"><code>${b.code}</code></span>
+            <span class="book-card-count">${b.count} prayer${b.count===1?'':'s'}</span>
+          </div>
+          ${isMul ? `<div class="book-card-langs">${langCount} languages — ${langSummary}</div>` : ''}
+        </a>`;
+      }).join('');
+    }
+
+    search.addEventListener('input', render);
+    filterMul.addEventListener('change', render);
+    render();
+  }
+})();
+</script>
+
+<style>
+.book-card {
+  display: block;
+  margin-bottom: .5rem;
+  padding: .7rem 1rem;
+  border: 1px solid var(--border, #ddd);
+  border-radius: 6px;
+  text-decoration: none;
+  color: inherit;
+  background: var(--surface, transparent);
+  transition: border-color .15s;
+}
+.book-card:hover { border-color: var(--accent, #4a90e2); }
+.book-card-header {
+  display: flex;
+  align-items: baseline;
+  gap: .8rem;
+  flex-wrap: wrap;
+}
+.book-card-name { font-weight: 600; }
+.book-card-code { color: var(--text-secondary); font-size: .8rem; }
+.book-card-count { margin-left: auto; color: var(--text-secondary); font-size: .85rem; }
+.book-card-langs { margin-top: .35rem; font-size: .8rem; color: var(--text-secondary); }
+.book-card-langs code { background: var(--bg-secondary, #eee); padding: 0 .25em; border-radius: 2px; }
+</style>
+{{ partial "foot.html" . }}

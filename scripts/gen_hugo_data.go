@@ -292,6 +292,13 @@ func main() {
 	log.Printf("  %d version UUIDs indexed", len(versionIndex))
 	writeJSON(filepath.Join(staticDir, "version_index.json"), versionIndex)
 
+	// Per-prayerbook view: /book/ overview + /book/?b=<code> shell uses
+	// /data/book/<safe>.json which contains the prayers IN that book in
+	// their actual languages (so multilingual books like mul-NA:bp render
+	// hz/kj/diu/naq prayers together with language badges).
+	log.Println("→ per-book JSON for /book/...")
+	writePerBookJSON(staticDir, allBookCats, allPrayers, allBooks)
+
 	// 3. Group phelps codes by base PIN (strips trailing 3-char alpha mnemonic suffix)
 	log.Println("→ grouping phelps codes by base PIN...")
 	basePINMap := map[string][]string{} // basePin → sorted list of full codes (from prayers)
@@ -649,6 +656,175 @@ func main() {
 	log.Printf("  %d explorer entries", len(explorerList))
 
 	log.Println("Done!")
+}
+
+// BookPrayer is one prayer entry inside a per-book JSON file.
+type BookPrayer struct {
+	Phelps     string `json:"phelps"`
+	Lang       string `json:"lang"`
+	LangName   string `json:"lang_name,omitempty"`
+	Name       string `json:"name,omitempty"`
+	Text       string `json:"text"`
+	Category   string `json:"category,omitempty"`
+	CatOrder   int    `json:"cat_order,omitempty"`
+	OrderInCat int    `json:"order_in_cat,omitempty"`
+	Version    string `json:"version,omitempty"`
+	VersionB36 string `json:"v,omitempty"`
+}
+
+// BookFile is the top-level structure written to /data/book/<safe>.json.
+type BookFile struct {
+	Code    string         `json:"code"`
+	Name    string         `json:"name"`
+	Prayers []BookPrayer   `json:"prayers"`
+	LangSet map[string]int `json:"lang_counts"`
+}
+
+// BookOverview is one entry in /data/books.json (the /book/ index page).
+type BookOverview struct {
+	Code        string         `json:"code"`
+	Name        string         `json:"name"`
+	PrayerCount int            `json:"count"`
+	LangCounts  map[string]int `json:"langs"`
+	Categories  []string       `json:"categories"`
+}
+
+// safeBookCode replaces characters that are awkward in filenames or URLs.
+// `mul-NA:bp` → `mul-NA-bp` (the colon is the only such character we use).
+func safeBookCode(code string) string {
+	return strings.ReplaceAll(code, ":", "-")
+}
+
+// writePerBookJSON emits /data/book/<safe>.json for every prayerbook plus
+// /data/books.json index. Each per-book file lists prayers in their actual
+// languages so multilingual compilations (mul-NA:bp etc.) render with mixed
+// content; single-language books look the same as the per-language pages
+// they were extracted from but are addressable as a book entity.
+//
+// Source of truth is a direct join PBS↔writings via source_id, since that's
+// what defines membership of a writings row in a book. Going through the
+// allBookCats map would over-attribute (it tracks phelps→book without
+// remembering which writings.language each PBS row was for).
+func writePerBookJSON(staticDir string,
+	allBookCats map[string]map[string]map[string]BookCat,
+	allPrayers map[string][]Prayer,
+	allBooks []BookRef,
+) {
+	must(os.MkdirAll(filepath.Join(staticDir, "book"), 0755))
+
+	langName := map[string]string{}
+	for _, l := range loadLanguagesForBooks() {
+		langName[l.Code] = l.Name
+	}
+
+	byLangPhelps := map[string]map[string]Prayer{}
+	for lang, prayers := range allPrayers {
+		m := make(map[string]Prayer, len(prayers))
+		for _, p := range prayers {
+			m[p.Phelps] = p
+		}
+		byLangPhelps[lang] = m
+	}
+
+	type entry struct {
+		lang, phelps, cat string
+		catOrd, ordInCat  int
+	}
+	bookEntries := map[string][]entry{}
+	rows := doltQuery(`
+		SELECT pbs.source_language, w.language, pbs.phelps_code,
+		       COALESCE(pbs.category_name,''),
+		       COALESCE(pbs.category_order,0),
+		       COALESCE(pbs.order_in_category,0)
+		FROM prayer_book_structure pbs
+		JOIN writings w
+		    ON w.source_id = pbs.source_id
+		   AND w.source = 'bahaiprayers.net'
+		WHERE pbs.phelps_code IS NOT NULL AND pbs.phelps_code <> ''
+	`)
+	for _, r := range rows[1:] {
+		if len(r) < 6 {
+			continue
+		}
+		catOrd, ordInCat := 0, 0
+		fmt.Sscanf(r[4], "%d", &catOrd)
+		fmt.Sscanf(r[5], "%d", &ordInCat)
+		bookEntries[r[0]] = append(bookEntries[r[0]], entry{
+			lang: r[1], phelps: r[2], cat: r[3],
+			catOrd: catOrd, ordInCat: ordInCat,
+		})
+	}
+
+	overviews := make([]BookOverview, 0, len(allBooks))
+	for _, b := range allBooks {
+		entries := bookEntries[b.Code]
+		sort.Slice(entries, func(i, j int) bool {
+			if entries[i].catOrd != entries[j].catOrd {
+				return entries[i].catOrd < entries[j].catOrd
+			}
+			if entries[i].ordInCat != entries[j].ordInCat {
+				return entries[i].ordInCat < entries[j].ordInCat
+			}
+			return entries[i].phelps < entries[j].phelps
+		})
+
+		bp := make([]BookPrayer, 0, len(entries))
+		langCounts := map[string]int{}
+		catSet := map[string]bool{}
+		for _, e := range entries {
+			pmap := byLangPhelps[e.lang]
+			if pmap == nil {
+				continue
+			}
+			p, ok := pmap[e.phelps]
+			if !ok {
+				continue
+			}
+			bp = append(bp, BookPrayer{
+				Phelps: e.phelps, Lang: e.lang, LangName: langName[e.lang],
+				Name: p.Name, Text: p.Text, Category: e.cat,
+				CatOrder: e.catOrd, OrderInCat: e.ordInCat,
+				Version: p.Version, VersionB36: p.VersionB36,
+			})
+			langCounts[e.lang]++
+			if e.cat != "" {
+				catSet[e.cat] = true
+			}
+		}
+		bf := BookFile{Code: b.Code, Name: b.Name, Prayers: bp, LangSet: langCounts}
+		writeJSON(filepath.Join(staticDir, "book", safeBookCode(b.Code)+".json"), bf)
+
+		cats := make([]string, 0, len(catSet))
+		for c := range catSet {
+			cats = append(cats, c)
+		}
+		sort.Strings(cats)
+		overviews = append(overviews, BookOverview{
+			Code: b.Code, Name: b.Name, PrayerCount: len(bp),
+			LangCounts: langCounts, Categories: cats,
+		})
+	}
+	sort.Slice(overviews, func(i, j int) bool { return overviews[i].Name < overviews[j].Name })
+	writeJSON(filepath.Join(staticDir, "books.json"), overviews)
+	log.Printf("  wrote %d per-book JSON files + books.json overview", len(overviews))
+}
+
+// loadLanguagesForBooks pulls langcode→name (English) from the languages
+// table — used by writePerBookJSON to label per-prayer language badges.
+// Named distinctly from the unrelated `Language` consumers in main().
+func loadLanguagesForBooks() []Language {
+	rows := doltQuery(`
+		SELECT langcode, name FROM languages WHERE inlang = 'en'
+		ORDER BY langcode
+	`)
+	out := make([]Language, 0, len(rows)-1)
+	for _, r := range rows[1:] {
+		if len(r) < 2 {
+			continue
+		}
+		out = append(out, Language{Code: r[0], Name: r[1]})
+	}
+	return out
 }
 
 // WritingType metadata for the writings index
