@@ -67,7 +67,7 @@ type LangFile struct {
 	Prayerbooks []BookRef `json:"prayerbooks,omitempty"`
 	// DefaultBook is the prayerbook code the page should select on first
 	// load. It's resolved data-side so the template doesn't need to repeat
-	// the fallback chain. Order: own-language :bp → en:bp → first book.
+	// the fallback chain. Order: own-language :bpnet → en:bpnet → first book.
 	DefaultBook string `json:"default_book,omitempty"`
 }
 
@@ -1558,16 +1558,16 @@ func loadLanguageGroups() map[string][]string {
 
 // pickDefaultBook resolves the prayerbook to select on first load for `lang`.
 // Fallback chain:
-//   1. own-language :bp (e.g. "eo:bp" for Esperanto)
+//   1. own-language :bp (e.g. "eo:bpnet" for Esperanto)
 //   2. the most common book among the language's own prayers — this picks
 //      mul-NA:bp for hz/kj/diu/naq, nai-CA:bp for First Nations languages,
 //      etc., based on actual data rather than a hard-coded map
 //   3. linguistically-near sibling's :bp via language_groups (e.g. tpi → fj:bp)
-//   4. en:bp (universal fallback)
+//   4. en:bpnet (universal fallback)
 //   5. first available book in the picker
 //   6. "" (no book; caller may hide the picker)
 func pickDefaultBook(lang string, books []BookRef, prayers []Prayer, siblings map[string][]string) string {
-	wantOwn := lang + ":bp"
+	wantOwn := lang + ":bpnet"
 	for _, b := range books {
 		if b.Code == wantOwn {
 			return wantOwn
@@ -1597,14 +1597,14 @@ func pickDefaultBook(lang string, books []BookRef, prayers []Prayer, siblings ma
 		bookSet[b.Code] = true
 	}
 	for _, sibling := range siblings[lang] {
-		want := sibling + ":bp"
+		want := sibling + ":bpnet"
 		if bookSet[want] {
 			return want
 		}
 	}
 	for _, b := range books {
-		if b.Code == "en:bp" {
-			return "en:bp"
+		if b.Code == "en:bpnet" {
+			return "en:bpnet"
 		}
 	}
 	if len(books) > 0 {
@@ -1655,16 +1655,16 @@ func queryAllBookCats(allPrayers map[string][]Prayer) (
 		// Always ensure the English prayerbook is available as an option,
 		// even if none of this language's prayers have an English entry yet —
 		// it's the universal cross-reference book.
-		if enName, ok := bookNames["en:bp"]; ok {
+		if enName, ok := bookNames["en:bpnet"]; ok {
 			hasEn := false
 			for _, b := range bks {
-				if b.Code == "en:bp" {
+				if b.Code == "en:bpnet" {
 					hasEn = true
 					break
 				}
 			}
 			if !hasEn {
-				bks = append(bks, BookRef{Code: "en:bp", Name: enName})
+				bks = append(bks, BookRef{Code: "en:bpnet", Name: enName})
 				sort.Slice(bks, func(i, j int) bool { return bks[i].Name < bks[j].Name })
 			}
 		}

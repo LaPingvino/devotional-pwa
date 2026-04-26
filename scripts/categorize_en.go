@@ -74,7 +74,7 @@ func main() {
 	// PBS source_language values now carry the :bp suffix; suffix the ref-list to match.
 	refLangsBp := make([]string, len(refLangs))
 	for i, l := range refLangs {
-		refLangsBp[i] = l + ":bp"
+		refLangsBp[i] = l + ":bpnet"
 	}
 	refLangList := "'" + strings.Join(refLangsBp, "','") + "'"
 	mapRows := doltQuery(fmt.Sprintf(`
@@ -84,7 +84,7 @@ func main() {
 		JOIN prayer_book_structure pbs_other
 		    ON pbs_other.phelps_code = pbs_en.phelps_code
 		    AND pbs_other.source_language IN (%s)
-		WHERE pbs_en.source_language = 'en:bp'
+		WHERE pbs_en.source_language = 'en:bpnet'
 		GROUP BY pbs_en.category_name, pbs_en.category_order,
 		         pbs_other.source_language, pbs_other.category_name
 		ORDER BY pbs_other.source_language, cnt DESC
@@ -115,7 +115,7 @@ func main() {
 	// 2. Get current max order_in_category per English category
 	maxOrdRows := doltQuery(`
 		SELECT category_name, COALESCE(MAX(order_in_category), 0)
-		FROM prayer_book_structure WHERE source_language = 'en:bp'
+		FROM prayer_book_structure WHERE source_language = 'en:bpnet'
 		GROUP BY category_name
 	`)
 	catMaxOrd := map[string]int{}
@@ -131,7 +131,7 @@ func main() {
 	// Also capture category_order values
 	enCatRows := doltQuery(`
 		SELECT DISTINCT category_name, category_order
-		FROM prayer_book_structure WHERE source_language = 'en:bp'
+		FROM prayer_book_structure WHERE source_language = 'en:bpnet'
 		ORDER BY category_order
 	`)
 	for _, row := range enCatRows[1:] {
@@ -154,7 +154,7 @@ func main() {
 		    ON pbs_other.phelps_code = w.phelps
 		    AND pbs_other.source_language IN (%s)
 		LEFT JOIN prayer_book_structure pbs_en
-		    ON pbs_en.phelps_code = w.phelps AND pbs_en.source_language = 'en:bp'
+		    ON pbs_en.phelps_code = w.phelps AND pbs_en.source_language = 'en:bpnet'
 		WHERE w.phelps IS NOT NULL AND w.phelps <> ''
 		    AND pbs_en.phelps_code IS NULL
 		    %s
@@ -250,7 +250,7 @@ func main() {
 		safeP := strings.ReplaceAll(phelps, "'", "''")
 		safeCat := strings.ReplaceAll(entry.enCat, "'", "''")
 		ins := fmt.Sprintf(
-			"INSERT IGNORE INTO prayer_book_structure (phelps_code, source_language, category_name, category_order, order_in_category) VALUES ('%s', 'en:bp', '%s', %d, %d);",
+			"INSERT IGNORE INTO prayer_book_structure (phelps_code, source_language, category_name, category_order, order_in_category) VALUES ('%s', 'en:bpnet', '%s', %d, %d);",
 			safeP, safeCat, entry.enOrd, ordInCat)
 		inserts = append(inserts, ins)
 	}

@@ -7,9 +7,9 @@
 {{ $bookCode := .Params.bookCode }}
 
 {{/* Default prayerbook is resolved data-side in gen_hugo_data.go (pickDefaultBook).
-     For book pages, the default IS the book itself. Otherwise fall back to en:bp. */}}
+     For book pages, the default IS the book itself. Otherwise fall back to en:bpnet. */}}
 {{ $defaultBook := .Params.defaultBook }}
-{{ if not $defaultBook }}{{ $defaultBook = "en:bp" }}{{ end }}
+{{ if not $defaultBook }}{{ $defaultBook = "en:bpnet" }}{{ end }}
 
 {{ partial "head.html" (dict "Title" .Params.langName "Lang" $lang "Params" (dict "rtl" $rtl)) }}
 <div class="page-body">
