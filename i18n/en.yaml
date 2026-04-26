@@ -99,7 +99,11 @@ epub: "EPUB"
 
 # Prayers list page
 prayers_subtitle: "Share prayers with people in their own language"
-prayers_search: "Search languages…"
+prayers_search: "Search languages or books…"
+prayer_books: "prayer books"
+prayers_show_books: "Books"
+prayers_show_langs: "Languages"
+prayers_entries: "entries"
 prayers_many_only: "Many prayers only"
 prayers_all_1: "All (1+)"
 prayers_2_plus: "2+ prayers"

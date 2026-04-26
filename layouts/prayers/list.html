@@ -1,14 +1,24 @@
-{{ partial "head.html" (dict "Title" "All Languages" "Lang" "en") }}
+{{ partial "head.html" (dict "Title" "All Prayers" "Lang" "en") }}
 <div class="main-content">
   <h1 data-i18n="nav_prayers">Bahá'í Prayers</h1>
   <p style="color:var(--text-secondary); margin-bottom:1rem;">
-    <span id="prayers-lang-count">{{ len site.Data.languages }}</span> <span data-i18n="languages">languages</span> · <span data-i18n="prayers_subtitle">Share prayers with people in their own language</span>
+    <span id="prayers-lang-count">{{ len site.Data.languages }}</span> <span data-i18n="languages">languages</span>
+    · <span id="prayers-book-count">{{ len site.Data.prayerbooks }}</span> <span data-i18n="prayer_books">prayer books</span>
+    · <span data-i18n="prayers_subtitle">Share prayers with people in their own language</span>
   </p>
 
   <div class="lang-controls">
-    <input type="search" id="lang-search" placeholder="Search languages…" data-i18n-placeholder="prayers_search" autocomplete="off"
+    <input type="search" id="lang-search" placeholder="Search languages or books…" data-i18n-placeholder="prayers_search" autocomplete="off"
            style="flex:1; min-width:180px; padding:.45rem .75rem; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text); font-size:.95rem;">
-    <label class="filter-toggle" title="Show only languages with multiple prayers">
+    <label class="filter-toggle" title="Show prayer books (📖)">
+      <input type="checkbox" id="filter-books" checked>
+      <span data-i18n="prayers_show_books">Books</span>
+    </label>
+    <label class="filter-toggle" title="Show language collections">
+      <input type="checkbox" id="filter-langs" checked>
+      <span data-i18n="prayers_show_langs">Languages</span>
+    </label>
+    <label class="filter-toggle" title="Hide entries with few prayers">
       <input type="checkbox" id="filter-rich" checked>
       <span data-i18n="prayers_many_only">Many prayers only</span>
     </label>
@@ -22,11 +32,6 @@
   </div>
   <p id="lang-count-msg" style="font-size:.8rem; color:var(--text-secondary); margin:.4rem 0 .8rem;"></p>
 
-  <p style="margin-bottom:1.2rem; font-size:.9rem">
-    <a href="/book/" style="color:var(--accent); text-decoration:none">📚 <span data-i18n="prayer_browse_books">Browse by prayer book</span> →</a>
-    <span style="color:var(--text-secondary); margin-left:.5em">— <span data-i18n="book_browse_intro">compiled books from bahaiprayers.net, including multilingual compilations</span></span>
-  </p>
-
   <div style="margin-bottom:1.5rem;">
     <span style="color:var(--text-secondary);font-size:.85rem;" data-i18n="prayers_download_all">Download all languages:</span>
     <a href="/downloads/prayers_all_latin.pdf" class="dl-link" download data-i18n="prayers_latin_pdf">Latin &amp; European — PDF</a>
@@ -37,16 +42,29 @@
   </div>
 
   <div class="lang-grid" id="lang-grid">
-    {{- $sorted := site.Data.languages -}}
-    {{- range $sorted }}
+    {{/* Prayer books first — they're the curated, ordered presentations.
+         Safe-coded path (':' → '-', lowercased) matches the file/URL form. */}}
+    {{- range site.Data.prayerbooks }}
+    {{- $safe := lower (replace .code ":" "-") -}}
+    <a class="lang-card book-card-entry" href="/prayers/{{ $safe }}/"
+       data-kind="book"
+       data-name="{{ .name | lower }}"
+       data-code="{{ .code | lower }}"
+       data-count="{{ .count }}">
+      <span>📖 {{ .name }} <code style="font-size:.7em; opacity:.55">{{ .code }}</code></span>
+      <span class="count" dir="ltr">{{ .count }}</span>
+    </a>
+    {{- end }}
+    {{- range site.Data.languages }}
     <a class="lang-card" href="/prayers/{{ .code | lower }}/"
+       data-kind="language"
        data-name="{{ .name | lower }}"
        data-code="{{ .code | lower }}"
        data-count="{{ .prayer_count }}">
       <span>{{ .name }}</span>
       <span class="count" dir="ltr">{{ .prayer_count }}</span>
     </a>
-    {{ end }}
+    {{- end }}
   </div>
 </div>
 
@@ -58,13 +76,19 @@
   const msg      = document.getElementById('lang-count-msg');
   const cards    = Array.from(grid.querySelectorAll('.lang-card'));
   const richChk  = document.getElementById('filter-rich');
+  const booksChk = document.getElementById('filter-books');
+  const langsChk = document.getElementById('filter-langs');
 
-  // Pin UI language (or its base) to front, fall back to English
+  // Pin the UI language's prayer book (preferred) or language card to the
+  // front, falling back to English. The book card has the same lang-derived
+  // code prefix, so we look for both forms.
   var uiLang = (window.__uiLang || 'en').toLowerCase();
   var uiBase = uiLang.split('-')[0];
-  var pinCard = cards.find(c => c.dataset.code === uiLang) ||
-                cards.find(c => c.dataset.code === uiBase) ||
-                cards.find(c => c.dataset.code === 'en');
+  function pinCardFor(code) {
+    return cards.find(c => c.dataset.kind === 'book' && c.dataset.code === code + ':bp') ||
+           cards.find(c => c.dataset.kind === 'language' && c.dataset.code === code);
+  }
+  var pinCard = pinCardFor(uiLang) || pinCardFor(uiBase) || pinCardFor('en');
   if (pinCard) grid.prepend(pinCard);
 
   richChk.addEventListener('change', () => {
@@ -72,23 +96,29 @@
     filter();
   });
   minSel.addEventListener('change', filter);
+  booksChk.addEventListener('change', filter);
+  langsChk.addEventListener('change', filter);
   search.addEventListener('input', filter);
 
   function filter() {
     const q   = search.value.toLowerCase().trim();
     const min = richChk.checked ? parseInt(minSel.value, 10) : 1;
+    const showBooks = booksChk.checked;
+    const showLangs = langsChk.checked;
     let shown = 0;
     cards.forEach(c => {
+      const isBook = c.dataset.kind === 'book';
+      const kindOk = isBook ? showBooks : showLangs;
       const nameMatch = !q || c.dataset.name.includes(q) || c.dataset.code.includes(q);
-      const countOk   = parseInt(c.dataset.count, 10) >= min;
-      const vis       = nameMatch && countOk;
+      const countOk = parseInt(c.dataset.count, 10) >= min;
+      const vis = kindOk && nameMatch && countOk;
       c.style.display = vis ? '' : 'none';
       if (vis) shown++;
     });
     const total = cards.length;
     msg.textContent = shown < total
-      ? window.__t('prayers_showing') + ' ' + shown + ' ' + window.__t('prayers_of') + ' ' + total + ' ' + window.__t('languages')
-      : total + ' ' + window.__t('languages');
+      ? window.__t('prayers_showing') + ' ' + shown + ' ' + window.__t('prayers_of') + ' ' + total
+      : total + ' ' + window.__t('prayers_entries', 'entries');
   }
 
   filter();

@@ -49,8 +49,9 @@ type LangRef struct {
 
 // BookRef names a prayerbook available for a language page
 type BookRef struct {
-	Code string `json:"code"`
-	Name string `json:"name"`
+	Code  string `json:"code"`
+	Name  string `json:"name"`
+	Count int    `json:"count,omitempty"` // total prayer entries in this book
 }
 
 // BookCat holds one prayerbook's category assignment for a prayer
@@ -238,6 +239,10 @@ func main() {
 	log.Printf("  loaded language-group siblings for %d languages", len(siblings))
 	log.Printf("  book_cats loaded for %d languages, %d total prayerbooks", len(allBookCats), len(allBooks))
 	writeJSON(filepath.Join(dataDir, "prayerbooks.json"), allBooks)
+	// Also expose the index as a static file so client-side code (e.g. /p/?v=)
+	// can fetch it without round-tripping through Hugo's site.Data.
+	must(os.MkdirAll(staticDir, 0755))
+	writeJSON(filepath.Join(staticDir, "prayerbooks.json"), allBooks)
 
 	log.Println("→ prayers by language (pass 2: writing)...")
 	for _, lang := range langs {
@@ -715,7 +720,6 @@ func writePerBookJSON(staticDir, assetsDir string,
 	allBooks []BookRef,
 	phelpsLangs map[string][]LangRef,
 ) {
-	must(os.MkdirAll(filepath.Join(staticDir, "book"), 0755))
 	must(os.MkdirAll(filepath.Join(staticDir, "prayers"), 0755))
 	must(os.MkdirAll(filepath.Join(assetsDir, "prayers"), 0755))
 
@@ -817,12 +821,11 @@ func writePerBookJSON(staticDir, assetsDir string,
 			}
 		}
 		bf := BookFile{Code: b.Code, Name: b.Name, Prayers: bp, LangSet: langCounts}
+		// Books live in the same namespace as language pages at /prayers/<safe>/.
+		// safeBookCode does ':' → '-' and lowercases (matches Hugo URL paths).
+		// assets/ copy is for Hugo's resources.Get during page generation;
+		// static/ copy is for client-side fetch.
 		safe := safeBookCode(b.Code)
-		writeJSON(filepath.Join(staticDir, "book", safe+".json"), bf)
-		// Merged namespace: book JSONs also live alongside per-language JSONs
-		// at /data/prayers/<safe>.json (and assets/ for resources.Get) so
-		// /prayers/<safe>/ pages can render via the same template + fetch path
-		// as /prayers/<lang>/. Canonical code (with `:`) is in bf.Code.
 		writeJSON(filepath.Join(staticDir, "prayers", safe+".json"), bf)
 		writeJSON(filepath.Join(assetsDir, "prayers", safe+".json"), bf)
 
@@ -837,8 +840,8 @@ func writePerBookJSON(staticDir, assetsDir string,
 		})
 	}
 	sort.Slice(overviews, func(i, j int) bool { return overviews[i].Name < overviews[j].Name })
-	writeJSON(filepath.Join(staticDir, "books.json"), overviews)
-	log.Printf("  wrote %d per-book JSON files + books.json overview", len(overviews))
+	_ = overviews // BookOverview is no longer surfaced; books and languages share /prayers/
+	log.Printf("  wrote %d per-book JSON files", len(overviews))
 }
 
 // loadLanguagesForBooks pulls langcode→name (English) from the languages
@@ -1505,8 +1508,16 @@ func buildLangBookCats(pbIndex map[string][]prayerBookEntry, prayers []Prayer) (
 		}
 	}
 
+	// Count entries per book from the PBS index. Each entry in pbIndex is
+	// one (book, phelps) row, so this matches what /prayers/<book>/ shows.
+	bookCounts := map[string]int{}
+	for _, entries := range pbIndex {
+		for _, e := range entries {
+			bookCounts[e.bookCode]++
+		}
+	}
 	for code, name := range bookNameMap {
-		books = append(books, BookRef{Code: code, Name: name})
+		books = append(books, BookRef{Code: code, Name: name, Count: bookCounts[code]})
 	}
 	sort.Slice(books, func(i, j int) bool {
 		return books[i].Name < books[j].Name
@@ -1612,6 +1623,14 @@ func queryAllBookCats(allPrayers map[string][]Prayer) (
 ) {
 	pbIndex, bookNames := loadPrayerBookStructure()
 
+	// Count entries per book — one PBS row = one (book, phelps) entry.
+	bookCounts := map[string]int{}
+	for _, entries := range pbIndex {
+		for _, e := range entries {
+			bookCounts[e.bookCode]++
+		}
+	}
+
 	// Build sorted global prayerbook list
 	allCodes := make([]string, 0, len(bookNames))
 	for code := range bookNames {
@@ -1622,7 +1641,7 @@ func queryAllBookCats(allPrayers map[string][]Prayer) (
 	})
 	globalBooks = make([]BookRef, 0, len(allCodes))
 	for _, code := range allCodes {
-		globalBooks = append(globalBooks, BookRef{Code: code, Name: bookNames[code]})
+		globalBooks = append(globalBooks, BookRef{Code: code, Name: bookNames[code], Count: bookCounts[code]})
 	}
 
 	langBookCats = map[string]map[string]map[string]BookCat{}

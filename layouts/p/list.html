@@ -72,17 +72,18 @@
   }
 
   // Look up the prayer's native book name (Prayer.Book on the data side) so
-  // the page can offer a "Part of: X →" navigation. Falls back gracefully if
-  // books.json hasn't loaded or the book isn't in the index.
+  // the page can offer a "Part of: X →" navigation. Books and languages
+  // share /prayers/<code>/, so the link goes to the safe-coded book URL.
   let bookHtml = '';
   if (prayer.book) {
     try {
-      const r = await fetch('/data/books.json');
+      const r = await fetch('/data/prayerbooks.json');
       if (r.ok) {
         const books = await r.json();
         const b = books.find(x => x.code === prayer.book);
         const name = b ? b.name : prayer.book;
-        bookHtml = ` · <a href="/book/?b=${prayer.book}" title="View this book">📖 Part of: ${name}</a>`;
+        const safe = prayer.book.replace(/:/g, '-').toLowerCase();
+        bookHtml = ` · <a href="/prayers/${safe}/" title="View this book">📖 Part of: ${name}</a>`;
       }
     } catch {}
   }

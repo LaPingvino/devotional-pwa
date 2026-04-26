@@ -2,7 +2,7 @@
 // Strategy: cache what the user visits, serve offline when network unavailable
 
 // Bumped when SHELL_URLS changes so old caches get cleared on activate.
-const CACHE_VERSION = 'hw-v2';
+const CACHE_VERSION = 'hw-v3';
 const SHELL_CACHE = CACHE_VERSION + '-shell';
 const DATA_CACHE = CACHE_VERSION + '-data';
 const PAGE_CACHE = CACHE_VERSION + '-pages';
@@ -13,13 +13,12 @@ const SHELL_URLS = [
   '/daily/',
   '/devotional/',
   '/prayers/',
-  '/book/',
   '/p/',
   '/writings/',
-  // Index files for the new dynamic routes — needed for /book/ and /p/ to
-  // function on first offline visit. Per-book and per-language JSONs are
-  // fetched on-demand and cached via the stale-while-revalidate fetch handler.
-  '/data/books.json',
+  // Index needed for /p/?v= to resolve permalinks on first offline visit.
+  // Per-prayer-collection JSONs are fetched on-demand and cached via the
+  // stale-while-revalidate fetch handler.
+  '/data/prayerbooks.json',
   '/data/version_index.json',
   '/fonts/nine-star.woff2',
   '/favicon.svg',
