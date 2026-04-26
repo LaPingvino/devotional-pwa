@@ -64,6 +64,10 @@
           var v = window.__t(el.getAttribute('data-i18n-placeholder'));
           if (v) el.placeholder = v;
         });
+        document.querySelectorAll('[data-i18n-title]').forEach(function(el) {
+          var v = window.__t(el.getAttribute('data-i18n-title'));
+          if (v) el.title = v;
+        });
       }
       window.__translatePage = translatePage;
       window.__setUiLang = function(code) {

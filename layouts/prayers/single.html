@@ -24,7 +24,7 @@
         <option value="{{ .code }}"{{ if eq .code $defaultBook }} selected{{ end }}>{{ .name }}</option>
         {{ end }}
       </select>
-      <a id="book-view-direct" href="/book/?b={{ $defaultBook }}" style="display:block; font-size:.8rem; color:var(--accent); text-decoration:none; margin-bottom:.3rem" title="View this prayerbook on its own page (with prayers in their actual languages — useful for multilingual books)">📖 View this book directly →</a>
+      <a id="book-view-direct" href="/book/?b={{ $defaultBook }}" style="display:block; font-size:.8rem; color:var(--accent); text-decoration:none; margin-bottom:.3rem" data-i18n-title="book_view_direct_title" title="View this prayerbook on its own page (with prayers in their actual languages — useful for multilingual books)">📖 <span data-i18n="book_view_direct">View this book directly</span> →</a>
     </div>
     {{ end }}
     <div class="sidebar-section" id="cat-section"{{ if $prayerbooks }} style="margin-top:1rem"{{ end }}>
