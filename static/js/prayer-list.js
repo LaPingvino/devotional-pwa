@@ -1,12 +1,19 @@
 // prayer-list.js — Shared renderer for prayer-list views.
 //
 // One entry point: window.renderPrayerList(rootEl, opts).
-// Powers two pages today:
-//   /prayers/<lang>/   (mode: 'language')   — single-language, with book switching
-//   /book/?b=<code>    (mode: 'book')       — single book, often multilingual
+// Renders /prayers/<code>/ for any code — language ("eo") or book ("eo-bp",
+// "mul-na-bp"). There is no mode flag: every feature is data-driven.
+//   Lang badge per card     → always (pulled from p.lang)
+//   "Also in" lang switch   → iff p.translations is present
+//   Book picker             → iff opts.bookSelectEl is given (host page owns the <select>)
+//   Categories sidebar      → iff opts.categoriesEl is given
+//   TOC chips               → iff opts.tocEl is given (or opts.toc=true)
+//   Category H2s + ¶ anchors→ iff opts.showCategoryAnchor (default true)
+//   Folding / ⛶ / ★ / +    → always
 //
-// All previously-divergent features are unified here so adding a feature in
-// one place reaches both pages. See the opts block below for the toggles.
+// "Open in language prayerbook" link only appears on cards where the prayer's
+// language differs from opts.pageLang (e.g. multilingual book pages, or a
+// post-switch revert state).
 //
 // Data shapes (do not modify these — owned by scripts/gen_hugo_data.go):
 //   prayer in 'language' mode: {phelps, text, name, category, order_in_cat,
@@ -88,16 +95,24 @@
   function buildCard(p, opts) {
     var pin = p.phelps || '';
     var parts = splitPhelps(pin);
-    var displayLang = opts.mode === 'book' ? (p.lang || '') : opts.pageLang;
+    // Display language is per-prayer when known (book pages carry p.lang per
+    // entry; language pages don't but pageLang fills in). RTL follows the
+    // resolved displayLang so multilingual books render Arabic prayers in RTL.
+    var displayLang = p.lang || opts.pageLang || '';
     var langName = p.lang_name || displayLang;
-    var rtl = opts.mode === 'book' ? RTL_LANGS.has(p.lang) : !!opts.rtl;
+    var rtl = RTL_LANGS.has(displayLang);
     var vid = p.v || p.version || '';
     var wcLabel = wordCount(p.text, displayLang);
     var preview = previewOf(p.text);
     var bookCats = p.book_cats || null;
+    var hasTranslations = Array.isArray(p.translations) && p.translations.length;
+    // Page identity is fuzzy: `eo` matches eo prayers, `eo-bp` is a book whose
+    // prayers are still in `eo`. The "open in language prayerbook" affordance
+    // should appear when the prayer's lang isn't trivially the page itself.
+    var showOpenInLang = displayLang && displayLang !== opts.pageLang;
 
     var card = document.createElement('article');
-    card.className = 'prayer-card' + (opts.showFolding ? ' folded' : '');
+    card.className = 'prayer-card folded';
     card.id = pin;
     card.dataset.cat = p.category || '';
     card.dataset.nativeCat = p.category || '';
@@ -106,30 +121,26 @@
     card.dataset.nativeVersion = vid;
     card.dataset.displayLang = displayLang;
     card.dataset.phelps = pin;
+    card.dataset.lang = displayLang;
     if (bookCats) card.dataset.bookCats = JSON.stringify(bookCats);
-    if (opts.mode === 'book') card.dataset.lang = p.lang || '';
 
     var header = document.createElement('div');
     header.className = 'prayer-card-header';
 
     var html = '';
-    if (opts.showFolding) {
-      html += '<span class="prayer-toggle" aria-hidden="true">▶</span>';
-    }
+    html += '<span class="prayer-toggle" aria-hidden="true">▶</span>';
     if (p.name) {
       html += '<span class="prayer-name">' + escapeHtml(p.name) + '</span>';
     }
-    if (opts.showFolding) {
-      html += '<span class="prayer-preview">' + escapeHtml(preview) + '</span>';
-      html += '<span class="word-count">' + escapeHtml(wcLabel) + '</span>';
-    }
+    html += '<span class="prayer-preview">' + escapeHtml(preview) + '</span>';
+    html += '<span class="word-count">' + escapeHtml(wcLabel) + '</span>';
 
     html += '<span class="prayer-phelps">';
     var href = '/phelps/' + parts.base + '/' + (parts.suffix ? '#' + parts.suffix : '');
     html += '<a href="' + escapeAttr(href) + '" title="All translations">' + escapeHtml(pin) + '</a>';
     html += ' <a href="/inventory/?pin=' + escapeAttr(pin.toUpperCase()) + '" title="Inventory entry" style="opacity:.6; font-size:.8em; margin-left:.3em">↗</a>';
     html += ' <span class="prayer-lang-badge" title="' + escapeAttr(t('prayer_lang_current_title', 'Currently shown in this language')) + '">' + escapeHtml(displayLang) + '</span>';
-    if (opts.showLangSwitch) {
+    if (hasTranslations) {
       html += ' <button class="prayer-revert-btn" type="button" title="' + escapeAttr(t('prayer_lang_revert_title', "Show again in the page's language")) + '" hidden>↶ ' + escapeHtml(t('prayer_lang_revert', 'revert')) + '</button>';
     }
     if (vid) {
@@ -137,16 +148,11 @@
     }
     html += '</span>';
 
-    if (opts.showFullScreen) {
-      html += ' <button class="btn-expand prayer-expand" title="Full screen">⛶</button>';
-    }
-    if (opts.showFavourite) {
-      html += ' <button class="fav-btn" data-phelps="' + escapeAttr(pin) + '" aria-label="Toggle favourite">☆</button>';
-    }
+    html += ' <button class="btn-expand prayer-expand" title="Full screen">⛶</button>';
+    html += ' <button class="fav-btn" data-phelps="' + escapeAttr(pin) + '" aria-label="Toggle favourite">☆</button>';
     html += ' <button class="btn-add-devotional" data-phelps="' + escapeAttr(pin) + '" aria-label="Add to devotional" title="Add to devotional program">+</button>';
 
-    if (opts.mode === 'book') {
-      // In book view, give a quick link out to the language prayerbook.
+    if (showOpenInLang) {
       html += ' <a href="/prayers/' + escapeAttr(displayLang) + '/#' + escapeAttr(pin) + '" title="' + escapeAttr(t('prayer_open_in_book', 'Open in language prayerbook')) + '" style="opacity:.6; font-size:.8em; margin-left:.3em">↗</a>';
     }
 
@@ -173,7 +179,7 @@
       card.appendChild(meta);
     }
 
-    if (opts.showLangSwitch && Array.isArray(p.translations) && p.translations.length) {
+    if (hasTranslations) {
       var tCount = p.translations.length;
       var tWrap = document.createElement('div');
       tWrap.className = 'prayer-translations';
@@ -630,21 +636,12 @@
   function renderPrayerList(rootEl, opts) {
     if (!rootEl) return;
     opts = opts || {};
-    opts.mode = opts.mode || 'language';
-    var isBook = opts.mode === 'book';
-    // Per-mode defaults.
-    if (opts.showFolding == null) opts.showFolding = !isBook;
-    if (opts.showFullScreen == null) opts.showFullScreen = !isBook;
-    if (opts.showFavourite == null) opts.showFavourite = !isBook;
-    if (opts.showLangSwitch == null) opts.showLangSwitch = !isBook;
-    if (opts.toc == null) opts.toc = isBook;
-    if (opts.showCategoryAnchor == null) opts.showCategoryAnchor = isBook;
     if (opts.pageLang == null) opts.pageLang = '';
+    if (opts.showCategoryAnchor == null) opts.showCategoryAnchor = true;
 
     var prayers = opts.prayers || [];
 
     rootEl.innerHTML = '';
-    if (opts.rtl) rootEl.setAttribute('dir', 'rtl');
 
     var state = {
       opts: opts,
@@ -653,47 +650,40 @@
       activeCat: ''
     };
 
-    if (isBook) {
-      // Book mode: group by category, with optional H2 + ¶ anchor.
-      var grouped = buildBookGroupedHtml(prayers, opts);
-      // Mount a TOC if there is a host element.
-      if (opts.toc) {
-        var tocEl = opts.tocEl;
-        if (!tocEl) {
-          tocEl = document.createElement('div');
-          rootEl.appendChild(tocEl);
-        }
-        renderTOC(grouped, tocEl);
-      }
+    // Always group by category (in order of appearance). For pages with one
+    // category this collapses to a single section; for multi-category pages
+    // we get H2s + an optional TOC. ¶ permalink anchors live on each H2.
+    var grouped = buildBookGroupedHtml(prayers, opts);
 
-      grouped.forEach(function (cat) {
-        if (opts.showCategoryAnchor) {
-          var slug = slugCat(cat.name);
-          var h = document.createElement('h2');
-          h.id = slug;
-          h.style.cssText = 'margin-top:1.5rem; font-size:1.1rem; border-bottom:1px solid var(--border); padding-bottom:.3rem';
-          h.innerHTML = escapeHtml(cat.name) +
-            ' <span style="color:var(--text-secondary); font-weight:400; font-size:.85rem">(' + cat.prayers.length + ')</span>' +
-            ' <a href="#' + slug + '" style="font-size:.7em; opacity:.4; text-decoration:none" title="Permalink to this category">¶</a>';
-          rootEl.appendChild(h);
-        }
-        cat.prayers.forEach(function (p) {
-          var card = buildCard(p, opts);
-          state.cards.push(card);
-          rootEl.appendChild(card);
-        });
-      });
-    } else {
-      // Language mode: flat list grouped only by data-cat (sidebar filters).
-      prayers.forEach(function (p) {
+    if (opts.tocEl || opts.toc) {
+      var tocEl = opts.tocEl;
+      if (!tocEl) {
+        tocEl = document.createElement('div');
+        rootEl.appendChild(tocEl);
+      }
+      renderTOC(grouped, tocEl);
+    }
+
+    grouped.forEach(function (cat) {
+      if (opts.showCategoryAnchor && grouped.length > 1) {
+        var slug = slugCat(cat.name);
+        var h = document.createElement('h2');
+        h.id = slug;
+        h.style.cssText = 'margin-top:1.5rem; font-size:1.1rem; border-bottom:1px solid var(--border); padding-bottom:.3rem';
+        h.innerHTML = escapeHtml(cat.name) +
+          ' <span style="color:var(--text-secondary); font-weight:400; font-size:.85rem">(' + cat.prayers.length + ')</span>' +
+          ' <a href="#' + slug + '" style="font-size:.7em; opacity:.4; text-decoration:none" title="Permalink to this category">¶</a>';
+        rootEl.appendChild(h);
+      }
+      cat.prayers.forEach(function (p) {
         var card = buildCard(p, opts);
         state.cards.push(card);
         rootEl.appendChild(card);
       });
-    }
+    });
 
-    // Migrate localStorage book preference (language mode only).
-    if (!isBook && opts.pageLang) {
+    // Migrate localStorage book preference, if a default book is given.
+    if (opts.defaultBook && opts.pageLang) {
       try {
         var key = 'hw_book_' + opts.pageLang;
         var stored = localStorage.getItem(key);
@@ -708,28 +698,21 @@
       }
     }
 
-    // Wire up book selector (language mode).
-    if (!isBook && opts.bookSelectEl) {
-      setupBookSelect(state);
-    }
+    if (opts.bookSelectEl) setupBookSelect(state);
+    if (opts.categoriesEl) applyBook(state, state.activeBook);
 
-    // Build/refresh categories sidebar (language mode only by default).
-    if (!isBook && opts.categoriesEl) {
-      applyBook(state, state.activeBook);
-    }
+    setupFolding(rootEl);
+    setupFullScreen(rootEl);
+    setupFavourites(rootEl);
+    // Devotional entries always carry the prayer's lang since cards may mix
+    // languages (multilingual books) and the same phelps in two different
+    // languages should be distinct devotional items.
+    setupDevotional(rootEl, true);
+    setupLangSwitching(rootEl, opts.pageLang);
 
-    // Common behaviours.
-    if (opts.showFolding) setupFolding(rootEl);
-    if (opts.showFullScreen) setupFullScreen(rootEl);
-    if (opts.showFavourite) setupFavourites(rootEl);
-    setupDevotional(rootEl, isBook); // book mode stores {code,lang}
-    if (opts.showLangSwitch) setupLangSwitching(rootEl, opts.pageLang);
-
-    // Re-translate any data-i18n attributes inside the freshly inserted DOM.
     if (typeof window.__translatePage === 'function') window.__translatePage();
     if (typeof window.__markUiLang === 'function') window.__markUiLang();
 
-    // Hash jump (slight delay so layout settles).
     setTimeout(function () { handleHash(rootEl); }, 50);
     window.addEventListener('hashchange', function () { handleHash(rootEl); });
 

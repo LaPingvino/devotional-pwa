@@ -298,7 +298,7 @@ func main() {
 	// their actual languages (so multilingual books like mul-NA:bp render
 	// hz/kj/diu/naq prayers together with language badges).
 	log.Println("→ per-book JSON for /book/...")
-	writePerBookJSON(staticDir, allBookCats, allPrayers, allBooks)
+	writePerBookJSON(staticDir, assetsDir, allBookCats, allPrayers, allBooks, phelpsLangs)
 
 	// 3. Group phelps codes by base PIN (strips trailing 3-char alpha mnemonic suffix)
 	log.Println("→ grouping phelps codes by base PIN...")
@@ -661,16 +661,18 @@ func main() {
 
 // BookPrayer is one prayer entry inside a per-book JSON file.
 type BookPrayer struct {
-	Phelps     string `json:"phelps"`
-	Lang       string `json:"lang"`
-	LangName   string `json:"lang_name,omitempty"`
-	Name       string `json:"name,omitempty"`
-	Text       string `json:"text"`
-	Category   string `json:"category,omitempty"`
-	CatOrder   int    `json:"cat_order,omitempty"`
-	OrderInCat int    `json:"order_in_cat,omitempty"`
-	Version    string `json:"version,omitempty"`
-	VersionB36 string `json:"v,omitempty"`
+	Phelps       string             `json:"phelps"`
+	Lang         string             `json:"lang"`
+	LangName     string             `json:"lang_name,omitempty"`
+	Name         string             `json:"name,omitempty"`
+	Text         string             `json:"text"`
+	Category     string             `json:"category,omitempty"`
+	CatOrder     int                `json:"cat_order,omitempty"`
+	OrderInCat   int                `json:"order_in_cat,omitempty"`
+	Version      string             `json:"version,omitempty"`
+	VersionB36   string             `json:"v,omitempty"`
+	BookCats     map[string]BookCat `json:"book_cats,omitempty"`    // prayerbook code → category assignment
+	Translations []LangRef          `json:"translations,omitempty"` // other languages with this phelps code
 }
 
 // BookFile is the top-level structure written to /data/book/<safe>.json.
@@ -690,10 +692,11 @@ type BookOverview struct {
 	Categories  []string       `json:"categories"`
 }
 
-// safeBookCode replaces characters that are awkward in filenames or URLs.
-// `mul-NA:bp` → `mul-NA-bp` (the colon is the only such character we use).
+// safeBookCode replaces characters that are awkward in filenames or URLs and
+// lowercases the result so it matches Hugo's lowercased page paths.
+// `mul-NA:bp` → `mul-na-bp`.
 func safeBookCode(code string) string {
-	return strings.ReplaceAll(code, ":", "-")
+	return strings.ToLower(strings.ReplaceAll(code, ":", "-"))
 }
 
 // writePerBookJSON emits /data/book/<safe>.json for every prayerbook plus
@@ -706,12 +709,15 @@ func safeBookCode(code string) string {
 // what defines membership of a writings row in a book. Going through the
 // allBookCats map would over-attribute (it tracks phelps→book without
 // remembering which writings.language each PBS row was for).
-func writePerBookJSON(staticDir string,
+func writePerBookJSON(staticDir, assetsDir string,
 	allBookCats map[string]map[string]map[string]BookCat,
 	allPrayers map[string][]Prayer,
 	allBooks []BookRef,
+	phelpsLangs map[string][]LangRef,
 ) {
 	must(os.MkdirAll(filepath.Join(staticDir, "book"), 0755))
+	must(os.MkdirAll(filepath.Join(staticDir, "prayers"), 0755))
+	must(os.MkdirAll(filepath.Join(assetsDir, "prayers"), 0755))
 
 	langName := map[string]string{}
 	for _, l := range loadLanguagesForBooks() {
@@ -781,11 +787,29 @@ func writePerBookJSON(staticDir string,
 			if !ok {
 				continue
 			}
+			// translations: other languages that have this phelps code
+			var trans []LangRef
+			if refs, ok := phelpsLangs[e.phelps]; ok {
+				trans = make([]LangRef, 0, len(refs))
+				for _, r := range refs {
+					if r.Language != e.lang {
+						trans = append(trans, r)
+					}
+				}
+			}
+			// book_cats: prayerbook category assignments for this phelps in this language
+			var bcats map[string]BookCat
+			if langMap := allBookCats[e.lang]; langMap != nil {
+				if bc, ok := langMap[e.phelps]; ok {
+					bcats = bc
+				}
+			}
 			bp = append(bp, BookPrayer{
 				Phelps: e.phelps, Lang: e.lang, LangName: langName[e.lang],
 				Name: p.Name, Text: p.Text, Category: e.cat,
 				CatOrder: e.catOrd, OrderInCat: e.ordInCat,
 				Version: p.Version, VersionB36: p.VersionB36,
+				BookCats: bcats, Translations: trans,
 			})
 			langCounts[e.lang]++
 			if e.cat != "" {
@@ -793,7 +817,14 @@ func writePerBookJSON(staticDir string,
 			}
 		}
 		bf := BookFile{Code: b.Code, Name: b.Name, Prayers: bp, LangSet: langCounts}
-		writeJSON(filepath.Join(staticDir, "book", safeBookCode(b.Code)+".json"), bf)
+		safe := safeBookCode(b.Code)
+		writeJSON(filepath.Join(staticDir, "book", safe+".json"), bf)
+		// Merged namespace: book JSONs also live alongside per-language JSONs
+		// at /data/prayers/<safe>.json (and assets/ for resources.Get) so
+		// /prayers/<safe>/ pages can render via the same template + fetch path
+		// as /prayers/<lang>/. Canonical code (with `:`) is in bf.Code.
+		writeJSON(filepath.Join(staticDir, "prayers", safe+".json"), bf)
+		writeJSON(filepath.Join(assetsDir, "prayers", safe+".json"), bf)
 
 		cats := make([]string, 0, len(catSet))
 		for c := range catSet {

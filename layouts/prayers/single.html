@@ -3,9 +3,11 @@
 {{ $prayers := .Params.prayers }}
 {{ $prayerbooks := .Params.prayerbooks }}
 {{ $allBooks := $.Site.Data.prayerbooks }}
+{{ $isBook := .Params.isBook }}
+{{ $bookCode := .Params.bookCode }}
 
 {{/* Default prayerbook is resolved data-side in gen_hugo_data.go (pickDefaultBook).
-     Fall back to en:bp if for some reason the data didn't carry a default. */}}
+     For book pages, the default IS the book itself. Otherwise fall back to en:bp. */}}
 {{ $defaultBook := .Params.defaultBook }}
 {{ if not $defaultBook }}{{ $defaultBook = "en:bp" }}{{ end }}
 
@@ -42,8 +44,11 @@
   </aside>
 
   <main class="main-content">
-    <h1>{{ .Params.langName }}</h1>
-    <p style="color:var(--text-secondary); margin-bottom:1rem;">{{ len $prayers }} prayers{{ if $rtl }} · RTL{{ end }}</p>
+    <h1>{{ .Params.langName }}{{ if $isBook }} <span style="font-size:.6em; opacity:.6">📖</span>{{ end }}</h1>
+    <p style="color:var(--text-secondary); margin-bottom:1rem;">
+      {{ len $prayers }} prayers{{ if $rtl }} · RTL{{ end }}
+      {{ if $isBook }} · <code>{{ $bookCode }}</code>{{ end }}
+    </p>
 
     <div class="prayer-list" id="prayer-list-root"{{ if $rtl }} dir="rtl"{{ end }}>
       <p style="color:var(--text-secondary)" data-i18n="loading">Loading…</p>
@@ -71,7 +76,6 @@
         prayers: data.prayers || [],
         pageLang: pageLang,
         rtl: rtl,
-        mode: 'language',
         defaultBook: defaultBook,
         allBooks: allBooks,
         bookSelectEl: document.getElementById('book-select'),

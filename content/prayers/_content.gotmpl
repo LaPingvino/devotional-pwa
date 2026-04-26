@@ -24,3 +24,36 @@
     ) }}
   {{ end }}
 {{ end }}
+
+{{/*
+  Merged namespace: also generate one /prayers/<safe-book-code>/ page per
+  prayerbook from data/prayerbooks.json. Canonical code uses `:` (e.g.
+  `eo:bp`); on-disk + URL form is safe-coded (`:` → `-`, e.g. `eo-bp`).
+  Lang codes never contain `:` and none end in `-bp`, so no collisions.
+*/}}
+{{ range site.Data.prayerbooks }}
+  {{ $bookInfo := . }}
+  {{ $code := .code }}
+  {{ $safe := lower (replace $code ":" "-") }}
+  {{ $prayerFile := printf "prayers/%s.json" $safe }}
+  {{ with resources.Get $prayerFile }}
+    {{ $data := . | transform.Unmarshal }}
+    {{ $prayers := $data.prayers }}
+    {{ $.AddPage (dict
+      "path"    (lower $safe)
+      "title"   $bookInfo.name
+      "kind"    "page"
+      "params"  (dict
+        "langCode"    $safe
+        "langName"    $bookInfo.name
+        "bookCode"    $code
+        "isBook"      true
+        "rtl"         false
+        "prayerCount" (len $prayers)
+        "prayers"     $prayers
+        "prayerbooks" site.Data.prayerbooks
+        "defaultBook" $code
+      )
+    ) }}
+  {{ end }}
+{{ end }}
