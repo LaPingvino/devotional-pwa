@@ -73,13 +73,14 @@
         const isRtl = RTL.has(p.lang);
         const vid = p.v || p.version || '';
         html += `
-          <article class="prayer-card" style="margin:.6rem 0; padding:.6rem .8rem; border:1px solid var(--border); border-radius:6px">
+          <article class="prayer-card" data-phelps="${p.phelps}" data-lang="${p.lang}" data-v="${vid}" style="margin:.6rem 0; padding:.6rem .8rem; border:1px solid var(--border); border-radius:6px">
             <div class="prayer-card-header" style="display:flex; gap:.5rem; align-items:baseline; flex-wrap:wrap">
               ${p.name ? `<span class="prayer-name">${p.name}</span>` : ''}
               <span class="prayer-phelps" style="margin-left:auto">
                 <a href="/phelps/${baseL}/${suffix ? '#' + suffix : ''}">${p.phelps}</a>
                 <span class="prayer-lang-badge" title="${p.lang_name || p.lang}">${p.lang}</span>
-                ${vid ? `<a class="prayer-version-link" href="/p/?v=${vid}" title="Permalink">v</a>` : ''}
+                ${vid ? `<a class="prayer-version-link" href="/p/?v=${vid}" title="Permalink to this exact translation">\u{1F517}</a>` : ''}
+                <button class="btn-add-devotional" title="Add to devotional program">+</button>
                 <a href="/prayers/${p.lang}/#${p.phelps}" title="Open in language prayerbook" style="opacity:.6; font-size:.8em; margin-left:.3em">↗</a>
               </span>
             </div>
@@ -89,6 +90,49 @@
     }
 
     root.innerHTML = html;
+
+    // Wire up the per-prayer "+ devotional" buttons. Stores {code, lang}
+    // so the prayer always renders in its book-of-origin language (often
+    // the only one available for these languages anyway). To pin to a
+    // specific version, the user can use the 📌 button in /devotional/
+    // afterwards, or click the 🔗 permalink and "Pin to devotional" there.
+    const STORAGE_KEY = 'hw_devotional_codes';
+    function getCodes() {
+      try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+    }
+    function flash(btn, text) {
+      const orig = btn.textContent;
+      btn.textContent = text;
+      btn.disabled = true;
+      setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 1200);
+    }
+    document.querySelectorAll('.btn-add-devotional').forEach(btn => {
+      const card = btn.closest('.prayer-card');
+      if (!card) return;
+      const code = card.dataset.phelps;
+      const lng = card.dataset.lang;
+      // Reflect existing state on initial render.
+      const items = getCodes();
+      if (items.some(i => (i.code || i) === code && (i.lang || undefined) === lng)) {
+        btn.textContent = '✓'; btn.classList.add('added');
+      }
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        e.preventDefault();
+        const its = getCodes();
+        const found = its.findIndex(i => (i.code || i) === code && (i.lang || undefined) === lng);
+        if (found >= 0) {
+          its.splice(found, 1);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(its));
+          btn.textContent = '+'; btn.classList.remove('added');
+        } else {
+          its.push({ code, lang: lng });
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(its));
+          flash(btn, '✓');
+          btn.classList.add('added');
+        }
+      });
+    });
   }
 
   // ── Index view: /book/ ──

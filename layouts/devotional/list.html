@@ -360,6 +360,15 @@
 .dev-item-vlock:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .dev-item-vlock:disabled { opacity: .35; cursor: not-allowed; }
 .dev-item-vlock.locked { background: #d4762e; color: #fff; border-color: #d4762e; }
+.dev-item-permalink {
+  display: inline-block;
+  text-decoration: none;
+  font-size: .85rem;
+  padding: .1rem .35rem;
+  color: var(--text-secondary);
+  border-radius: 4px;
+}
+.dev-item-permalink:hover { color: var(--accent); background: var(--bg-secondary, #eee); }
 .dev-item-remove {
   background: none;
   border: none;
@@ -530,7 +539,7 @@
 .no-print {}
 @media print {
   .site-header, .dev-toolbar, .dev-add-row, .dev-controls,
-  .dev-item-drag, .dev-item-remove, .dev-item-lock, .dev-item-vlock,
+  .dev-item-drag, .dev-item-remove, .dev-item-lock, .dev-item-vlock, .dev-item-permalink,
   .dev-item-code, #builder-panel .dev-hint,
   #shared-banner, .no-print, .dev-suggestions, .qr-panel, footer { display: none !important; }
 
@@ -1433,6 +1442,13 @@
         : (isPrayerType && r && r.version
             ? 'Pin this exact translation (current version)'
             : 'No specific version to pin');
+      // Permalink: prefer the pinned version, else the currently-shown
+      // translation's version. Empty for non-prayers (Bible/Quran/writings
+      // have their own ref-based deep links via the meta).
+      const permalinkV = item.v || (isPrayerType && r ? (r.v || r.version) : '');
+      const permalinkHtml = permalinkV
+        ? `<a class="dev-item-permalink" href="/p/?v=${permalinkV}" title="Permalink to this exact translation (share or save)">\u{1F517}</a>`
+        : '';
 
       // Build comparison columns if in comparison mode
       let columnsHtml = '';
@@ -1464,6 +1480,7 @@
           <button class="btn-expand dev-item-expand" title="Full screen">&#x26F6;</button>
           <button class="dev-item-lock${item.lang ? ' locked' : ''}" title="${lockTitle}">${lockLabel}</button>
           ${(isPrayerType || item.v) ? `<button class="dev-item-vlock${item.v ? ' locked' : ''}"${(!item.v && (!r || !r.version)) ? ' disabled' : ''} title="${vLockTitle}">${vLockLabel}</button>` : ''}
+          ${permalinkHtml}
           ${!isShared ? '<button class="dev-item-remove" title="Remove">&times;</button>' : ''}
         </div>
         ${compareLangs.length > 0 ? columnsHtml : '<div class="dev-item-text"' + (isRtl ? ' dir="rtl"' : '') + '>' + textHtml + '</div>'}

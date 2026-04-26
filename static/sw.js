@@ -1,7 +1,8 @@
 // Holy Writings — Service Worker
 // Strategy: cache what the user visits, serve offline when network unavailable
 
-const CACHE_VERSION = 'hw-v1';
+// Bumped when SHELL_URLS changes so old caches get cleared on activate.
+const CACHE_VERSION = 'hw-v2';
 const SHELL_CACHE = CACHE_VERSION + '-shell';
 const DATA_CACHE = CACHE_VERSION + '-data';
 const PAGE_CACHE = CACHE_VERSION + '-pages';
@@ -12,6 +13,8 @@ const SHELL_URLS = [
   '/daily/',
   '/devotional/',
   '/prayers/',
+  '/book/',
+  '/p/',
   '/writings/',
   '/fonts/nine-star.woff2',
   '/favicon.svg',

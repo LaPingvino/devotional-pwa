@@ -86,6 +86,10 @@
       </details>
     </div>`;
 
+  // Use the short base36 form for storage if conversion is possible; matches
+  // the format devotional items expect in their `v` field.
+  const shortV = (window.uuidToBase36 && uuid) ? window.uuidToBase36(uuid) : rawV;
+
   root.innerHTML = `
     <article class="prayer-card" style="margin:0">
       ${prayer.name ? `<h1 style="margin-bottom:.5rem">${prayer.name}</h1>` : ''}
@@ -96,11 +100,51 @@
       </p>
       <div class="prayer-text"${isRtl ? ' dir="rtl"' : ''}>${window.renderMd ? window.renderMd(prayer.text || '') : (prayer.text || '')}</div>
       ${prayer.notes ? `<div class="prayer-notes" style="margin-top:1rem; color:var(--text-secondary); font-style:italic">${prayer.notes}</div>` : ''}
+      <div style="display:flex; gap:.5rem; margin-top:1.2rem; flex-wrap:wrap">
+        <button class="btn-action" id="add-latest" title="Add this prayer to your devotional program (will track latest translation)">+ Add to devotional</button>
+        <button class="btn-action" id="add-pinned" title="Add this prayer pinned to this EXACT translation — won't change if a newer translation arrives">\u{1F4CC} Pin to devotional</button>
+        <a href="/devotional/" class="btn-action" style="text-decoration:none; display:inline-block" title="Open your devotional program">View devotional →</a>
+      </div>
       <p style="color:var(--text-secondary); font-size:.75rem; margin-top:1rem">
-        Permalink: <code>/p/?v=${rawV}</code>
+        Permalink: <code>/p/?v=${shortV}</code>
       </p>
       ${transHtml}
     </article>`;
+
+  // Wire up the add buttons. Storage shape matches /devotional/'s normalizeItem:
+  // {code, lang?, v?}. The unpinned add omits v; the pinned add sets v to the
+  // base36 form so it round-trips with the rest of the codebase.
+  const STORAGE_KEY = 'hw_devotional_codes';
+  function getCodes() {
+    try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch { return []; }
+  }
+  function saveCodes(items) {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  }
+  function flash(btn, text) {
+    const orig = btn.textContent;
+    btn.textContent = text;
+    btn.disabled = true;
+    setTimeout(() => { btn.textContent = orig; btn.disabled = false; }, 1500);
+  }
+  function addItem(item, btn, label) {
+    const items = getCodes();
+    const exists = items.some(i =>
+      (i.code || i) === item.code &&
+      (i.lang || undefined) === (item.lang || undefined) &&
+      (i.v || undefined) === (item.v || undefined)
+    );
+    if (exists) { flash(btn, '✓ already added'); return; }
+    items.push(item);
+    saveCodes(items);
+    flash(btn, '✓ ' + label);
+  }
+  document.getElementById('add-latest').addEventListener('click', e => {
+    addItem({ code: phelps }, e.currentTarget, 'added');
+  });
+  document.getElementById('add-pinned').addEventListener('click', e => {
+    addItem({ code: phelps, v: shortV }, e.currentTarget, 'pinned');
+  });
 })();
 </script>
 {{ partial "foot.html" . }}
