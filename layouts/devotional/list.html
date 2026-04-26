@@ -347,6 +347,19 @@
 }
 .dev-item-lock:hover { border-color: var(--accent); color: var(--accent); }
 .dev-item-lock.locked { background: var(--accent); color: #fff; border-color: var(--accent); }
+.dev-item-vlock {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: .1rem .4rem;
+  font-size: .7rem;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-family: monospace;
+}
+.dev-item-vlock:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.dev-item-vlock:disabled { opacity: .35; cursor: not-allowed; }
+.dev-item-vlock.locked { background: #d4762e; color: #fff; border-color: #d4762e; }
 .dev-item-remove {
   background: none;
   border: none;
@@ -517,7 +530,7 @@
 .no-print {}
 @media print {
   .site-header, .dev-toolbar, .dev-add-row, .dev-controls,
-  .dev-item-drag, .dev-item-remove, .dev-item-lock,
+  .dev-item-drag, .dev-item-remove, .dev-item-lock, .dev-item-vlock,
   .dev-item-code, #builder-panel .dev-hint,
   #shared-banner, .no-print, .dev-suggestions, .qr-panel, footer { display: none !important; }
 
@@ -634,11 +647,16 @@
   const $ = id => document.getElementById(id);
 
   // ── Devotional storage ──
-  // Items are {code, lang?} objects. Plain strings from old format are auto-upgraded.
+  // Items are {code, lang?, v?} objects:
+  //   code: phelps or shorthand reference (BH00074, bible:john:3:16, ...)
+  //   lang: optional locked display language (item shows in this lang regardless of global)
+  //   v:    optional base36-encoded version UUID — when set, that EXACT translation is shown
+  //         (lang field is ignored; the version's own language is used)
+  // Plain strings from old format are auto-upgraded.
   const STORAGE_KEY = 'hw_devotional_codes';
   function normalizeItem(item) {
     if (typeof item === 'string') return { code: item };
-    return { code: item.code, lang: item.lang || undefined };
+    return { code: item.code, lang: item.lang || undefined, v: item.v || undefined };
   }
   function getCodes() {
     try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]').map(normalizeItem); } catch { return []; }
@@ -701,8 +719,14 @@
       }
       var parts = s.split(':');
       var code = parts[0].toUpperCase();
-      var lang = parts[1] ? parts[1].toLowerCase() : undefined;
-      if (code) items.push({ code: code, lang: lang });
+      var lang = undefined, v = undefined;
+      // After the code, segments may be a 2–8-char lang code or v_<base36>.
+      for (var pi = 1; pi < parts.length; pi++) {
+        var p = parts[pi];
+        if (p.indexOf('v_') === 0) v = p.substring(2);
+        else if (!lang) lang = p.toLowerCase();
+      }
+      if (code) items.push({ code: code, lang: lang, v: v });
     }
     return items;
   }
@@ -712,7 +736,10 @@
       var c = i.code;
       // Reference codes use dots in URL hash (colons conflict with lang suffix)
       if (c.indexOf(':') >= 0 && !c.match(/^[A-Z]/)) c = c.replace(/:/g, '.');
-      return i.lang ? c + ':' + i.lang : c;
+      var s = c;
+      if (i.lang) s += ':' + i.lang;
+      if (i.v) s += ':v_' + i.v;
+      return s;
     });
     // Append language and comparison state if checkbox is checked
     var includeLang = $('share-include-lang') && $('share-include-lang').checked;
@@ -859,6 +886,43 @@
     if (compareActive) renderCompareBar();
     renderItems();
     initSuggestions();
+  }
+
+  // ── Version index for version-locked items (item.v) ──
+  // /data/version_index.json maps UUID → [lang, phelps]; we lazy-load and cache.
+  let _versionIndex = null;
+  async function getVersionIndex() {
+    if (_versionIndex !== null) return _versionIndex;
+    try {
+      const r = await fetch('/data/version_index.json');
+      _versionIndex = r.ok ? await r.json() : {};
+    } catch { _versionIndex = {}; }
+    return _versionIndex;
+  }
+
+  // Resolve an item that has v set: decode base36 → UUID → (lang, phelps),
+  // fetch that lang's prayer map, return a resolved entry. Returns null if
+  // the version doesn't match (corrupted base36, deleted prayer, etc.).
+  async function resolveVersionLocked(item) {
+    if (!item.v || !window.base36ToUuid) return null;
+    const uuid = window.base36ToUuid(item.v);
+    if (!uuid) return null;
+    const idx = await getVersionIndex();
+    const info = idx[uuid];
+    if (!info) return null;
+    const [verLang, verPhelps] = info;
+    const pMap = await getPrayerMap(verLang);
+    const p = pMap[verPhelps];
+    if (!p) return null;
+    return {
+      text: p.text,
+      category: p.category,
+      type: 'prayer',
+      name: p.name,
+      link: '/p/?v=' + item.v,
+      _verLang: verLang,
+      _verPhelps: verPhelps,
+    };
   }
 
   // ── Fetch prayer data for a language ──
@@ -1114,7 +1178,7 @@
     var pMap = await getPrayerMap(lang);
     if (pMap[code]) {
       var p = pMap[code];
-      return { text: p.text, category: p.category, type: 'prayer', name: p.name, link: '/prayers/' + lang + '/#' + code };
+      return { text: p.text, category: p.category, type: 'prayer', name: p.name, link: '/prayers/' + lang + '/#' + code, version: p.version };
     }
 
     // Try writings — check each writing type
@@ -1319,10 +1383,15 @@
 
     const items = [];
     for (const entry of codes) {
-      const useLang = entry.lang || lang;
-      const resolved = await resolveCode(entry.code, useLang);
-      const item = { code: entry.code, lang: entry.lang, useLang, resolved };
+      // Version-locked items resolve to their pinned UUID first; if that
+      // fails (deleted/corrupt), fall back to normal resolution.
+      let resolved = entry.v ? await resolveVersionLocked(entry) : null;
+      let useLang = entry.lang || lang;
+      if (resolved && resolved._verLang) useLang = resolved._verLang;
+      if (!resolved) resolved = await resolveCode(entry.code, useLang);
+      const item = { code: entry.code, lang: entry.lang, v: entry.v, useLang, resolved };
       // Pre-fetch comparison languages (resolveCode handles -translit internally)
+      // Comparison ignores v-lock — it always shows latest in each compare lang.
       if (compareLangs.length > 0) {
         item._compareCache = {};
         for (const cl of compareLangs) {
@@ -1356,6 +1425,14 @@
       const isRtlLang = allLanguages.find(l => l.code === item.useLang); const isRtl = isRtlLang && isRtlLang.rtl;
       const lockLabel = item.lang ? item.lang.toUpperCase() : '\u{1F310}';
       const lockTitle = item.lang ? 'Locked to ' + item.lang + ' (click to unlock)' : 'Using global language (click to lock to ' + lang + ')';
+      // Version-lock button: only meaningful for prayers (not bible/quran/writings)
+      const isPrayerType = r && r.type === 'prayer';
+      const vLockLabel = item.v ? '\u{1F4CC}' : 'v';
+      const vLockTitle = item.v
+        ? 'Pinned to specific translation (click to unpin)'
+        : (isPrayerType && r && r.version
+            ? 'Pin this exact translation (current version)'
+            : 'No specific version to pin');
 
       // Build comparison columns if in comparison mode
       let columnsHtml = '';
@@ -1386,6 +1463,7 @@
           <span class="dev-item-meta">${meta}</span>
           <button class="btn-expand dev-item-expand" title="Full screen">&#x26F6;</button>
           <button class="dev-item-lock${item.lang ? ' locked' : ''}" title="${lockTitle}">${lockLabel}</button>
+          ${(isPrayerType || item.v) ? `<button class="dev-item-vlock${item.v ? ' locked' : ''}"${(!item.v && (!r || !r.version)) ? ' disabled' : ''} title="${vLockTitle}">${vLockLabel}</button>` : ''}
           ${!isShared ? '<button class="dev-item-remove" title="Remove">&times;</button>' : ''}
         </div>
         ${compareLangs.length > 0 ? columnsHtml : '<div class="dev-item-text"' + (isRtl ? ' dir="rtl"' : '') + '>' + textHtml + '</div>'}
@@ -1399,6 +1477,20 @@
             delete codes[idx].lang; // unlock
           } else {
             codes[idx].lang = lang; // lock to current global language
+          }
+          if (!isShared) saveCodes(codes);
+          renderItems();
+        });
+      }
+
+      // Lock/unlock version button (pin a specific translation by UUID)
+      const vLockBtn = div.querySelector('.dev-item-vlock');
+      if (vLockBtn && !vLockBtn.disabled) {
+        vLockBtn.addEventListener('click', () => {
+          if (codes[idx].v) {
+            delete codes[idx].v; // unpin
+          } else if (r && r.version && window.uuidToBase36) {
+            codes[idx].v = window.uuidToBase36(r.version);
           }
           if (!isShared) saveCodes(codes);
           renderItems();
