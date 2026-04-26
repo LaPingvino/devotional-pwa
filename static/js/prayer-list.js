@@ -106,6 +106,13 @@
     var preview = previewOf(p.text);
     var bookCats = p.book_cats || null;
     var hasTranslations = Array.isArray(p.translations) && p.translations.length;
+    // Version variants: alt_sources holds same (phelps, lang) prayer from
+    // other sources (bahaiprayers.app, llm-translation, …). We never
+    // promote a text-less alt to primary — the data layer guarantees
+    // text on the primary; alts with empty text become "view at source"
+    // links rather than swappable text variants.
+    var altSources = Array.isArray(p.alt_sources) ? p.alt_sources : [];
+    var hasVersions = altSources.length > 0;
     // Page identity is fuzzy: `eo` matches eo prayers, `eo-bp` is a book whose
     // prayers are still in `eo`. The "open in language prayerbook" affordance
     // should appear when the prayer's lang isn't trivially the page itself.
@@ -123,6 +130,28 @@
     card.dataset.phelps = pin;
     card.dataset.lang = displayLang;
     if (bookCats) card.dataset.bookCats = JSON.stringify(bookCats);
+    if (hasVersions) {
+      // Build a per-card version registry: primary first, then alts. Each
+      // entry carries source label, version uuid+b36, text. The renderer
+      // stores it on the card so the picker click handler can swap text
+      // without re-walking arbitrary global state.
+      var primarySource = p.source || 'unknown';
+      var registry = [{
+        source: primarySource, version: vid, v: vid,
+        text: p.text || '', isPrimary: true,
+      }];
+      altSources.forEach(function (a) {
+        var av = a.version || '';
+        registry.push({
+          source: a.source || 'unknown',
+          version: av,
+          v: av,
+          text: a.text || '',
+          isPrimary: false,
+        });
+      });
+      card.dataset.versions = JSON.stringify(registry);
+    }
 
     var header = document.createElement('div');
     header.className = 'prayer-card-header';
@@ -205,7 +234,55 @@
       card.appendChild(tWrap);
     }
 
+    if (hasVersions) {
+      // Version picker: lets the reader compare translations of THIS prayer
+      // from different sources (bahaiprayers.net, .app, LLM-translation, …).
+      // Primary version is always shown first and never disabled. Alts with
+      // text get a "swap" link; alts without text fall through to a
+      // "view at source" anchor (added once we know a source URL pattern).
+      var vCount = altSources.length + 1; // including primary
+      var vWrap = document.createElement('div');
+      vWrap.className = 'prayer-versions';
+      var primaryLabel = sourceLabel(p.source || 'primary');
+      var rows = ['<a href="#" class="version-swap-link active" data-version-idx="0">' +
+        escapeHtml(primaryLabel) +
+        ' <span class="version-status">' + escapeHtml(t('version_primary', '(primary)')) + '</span></a>'];
+      altSources.forEach(function (a, i) {
+        var label = sourceLabel(a.source || 'unknown');
+        var idx = i + 1;
+        if (a.text) {
+          rows.push('<a href="#" class="version-swap-link" data-version-idx="' + idx + '">' +
+            escapeHtml(label) + '</a>');
+        } else {
+          // Text-less alt: nothing to swap to. Reserved for future scraped
+          // links that point out to the source without copying the text.
+          rows.push('<a href="#" class="version-swap-link" data-version-idx="' + idx + '" style="opacity:.5; pointer-events:none">' +
+            escapeHtml(label) + ' <span class="version-status">' + escapeHtml(t('version_no_text', '(link only)')) + '</span></a>');
+        }
+      });
+      vWrap.innerHTML =
+        '<span class="trans-label">' + escapeHtml(t('versions_label', 'Version:')) + '</span>' +
+        '<details class="lang-dropdown version-dropdown"><summary>' + vCount + ' ' +
+        escapeHtml(vCount === 1 ? t('version_singular', 'source') : t('version_plural', 'sources')) +
+        '</summary>' +
+        '<div class="lang-dropdown-panel"><div class="lang-dropdown-list">' +
+        rows.join('') + '</div></div></details>';
+      card.appendChild(vWrap);
+    }
+
     return card;
+  }
+
+  // Pretty-print known source identifiers for the version picker.
+  function sourceLabel(s) {
+    var map = {
+      'bahaiprayers.net': 'bahaiprayers.net',
+      'bahaiprayers.app': 'bahaiprayers.app',
+      'llm-translation':  'LLM translation',
+      'bahai.org':        'bahai.org',
+      'reference.bahai.org': 'reference.bahai.org',
+    };
+    return map[s] || s;
   }
 
   // ── Category sidebar (language mode) ──────────────────────────────
@@ -482,6 +559,35 @@
     if (revertBtn) revertBtn.hidden = true;
   }
 
+  // Version swap: swap the prayer text in-place to an alternate source's
+  // text. Updates the permalink (🔗) to point at the alt's version uuid.
+  // The "active" class on the picker entry reflects which version is
+  // currently displayed; clicking the same active link is a no-op.
+  function setupVersionSwitching(root) {
+    root.querySelectorAll('.version-swap-link').forEach(function (link) {
+      link.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var card = link.closest('.prayer-card');
+        if (!card) return;
+        var idx = parseInt(link.dataset.versionIdx || '0', 10);
+        var registry;
+        try { registry = JSON.parse(card.dataset.versions || '[]'); }
+        catch (e2) { return; }
+        if (!registry[idx] || !registry[idx].text) return;
+        var v = registry[idx];
+        var textEl = card.querySelector('.prayer-text');
+        if (textEl) textEl.innerHTML = md(v.text);
+        var vLink = card.querySelector('.prayer-version-link');
+        if (vLink && v.v) vLink.href = '/p/?v=' + v.v;
+        // Mark active picker entry.
+        card.querySelectorAll('.version-swap-link').forEach(function (l) {
+          l.classList.toggle('active', l === link);
+        });
+      });
+    });
+  }
+
   function setupLangSwitching(root, pageLang) {
     root.querySelectorAll('.lang-switch-link').forEach(function (link) {
       link.addEventListener('click', function (e) {
@@ -707,6 +813,7 @@
     // languages should be distinct devotional items.
     setupDevotional(rootEl, true);
     setupLangSwitching(rootEl, opts.pageLang);
+    setupVersionSwitching(rootEl);
 
     if (typeof window.__translatePage === 'function') window.__translatePage();
     if (typeof window.__markUiLang === 'function') window.__markUiLang();
