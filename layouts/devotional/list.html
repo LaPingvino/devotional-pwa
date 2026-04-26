@@ -15,6 +15,7 @@
             <button class="tier-btn" data-min="50">50+</button>
             <button class="tier-btn" data-min="1">All</button>
           </div>
+          <div id="dev-lang-recent" class="dev-lang-recent" hidden></div>
           <div class="lang-dropdown-list" id="dev-lang-list"></div>
         </div>
       </details>
@@ -150,6 +151,27 @@
 }
 .dev-controls .tier-btn:hover { border-color: var(--accent); color: var(--accent); }
 .dev-controls .tier-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.dev-lang-recent {
+  padding: .35rem .5rem;
+  border-bottom: 1px solid var(--border);
+  font-size: .75rem;
+  color: var(--text-secondary);
+  display: flex; flex-wrap: wrap; gap: .25rem; align-items: center;
+}
+.dev-lang-recent-label { font-size: .7rem; }
+.dev-lang-recent-chip {
+  display: inline-block;
+  padding: 1px .4rem;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  font-family: monospace;
+  text-decoration: none;
+  color: var(--text-secondary);
+  background: var(--bg);
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.dev-lang-recent-chip:hover { border-color: var(--accent); color: var(--accent); }
 .dev-controls .lang-dropdown-list { overflow-y: auto; max-height: 300px; }
 .dev-controls .lang-dropdown-list a {
   display: flex; justify-content: space-between; padding: .3rem .6rem;
@@ -803,11 +825,47 @@
   ];
   function isTranslitCode(c) { return c && c.endsWith('-translit'); }
 
+  // Recently-used languages: track up to RECENT_MAX in localStorage so users
+  // who toggle between a few languages get a one-click row at the top of the
+  // dropdown without scrolling through 100+ alphabetical entries.
+  const RECENT_KEY = 'hw_devotional_recent_langs';
+  const RECENT_MAX = 5;
+  function getRecentLangs() {
+    try { return JSON.parse(localStorage.getItem(RECENT_KEY) || '[]'); } catch { return []; }
+  }
+  function pushRecentLang(code) {
+    let r = getRecentLangs().filter(c => c !== code);
+    r.unshift(code);
+    if (r.length > RECENT_MAX) r = r.slice(0, RECENT_MAX);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(r));
+    renderRecentLangs();
+  }
+  function renderRecentLangs() {
+    const box = $('dev-lang-recent');
+    if (!box) return;
+    const r = getRecentLangs().filter(c => c !== selectedLang);
+    if (r.length === 0) { box.hidden = true; box.innerHTML = ''; return; }
+    box.hidden = false;
+    box.innerHTML = '<span class="dev-lang-recent-label">Recent:</span> ' +
+      r.map(c => {
+        const l = allLanguages.find(x => x.code === c);
+        const name = l ? l.name : c;
+        return `<a href="#" class="dev-lang-recent-chip" data-code="${c}" title="${name}">${c}</a>`;
+      }).join('');
+    box.querySelectorAll('.dev-lang-recent-chip').forEach(chip => {
+      chip.addEventListener('click', e => {
+        e.preventDefault();
+        selectLang(chip.dataset.code);
+      });
+    });
+  }
+
   function selectLang(code) {
     selectedLang = code;
     const lang = allLanguages.find(l => l.code === code);
     langLabel.textContent = lang ? lang.name + ' (' + (lang.prayer_count || 0) + ')' : code;
     localStorage.setItem('hw_devotional_lang', code);
+    pushRecentLang(code);
     langList.querySelectorAll('a').forEach(a => a.classList.toggle('active', a.dataset.code === code));
     langDropdown.removeAttribute('open');
     renderItems();
@@ -891,6 +949,8 @@
     // Set initial label
     const initLang = allLanguages.find(l => l.code === selectedLang);
     if (initLang) langLabel.textContent = initLang.name + ' (' + (initLang.prayer_count || 0) + ')';
+
+    renderRecentLangs();
 
     if (compareActive) renderCompareBar();
     renderItems();
