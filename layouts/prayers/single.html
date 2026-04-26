@@ -216,9 +216,46 @@ function applyBook(book) {
   applyCategory(activeCat);
 }
 
-// Prayerbook select
+// Prayerbook select — runtime filtering by page-relative coverage.
+// Each option starts hidden; we count how many prayer-cards on this page
+// have an entry in each book (via data-book-cats), and reveal options
+// where coverage is meaningful: native books ALWAYS show, others need to
+// cover at least max(5, 10% of this page's prayers). Reveals an
+// "X of Y" hint inline so the user can judge how complete a switch will be.
 const bookSelect = document.getElementById('book-select');
 if (bookSelect) {
+  const cards = document.querySelectorAll('.prayer-card');
+  const totalPrayers = cards.length;
+  const minHits = Math.max(5, Math.ceil(totalPrayers * 0.10));
+  // Native books = the books these prayers' source_id rows actually live in.
+  // For a single-language page that's just the lang's own :bp; for hz it's
+  // mul-NA:bp. We capture this from the pre-computed default + any current
+  // localStorage choice so the user's picked book is never hidden.
+  const alwaysShow = new Set(['{{ $defaultBook }}', activeBook]);
+
+  // Count hits per book across all cards.
+  const hits = {};
+  cards.forEach(card => {
+    let bc = {};
+    try { bc = JSON.parse(card.dataset.bookCats || '{}'); } catch {}
+    Object.keys(bc).forEach(code => { hits[code] = (hits[code] || 0) + 1; });
+  });
+
+  // Annotate + filter options. Hide low-coverage non-native books.
+  Array.from(bookSelect.options).forEach(opt => {
+    const code = opt.value;
+    const n = hits[code] || 0;
+    const native = alwaysShow.has(code);
+    if (!native && n < minHits) {
+      opt.hidden = true;
+      opt.disabled = true;
+    } else {
+      // Append "(N/total)" to clarify completeness for this page.
+      opt.textContent = opt.textContent.replace(/\s*\(\d+\/\d+\)\s*$/, '');
+      opt.textContent = opt.textContent + ` (${n}/${totalPrayers})`;
+    }
+  });
+
   bookSelect.addEventListener('change', () => applyBook(bookSelect.value));
 }
 applyBook(activeBook);

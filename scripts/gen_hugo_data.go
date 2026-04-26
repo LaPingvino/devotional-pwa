@@ -1435,19 +1435,29 @@ func loadPrayerBookStructure() (
 	return pbIndex, bookNames
 }
 
-// buildLangBookCats takes the in-memory pbIndex and a list of phelps codes for
-// one language, and returns the book_cats map and the ordered prayerbook list.
-func buildLangBookCats(pbIndex map[string][]prayerBookEntry, langPhelps []string) (
-	bookCats map[string]map[string]BookCat, // phelps → bookCode → BookCat
+// buildLangBookCats takes the in-memory pbIndex and this language's prayers,
+// and returns:
+//   - bookCats: phelps → bookCode → BookCat (every book that contains
+//     any of this lang's phelps codes — used by the JS to show "in book X,
+//     this prayer is in category Y")
+//   - books: the picker list — every book that contains at least one of
+//     this lang's phelps codes, sorted by name. The JS at runtime hides
+//     books whose coverage of THIS PAGE's prayers is too low (filtering
+//     here would have to repeat per-page logic the runtime already needs
+//     for native-vs-fallback decisions; the original-language vs
+//     coverage info is already in book_cats).
+func buildLangBookCats(pbIndex map[string][]prayerBookEntry, prayers []Prayer) (
+	bookCats map[string]map[string]BookCat,
 	books []BookRef,
 ) {
 	bookCats = map[string]map[string]BookCat{}
-	bookOrder := []string{}
-	bookSeen := map[string]bool{}
 	bookNameMap := map[string]string{}
 
-	for _, phelps := range langPhelps {
-		entries, ok := pbIndex[phelps]
+	for _, p := range prayers {
+		if p.Phelps == "" {
+			continue
+		}
+		entries, ok := pbIndex[p.Phelps]
 		if !ok {
 			continue
 		}
@@ -1456,24 +1466,16 @@ func buildLangBookCats(pbIndex map[string][]prayerBookEntry, langPhelps []string
 			if _, exists := m[e.bookCode]; !exists {
 				m[e.bookCode] = BookCat{Category: e.catName, CatOrder: e.catOrder, OrderInCat: e.ordInCat}
 			}
-			if !bookSeen[e.bookCode] {
-				bookSeen[e.bookCode] = true
-				bookOrder = append(bookOrder, e.bookCode)
-				bookNameMap[e.bookCode] = e.bookName
-			}
+			bookNameMap[e.bookCode] = e.bookName
 		}
 		if len(m) > 0 {
-			bookCats[phelps] = m
+			bookCats[p.Phelps] = m
 		}
 	}
 
-	books = make([]BookRef, 0, len(bookOrder))
-	for _, code := range bookOrder {
-		books = append(books, BookRef{Code: code, Name: bookNameMap[code]})
+	for code, name := range bookNameMap {
+		books = append(books, BookRef{Code: code, Name: name})
 	}
-	// Sort the picker alphabetically by display name. The data-side default
-	// (pickDefaultBook) chooses what's selected on first load; sort order is
-	// purely for the dropdown's visual order.
 	sort.Slice(books, func(i, j int) bool {
 		return books[i].Name < books[j].Name
 	})
@@ -1595,28 +1597,24 @@ func queryAllBookCats(allPrayers map[string][]Prayer) (
 	langBooks = map[string][]BookRef{}
 
 	for lang, prayers := range allPrayers {
-		phelps := make([]string, 0, len(prayers))
-		for _, p := range prayers {
-			if p.Phelps != "" {
-				phelps = append(phelps, p.Phelps)
-			}
-		}
-		bc, bks := buildLangBookCats(pbIndex, phelps)
+		bc, bks := buildLangBookCats(pbIndex, prayers)
 		if len(bc) > 0 {
 			langBookCats[lang] = bc
 		}
 		// Always ensure the English prayerbook is available as an option,
-		// even if none of this language's prayers have an English category yet.
-		if enName, ok := bookNames["en"]; ok {
+		// even if none of this language's prayers have an English entry yet —
+		// it's the universal cross-reference book.
+		if enName, ok := bookNames["en:bp"]; ok {
 			hasEn := false
 			for _, b := range bks {
-				if b.Code == "en" {
+				if b.Code == "en:bp" {
 					hasEn = true
 					break
 				}
 			}
 			if !hasEn {
-				bks = append([]BookRef{{Code: "en", Name: enName}}, bks...)
+				bks = append(bks, BookRef{Code: "en:bp", Name: enName})
+				sort.Slice(bks, func(i, j int) bool { return bks[i].Name < bks[j].Name })
 			}
 		}
 		if len(bks) > 0 {
