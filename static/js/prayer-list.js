@@ -167,7 +167,11 @@
     html += '<span class="prayer-phelps">';
     var href = '/phelps/' + parts.base + '/' + (parts.suffix ? '#' + parts.suffix : '');
     html += '<a href="' + escapeAttr(href) + '" title="All translations">' + escapeHtml(pin) + '</a>';
-    html += ' <a href="/inventory/?pin=' + escapeAttr(pin.toUpperCase()) + '" title="Inventory entry" style="opacity:.6; font-size:.8em; margin-left:.3em">↗</a>';
+    // Link to /phelps/?pin=<base> directly (the legacy /inventory/?pin= path
+    // is a meta-refresh redirect that doesn't carry the query through). Use
+    // the base PIN (no suffix) so the inventory search-as-you-type pre-fills
+    // with the prayer's family rather than one specific sub-code.
+    html += ' <a href="/phelps/?pin=' + escapeAttr(parts.base.toUpperCase()) + '" title="Inventory entry" style="opacity:.6; font-size:.8em; margin-left:.3em">↗</a>';
     html += ' <span class="prayer-lang-badge" title="' + escapeAttr(t('prayer_lang_current_title', 'Currently shown in this language')) + '">' + escapeHtml(displayLang) + '</span>';
     if (hasTranslations) {
       html += ' <button class="prayer-revert-btn" type="button" title="' + escapeAttr(t('prayer_lang_revert_title', "Show again in the page's language")) + '" hidden>↶ ' + escapeHtml(t('prayer_lang_revert', 'revert')) + '</button>';

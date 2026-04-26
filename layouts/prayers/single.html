@@ -27,8 +27,13 @@
         <option value="{{ .code }}"{{ if eq .code $defaultBook }} selected{{ end }}>{{ .name }}</option>
         {{ end }}
       </select>
+      {{/* Initial summary label resolves the defaultBook code to its
+           human-readable name from the per-page prayerbooks list. JS will
+           keep this label in sync as the user re-picks. */}}
+      {{ $defaultBookName := $defaultBook }}
+      {{ range $prayerbooks }}{{ if eq .code $defaultBook }}{{ $defaultBookName = .name }}{{ end }}{{ end }}
       <details class="picker-dropdown" id="book-picker">
-        <summary class="picker-summary"><span class="picker-summary-label">{{ $defaultBook }}</span> <span class="picker-caret">▾</span></summary>
+        <summary class="picker-summary"><span class="picker-summary-label">{{ $defaultBookName }}</span> <span class="picker-caret">▾</span></summary>
         <div class="picker-panel">
           <input type="search" class="picker-filter" placeholder="Filter…" data-i18n-placeholder="filter_languages" autocomplete="off">
           <div class="picker-list">
@@ -251,6 +256,15 @@
     // Prayerbook picker: pick changes the underlying <select>'s value and
     // dispatches 'change' so the renderer's existing listener picks it up.
     var bookSel = document.getElementById('book-select');
+    // Read the human-readable name for each book code from the underlying
+    // <select>'s option text — Hugo already populated those with .name.
+    var bookNameByCode = {};
+    if (bookSel) {
+      Array.from(bookSel.options).forEach(function (o) {
+        // Strip the runtime "(N/total)" coverage suffix the renderer appends.
+        bookNameByCode[o.value] = o.textContent.replace(/\s*\(\d+\/\d+\)\s*$/, '');
+      });
+    }
     var bookPicker = wirePicker('book-picker', {
       onPick: function (code) {
         if (!bookSel) return;
@@ -258,12 +272,13 @@
         bookSel.dispatchEvent(new Event('change', { bubbles: true }));
         var p = document.getElementById('book-picker');
         var lbl = p && p.querySelector('.picker-summary-label');
-        if (lbl) lbl.textContent = code;
+        if (lbl) lbl.textContent = bookNameByCode[code] || code;
       },
     });
     // Reflect initial book selection on the summary label.
     if (bookSel && bookPicker && bookPicker.summary) {
-      bookPicker.summary.textContent = bookSel.value || defaultBook;
+      var initial = bookSel.value || defaultBook;
+      bookPicker.summary.textContent = bookNameByCode[initial] || initial;
     }
 
     // Switch-to picker: items already have href="/prayers/<safe>/" so the
