@@ -157,6 +157,10 @@
   })();
   </script>
   <script src="/js/prayer-list.js" defer></script>
+  <!-- Sync (no defer): inline scripts in body templates (e.g. /p/) call
+       window.base36ToUuid during document parse, before deferred scripts
+       run. This must be available when those inline scripts execute. -->
+  <script src="/js/uuid-base36.js"></script>
 </head>
 <body>
 <header class="site-header">
