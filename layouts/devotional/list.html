@@ -382,6 +382,8 @@
 .dev-item-vlock:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
 .dev-item-vlock:disabled { opacity: .35; cursor: not-allowed; }
 .dev-item-vlock.locked { background: #d4762e; color: #fff; border-color: #d4762e; }
+.dev-item-vlock.broken { background: #b94a48; color: #fff; border-color: #b94a48; animation: pulse-warn 2s ease-in-out infinite; }
+@keyframes pulse-warn { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
 .dev-item-permalink {
   display: inline-block;
   text-decoration: none;
@@ -1453,12 +1455,14 @@
     const items = [];
     for (const entry of codes) {
       // Version-locked items resolve to their pinned UUID first; if that
-      // fails (deleted/corrupt), fall back to normal resolution.
+      // fails (deleted/corrupt), fall back to normal resolution and mark
+      // the item as having a broken pin so we can warn the user.
       let resolved = entry.v ? await resolveVersionLocked(entry) : null;
+      const vBroken = entry.v && !resolved; // pin was set but didn't resolve
       let useLang = entry.lang || lang;
       if (resolved && resolved._verLang) useLang = resolved._verLang;
       if (!resolved) resolved = await resolveCode(entry.code, useLang);
-      const item = { code: entry.code, lang: entry.lang, v: entry.v, useLang, resolved };
+      const item = { code: entry.code, lang: entry.lang, v: entry.v, useLang, resolved, vBroken };
       // Pre-fetch comparison languages (resolveCode handles -translit internally)
       // Comparison ignores v-lock — it always shows latest in each compare lang.
       if (compareLangs.length > 0) {
@@ -1496,9 +1500,11 @@
       const lockTitle = item.lang ? 'Locked to ' + item.lang + ' (click to unlock)' : 'Using global language (click to lock to ' + lang + ')';
       // Version-lock button: only meaningful for prayers (not bible/quran/writings)
       const isPrayerType = r && r.type === 'prayer';
-      const vLockLabel = item.v ? '\u{1F4CC}' : 'v';
+      const vLockLabel = item.v ? (item.vBroken ? '⚠️' : '\u{1F4CC}') : 'v';
       const vLockTitle = item.v
-        ? 'Pinned to specific translation (click to unpin)'
+        ? (item.vBroken
+            ? 'Pinned version no longer resolvable — showing latest. Click to unpin and restore normal behaviour.'
+            : 'Pinned to specific translation (click to unpin)')
         : (isPrayerType && r && r.version
             ? 'Pin this exact translation (current version)'
             : 'No specific version to pin');
@@ -1539,7 +1545,7 @@
           <span class="dev-item-meta">${meta}</span>
           <button class="btn-expand dev-item-expand" title="Full screen">&#x26F6;</button>
           <button class="dev-item-lock${item.lang ? ' locked' : ''}" title="${lockTitle}">${lockLabel}</button>
-          ${(isPrayerType || item.v) ? `<button class="dev-item-vlock${item.v ? ' locked' : ''}"${(!item.v && (!r || !r.version)) ? ' disabled' : ''} title="${vLockTitle}">${vLockLabel}</button>` : ''}
+          ${(isPrayerType || item.v) ? `<button class="dev-item-vlock${item.v ? (item.vBroken ? ' locked broken' : ' locked') : ''}"${(!item.v && (!r || !r.version)) ? ' disabled' : ''} title="${vLockTitle}">${vLockLabel}</button>` : ''}
           ${permalinkHtml}
           ${!isShared ? '<button class="dev-item-remove" title="Remove">&times;</button>' : ''}
         </div>
