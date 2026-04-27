@@ -362,15 +362,32 @@ func phaseMatch() {
 
 	// Fetch all (phelps, text) for this language from the writings table.
 	// Build several fast lookup indexes for scoring.
+	// Lang aliasing: bpapp uses single "zh" for Chinese; our writings table
+	// keeps zh-Hans and zh-Hant separate. Match against both for a zh scrape.
+	langClause := fmt.Sprintf("language = '%s'", sqlEsc(*flagLang))
+	switch *flagLang {
+	case "zh":
+		langClause = "language IN ('zh', 'zh-Hans', 'zh-Hant')"
+	}
+	// REPLACE newlines so the CSV stays one row per record (dolt's CSV
+	// output otherwise escapes correctly but our minimal splitCSV does not
+	// handle embedded newlines; safer to flatten on the SQL side).
 	rows := runDolt(fmt.Sprintf(
-		`SELECT phelps, source_id, source, SUBSTRING(text, 1, 800) FROM writings `+
-			`WHERE language='%s' AND phelps IS NOT NULL AND phelps NOT LIKE 'TMP%%'`,
-		sqlEsc(*flagLang)))
+		`SELECT phelps, source_id, source, REPLACE(REPLACE(SUBSTRING(text, 1, 1500), CHAR(10), ' '), CHAR(13), ' ') FROM writings `+
+			`WHERE %s AND phelps IS NOT NULL AND phelps NOT LIKE 'TMP%%'`,
+		langClause))
 
+	// Phelps codes look like one of: BB####, BH####, AB####, BHU####, ABU####,
+	// XAB####, TMP####, optionally with a 3-letter suffix. Reject anything
+	// else — defensive against CSV-parser drift.
+	rePhelpsLike := regexp.MustCompile(`^[A-Z][A-Z0-9]{1,9}([A-Z]{3})?$`)
 	var corpus []writingRow
-	bpappBySID := map[string]string{} // bpapp source_id → phelps
+	bpappBySID := map[string]string{}
 	for _, r := range rows {
 		if len(r) < 4 {
+			continue
+		}
+		if !rePhelpsLike.MatchString(r[0]) {
 			continue
 		}
 		nt := normalizeText(r[3])
@@ -467,13 +484,57 @@ func phaseMatch() {
 // normalizeText: lowercases, strips diacritics (lite), removes markdown
 // headings and HTML, collapses whitespace, drops punctuation. Used to
 // produce a stable form for both bpapp text and writings text comparison.
+//
+// For Arabic/Persian/Urdu scripts, also strips harakat (vowel marks) and
+// related combining marks since the same prayer is often written with or
+// without them depending on the source.
 func normalizeText(s string) string {
 	s = regexp.MustCompile(`(?m)^#+\s.*$`).ReplaceAllString(s, "")
 	s = reTagStrip.ReplaceAllString(s, " ")
+	s = stripArabicDiacritics(s)
 	s = strings.ToLower(s)
 	s = regexp.MustCompile(`[^\p{L}\p{N}\s]`).ReplaceAllString(s, " ")
 	s = reWS.ReplaceAllString(s, " ")
 	return strings.TrimSpace(s)
+}
+
+// stripArabicDiacritics removes harakat, tatweel, and related Arabic
+// combining marks, then folds common letter variants to their base form
+// (e.g. ا ٱ أ إ آ → ا) so the same prayer matches across sources that
+// disagree on vocalization or spelling conventions.
+func stripArabicDiacritics(s string) string {
+	var b strings.Builder
+	b.Grow(len(s))
+	for _, r := range s {
+		switch {
+		// Harakat + tatweel + Quranic marks
+		case r >= 0x064B && r <= 0x065F: // fatha, damma, kasra, sukun, shadda, …
+			continue
+		case r == 0x0640: // tatweel ـ
+			continue
+		case r == 0x0670: // alef khanjariyya (superscript alef)
+			continue
+		case r >= 0x06D6 && r <= 0x06ED: // Quranic / Persian marks
+			continue
+		case r == 0x06DF || r == 0x06E0 || r == 0x06E1: // small high marks
+			continue
+		}
+		// Letter folding: variants → canonical
+		switch r {
+		case 0x0671, 0x0623, 0x0625, 0x0622: // ٱ أ إ آ → ا
+			r = 0x0627
+		case 0x0629: // ة → ه (taa marbuta → haa)
+			r = 0x0647
+		case 0x0649: // ى → ي (alef maqsura → yaa)
+			r = 0x064A
+		case 0x06CC: // Persian yaa → Arabic yaa
+			r = 0x064A
+		case 0x06A9: // Persian kaaf → Arabic kaaf
+			r = 0x0643
+		}
+		b.WriteRune(r)
+	}
+	return b.String()
 }
 
 func makeNgrams(s string, n int) map[string]bool {
@@ -509,18 +570,38 @@ func jaccard(a, b map[string]bool) float64 {
 }
 
 func bestMatches(needle string, ngs map[string]bool, corpus []writingRow) (top, runner *Candidate) {
+	// Build several anchor probes from the needle. The bpapp text often
+	// starts with a title preamble that writings doesn't have (or vice
+	// versa), so a single head probe misses common prayers. Sliding 60-char
+	// windows every 80 chars catches matches anywhere in the body.
+	probes := []string{}
+	for off := 0; off < len(needle); off += 80 {
+		end := off + 60
+		if end > len(needle) {
+			end = len(needle)
+		}
+		if end-off < 40 {
+			break
+		}
+		probes = append(probes, needle[off:end])
+		if len(probes) >= 6 {
+			break
+		}
+	}
 	scored := make([]Candidate, 0, len(corpus))
 	for _, w := range corpus {
-		// Cheap pre-check: substring presence of first ~30 chars of needle.
-		probe := needle
-		if len(probe) > 30 {
-			probe = probe[:30]
+		hit := false
+		for _, pr := range probes {
+			if strings.Contains(w.normText, pr) {
+				scored = append(scored, Candidate{Phelps: w.phelps, Score: 0.95, Reason: "substring"})
+				hit = true
+				break
+			}
 		}
-		if probe != "" && strings.Contains(w.normText, probe) {
-			scored = append(scored, Candidate{Phelps: w.phelps, Score: 0.95, Reason: "substring head"})
+		if hit {
 			continue
 		}
-		// Otherwise jaccard over 4-grams.
+		// Fall back to jaccard over 4-grams.
 		j := jaccard(ngs, w.ngrams)
 		if j >= 0.3 {
 			scored = append(scored, Candidate{Phelps: w.phelps, Score: j, Reason: fmt.Sprintf("jaccard4=%.2f", j)})
