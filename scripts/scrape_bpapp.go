@@ -588,20 +588,33 @@ func bestMatches(needle string, ngs map[string]bool, corpus []writingRow) (top, 
 			break
 		}
 	}
+	// Per-candidate score, with a small offset bonus: a substring that
+	// starts at the BEGINNING of the writings text is much more likely to
+	// be the real prayer than one quoted somewhere in the body.
 	scored := make([]Candidate, 0, len(corpus))
 	for _, w := range corpus {
-		hit := false
+		bestOff := -1
 		for _, pr := range probes {
-			if strings.Contains(w.normText, pr) {
-				scored = append(scored, Candidate{Phelps: w.phelps, Score: 0.95, Reason: "substring"})
-				hit = true
-				break
+			if i := strings.Index(w.normText, pr); i >= 0 {
+				if bestOff < 0 || i < bestOff {
+					bestOff = i
+				}
 			}
 		}
-		if hit {
+		if bestOff >= 0 {
+			// 0.95 baseline; subtract up to 0.20 as the offset grows past
+			// the first 200 chars (so head matches stay > body matches).
+			score := 0.95
+			if bestOff > 200 {
+				penalty := float64(bestOff-200) / 5000.0
+				if penalty > 0.20 {
+					penalty = 0.20
+				}
+				score -= penalty
+			}
+			scored = append(scored, Candidate{Phelps: w.phelps, Score: score, Reason: fmt.Sprintf("substring@%d", bestOff)})
 			continue
 		}
-		// Fall back to jaccard over 4-grams.
 		j := jaccard(ngs, w.ngrams)
 		if j >= 0.3 {
 			scored = append(scored, Candidate{Phelps: w.phelps, Score: j, Reason: fmt.Sprintf("jaccard4=%.2f", j)})
@@ -627,12 +640,6 @@ func bestMatches(needle string, ngs map[string]bool, corpus []writingRow) (top, 
 	top = &dedup[0]
 	if len(dedup) > 1 {
 		runner = &dedup[1]
-	}
-	// If the second-best is very close, it's ambiguous — penalize the top
-	// so the caller may push to manual review.
-	if runner != nil && top.Score-runner.Score < 0.05 {
-		top.Score *= 0.7
-		top.Reason = "ambiguous (" + top.Reason + ")"
 	}
 	return top, runner
 }
