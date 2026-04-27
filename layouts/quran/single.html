@@ -26,6 +26,8 @@
   <main class="main-content">
     <h1>Qur'an <span style="color:var(--text-secondary); font-size:.85rem;">— {{ $langName }}</span></h1>
 
+    {{ partial "bahai-crossrefs.html" (dict "work" "quran") }}
+
     {{/* ── Mobile surah selector ── */}}
     <div class="quran-mobile-nav" id="mobile-surah-nav">
       <select id="surah-select-mobile">

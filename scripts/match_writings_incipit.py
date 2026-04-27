@@ -32,6 +32,7 @@ STOPWORDS = {
     "ru": {"о", "и", "в", "на", "с", "по", "от", "к", "это", "я", "мы", "ты", "твой", "твоя", "мой", "моя", "что", "который"},
     "ar": {"و", "في", "من", "على", "إلى", "هو", "أنت", "أنا", "نحن", "يا", "ال"},
     "fa": {"و", "در", "از", "به", "که", "این", "آن", "تو", "من", "ما", "ای"},
+    "sv": {"o", "och", "i", "av", "att", "den", "det", "de", "en", "ett", "är", "som", "för", "på", "till", "med", "han", "hon", "vi", "jag", "du", "din", "ditt", "dina", "min", "mitt", "mina", "har", "han", "vid", "om", "från", "ej", "icke"},
     "ja": set(),  # CJK has no word boundaries; matcher will fall back to whole-text LIKE
     "zh-Hans": set(),
     "zh-Hant": set(),

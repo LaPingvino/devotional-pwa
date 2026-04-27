@@ -24,6 +24,8 @@
   <main class="main-content">
     <h1>{{ $book.conventional }} <span style="color:var(--text-secondary);font-size:.85rem;">— {{ $book.hebrew }}</span></h1>
 
+    {{ partial "bahai-crossrefs.html" (dict "work" "bible" "book" $book.id) }}
+
     <div class="bible-controls">
       {{/* Source language selector (NT only — OT always shows Hebrew) */}}
       {{ if $isNT }}
