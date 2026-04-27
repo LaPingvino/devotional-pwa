@@ -1,0 +1,42 @@
+{
+  "tag": "APAB",
+  "out_suffix": "apab",
+  "category_re": "Additional Prayers Revealed by\\s*['‘’]?Abdu",
+  "inventory": [
+    ["01", "AB04475", true],
+    ["02", "AB11064", false],
+    ["03", "AB07346", true],
+    ["04", "AB07303", false],
+    ["05", "AB11249", true],
+    ["06", "AB10976", true],
+    ["07", "AB09137", false],
+    ["08", "AB04105", false],
+    ["09", "AB10053", true],
+    ["10", "AB01097", true],
+    ["11", "AB05367", false],
+    ["12", "AB00495", true],
+    ["13", "AB09611", true],
+    ["14", "AB10342", true],
+    ["15", "AB09479", true],
+    ["16", "AB08487", false],
+    ["17", "AB06000", false],
+    ["18", "AB04947", false],
+    ["19", "AB06891", true],
+    ["20", "AB09762", false],
+    ["21", "AB12001", false],
+    ["22", "AB07155", true],
+    ["23", "AB00559", false],
+    ["24", "AB10342", false]
+  ],
+  "excerpt_incipits": {
+    "en": {
+      "03": ["POO", "he is god o thou kind lord we are poor children needy and insignificant"],
+      "06": ["TRE", "o thou kind lord grant that these trees may become the adornment"],
+      "13": ["FRU", "o my god o my god verily this plant hath yielded its fruit"],
+      "15": ["BEL", "o thou beloved of my heart and soul i have no refuge save thee"]
+    }
+  },
+  "skip": {
+    "en": []
+  }
+}

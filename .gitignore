@@ -61,3 +61,6 @@ pids/
 tmp/
 temp/.claude/
 bpapp_cache/
+bpapp_*.sql
+bpapp_*_review.tsv
+bpapp_*_haiku_input.jsonl

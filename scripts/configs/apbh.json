@@ -1,0 +1,43 @@
+{
+  "tag": "APBH",
+  "out_suffix": "apbh",
+  "category_re": "Additional Prayers Revealed by Bah",
+  "inventory": [
+    ["01", "BH00064", true],
+    ["02", "BH10742", false],
+    ["04", "BH10506", false],
+    ["05", "BH01873", true],
+    ["06", "BH01873", true],
+    ["07", "BH11086", false],
+    ["08", "BH10588", false],
+    ["09", "BH10149", false],
+    ["10", "BH01393", true],
+    ["11", "BH03315", false],
+    ["12", "BH00248", true],
+    ["13", "BH10328", false],
+    ["14", "BH03386", true],
+    ["15", "BH02274", true],
+    ["16", "BH10889", false],
+    ["17", "BH02153", true],
+    ["18", "BH02467", false],
+    ["20", "BH10507", false],
+    ["21", "BH11641", false],
+    ["22", "BH02112", true],
+    ["23", "BH00483", true],
+    ["24", "BB00633", false]
+  ],
+  "excerpt_incipits": {
+    "en": {
+      "01": ["PUR", "i swear by thy glory o my god i am astonished"],
+      "05": ["SON", "he is god exalted is he the lord of wisdom and utterance"],
+      "14": ["TEA", "praise be to thee o my god that thou didst graciously remember me through thy most exalted pen"],
+      "15": ["PRA", "o god my god i yield thee thanks for having guided me unto thy straight path"],
+      "16": ["",    "although this wretched state in which i am"],
+      "17": ["MOU", "o my lord my master and the goal of my desire i have heard that thou hast declared this to be a day"],
+      "23": ["SAN", "o thou by whose name the sea of joy moveth"]
+    }
+  },
+  "skip": {
+    "en": ["06"]
+  }
+}
