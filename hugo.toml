@@ -6,6 +6,10 @@ disableKinds = ["taxonomy", "term"]
 [markup.goldmark.renderer]
   unsafe = true
 
+[markup.goldmark.parser.attribute]
+  block = true
+  title = true
+
 [params]
   description = "Share prayers with people in their own language"
   rtlLanguages = ["ar", "fa", "ur", "he", "ug", "ar-translit", "fa-translit"]
