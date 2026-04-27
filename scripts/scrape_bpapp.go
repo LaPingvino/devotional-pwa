@@ -319,8 +319,19 @@ func extractPrayerBody(body []byte) string {
 	if len(m) < 2 {
 		return ""
 	}
-	// Convert <p>…</p> to paragraphs separated by \n\n; strip everything else
 	html := string(m[1])
+	// Strip the H1 title that bpapp repeats inside the prayer body — we
+	// already capture it via extractPageTitle and prepending it confuses
+	// substring matching against writings (which don't include the title).
+	html = regexp.MustCompile(`(?is)<h1[^>]*>.*?</h1>`).ReplaceAllString(html, "")
+	// Unwrap dropcap spans WITHOUT inserting whitespace — `<span class="dropcap">H</span>e`
+	// must become `He`, not ` H e`. Otherwise substring matching against
+	// writings ("He is the Healer…") fails on prayers with a styled first letter.
+	html = regexp.MustCompile(`(?is)<span\s+class="dropcap"[^>]*>(.*?)</span>`).ReplaceAllString(html, "$1")
+	// Drop the trailing author byline ("<p class=\"author\">Báb</p>") so it
+	// doesn't pollute the body text.
+	html = regexp.MustCompile(`(?is)<p\s+class="author"[^>]*>.*?</p>`).ReplaceAllString(html, "")
+	// Convert <p>…</p> to paragraphs separated by \n\n; strip everything else
 	html = regexp.MustCompile(`(?i)</p>\s*<p[^>]*>`).ReplaceAllString(html, "\n\n")
 	html = regexp.MustCompile(`(?i)<p[^>]*>`).ReplaceAllString(html, "")
 	html = regexp.MustCompile(`(?i)</p>`).ReplaceAllString(html, "")
@@ -416,7 +427,16 @@ func phaseMatch() {
 	defer tsvF.Close()
 
 	bookCode := *flagLang + ":bpapp"
-	bookName := "Bahá'í Prayers App (" + *flagLang + ")"
+	// Look up the language's display name from languages table so the book
+	// sorts alongside its sibling .net variant (e.g. "English (.app)" pairs
+	// with "English (.net)" alphabetically). Fall back to the lang code.
+	langDisplay := *flagLang
+	if rows := runDolt(fmt.Sprintf(
+		"SELECT name FROM languages WHERE langcode='%s' AND inlang='en' LIMIT 1",
+		sqlEsc(*flagLang))); len(rows) > 0 && len(rows[0]) > 0 {
+		langDisplay = rows[0][0]
+	}
+	bookName := langDisplay + " (.app)"
 	fmt.Fprintf(sqlF, "-- bahaiprayers.app PBS inserts for %s\n", bookCode)
 	fmt.Fprintf(sqlF, "-- Generated %s; min-score=%.2f\n--\n", time.Now().Format(time.RFC3339), *flagMinScore)
 	fmt.Fprintf(sqlF, "REPLACE INTO languages (langcode, inlang, name) VALUES ('%s', 'en', '%s');\nSET FOREIGN_KEY_CHECKS=0;\n\n", bookCode, sqlEsc(bookName))
