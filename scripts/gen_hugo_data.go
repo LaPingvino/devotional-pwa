@@ -742,6 +742,9 @@ func writePerBookJSON(staticDir, assetsDir string,
 		catOrd, ordInCat  int
 	}
 	bookEntries := map[string][]entry{}
+	// JOIN on phelps + language (derived from source_language prefix) instead of
+	// source_id+source. The old form excluded bpapp-only writings since those
+	// have source='bahaiprayers.app' and a different source_id space.
 	rows := doltQuery(`
 		SELECT pbs.source_language, w.language, pbs.phelps_code,
 		       COALESCE(pbs.category_name,''),
@@ -749,8 +752,8 @@ func writePerBookJSON(staticDir, assetsDir string,
 		       COALESCE(pbs.order_in_category,0)
 		FROM prayer_book_structure pbs
 		JOIN writings w
-		    ON w.source_id = pbs.source_id
-		   AND w.source = 'bahaiprayers.net'
+		    ON w.phelps = pbs.phelps_code
+		   AND w.language = SUBSTRING_INDEX(pbs.source_language, ':', 1)
 		WHERE pbs.phelps_code IS NOT NULL AND pbs.phelps_code <> ''
 	`)
 	for _, r := range rows[1:] {
