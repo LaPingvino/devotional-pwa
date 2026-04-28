@@ -745,8 +745,10 @@ func writePerBookJSON(staticDir, assetsDir string,
 	// JOIN on phelps + language (derived from source_language prefix) instead of
 	// source_id+source. The old form excluded bpapp-only writings since those
 	// have source='bahaiprayers.app' and a different source_id space.
+	// Use DISTINCT to dedupe when a phelps has multiple writings rows in the
+	// same language (e.g. bahaiprayers.net + bahaiprayers.app variants).
 	rows := doltQuery(`
-		SELECT pbs.source_language, w.language, pbs.phelps_code,
+		SELECT DISTINCT pbs.source_language, w.language, pbs.phelps_code,
 		       COALESCE(pbs.category_name,''),
 		       COALESCE(pbs.category_order,0),
 		       COALESCE(pbs.order_in_category,0)
