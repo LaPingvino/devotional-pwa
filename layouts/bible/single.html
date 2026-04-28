@@ -617,11 +617,8 @@
     var ch = parseInt(chSection.id.replace('ch', ''));
     var idx = await loadIdx();
     var byVerse = idx[bookId + '/' + ch];
-    console.log('[bahai-refs] chapter', ch, 'lookup', bookId + '/' + ch, '→', byVerse ? Object.keys(byVerse).length + ' verses' : 'NO MATCH');
     if (!byVerse) return;
-    var rows = chSection.querySelectorAll('tr');
-    var attached = 0;
-    rows.forEach(function(row) {
+    chSection.querySelectorAll('tr').forEach(function(row) {
       var numEl = row.querySelector('.il-num');
       if (!numEl) return;
       var num = parseInt(numEl.textContent);
@@ -660,9 +657,7 @@
       });
       markerTd.appendChild(span);
       row.appendChild(markerTd);
-      attached++;
     });
-    console.log('[bahai-refs] chapter', ch, 'attached', attached, 'markers');
   }
 
   function escapeHtml(s) {
