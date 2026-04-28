@@ -617,8 +617,11 @@
     var ch = parseInt(chSection.id.replace('ch', ''));
     var idx = await loadIdx();
     var byVerse = idx[bookId + '/' + ch];
+    console.log('[bahai-refs] chapter', ch, 'lookup', bookId + '/' + ch, '→', byVerse ? Object.keys(byVerse).length + ' verses' : 'NO MATCH');
     if (!byVerse) return;
-    chSection.querySelectorAll('tr').forEach(function(row) {
+    var rows = chSection.querySelectorAll('tr');
+    var attached = 0;
+    rows.forEach(function(row) {
       var numEl = row.querySelector('.il-num');
       if (!numEl) return;
       var num = parseInt(numEl.textContent);
@@ -628,15 +631,16 @@
       var browserN = Object.keys(vRefs.browser || {}).length;
       var totalN = lippittN + browserN;
       if (!totalN) return;
-      // Attach marker to the verse-number cell so it stays visible regardless
-      // of which translation columns are toggled on/off (each .il-* cell can
-      // be hidden via display:none when the user deselects a language).
-      var transTd = row.querySelector('.il-num');
-      if (!transTd) return;
+      // Attach marker as its own dedicated <td> at the end of the row.
+      // This avoids interaction with .il-num (white-space:nowrap;width:1%)
+      // and isn't hidden by any of the language-column display:none toggles.
+      var markerTd = document.createElement('td');
+      markerTd.className = 'bahai-ref-cell';
+      markerTd.style.cssText = 'padding:.2rem .4rem;vertical-align:middle;text-align:center;';
       var span = document.createElement('span');
       span.className = 'bahai-ref-marker';
-      span.style.cssText = 'display:inline-block;margin-left:.4rem;padding:.05rem .35rem;background:#fff5e6;border:1px solid #ff7954;border-radius:3px;font-size:.7rem;color:#8a3a00;cursor:pointer;vertical-align:middle;';
-      span.textContent = '☼ ' + totalN;
+      span.style.cssText = 'display:inline-block;padding:.1rem .45rem;background:#fff5e6;border:1px solid #ff7954;border-radius:3px;font-size:.75rem;color:#8a3a00;cursor:pointer;font-weight:600;';
+      span.textContent = '☼' + totalN;
       span.title = 'Baháʼí cross-references for this verse — click to expand';
       span.addEventListener('click', function(e) {
         e.preventDefault();
@@ -648,14 +652,17 @@
         var refRow = document.createElement('tr');
         refRow.className = 'bahai-refs-row';
         var refTd = document.createElement('td');
-        refTd.colSpan = row.children.length;
+        refTd.colSpan = row.children.length + 1;
         refTd.style.cssText = 'background:#fffbf3;padding:.6rem .8rem;border-top:1px dashed #ffb380;font-size:.85rem;';
         refTd.innerHTML = renderRefs(num, vRefs);
         refRow.appendChild(refTd);
         row.parentNode.insertBefore(refRow, row.nextSibling);
       });
-      transTd.appendChild(span);
+      markerTd.appendChild(span);
+      row.appendChild(markerTd);
+      attached++;
     });
+    console.log('[bahai-refs] chapter', ch, 'attached', attached, 'markers');
   }
 
   function escapeHtml(s) {
