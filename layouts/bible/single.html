@@ -628,7 +628,10 @@
       var browserN = Object.keys(vRefs.browser || {}).length;
       var totalN = lippittN + browserN;
       if (!totalN) return;
-      var transTd = row.querySelector('.il-en') || row.querySelector('.il-trans');
+      // Attach marker to the verse-number cell so it stays visible regardless
+      // of which translation columns are toggled on/off (each .il-* cell can
+      // be hidden via display:none when the user deselects a language).
+      var transTd = row.querySelector('.il-num');
       if (!transTd) return;
       var span = document.createElement('span');
       span.className = 'bahai-ref-marker';
