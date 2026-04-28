@@ -24,7 +24,8 @@
   <main class="main-content">
     <h1>{{ $book.conventional }} <span style="color:var(--text-secondary);font-size:.85rem;">— {{ $book.hebrew }}</span></h1>
 
-    {{ partial "bahai-crossrefs.html" (dict "work" "bible" "book" $book.id) }}
+{{/* Inline Bahá'í cross-references are now rendered per-verse via the
+     Lippitt-index JS at the bottom of this page (☼ markers next to verses). */}}
 
     <div class="bible-controls">
       {{/* Source language selector (NT only — OT always shows Hebrew) */}}
@@ -549,6 +550,85 @@
       showRangeBanner();
     }
   });
+})();
+</script>
+
+<script>
+// Lippitt Bible→Bahá'í cross-reference index (1955; ~2770 entries).
+// Loaded once per page; refs are injected inline next to verses they reference.
+(function() {
+  var bookId = {{ $book.id | jsonify }};
+  var lippittIdx = null;
+
+  async function loadIdx() {
+    if (lippittIdx !== null) return lippittIdx;
+    try {
+      var res = await fetch('/data/lippitt_bible.json');
+      lippittIdx = await res.json();
+    } catch (e) {
+      lippittIdx = {};
+    }
+    return lippittIdx;
+  }
+
+  async function annotateChapter(chSection) {
+    var ch = parseInt(chSection.id.replace('ch', ''));
+    var idx = await loadIdx();
+    var refs = idx[bookId + '/' + ch];
+    if (!refs || !refs.length) return;
+    // Group refs by starting verse for compact display
+    var byVerse = {};
+    refs.forEach(function(r) {
+      var v = r.v_start || 0;
+      if (!byVerse[v]) byVerse[v] = [];
+      byVerse[v].push(r);
+    });
+    chSection.querySelectorAll('tr').forEach(function(row) {
+      var numEl = row.querySelector('.il-num');
+      if (!numEl) return;
+      var num = parseInt(numEl.textContent);
+      var verseRefs = byVerse[num];
+      if (!verseRefs) return;
+      // Append a Bahá'í-ref badge column
+      var transTd = row.querySelector('.il-en') || row.querySelector('.il-trans');
+      if (!transTd) return;
+      var span = document.createElement('span');
+      span.className = 'bahai-ref-marker';
+      span.style.cssText = 'display:inline-block;margin-left:.4rem;padding:.05rem .35rem;background:#fff5e6;border:1px solid #ff7954;border-radius:3px;font-size:.7rem;color:#8a3a00;cursor:pointer;vertical-align:middle;';
+      span.textContent = '☼ ' + verseRefs.length;
+      span.title = 'Baháʼí references (Lippitt 1955) — click to expand';
+      span.addEventListener('click', function(e) {
+        e.preventDefault();
+        var existing = row.nextElementSibling;
+        if (existing && existing.classList.contains('bahai-refs-row')) {
+          existing.remove();
+          return;
+        }
+        var refRow = document.createElement('tr');
+        refRow.className = 'bahai-refs-row';
+        var refTd = document.createElement('td');
+        refTd.colSpan = row.children.length;
+        refTd.style.cssText = 'background:#fffbf3;padding:.6rem .8rem;border-top:1px dashed #ffb380;font-size:.85rem;';
+        var html = '<div style="color:var(--text-secondary);font-size:.75rem;margin-bottom:.3rem;">Baháʼí cross-references for verse ' + num + ' (Lippitt index, 1955):</div>';
+        verseRefs.forEach(function(r) {
+          html += '<div style="margin:.4rem 0;padding-left:.6rem;border-left:2px solid #ff7954;">';
+          html += '<strong>' + escapeHtml(r.ref) + '</strong>';
+          if (r.note) html += '<div style="margin-top:.2rem;color:var(--text);">' + escapeHtml(r.note) + '</div>';
+          html += '</div>';
+        });
+        refTd.innerHTML = html;
+        refRow.appendChild(refTd);
+        row.parentNode.insertBefore(refRow, row.nextSibling);
+      });
+      transTd.appendChild(span);
+    });
+  }
+
+  function escapeHtml(s) {
+    return (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  document.querySelectorAll('.bible-chapter').forEach(annotateChapter);
 })();
 </script>
 {{ partial "foot.html" . }}
