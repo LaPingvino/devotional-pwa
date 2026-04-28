@@ -554,49 +554,89 @@
 </script>
 
 <script>
-// Lippitt Bible→Bahá'í cross-reference index (1955; ~2770 entries).
-// Loaded once per page; refs are injected inline next to verses they reference.
+// Combined Bible→Baháʼí cross-reference index. Sources merged per verse:
+//   • Lippitt index (1955) — author/page citations + a one-line Bahá'í note
+//   • bahai-browser.org dataset — Central Figures, Special Refs, Pilgrim's
+//     Notes, Cross-Bible, Bahá'í Scholars, Qur'án refs (categorized)
+// Loaded once per page; markers shown inline next to each annotated verse.
 (function() {
   var bookId = {{ $book.id | jsonify }};
-  var lippittIdx = null;
+  var refsIdx = null;
 
   async function loadIdx() {
-    if (lippittIdx !== null) return lippittIdx;
+    if (refsIdx !== null) return refsIdx;
     try {
-      var res = await fetch('/data/lippitt_bible.json');
-      lippittIdx = await res.json();
+      var res = await fetch('/data/bible_bahai_refs.json');
+      refsIdx = await res.json();
     } catch (e) {
-      lippittIdx = {};
+      refsIdx = {};
     }
-    return lippittIdx;
+    return refsIdx;
+  }
+
+  var BROWSER_LABELS = {
+    central_figures: 'Central Figures',
+    special:         'Special',
+    pilgrims:        "Pilgrim’s Notes",
+    cross_bible:     'Cross-Bible',
+    scholars:        'Bahá’í Scholars',
+    quranic:         'Qur’án'
+  };
+
+  function renderRefs(num, vRefs) {
+    var html = '<div style="color:var(--text-secondary);font-size:.75rem;margin-bottom:.4rem;">' +
+               'Baháʼí cross-references for verse ' + num + '</div>';
+    if (vRefs.lippitt && vRefs.lippitt.length) {
+      html += '<div style="margin-bottom:.5rem;"><div style="font-size:.7rem;text-transform:uppercase;color:#8a3a00;letter-spacing:.5px;margin-bottom:.2rem;">Lippitt index (1955)</div>';
+      vRefs.lippitt.forEach(function(r) {
+        html += '<div style="margin:.3rem 0;padding-left:.6rem;border-left:2px solid #ff7954;">';
+        html += '<strong>' + escapeHtml(r.ref) + '</strong>';
+        if (r.note) html += '<div style="margin-top:.15rem;color:var(--text);">' + escapeHtml(r.note) + '</div>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+    if (vRefs.browser && Object.keys(vRefs.browser).length) {
+      html += '<div><div style="font-size:.7rem;text-transform:uppercase;color:#005f8a;letter-spacing:.5px;margin-bottom:.2rem;">bahai-browser.org</div>';
+      Object.keys(vRefs.browser).forEach(function(tag) {
+        var raw = vRefs.browser[tag];
+        // Convert <a href="..."> tags to clickable links; preserve newlines as <br>
+        var safe = raw.replace(/[<>]/g, function(c) { return c === '<' ? '&lt;' : '&gt;'; })
+                      .replace(/\n/g, '<br>');
+        // Re-allow links by detecting URLs
+        safe = safe.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:#005f8a;">$1</a>');
+        html += '<div style="margin:.3rem 0;padding-left:.6rem;border-left:2px solid #5b9fc7;">';
+        html += '<div style="font-size:.7rem;color:var(--text-secondary);">' + (BROWSER_LABELS[tag] || tag) + '</div>';
+        html += '<div>' + safe + '</div>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+    return html;
   }
 
   async function annotateChapter(chSection) {
     var ch = parseInt(chSection.id.replace('ch', ''));
     var idx = await loadIdx();
-    var refs = idx[bookId + '/' + ch];
-    if (!refs || !refs.length) return;
-    // Group refs by starting verse for compact display
-    var byVerse = {};
-    refs.forEach(function(r) {
-      var v = r.v_start || 0;
-      if (!byVerse[v]) byVerse[v] = [];
-      byVerse[v].push(r);
-    });
+    var byVerse = idx[bookId + '/' + ch];
+    if (!byVerse) return;
     chSection.querySelectorAll('tr').forEach(function(row) {
       var numEl = row.querySelector('.il-num');
       if (!numEl) return;
       var num = parseInt(numEl.textContent);
-      var verseRefs = byVerse[num];
-      if (!verseRefs) return;
-      // Append a Bahá'í-ref badge column
+      var vRefs = byVerse[String(num)];
+      if (!vRefs) return;
+      var lippittN = (vRefs.lippitt || []).length;
+      var browserN = Object.keys(vRefs.browser || {}).length;
+      var totalN = lippittN + browserN;
+      if (!totalN) return;
       var transTd = row.querySelector('.il-en') || row.querySelector('.il-trans');
       if (!transTd) return;
       var span = document.createElement('span');
       span.className = 'bahai-ref-marker';
       span.style.cssText = 'display:inline-block;margin-left:.4rem;padding:.05rem .35rem;background:#fff5e6;border:1px solid #ff7954;border-radius:3px;font-size:.7rem;color:#8a3a00;cursor:pointer;vertical-align:middle;';
-      span.textContent = '☼ ' + verseRefs.length;
-      span.title = 'Baháʼí references (Lippitt 1955) — click to expand';
+      span.textContent = '☼ ' + totalN;
+      span.title = 'Baháʼí cross-references for this verse — click to expand';
       span.addEventListener('click', function(e) {
         e.preventDefault();
         var existing = row.nextElementSibling;
@@ -609,14 +649,7 @@
         var refTd = document.createElement('td');
         refTd.colSpan = row.children.length;
         refTd.style.cssText = 'background:#fffbf3;padding:.6rem .8rem;border-top:1px dashed #ffb380;font-size:.85rem;';
-        var html = '<div style="color:var(--text-secondary);font-size:.75rem;margin-bottom:.3rem;">Baháʼí cross-references for verse ' + num + ' (Lippitt index, 1955):</div>';
-        verseRefs.forEach(function(r) {
-          html += '<div style="margin:.4rem 0;padding-left:.6rem;border-left:2px solid #ff7954;">';
-          html += '<strong>' + escapeHtml(r.ref) + '</strong>';
-          if (r.note) html += '<div style="margin-top:.2rem;color:var(--text);">' + escapeHtml(r.note) + '</div>';
-          html += '</div>';
-        });
-        refTd.innerHTML = html;
+        refTd.innerHTML = renderRefs(num, vRefs);
         refRow.appendChild(refTd);
         row.parentNode.insertBefore(refRow, row.nextSibling);
       });

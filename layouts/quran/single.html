@@ -617,4 +617,82 @@
   showSurah(hashMatch ? hashMatch[1] : 1);
 })();
 </script>
+
+<script>
+// Inline Baháʼí cross-references for Qur'an verses, sourced from
+// bahai-browser.org's textbrowser dataset (Central Figures + Special Refs
+// per traditional surah:verse). Marker shows ☼ N next to verses with refs;
+// clicking expands an inline panel below the verse.
+(function() {
+  var refsIdx = null;
+
+  async function loadIdx() {
+    if (refsIdx !== null) return refsIdx;
+    try {
+      var res = await fetch('/data/quran_bahai_refs.json');
+      refsIdx = await res.json();
+    } catch (e) { refsIdx = {}; }
+    return refsIdx;
+  }
+
+  var LABELS = { central_figures: 'Central Figures', special: 'Special Refs' };
+
+  function renderRefs(num, vRefs) {
+    var html = '<div style="color:var(--text-secondary);font-size:.75rem;margin-bottom:.4rem;">' +
+               'Baháʼí cross-references for ayah ' + num + ' (bahai-browser.org)</div>';
+    Object.keys(vRefs.browser || {}).forEach(function(tag) {
+      var raw = vRefs.browser[tag];
+      var safe = raw.replace(/[<>]/g, function(c) { return c==='<'?'&lt;':'&gt;'; }).replace(/\n/g, '<br>');
+      safe = safe.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:#005f8a;">$1</a>');
+      html += '<div style="margin:.3rem 0;padding-left:.6rem;border-left:2px solid #5b9fc7;">';
+      html += '<div style="font-size:.7rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;">' + (LABELS[tag] || tag) + '</div>';
+      html += '<div>' + safe + '</div>';
+      html += '</div>';
+    });
+    return html;
+  }
+
+  async function annotateSurah(section) {
+    var surah = section.dataset.surah;
+    var idx = await loadIdx();
+    var byVerse = idx[surah];
+    if (!byVerse) return;
+    section.querySelectorAll('li.verse').forEach(function(li) {
+      var ayah = li.dataset.ayah;
+      var vRefs = byVerse[String(ayah)];
+      if (!vRefs) return;
+      var n = Object.keys(vRefs.browser || {}).length;
+      if (!n) return;
+      var span = document.createElement('span');
+      span.className = 'bahai-ref-marker';
+      span.style.cssText = 'display:inline-block;margin-left:.4rem;padding:.05rem .35rem;background:#fff5e6;border:1px solid #ff7954;border-radius:3px;font-size:.7rem;color:#8a3a00;cursor:pointer;vertical-align:middle;';
+      span.textContent = '☼ ' + n;
+      span.title = 'Baháʼí cross-references — click to expand';
+      span.addEventListener('click', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        var existing = li.nextElementSibling;
+        if (existing && existing.classList && existing.classList.contains('bahai-refs-row')) {
+          existing.remove();
+          return;
+        }
+        var panel = document.createElement('div');
+        panel.className = 'bahai-refs-row';
+        panel.style.cssText = 'background:#fffbf3;padding:.6rem .8rem;margin:.3rem 0;border:1px dashed #ffb380;border-radius:4px;font-size:.85rem;';
+        panel.innerHTML = renderRefs(ayah, vRefs);
+        li.insertAdjacentElement('afterend', panel);
+      });
+      li.appendChild(span);
+    });
+  }
+
+  // Annotate currently visible surah; re-annotate on showSurah switch.
+  function annotateAll() {
+    document.querySelectorAll('.surah-section').forEach(annotateSurah);
+  }
+  annotateAll();
+  // Hook into hash changes for newly-shown surahs (lazy)
+  window.addEventListener('hashchange', annotateAll);
+})();
+</script>
 {{ partial "foot.html" . }}
