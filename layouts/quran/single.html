@@ -641,12 +641,11 @@
     var html = '<div style="color:var(--text-secondary);font-size:.75rem;margin-bottom:.4rem;">' +
                'Baháʼí cross-references for ayah ' + num + ' (bahai-browser.org)</div>';
     Object.keys(vRefs.browser || {}).forEach(function(tag) {
-      var raw = vRefs.browser[tag];
-      var safe = raw.replace(/[<>]/g, function(c) { return c==='<'?'&lt;':'&gt;'; }).replace(/\n/g, '<br>');
-      safe = safe.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:#005f8a;">$1</a>');
+      // Trusted bahai-browser.org HTML — render directly; force external links to new tab.
+      var raw = vRefs.browser[tag].replace(/<a\s+href=/g, '<a target="_blank" rel="noopener" href=');
       html += '<div style="margin:.3rem 0;padding-left:.6rem;border-left:2px solid #5b9fc7;">';
       html += '<div style="font-size:.7rem;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.5px;">' + (LABELS[tag] || tag) + '</div>';
-      html += '<div>' + safe + '</div>';
+      html += '<div>' + raw + '</div>';
       html += '</div>';
     });
     return html;

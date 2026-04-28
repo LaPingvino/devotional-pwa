@@ -599,15 +599,13 @@
     if (vRefs.browser && Object.keys(vRefs.browser).length) {
       html += '<div><div style="font-size:.7rem;text-transform:uppercase;color:#005f8a;letter-spacing:.5px;margin-bottom:.2rem;">bahai-browser.org</div>';
       Object.keys(vRefs.browser).forEach(function(tag) {
-        var raw = vRefs.browser[tag];
-        // Convert <a href="..."> tags to clickable links; preserve newlines as <br>
-        var safe = raw.replace(/[<>]/g, function(c) { return c === '<' ? '&lt;' : '&gt;'; })
-                      .replace(/\n/g, '<br>');
-        // Re-allow links by detecting URLs
-        safe = safe.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1" target="_blank" rel="noopener" style="color:#005f8a;">$1</a>');
+        // Source is trusted bahai-browser.org HTML — render tags directly so
+        // <a href> links, <br>, <b>, <i> etc. work. Force external links to open
+        // in new tab.
+        var raw = vRefs.browser[tag].replace(/<a\s+href=/g, '<a target="_blank" rel="noopener" href=');
         html += '<div style="margin:.3rem 0;padding-left:.6rem;border-left:2px solid #5b9fc7;">';
         html += '<div style="font-size:.7rem;color:var(--text-secondary);">' + (BROWSER_LABELS[tag] || tag) + '</div>';
-        html += '<div>' + safe + '</div>';
+        html += '<div>' + raw + '</div>';
         html += '</div>';
       });
       html += '</div>';
