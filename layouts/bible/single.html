@@ -560,7 +560,7 @@
 //     Notes, Cross-Bible, Bahá'í Scholars, Qur'án refs (categorized)
 // Loaded once per page; markers shown inline next to each annotated verse.
 (function() {
-  var bookId = {{ $book.id | jsonify }};
+  var bookId = BOOK_ID; // declared earlier in page (line ~205)
   var refsIdx = null;
 
   async function loadIdx() {
