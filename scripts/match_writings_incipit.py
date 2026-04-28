@@ -128,7 +128,10 @@ def search_phelps_for_incipit(lang, incipit_words):
     if not words:
         return []
     clauses = " AND ".join(f"LOWER(text) LIKE '%{w}%'" for w in (w.replace("'", "''") for w in words))
-    sql = (f"SELECT phelps, source, source_id, LEFT(text, 200) AS head "
+    # Also fetch text length so callers can disambiguate parent (≈ incipit-text length)
+    # vs excerpt (much shorter). Length-based ranking prevents excerpts from
+    # silently matching their parent tablet's full code.
+    sql = (f"SELECT phelps, source, source_id, LEFT(text, 200) AS head, LENGTH(text) AS tlen "
            f"FROM writings WHERE {lang_clause(lang)} AND phelps IS NOT NULL "
            f"AND {clauses} LIMIT 12")
     return dolt_query(sql)
@@ -171,6 +174,7 @@ def main():
                 continue
             cache = cache_load(args.lang, r["bpapp_id"])
             text = (cache or {}).get("full_text") or r["start_text"]
+            bpapp_text_len = len(text or "")
             incipit = normalize_first_words(text, 10)
             n_searched += 1
             if args.lang in ("ja", "zh", "zh-Hans", "zh-Hant", "ko"):
@@ -206,6 +210,14 @@ def main():
                 # bonus: all words within first 250 chars
                 if hit == len(inc_words) and last < 250:
                     score += 0.3
+                # length disambiguation: same incipit can be parent OR excerpt.
+                # If candidate text length differs from bpapp text by >3x,
+                # they're probably parent vs excerpt — penalize.
+                tlen = c.get("tlen") or 0
+                if tlen and bpapp_text_len:
+                    ratio = max(tlen, bpapp_text_len) / max(min(tlen, bpapp_text_len), 1)
+                    if ratio > 3:
+                        score -= 0.25  # likely parent-vs-excerpt mismatch
                 ranked.append((score, c))
             ranked.sort(key=lambda x: -x[0])
             useful = [c for s, c in ranked if s >= 0.6]
