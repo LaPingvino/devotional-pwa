@@ -671,6 +671,7 @@ type BookPrayer struct {
 	LangName     string             `json:"lang_name,omitempty"`
 	Name         string             `json:"name,omitempty"`
 	Text         string             `json:"text"`
+	Source       string             `json:"source,omitempty"`     // which source the displayed text came from
 	Category     string             `json:"category,omitempty"`
 	CatOrder     int                `json:"cat_order,omitempty"`
 	OrderInCat   int                `json:"order_in_cat,omitempty"`
@@ -678,6 +679,7 @@ type BookPrayer struct {
 	VersionB36   string             `json:"v,omitempty"`
 	BookCats     map[string]BookCat `json:"book_cats,omitempty"`    // prayerbook code → category assignment
 	Translations []LangRef          `json:"translations,omitempty"` // other languages with this phelps code
+	AltSources   []PrayerSource     `json:"alt_sources,omitempty"`  // the other-source text variants for this prayer
 }
 
 // BookFile is the top-level structure written to /data/book/<safe>.json.
@@ -813,12 +815,41 @@ func writePerBookJSON(staticDir, assetsDir string,
 					bcats = bc
 				}
 			}
+			// Pick the text variant that matches THIS book's source convention:
+			//   :bpapp → prefer source='bahaiprayers.app'
+			//   :bpnet → prefer source='bahaiprayers.net' (the global default)
+			// If a matching alt exists, swap it into primary and demote the
+			// previous primary into alt_sources so the UI can offer switching.
+			text, version, versionB36, srcUsed := p.Text, p.Version, p.VersionB36, p.Source
+			alts := append([]PrayerSource(nil), p.AltSources...)
+			preferredSrc := ""
+			if strings.HasSuffix(b.Code, ":bpapp") {
+				preferredSrc = "bahaiprayers.app"
+			} else if strings.HasSuffix(b.Code, ":bpnet") {
+				preferredSrc = "bahaiprayers.net"
+			}
+			if preferredSrc != "" && srcUsed != preferredSrc {
+				for i, a := range alts {
+					if a.Source == preferredSrc {
+						// Promote alt → primary; push old primary into alts
+						newAlts := []PrayerSource{{
+							Source: srcUsed, Version: version, Text: text,
+						}}
+						newAlts = append(newAlts, alts[:i]...)
+						newAlts = append(newAlts, alts[i+1:]...)
+						text, version, srcUsed = a.Text, a.Version, a.Source
+						versionB36 = uuidToBase36(a.Version)
+						alts = newAlts
+						break
+					}
+				}
+			}
 			bp = append(bp, BookPrayer{
 				Phelps: e.phelps, Lang: e.lang, LangName: langName[e.lang],
-				Name: p.Name, Text: p.Text, Category: e.cat,
+				Name: p.Name, Text: text, Source: srcUsed, Category: e.cat,
 				CatOrder: e.catOrd, OrderInCat: e.ordInCat,
-				Version: p.Version, VersionB36: p.VersionB36,
-				BookCats: bcats, Translations: trans,
+				Version: version, VersionB36: versionB36,
+				BookCats: bcats, Translations: trans, AltSources: alts,
 			})
 			langCounts[e.lang]++
 			if e.cat != "" {
