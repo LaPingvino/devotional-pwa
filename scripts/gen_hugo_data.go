@@ -322,11 +322,15 @@ func main() {
 	inventory := queryInventory()
 	log.Printf("  %d inventory entries", len(inventory))
 
-	// Enrich inventory with translation counts and build lookup map
+	// Enrich inventory with translation counts and build lookup map.
+	// Translation count + lang chips on the inventory page come from
+	// inventory_fulltext (which languages actually have full text available),
+	// not from the writings/prayerbook table.
+	fulltextLangs := queryFullTextLanguages(langNames)
 	invMap := map[string]InventoryEntry{}
 	invBasePINMap := map[string][]string{} // basePin → sorted list of full inventory codes
 	for i, e := range inventory {
-		langs := phelpsLangs[e.PIN]
+		langs := fulltextLangs[e.PIN]
 		inventory[i].TranslationCount = len(langs)
 		if len(langs) > 0 {
 			inventory[i].Langs = langs
@@ -1839,6 +1843,35 @@ func queryFullText() map[string][]string {
 			parts[i] = c.text
 		}
 		out[pin] = parts
+	}
+	return out
+}
+
+// queryFullTextLanguages returns map of phelps → distinct languages present in
+// inventory_fulltext (regardless of part count). Used to populate the inventory
+// page's Translations column from fulltext availability rather than from the
+// writings table (which only covers prayerbook prayers, not full tablets).
+func queryFullTextLanguages(langNames map[string]string) map[string][]LangRef {
+	rows := doltQuery(`
+		SELECT DISTINCT phelps, language
+		FROM inventory_fulltext
+		WHERE phelps IS NOT NULL AND language IS NOT NULL
+	`)
+	out := map[string][]LangRef{}
+	seen := map[string]map[string]bool{}
+	for _, row := range rows[1:] {
+		if len(row) < 2 {
+			continue
+		}
+		ph, lang := row[0], row[1]
+		if seen[ph] == nil {
+			seen[ph] = map[string]bool{}
+		}
+		if seen[ph][lang] {
+			continue
+		}
+		seen[ph][lang] = true
+		out[ph] = append(out[ph], LangRef{Language: lang, LangName: langNames[lang]})
 	}
 	return out
 }

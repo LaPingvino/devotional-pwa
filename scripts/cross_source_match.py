@@ -117,7 +117,8 @@ def main():
     out = open(args.out, "w")
     out.write(f"-- cross-source phelps reconciliation for {args.lang}\n")
     out.write(f"-- bpapp prayers: {len(bpapp)}, bpnet prayers: {len(bpnet)}\n")
-    out.write(f"-- {len(matches)} candidate reconciliations (bpapp_phelps differs from matching bpnet text)\n\n")
+    out.write(f"-- {len(matches)} candidate reconciliations (bpapp_phelps differs from matching bpnet text)\n")
+    out.write("SET FOREIGN_KEY_CHECKS=0;\n\n")
 
     n_tmp_resolves = 0
     n_renames = 0
@@ -136,6 +137,7 @@ def main():
             out.write(f"-- (review needed; both look real — pick canonical or treat as cross-source variants)\n\n")
             n_renames += 1
     out.write(f"\n-- Summary: {n_tmp_resolves} auto TMP-resolves, {n_renames} differing-real-phelps for review\n")
+    out.write("SET FOREIGN_KEY_CHECKS=1;\n")
     out.close()
     print(f"[{args.lang}] {n_tmp_resolves} TMP-resolves, {n_renames} both-real disagreements")
 
