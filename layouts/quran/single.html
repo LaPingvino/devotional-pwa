@@ -638,11 +638,10 @@
   var LABELS = { central_figures: 'Central Figures', special: 'Special Refs' };
 
   function renderRefs(num, vRefs) {
+    var rod = vRefs.rodwell ? ' (Rodwell ' + vRefs.rodwell + ')' : '';
     var html = '<div style="color:var(--text-secondary);font-size:.75rem;margin-bottom:.4rem;">' +
-               'Baháʼí cross-references for <strong>Rodwell ayah ' + num + '</strong> ' +
-               '<span style="opacity:.7;">— most Bahá\'í citations use Rodwell\'s 1861 numbering, ' +
-               'which can differ by ±1–2 verses from the traditional Hafs/Cairo numbering shown above. ' +
-               'Source: bahai-browser.org</span></div>';
+               'Baháʼí cross-references for ayah ' + num + rod + ' — source: bahai-browser.org' +
+               '</div>';
     Object.keys(vRefs.browser || {}).forEach(function(tag) {
       // Trusted bahai-browser.org HTML — render directly; force external links to new tab.
       var raw = vRefs.browser[tag].replace(/<a\s+href=/g, '<a target="_blank" rel="noopener" href=');
@@ -669,7 +668,7 @@
       span.className = 'bahai-ref-marker';
       span.style.cssText = 'display:inline-block;margin-left:.4rem;padding:.05rem .35rem;background:#fff5e6;border:1px solid #ff7954;border-radius:3px;font-size:.7rem;color:#8a3a00;cursor:pointer;vertical-align:middle;';
       span.textContent = '☼ ' + n;
-      span.title = 'Baháʼí cross-references (Rodwell numbering — may correspond to a nearby ayah here) — click to expand';
+      span.title = 'Baháʼí cross-references — click to expand';
       span.addEventListener('click', function(e) {
         e.preventDefault();
         e.stopPropagation();
