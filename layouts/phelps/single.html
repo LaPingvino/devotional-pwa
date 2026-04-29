@@ -80,7 +80,7 @@
       <div style="font-size:.8rem; font-weight:600; color:var(--text-secondary); margin-bottom:.3rem;">Appears in:</div>
       <div style="display:flex; flex-wrap:wrap; gap:.4rem;">
         {{ range . }}
-        <a href="/writings/{{ .type }}/{{ .language | lower }}/#book-{{ $sc.code }}"
+        <a href="/writings/{{ .type }}/{{ .language | lower }}/#{{ $sc.code }}"
            style="font-size:.78rem; padding:.2rem .5rem; background:var(--bg); border:1px solid var(--border); border-radius:12px; text-decoration:none; color:var(--text);">
           {{ .type_name }} ({{ .lang_name }})
         </a>
