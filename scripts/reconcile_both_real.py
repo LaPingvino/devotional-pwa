@@ -45,6 +45,24 @@ def build_enbpnet_index():
     return {r["phelps_code"]: int(r.get("n", 0) or 0) for r in rows}
 
 
+def build_catchall_set():
+    """Return set of phelps codes that already appear in >2 distinct categories
+    across ALL languages — these are existing catch-all sub-codes that should
+    NOT be picked as winners (would amplify the conflation of distinct prayers).
+
+    Reason: high en-bpnet usage often signals a catch-all, not a canonical.
+    Past damage (Apr 2026): picking by usage merged 632 distinct prayers into
+    ~36 catch-all winners. See feedback_reconcile_both_real_overmerge memory.
+    """
+    rows = dolt_query(
+        "SELECT phelps_code, COUNT(DISTINCT category_name) AS n "
+        "FROM prayer_book_structure "
+        "WHERE phelps_code IS NOT NULL "
+        "GROUP BY phelps_code HAVING n > 2"
+    )
+    return {r["phelps_code"] for r in rows}
+
+
 def detect_pairs(lang):
     """Re-run cross-source detection. Returns list of (a_phelps, n_phelps,
     score, incipit) for matched same-prayer-different-code pairs."""
@@ -103,9 +121,21 @@ def detect_pairs(lang):
     return pairs
 
 
-def pick_winner(a, b, en_count):
+def pick_winner(a, b, en_count, catchalls):
     """Apply user's three-rule precedence. Returns (winner, loser, reason)
-    or (None, None, reason) if undecided."""
+    or (None, None, reason) if undecided.
+
+    First-pass guard: if EITHER candidate is a known catch-all (already used
+    in >2 distinct categories), prefer the OTHER one — picking the catch-all
+    would amplify conflation. If both are catch-alls, skip (manual review)."""
+    a_catch = a in catchalls
+    b_catch = b in catchalls
+    if a_catch and not b_catch:
+        return b, a, "avoid-catchall"
+    if b_catch and not a_catch:
+        return a, b, "avoid-catchall"
+    if a_catch and b_catch:
+        return None, None, "both-catchall-skip"
     a_in_en = a in en_count
     b_in_en = b in en_count
     if a_in_en and not b_in_en:
@@ -135,6 +165,8 @@ def main():
 
     en_count = build_enbpnet_index()
     print(f"[en-bpnet index] {len(en_count)} distinct phelps", file=sys.stderr)
+    catchalls = build_catchall_set()
+    print(f"[catch-all guard] {len(catchalls)} codes flagged (used in >2 categories)", file=sys.stderr)
 
     # Pre-fetch existing PBS keys for this lang (both books) to detect PK collisions
     pbs_rows = dolt_query(
@@ -160,7 +192,7 @@ def main():
         if key in seen:
             continue
         seen.add(key)
-        winner, loser, reason = pick_winner(a_ph, n_ph, en_count)
+        winner, loser, reason = pick_winner(a_ph, n_ph, en_count, catchalls)
         if winner is None:
             out.write(f"-- TIED {a_ph} vs {n_ph} (en-counts {en_count.get(a_ph,0)}/{en_count.get(n_ph,0)}): {incipit}\n\n")
             n_tied += 1
