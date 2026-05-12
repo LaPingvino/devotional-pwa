@@ -2168,9 +2168,11 @@
     const isFeastActive = !badi.ayyamiha && (badi.day <= 2 || badi.day >= 18);
 
     // Days-until helpers — order months & holy days by how soon they arrive.
-    // Badí day-of-year: month i starts at i*19 (0..341); Ayyám-i-Há at 342.
+    // Badí day-of-year: months 0..17 start at i*19; Ayyám-i-Há at 342;
+    // month 18 ('Alá) at 346 (4-day Ayyám-i-Há; leap-year shift ignored for ordering).
+    function monthStartDoy(i) { return i < 18 ? i * 19 : 346; }
     const curBadiDoy = badi.ayyamiha ? (341 + badi.day)
-                                     : (badi.month * 19 + (badi.day - 1));
+                                     : (monthStartDoy(badi.month) + (badi.day - 1));
     function daysUntilBadi(startDoy) {
       return ((startDoy - curBadiDoy) % 365 + 365) % 365;
     }
@@ -2203,7 +2205,7 @@
     const upcoming = [];
     BADI_MONTHS.forEach((bm, i) => {
       if (badi.month === i && !badi.ayyamiha) return; // skip current
-      upcoming.push({ label: bm.name + ' — ' + bm.en, cats: bm.cats, _d: daysUntilBadi(i * 19) });
+      upcoming.push({ label: bm.name + ' — ' + bm.en, cats: bm.cats, _d: daysUntilBadi(monthStartDoy(i)) });
     });
     if (!badi.ayyamiha) {
       upcoming.push({ label: AYYAM_I_HA.name, cats: AYYAM_I_HA.cats, _d: daysUntilBadi(342) });
