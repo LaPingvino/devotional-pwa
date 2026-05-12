@@ -2167,6 +2167,24 @@
     // Nineteen Day Feast is active around the turn of a Bahá'í month (day 18-19 or 1-2)
     const isFeastActive = !badi.ayyamiha && (badi.day <= 2 || badi.day >= 18);
 
+    // Days-until helpers — order months & holy days by how soon they arrive.
+    // Badí day-of-year: month i starts at i*19 (0..341); Ayyám-i-Há at 342.
+    const curBadiDoy = badi.ayyamiha ? (341 + badi.day)
+                                     : (badi.month * 19 + (badi.day - 1));
+    function daysUntilBadi(startDoy) {
+      return ((startDoy - curBadiDoy) % 365 + 365) % 365;
+    }
+    function daysUntilGreg(month, day) {
+      if (!day) day = 22; // Twin Birthdays anchor (no fixed Gregorian date)
+      let target = new Date(now.getFullYear(), month - 1, day);
+      let diff = Math.floor((target - now) / 86400000);
+      if (diff < -3) {
+        target = new Date(now.getFullYear() + 1, month - 1, day);
+        diff = Math.floor((target - now) / 86400000);
+      }
+      return Math.max(0, diff);
+    }
+
     // Build tabs
     const tabs = [];
     // Current month tab (highlighted)
@@ -2180,21 +2198,27 @@
     if (activeHolyDay) {
       tabs.push({ label: activeHolyDay.name, cats: activeHolyDay.cats, highlight: true });
     }
-    // Holy days
-    HOLY_DAYS.forEach(hd => {
-      if (hd !== activeHolyDay) tabs.push({ label: hd.name, cats: hd.cats });
+
+    // Upcoming months + holy days, ordered by days-until
+    const upcoming = [];
+    BADI_MONTHS.forEach((bm, i) => {
+      if (badi.month === i && !badi.ayyamiha) return; // skip current
+      upcoming.push({ label: bm.name + ' — ' + bm.en, cats: bm.cats, _d: daysUntilBadi(i * 19) });
     });
+    if (!badi.ayyamiha) {
+      upcoming.push({ label: AYYAM_I_HA.name, cats: AYYAM_I_HA.cats, _d: daysUntilBadi(342) });
+    }
+    HOLY_DAYS.forEach(hd => {
+      if (hd === activeHolyDay) return;
+      upcoming.push({ label: hd.name, cats: hd.cats, _d: daysUntilGreg(hd.month, hd.day) });
+    });
+    upcoming.sort((a, b) => a._d - b._d);
+    upcoming.forEach(t => { delete t._d; tabs.push(t); });
+
     // Special themes
     SPECIAL_THEMES.forEach(st => tabs.push({ label: st.name, cats: st.cats }));
     // Scripture selections
     SCRIPTURE_PICKS.forEach(sp => tabs.push({ label: sp.name, type: 'scripture', items: sp.items }));
-    // All months
-    BADI_MONTHS.forEach((bm, i) => {
-      if (!(badi.month === i && !badi.ayyamiha)) {
-        tabs.push({ label: bm.name + ' — ' + bm.en, cats: bm.cats });
-      }
-    });
-    tabs.push({ label: AYYAM_I_HA.name, cats: AYYAM_I_HA.cats });
 
     // Update title with current context
     if (badi.ayyamiha) {
