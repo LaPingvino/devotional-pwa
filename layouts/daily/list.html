@@ -520,13 +520,16 @@
     if (!byLang) return '';
     return byLang[lang] || byLang['default'] || byLang.en || '';
   }
-  // Append (or refresh) a "— <Author>" signature inside a container element.
+  // Render a "— <Author>" signature as a sibling element placed immediately
+  // after `containerEl` (e.g. after .reading-content), so it sits between
+  // the prayer text and the meta line instead of being clipped inside the
+  // scrollable reading area.
   function renderSignature(containerEl, phelps, lang, rtl) {
-    let sig = containerEl.querySelector(':scope > .prayer-author');
-    if (!sig) {
+    let sig = containerEl.nextElementSibling;
+    if (!sig || !sig.classList || !sig.classList.contains('prayer-author')) {
       sig = document.createElement('div');
       sig.className = 'prayer-author';
-      containerEl.appendChild(sig);
+      containerEl.parentNode.insertBefore(sig, containerEl.nextSibling);
     }
     if (rtl) sig.setAttribute('dir', 'rtl'); else sig.removeAttribute('dir');
     sig.dataset.phelps = phelps || '';

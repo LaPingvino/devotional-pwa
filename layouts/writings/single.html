@@ -27,7 +27,7 @@
   <aside class="sidebar">
     <div class="sidebar-section">
       <div class="sidebar-heading">{{ .Params.writingTitle }}</div>
-      <p style="padding:.2rem 1rem; font-size:.85rem; color:var(--text-secondary)">{{ $authorName }}</p>
+      <div style="padding:.2rem 1rem">{{ with $authorName }}<span class="author-badge">{{ . }}</span>{{ end }}</div>
     </div>
 
     <div class="sidebar-section" style="margin-top:.5rem">
@@ -78,7 +78,7 @@
   <main class="main-content">
     <h1>{{ .Params.writingTitle }}</h1>
     <p style="color:var(--text-secondary); margin-bottom:1.5rem;">
-      {{ .Params.langName }} &middot; {{ $authorName }}
+      {{ .Params.langName }} &middot; {{ with $authorName }}<span class="author-badge">{{ . }}</span>{{ end }}
     </p>
 
     <div class="writing-body"{{ if $rtl }} dir="rtl"{{ end }}>
