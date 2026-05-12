@@ -804,6 +804,33 @@
 
   // renderMd provided by /js/render-md.js (loaded in foot.html)
 
+  // Author signature map keyed by 2-letter PIN prefix (BB/BH/AB/UH/SE).
+  // Resolution: byLang[lang] → byLang.default → byLang.en.
+  let AUTHORS = {};
+  fetch('/data/authors.json').then(r => r.ok ? r.json() : {}).then(m => { AUTHORS = m || {}; });
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+  function authorFromPin(pin, lang) {
+    const m = String(pin || '').match(/^([A-Z]{2})/);
+    if (!m) return '';
+    const byLang = AUTHORS[m[1]];
+    if (!byLang) return '';
+    return byLang[lang] || byLang['default'] || byLang.en || '';
+  }
+  // Build an attribution string per the active UI language's author_attribution
+  // template (e.g. "by {name}", "von {name}", "{name}著"). Falls back to ": <name>".
+  function formatAttribution(name) {
+    if (!name) return '';
+    const tpl = (window.__t && window.__t('author_attribution')) || '';
+    if (tpl && tpl !== 'author_attribution' && tpl.indexOf('{name}') >= 0) {
+      return tpl.replace('{name}', name);
+    }
+    return ': ' + name;
+  }
+
   // ── Language selector (filterable dropdown with tiers) ──
   const langDropdown = $('dev-lang-dropdown');
   const langLabel = $('dev-lang-label');
@@ -1496,6 +1523,17 @@
       const metaText = r ? (r.category || '') + (r.name ? ' — ' + r.name : '') : '';
       const meta = r && r.link ? '<a href="' + r.link + '" style="color:inherit;text-decoration:none;border-bottom:1px dotted var(--text-secondary)">' + metaText + '</a>' : metaText;
       const isRtlLang = allLanguages.find(l => l.code === item.useLang); const isRtl = isRtlLang && isRtlLang.rtl;
+      // Author from PIN prefix. Prayers (r.type === 'prayer') get a signature
+      // line under the text; non-prayer writings get an inline italic
+      // attribution in the meta header.
+      const localAuthor = authorFromPin(item.code, item.useLang);
+      const isPrayer = r && r.type === 'prayer';
+      const authorSigHtml = (isPrayer && localAuthor)
+        ? '<div class="prayer-author"' + (isRtl ? ' dir="rtl"' : '') + '>' + escapeHtml(localAuthor) + '</div>'
+        : '';
+      const writingAttrHtml = (!isPrayer && localAuthor)
+        ? '<span class="writing-attribution"> ' + escapeHtml(formatAttribution(localAuthor)) + '</span>'
+        : '';
       const lockLabel = item.lang ? item.lang.toUpperCase() : '\u{1F310}';
       const lockTitle = item.lang ? 'Locked to ' + item.lang + ' (click to unlock)' : 'Using global language (click to lock to ' + lang + ')';
       // Version-lock button: only meaningful for prayers (not bible/quran/writings)
@@ -1532,7 +1570,12 @@
             const colName = tEntry ? tEntry.name : (colRtlInfo ? colRtlInfo.name : cl.toUpperCase());
             const colText = colResolved ? renderMd(colResolved.text) : '<span class="dev-item-na">' + cl + '</span>';
             const colClass = isTranslit ? ' translit-col' : '';
-            columnsHtml += '<div class="dev-item-col' + colClass + '"' + (colRtl ? ' dir="rtl"' : '') + '><div class="dev-item-col-header">' + colName + '</div>' + colText + '</div>';
+            // Per-column author signature in the column's own language.
+            const colAuthor = authorFromPin(item.code, cl);
+            const colAuthorHtml = (isPrayer && colAuthor)
+              ? '<div class="prayer-author"' + (colRtl ? ' dir="rtl"' : '') + '>' + escapeHtml(colAuthor) + '</div>'
+              : '';
+            columnsHtml += '<div class="dev-item-col' + colClass + '"' + (colRtl ? ' dir="rtl"' : '') + '><div class="dev-item-col-header">' + colName + '</div>' + colText + colAuthorHtml + '</div>';
           }
         }
         columnsHtml += '</div>';
@@ -1542,7 +1585,7 @@
         <div class="dev-item-header no-print">
           <span class="dev-item-drag" title="Drag to reorder">&#x2630;</span>
           <span class="dev-item-code">${item.code}</span>
-          <span class="dev-item-meta">${meta}</span>
+          <span class="dev-item-meta">${meta}${writingAttrHtml}</span>
           <button class="btn-expand dev-item-expand" title="Full screen">&#x26F6;</button>
           <button class="dev-item-lock${item.lang ? ' locked' : ''}" title="${lockTitle}">${lockLabel}</button>
           ${(isPrayerType || item.v) ? `<button class="dev-item-vlock${item.v ? (item.vBroken ? ' locked broken' : ' locked') : ''}"${(!item.v && (!r || !r.version)) ? ' disabled' : ''} title="${vLockTitle}">${vLockLabel}</button>` : ''}
@@ -1550,6 +1593,7 @@
           ${!isShared ? '<button class="dev-item-remove" title="Remove">&times;</button>' : ''}
         </div>
         ${compareLangs.length > 0 ? columnsHtml : '<div class="dev-item-text"' + (isRtl ? ' dir="rtl"' : '') + '>' + textHtml + '</div>'}
+        ${authorSigHtml}
         <div class="dev-item-pin">${item.code}</div>`;
 
       // Lock/unlock language button
