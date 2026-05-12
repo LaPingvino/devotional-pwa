@@ -1642,19 +1642,29 @@
           var textEl = div.querySelector('.dev-item-text');
           if (!columnsEl && !textEl) return;
           var overlay = document.createElement('div');
-          overlay.className = 'expanded-overlay';
+          overlay.className = 'expanded-overlay' + (columnsEl ? ' expanded-overlay-cols' : '');
           var metaHtml = div.querySelector('.dev-item-meta') ? div.querySelector('.dev-item-meta').innerHTML : '';
           var contentHtml = '';
           if (columnsEl) {
-            // Clone the columns grid, remove max-height for fullscreen
-            contentHtml = '<div class="dev-item-columns" style="' + columnsEl.style.cssText + '">';
+            // Keep the inline-mode look in fullscreen too: each column gets
+            // a phone-sized min-width and the row scrolls sideways if the
+            // total exceeds viewport. (Previously stretched columns into
+            // thin strips on narrow screens.)
+            var ncols = columnsEl.querySelectorAll('.dev-item-col').length;
+            contentHtml = '<div class="dev-item-columns dev-item-columns-scroll" ' +
+              'style="grid-template-columns:repeat(' + ncols + ',minmax(360px,1fr))">';
             columnsEl.querySelectorAll('.dev-item-col').forEach(function(col) {
               contentHtml += '<div class="' + col.className + '"' + (col.dir ? ' dir="' + col.dir + '"' : '') +
                 ' style="max-height:none;overflow:visible">' + col.innerHTML + '</div>';
             });
             contentHtml += '</div>';
           } else {
-            contentHtml = '<div' + (isRtl ? ' dir="rtl"' : '') + '>' + textEl.innerHTML + '</div>';
+            // Pick up the sibling .prayer-author signature too (it lives
+            // outside .dev-item-text in the DOM).
+            var sig = textEl.nextElementSibling;
+            var sigHtml = (sig && sig.classList && sig.classList.contains('prayer-author'))
+              ? sig.outerHTML : '';
+            contentHtml = '<div' + (isRtl ? ' dir="rtl"' : '') + '>' + textEl.innerHTML + '</div>' + sigHtml;
           }
           overlay.innerHTML = '<button class="expand-close">\u2716</button>' +
             (metaHtml ? '<div style="color:var(--text-secondary);font-size:.85rem;margin-bottom:1rem">' + metaHtml + '</div>' : '') +

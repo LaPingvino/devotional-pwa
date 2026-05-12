@@ -1168,6 +1168,11 @@ p { margin-bottom: .5rem; }
   box-shadow: 0 2px 8px rgba(0,0,0,.15);
 }
 .expanded-overlay .expand-close:hover { color: var(--accent); border-color: var(--accent); }
+/* Comparison-mode overlay: keep inline-card typography, and let the row
+   of columns scroll horizontally when they don't fit (each column has a
+   phone-screen min-width so narrow viewports don't squish the text). */
+.expanded-overlay.expanded-overlay-cols { font-size: 1rem; line-height: 1.7; padding: 1rem; }
+.expanded-overlay .dev-item-columns-scroll { overflow-x: auto; }
 
 /* Range selection markers */
 .range-marker {
