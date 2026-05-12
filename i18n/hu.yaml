@@ -213,3 +213,5 @@ dev_pin_current_title: "Ennek a fordításnak a rögzítése (jelenlegi verzió)
 dev_no_version_to_pin_title: "Nincs rögzíthető verzió"
 dev_recent_label: "Legutóbbi:"
 dev_permalink_title: "Állandó hivatkozás erre a fordításra (megosztás vagy mentés)"
+
+author_attribution: "— {name}"

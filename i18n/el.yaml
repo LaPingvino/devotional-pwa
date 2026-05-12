@@ -207,3 +207,5 @@ dev_pin_current_title: "Καρφιτσώστε αυτή την ακριβή με
 dev_no_version_to_pin_title: "Δεν υπάρχει συγκεκριμένη έκδοση προς καρφίτσωμα"
 dev_recent_label: "Πρόσφατα:"
 dev_permalink_title: "Μόνιμος σύνδεσμος σε αυτή την ακριβή μετάφραση (κοινοποίηση ή αποθήκευση)"
+
+author_attribution: "— {name}"

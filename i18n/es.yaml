@@ -207,3 +207,5 @@ dev_pin_current_title: "Fijar esta traducción exacta (versión actual)"
 dev_no_version_to_pin_title: "Ninguna versión específica para fijar"
 dev_recent_label: "Recientes:"
 dev_permalink_title: "Enlace permanente a esta traducción exacta (compartir o guardar)"
+
+author_attribution: "de {name}"

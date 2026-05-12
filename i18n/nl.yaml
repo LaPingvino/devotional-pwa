@@ -207,3 +207,5 @@ dev_pin_current_title: "Deze exacte vertaling vastzetten (huidige versie)"
 dev_no_version_to_pin_title: "Geen specifieke versie om vast te zetten"
 dev_recent_label: "Recent:"
 dev_permalink_title: "Permalink naar deze exacte vertaling (delen of bewaren)"
+
+author_attribution: "door {name}"

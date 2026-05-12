@@ -818,8 +818,20 @@
     const localAuthor = authorFromPin(w.phelps, lang) || w.author;
     // Writing attribution lives in the card heading ("Random Writing: <Author>")
     // rather than as a prayer-style "— Author" signature under the text.
+    // Template comes from i18n key `author_attribution` (e.g. "by {name}",
+    // "von {name}", "{name}著"); default to ": {name}" when absent.
     const attrEl = $('writing-attribution');
-    if (attrEl) attrEl.textContent = localAuthor ? ': ' + localAuthor : '';
+    if (attrEl) {
+      if (!localAuthor) {
+        attrEl.textContent = '';
+      } else {
+        const tpl = (window.__t && window.__t('author_attribution')) || '';
+        const formatted = (tpl && tpl !== 'author_attribution' && tpl.indexOf('{name}') >= 0)
+          ? tpl.replace('{name}', localAuthor)
+          : ': ' + localAuthor;
+        attrEl.textContent = ' ' + formatted;
+      }
+    }
     meta.innerHTML = w.writingTitle +
       ' &middot; <a href="/writings/' + w.writingKey + '/' + lang + '/#' + w.phelps + '">' +
       (w.name || w.phelps || '') + '</a>';

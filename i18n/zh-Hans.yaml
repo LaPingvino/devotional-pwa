@@ -213,3 +213,5 @@ dev_pin_current_title: "固定此特定译本（当前版本）"
 dev_no_version_to_pin_title: "没有可固定的特定版本"
 dev_recent_label: "最近："
 dev_permalink_title: "此特定译本的永久链接（分享或保存）"
+
+author_attribution: "{name}著"

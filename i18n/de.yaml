@@ -213,3 +213,5 @@ dev_pin_current_title: "Genau diese Übersetzung heften (aktuelle Version)"
 dev_no_version_to_pin_title: "Keine spezifische Version zum Heften"
 dev_recent_label: "Zuletzt:"
 dev_permalink_title: "Permalink zu genau dieser Übersetzung (teilen oder speichern)"
+
+author_attribution: "von {name}"

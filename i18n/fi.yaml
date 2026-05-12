@@ -213,3 +213,5 @@ dev_pin_current_title: "Kiinnitä juuri tämä käännös (nykyinen versio)"
 dev_no_version_to_pin_title: "Ei kiinnitettävää versiota"
 dev_recent_label: "Viimeisimmät:"
 dev_permalink_title: "Pysyvä linkki tähän käännökseen (jaa tai tallenna)"
+
+author_attribution: "— {name}"

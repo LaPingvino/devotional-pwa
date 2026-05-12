@@ -207,3 +207,5 @@ dev_pin_current_title: "Fixați această traducere exactă (versiunea curentă)"
 dev_no_version_to_pin_title: "Nicio versiune anume de fixat"
 dev_recent_label: "Recente:"
 dev_permalink_title: "Legătură permanentă către această traducere exactă (partajați sau salvați)"
+
+author_attribution: "de {name}"

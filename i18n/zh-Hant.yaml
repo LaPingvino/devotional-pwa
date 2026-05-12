@@ -213,3 +213,5 @@ dev_pin_current_title: "釘選此譯本（目前版本）"
 dev_no_version_to_pin_title: "無特定版本可釘選"
 dev_recent_label: "最近："
 dev_permalink_title: "此譯本的永久連結（分享或儲存）"
+
+author_attribution: "{name}著"

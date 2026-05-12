@@ -207,3 +207,5 @@ dev_pin_current_title: "Fäst exakt denna översättning (aktuell version)"
 dev_no_version_to_pin_title: "Ingen specifik version att fästa"
 dev_recent_label: "Senaste:"
 dev_permalink_title: "Permalänk till exakt denna översättning (dela eller spara)"
+
+author_attribution: "av {name}"

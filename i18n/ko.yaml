@@ -213,3 +213,5 @@ dev_pin_current_title: "이 번역본 (현재 버전) 고정"
 dev_no_version_to_pin_title: "고정할 특정 버전이 없음"
 dev_recent_label: "최근:"
 dev_permalink_title: "이 번역본의 고유 링크 (공유 또는 저장)"
+
+author_attribution: "{name} 지음"

@@ -213,3 +213,5 @@ dev_pin_current_title: "Tam olarak bu çeviriyi sabitle (mevcut sürüm)"
 dev_no_version_to_pin_title: "Sabitlenecek belirli bir sürüm yok"
 dev_recent_label: "Son:"
 dev_permalink_title: "Tam olarak bu çeviriye kalıcı bağlantı (paylaş veya kaydet)"
+
+author_attribution: "— {name}"

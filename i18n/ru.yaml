@@ -207,3 +207,5 @@ dev_pin_current_title: "Закрепить именно этот перевод 
 dev_no_version_to_pin_title: "Нет конкретной версии для закрепления"
 dev_recent_label: "Недавние:"
 dev_permalink_title: "Постоянная ссылка на этот конкретный перевод (поделиться или сохранить)"
+
+author_attribution: "автор: {name}"

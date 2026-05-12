@@ -207,3 +207,5 @@ dev_pin_current_title: "Przypnij to konkretne tłumaczenie (bieżąca wersja)"
 dev_no_version_to_pin_title: "Brak konkretnej wersji do przypięcia"
 dev_recent_label: "Ostatnie:"
 dev_permalink_title: "Stały link do tego konkretnego tłumaczenia (udostępnij lub zapisz)"
+
+author_attribution: "— {name}"

@@ -207,3 +207,5 @@ dev_pin_current_title: "Fiksi ĉi tiun precizan tradukon (nuna versio)"
 dev_no_version_to_pin_title: "Neniu specifa versio fiksebla"
 dev_recent_label: "Lastatempaj:"
 dev_permalink_title: "Permaligilo al ĉi tiu preciza traduko (kunhavigi aŭ konservi)"
+
+author_attribution: "de {name}"
