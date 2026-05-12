@@ -1173,6 +1173,11 @@ p { margin-bottom: .5rem; }
    phone-screen min-width so narrow viewports don't squish the text). */
 .expanded-overlay.expanded-overlay-cols { font-size: 1rem; line-height: 1.7; padding: 1rem; }
 .expanded-overlay .dev-item-columns-scroll { overflow-x: auto; }
+/* Inside the overlay, columns must inherit so the em-based zoom on
+   .expand-body cascades. The .9rem default would short-circuit it. */
+.expanded-overlay .dev-item-col { font-size: inherit; }
+.expanded-overlay .dev-item-col-header { font-size: .72em; }
+.expanded-overlay .prayer-author { font-size: .85em; }
 .expanded-overlay .expand-zoom {
   position: fixed;
   top: 1rem; right: 4rem;
