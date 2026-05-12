@@ -47,7 +47,7 @@
   <!-- Random writing excerpt -->
   <section class="daily-card expandable" id="writing-card">
     <div class="card-header">
-      <h2 data-i18n="daily_random_writing">Random Writing</h2>
+      <h2><span data-i18n="daily_random_writing">Random Writing</span><span id="writing-attribution" class="writing-attribution"></span></h2>
       <div class="card-btns">
         <button class="btn-refresh" id="btn-new-writing" title="New random excerpt">&#x21bb;</button>
         <button class="btn-expand" title="Full screen">&#x26F6;</button>
@@ -815,9 +815,12 @@
     el.innerHTML = renderMd(text);
     if (rtl) el.setAttribute('dir', 'rtl'); else el.removeAttribute('dir');
     const lang = selectedLang.toLowerCase();
-    renderSignature(el, w.phelps, lang, rtl);
     const localAuthor = authorFromPin(w.phelps, lang) || w.author;
-    meta.innerHTML = w.writingTitle + ' &middot; ' + localAuthor +
+    // Writing attribution lives in the card heading ("Random Writing: <Author>")
+    // rather than as a prayer-style "— Author" signature under the text.
+    const attrEl = $('writing-attribution');
+    if (attrEl) attrEl.textContent = localAuthor ? ': ' + localAuthor : '';
+    meta.innerHTML = w.writingTitle +
       ' &middot; <a href="/writings/' + w.writingKey + '/' + lang + '/#' + w.phelps + '">' +
       (w.name || w.phelps || '') + '</a>';
   }

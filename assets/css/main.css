@@ -465,6 +465,16 @@ body {
   font-weight: 600;
   font-size: .85rem;
 }
+/* Writing attribution: italic ": Author" inline next to a heading. */
+.writing-attribution {
+  font-weight: normal;
+  font-style: italic;
+  color: var(--text-secondary);
+  font-size: .9em;
+  margin-left: .25em;
+}
+.writing-attribution:empty { display: none; }
+
 /* Author signature under prayer text — classic "—Bahá'u'lláh" attribution. */
 .prayer-author {
   text-align: end;
