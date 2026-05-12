@@ -65,6 +65,30 @@
     return { base: lower, suffix: '' };
   }
 
+  // Authors map: { "BH": { "en": "Bahá'u'lláh", "ru": "Бахаулла", ... }, ... }
+  // Built from the i18n table by gen_hugo_data.go. Fetched once; cards
+  // rendered before it arrives get their author backfilled.
+  var AUTHORS = {};
+  fetch('/data/authors.json').then(function (r) { return r.ok ? r.json() : {}; })
+    .then(function (m) {
+      AUTHORS = m || {};
+      document.querySelectorAll('.prayer-author:empty').forEach(function (el) {
+        var card = el.closest('.prayer-card');
+        if (!card) return;
+        var name = authorFromPin(card.dataset.phelps, card.dataset.lang);
+        if (name) el.textContent = name;
+      });
+    });
+  // Canonical author prefix = first 2 uppercase letters of the PIN.
+  // BB/BBU → BB, BH/BHU → BH, AB/ABU → AB, UH/UHR/UHJ → UH, SE/SEGPB… → SE.
+  function authorFromPin(pin, lang) {
+    var m = String(pin || '').match(/^([A-Z]{2})/);
+    if (!m) return '';
+    var byLang = AUTHORS[m[1]];
+    if (!byLang) return '';
+    return byLang[lang] || byLang.en || '';
+  }
+
   function wordCount(text, lang) {
     var plain = String(text || '').replace(/#+\s+[^\n]+/g, '');
     var isCJK = lang === 'ja' || lang === 'ko' || lang === 'zh-Hans' || lang === 'zh-Hant';
@@ -197,6 +221,16 @@
     if (rtl) textEl.dir = 'rtl';
     textEl.innerHTML = md(p.text);
     card.appendChild(textEl);
+
+    // Author signature under the prayer text. Aligns to the end (right in
+    // LTR, left in RTL) — the classic "—Bahá'u'lláh" attribution style.
+    // Content is filled by the AUTHORS fetch backfill if it hasn't resolved
+    // yet at render time.
+    var sigEl = document.createElement('div');
+    sigEl.className = 'prayer-author';
+    if (rtl) sigEl.dir = 'rtl';
+    sigEl.textContent = authorFromPin(pin, displayLang);
+    card.appendChild(sigEl);
 
     if (p.notes) {
       var notesEl = document.createElement('div');

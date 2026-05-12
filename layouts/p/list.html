@@ -116,6 +116,7 @@
         · <a href="/prayers/${lang}/#${phelps}">View in ${langName} prayerbook →</a>${bookHtml}
       </p>
       <div class="prayer-text"${isRtl ? ' dir="rtl"' : ''}>${window.renderMd ? window.renderMd(prayer.text || '') : (prayer.text || '')}</div>
+      <div class="prayer-author" id="prayer-author-sig"${isRtl ? ' dir="rtl"' : ''}></div>
       ${prayer.notes ? `<div class="prayer-notes" style="margin-top:1rem; color:var(--text-secondary); font-style:italic">${prayer.notes}</div>` : ''}
       <div style="display:flex; gap:.5rem; margin-top:1.2rem; flex-wrap:wrap">
         <button class="btn-action" id="add-latest" title="Add this prayer to your devotional program (will track latest translation)">+ Add to devotional</button>
@@ -161,6 +162,16 @@
   });
   document.getElementById('add-pinned').addEventListener('click', e => {
     addItem({ code: phelps, v: shortV }, e.currentTarget, 'pinned');
+  });
+
+  // Localized author signature from /data/authors.json (built from i18n table).
+  fetch('/data/authors.json').then(r => r.ok ? r.json() : {}).then(map => {
+    const m = phelps.match(/^([A-Z]{2})/);
+    if (!m) return;
+    const byLang = map[m[1]];
+    if (!byLang) return;
+    const sig = document.getElementById('prayer-author-sig');
+    if (sig) sig.textContent = byLang[lang] || byLang.en || '';
   });
 })();
 </script>

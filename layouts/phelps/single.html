@@ -2,8 +2,8 @@
 {{ $subcodes := .Params.subcodes }}
 {{ $multi := gt (len $subcodes) 1 }}
 
-{{/* Derive author from PIN prefix using site.Data.authors (English signature on this page) */}}
-{{ $prefix := replaceRE "[0-9].*" "" $pin }}
+{{/* Derive author from PIN prefix (canonical = first 2 uppercase letters) */}}
+{{ $prefix := substr (replaceRE "[^A-Z].*" "" $pin) 0 2 }}
 {{ $author := "" }}
 {{ with index site.Data.authors $prefix }}
   {{ with index . "en" }}{{ $author = . }}{{ end }}

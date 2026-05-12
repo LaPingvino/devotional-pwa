@@ -464,6 +464,16 @@ body {
   font-weight: 600;
   font-size: .85rem;
 }
+/* Author signature under prayer text — classic "—Bahá'u'lláh" attribution. */
+.prayer-author {
+  text-align: end;
+  font-style: italic;
+  font-size: .85rem;
+  color: var(--text-secondary);
+  padding: .2rem .75rem .6rem;
+}
+.prayer-author:not(:empty)::before { content: "— "; }
+.prayer-author:empty { display: none; }
 .prayer-preview {
   flex: 1;
   font-size: .8rem;

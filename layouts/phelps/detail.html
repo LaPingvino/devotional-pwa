@@ -26,7 +26,7 @@
   let AUTHORS = {};
   fetch('/data/authors.json').then(r => r.ok ? r.json() : {}).then(m => { AUTHORS = m || {}; });
   function authorFromPin(pin, lang) {
-    const m = pin.match(/^([A-Z]+)/);
+    const m = pin.match(/^([A-Z]{2})/);
     if (!m) return '';
     const byLang = AUTHORS[m[1]];
     if (!byLang) return '';
