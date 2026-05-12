@@ -2,12 +2,12 @@
 {{ $subcodes := .Params.subcodes }}
 {{ $multi := gt (len $subcodes) 1 }}
 
-{{/* Derive author from PIN prefix */}}
+{{/* Derive author from PIN prefix using site.Data.authors (English signature on this page) */}}
 {{ $prefix := replaceRE "[0-9].*" "" $pin }}
 {{ $author := "" }}
-{{ if or (eq $prefix "BH") (eq $prefix "BHU") }}{{ $author = "Bahá'u'lláh" }}{{ end }}
-{{ if or (eq $prefix "AB") (eq $prefix "ABU") }}{{ $author = "ʻAbdu'l-Bahá" }}{{ end }}
-{{ if or (eq $prefix "BB") (eq $prefix "BBU") }}{{ $author = "The Báb" }}{{ end }}
+{{ with index site.Data.authors $prefix }}
+  {{ with index . "en" }}{{ $author = . }}{{ end }}
+{{ end }}
 
 {{ partial "head.html" (dict "Title" $pin "Lang" "en") }}
 <div class="main-content">

@@ -10,12 +10,20 @@
 {{ $showEntryLinks := and (not $multiBook) $showNames }}
 
 {{ partial "head.html" (dict "Title" .Title "Lang" $lang "Params" (dict "rtl" $rtl)) }}
+{{/* Resolve localized author via prefix → site.Data.authors[prefix][lang], fall back to English */}}
+{{ $authorName := .Params.author }}
+{{ $pfx := .Params.authorPrefix }}
+{{ if $pfx }}
+  {{ with index site.Data.authors $pfx }}
+    {{ with index . $lang }}{{ $authorName = . }}{{ end }}
+  {{ end }}
+{{ end }}
 <div class="page-body">
 
   <aside class="sidebar">
     <div class="sidebar-section">
       <div class="sidebar-heading">{{ .Params.writingTitle }}</div>
-      <p style="padding:.2rem 1rem; font-size:.85rem; color:var(--text-secondary)">{{ .Params.author }}</p>
+      <p style="padding:.2rem 1rem; font-size:.85rem; color:var(--text-secondary)">{{ $authorName }}</p>
     </div>
 
     <div class="sidebar-section" style="margin-top:.5rem">
@@ -66,7 +74,7 @@
   <main class="main-content">
     <h1>{{ .Params.writingTitle }}</h1>
     <p style="color:var(--text-secondary); margin-bottom:1.5rem;">
-      {{ .Params.langName }} &middot; {{ .Params.author }}
+      {{ .Params.langName }} &middot; {{ $authorName }}
     </p>
 
     <div class="writing-body"{{ if $rtl }} dir="rtl"{{ end }}>

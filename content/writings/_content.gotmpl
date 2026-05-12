@@ -13,6 +13,7 @@
       "writingKey"   $key
       "writingTitle" $wt.title
       "author"       $wt.author
+      "authorPrefix" $wt.author_prefix
       "allLangs"     $wt.langs
     )
   ) }}
@@ -20,17 +21,20 @@
   {{/* Generate one page per language for this writing type */}}
   {{ range .langs }}
     {{ $langInfo := . }}
+    {{ $localTitle := $wt.title }}
+    {{ with $langInfo.title }}{{ $localTitle = . }}{{ end }}
     {{ $dataFile := printf "writings/%s/%s.json" $key .code }}
     {{ with resources.Get $dataFile }}
       {{ $data := . | transform.Unmarshal }}
       {{ $.AddPage (dict
         "path"    (printf "%s/%s" $key (lower $langInfo.code))
-        "title"   (printf "%s — %s" $wt.title $langInfo.name)
+        "title"   (printf "%s — %s" $localTitle $langInfo.name)
         "kind"    "page"
         "params"  (dict
           "writingKey"   $key
-          "writingTitle" $wt.title
+          "writingTitle" $localTitle
           "author"       $wt.author
+      "authorPrefix" $wt.author_prefix
           "langCode"     $langInfo.code
           "langName"     $langInfo.name
           "rtl"          $langInfo.rtl

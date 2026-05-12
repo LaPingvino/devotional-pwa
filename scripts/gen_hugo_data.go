@@ -429,6 +429,15 @@ func main() {
 	writingRefs := generateWritings(assetsDir, dataDir, staticDir, langNames)
 	log.Printf("  writing refs: %d base codes have backlinks", len(writingRefs))
 
+	// 6b. Authors by Phelps prefix (signature on detail/single pages).
+	// data/authors.json is consumed at build time by Hugo templates
+	// (site.Data.authors); static-served copy is fetched at runtime by JS.
+	log.Println("→ authors...")
+	authors := loadAuthorsByPrefix()
+	writeJSON(filepath.Join(dataDir, "authors.json"), authors)
+	writeJSON(filepath.Join(staticDir, "authors.json"), authors)
+	log.Printf("  authors: %d prefixes", len(authors))
+
 	// 7. Enrich phelps files with writing backlinks
 	if len(writingRefs) > 0 {
 		log.Println("→ enriching phelps files with writing backlinks...")
@@ -904,12 +913,13 @@ func loadLanguagesForBooks() []Language {
 
 // WritingType metadata for the writings index
 type WritingType struct {
-	Key        string        `json:"key"`
-	Title      string        `json:"title"`
-	Author     string        `json:"author"`
-	ShowNames  bool          `json:"show_names,omitempty"`
-	SingleBook bool          `json:"single_book,omitempty"`
-	Langs      []WritingLang `json:"langs"`
+	Key          string        `json:"key"`
+	Title        string        `json:"title"`
+	Author       string        `json:"author"`
+	AuthorPrefix string        `json:"author_prefix,omitempty"`
+	ShowNames    bool          `json:"show_names,omitempty"`
+	SingleBook   bool          `json:"single_book,omitempty"`
+	Langs        []WritingLang `json:"langs"`
 }
 
 type WritingLang struct {
@@ -917,6 +927,7 @@ type WritingLang struct {
 	Name  string `json:"name"`
 	Count int    `json:"count"`
 	RTL   bool   `json:"rtl,omitempty"`
+	Title string `json:"title,omitempty"` // localized writing-type title; falls back to en if absent
 }
 
 // WritingEntry is one paragraph/verse/section in a writing
@@ -940,27 +951,130 @@ type WritingLangFile struct {
 	Books []WritingBook `json:"books"`
 }
 
-var writingTypes = []struct {
-	Key        string
-	Title      string
-	Author     string
-	DBType     string
-	SingleBook bool // treat all entries as one book (don't group by base code)
-	ShowNames  bool // show entry names in the UI (useful for SAQ titles, Gleanings Roman numerals)
-	SplitParas bool // split text on \n\n into individual paragraph entries
-}{
-	{"hidden-words", "The Hidden Words", "Bahá'u'lláh", "hidden_words", false, false, false},
-	{"aqdas", "Kitáb-i-Aqdas", "Bahá'u'lláh", "aqdas", true, false, false},
-	{"iqan", "Kitáb-i-Íqán", "Bahá'u'lláh", "iqan", true, false, false},
-	{"gleanings", "Gleanings", "Bahá'u'lláh", "gleanings", true, true, false},
-	{"pm", "Prayers & Meditations", "Bahá'u'lláh", "pm", true, false, false},
-	{"saq", "Some Answered Questions", "'Abdu'l-Bahá", "saq", true, true, false},
-	{"tablets", "Tablets of Bahá'u'lláh", "Bahá'u'lláh", "tablets", false, false, false},
-	{"days", "Days of Remembrance", "Bahá'u'lláh", "days_remembrance", true, true, false},
-	{"ridvan", "Ridván Messages", "Universal House of Justice", "ridvan", true, true, false},
-	{"divineplan", "Tablets of the Divine Plan", "'Abdu'l-Bahá", "divineplan", false, false, false},
-	{"lawh", "Other Tablets", "Bahá'u'lláh", "lawh", false, false, false},
-	{"gpb", "God Passes By", "Shoghi Effendi", "book", false, false, true},
+// WritingTypeDef is loaded from the i18n table (key = "writings/<type>", language = "en").
+type WritingTypeDef struct {
+	Key          string
+	Title        string
+	Author       string
+	AuthorPrefix string
+	DBType       string
+	SingleBook   bool
+	ShowNames    bool
+	SplitParas   bool
+}
+
+// loadWritingTypes reads writings/<type> rows (lang=en) from the i18n table,
+// ordered by the `order` field in the JSON value.
+func loadWritingTypes() []WritingTypeDef {
+	rows := doltQuery(`
+		SELECT ` + "`key`" + `,
+		       JSON_UNQUOTE(JSON_EXTRACT(value, '$.title')),
+		       JSON_UNQUOTE(JSON_EXTRACT(value, '$.author')),
+		       JSON_UNQUOTE(JSON_EXTRACT(value, '$.db_type')),
+		       COALESCE(JSON_EXTRACT(value, '$.flags.single_book'), 'false'),
+		       COALESCE(JSON_EXTRACT(value, '$.flags.show_names'),  'false'),
+		       COALESCE(JSON_EXTRACT(value, '$.flags.split_paras'), 'false'),
+		       CAST(JSON_EXTRACT(value, '$.order') AS UNSIGNED) AS ord,
+		       COALESCE(JSON_UNQUOTE(JSON_EXTRACT(value, '$.author_prefix')), '')
+		FROM i18n
+		WHERE ` + "`key`" + ` LIKE 'writings/%'
+		  AND ` + "`key`" + ` NOT LIKE 'writings/%/%'
+		  AND language = 'en'
+		ORDER BY ord
+	`)
+	var out []WritingTypeDef
+	for _, row := range rows[1:] {
+		if len(row) < 9 {
+			continue
+		}
+		key := strings.TrimPrefix(row[0], "writings/")
+		out = append(out, WritingTypeDef{
+			Key:          key,
+			Title:        row[1],
+			Author:       row[2],
+			DBType:       row[3],
+			SingleBook:   row[4] == "true" || row[4] == "1",
+			ShowNames:    row[5] == "true" || row[5] == "1",
+			SplitParas:   row[6] == "true" || row[6] == "1",
+			AuthorPrefix: row[8],
+		})
+	}
+	return out
+}
+
+// loadWritingTypeTitles reads all writings/<type> rows (any language) from i18n
+// and returns nested map[type_key][lang] = title.
+func loadWritingTypeTitles() map[string]map[string]string {
+	rows := doltQuery(`
+		SELECT ` + "`key`" + `, language,
+		       JSON_UNQUOTE(JSON_EXTRACT(value, '$.title'))
+		FROM i18n
+		WHERE ` + "`key`" + ` LIKE 'writings/%'
+		  AND ` + "`key`" + ` NOT LIKE 'writings/%/%'
+	`)
+	out := map[string]map[string]string{}
+	for _, row := range rows[1:] {
+		if len(row) < 3 || row[2] == "" || row[2] == "NULL" {
+			continue
+		}
+		key := strings.TrimPrefix(row[0], "writings/")
+		if out[key] == nil {
+			out[key] = map[string]string{}
+		}
+		out[key][row[1]] = row[2]
+	}
+	return out
+}
+
+// loadBookTitles reads writings/<type>/<base> rows from i18n and returns
+// nested map[base][lang] = title. English row is used as fallback.
+func loadBookTitles() map[string]map[string]string {
+	rows := doltQuery(`
+		SELECT ` + "`key`" + `, language,
+		       JSON_UNQUOTE(JSON_EXTRACT(value, '$.title'))
+		FROM i18n
+		WHERE ` + "`key`" + ` LIKE 'writings/%/%'
+	`)
+	out := map[string]map[string]string{}
+	for _, row := range rows[1:] {
+		if len(row) < 3 || row[2] == "" || row[2] == "NULL" {
+			continue
+		}
+		// key = "writings/<type>/<base>" — we only need <base>
+		parts := strings.Split(row[0], "/")
+		if len(parts) < 3 {
+			continue
+		}
+		base := parts[2]
+		if out[base] == nil {
+			out[base] = map[string]string{}
+		}
+		out[base][row[1]] = row[2]
+	}
+	return out
+}
+
+// loadAuthorsByPrefix reads author/<prefix> rows from i18n and returns
+// map[prefix][lang] = name. English is the canonical fallback.
+func loadAuthorsByPrefix() map[string]map[string]string {
+	rows := doltQuery(`
+		SELECT ` + "`key`" + `, language,
+		       JSON_UNQUOTE(JSON_EXTRACT(value, '$.name'))
+		FROM i18n
+		WHERE ` + "`key`" + ` LIKE 'author/%'
+	`)
+	out := map[string]map[string]string{}
+	for _, row := range rows[1:] {
+		if len(row) < 3 || row[2] == "" || row[2] == "NULL" {
+			continue
+		}
+		prefix := strings.TrimPrefix(row[0], "author/")
+		if out[prefix] == nil {
+			out[prefix] = map[string]string{}
+		}
+		out[prefix][row[1]] = row[2]
+	}
+	return out
 }
 
 // generateWritings returns a reverse index: base phelps code → []WritingRef
@@ -995,6 +1109,10 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 		})
 	}
 
+	writingTypes := loadWritingTypes()
+	bookTitles := loadBookTitles()
+	typeTitles := loadWritingTypeTitles()
+
 	var writingsIndex []WritingType
 	for _, wt := range writingTypes {
 		langData := typeData[wt.DBType]
@@ -1023,63 +1141,11 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 					Entries: entries,
 				}}
 			} else {
-				// Fixed, localized book titles for bases where the first
-				// entry's name doesn't yield the right title under the
-				// strip-digits heuristic (e.g. HW preamble entry is named
-				// "…— Preamble"). Missing translations fall back to English.
-				// TODO: lift to i18n/*.yaml once we agree on the key naming.
-				localizedTitles := map[string]map[string]string{
-					"BH00386": {
-						"en": "Arabic Hidden Words",
-						"ar": "الكلمات المكنونة العربية",
-						"fa": "کلمات مکنونه عربی",
-						"de": "Die Arabischen Verborgenen Worte",
-						"fr": "Les Paroles Cachées en arabe",
-						"es": "Las Palabras Ocultas en árabe",
-						"it": "Le Parole Celate in arabo",
-						"pt": "As Palavras Ocultas em árabe",
-						"nl": "De Arabische Verborgen Woorden",
-						"ru": "Сокровенные Слова (арабские)",
-						"zh-Hans": "隐言经(阿拉伯文)",
-						"zh-Hant": "隱言經(阿拉伯文)",
-						"ja":      "アラビア語の隠されし言葉",
-						"ko":      "아랍어 감추어진 말씀",
-						"tr":      "Arapça Gizli Sözler",
-						"pl":      "Słowa Ukryte (arabskie)",
-						"sv":      "De Fördolda Orden (arabiska)",
-						"hu":      "Arab Rejtett Szavak",
-						"fi":      "Kätketyt sanat (arabia)",
-						"el":      "Αραβικές Κρυμμένες Λέξεις",
-						"ro":      "Cuvintele Ascunse (arabă)",
-						"eo":      "Kaŝitaj Vortoj (araba)",
-					},
-					"BH00113": {
-						"en": "Persian Hidden Words",
-						"ar": "الكلمات المكنونة الفارسية",
-						"fa": "کلمات مکنونه فارسی",
-						"de": "Die Persischen Verborgenen Worte",
-						"fr": "Les Paroles Cachées en persan",
-						"es": "Las Palabras Ocultas en persa",
-						"it": "Le Parole Celate in persiano",
-						"pt": "As Palavras Ocultas em persa",
-						"nl": "De Perzische Verborgen Woorden",
-						"ru": "Сокровенные Слова (персидские)",
-						"zh-Hans": "隐言经(波斯文)",
-						"zh-Hant": "隱言經(波斯文)",
-						"ja":      "ペルシア語の隠されし言葉",
-						"ko":      "페르시아어 감추어진 말씀",
-						"tr":      "Farsça Gizli Sözler",
-						"pl":      "Słowa Ukryte (perskie)",
-						"sv":      "De Fördolda Orden (persiska)",
-						"hu":      "Perzsa Rejtett Szavak",
-						"fi":      "Kätketyt sanat (persia)",
-						"el":      "Περσικές Κρυμμένες Λέξεις",
-						"ro":      "Cuvintele Ascunse (persană)",
-						"eo":      "Kaŝitaj Vortoj (persa)",
-					},
-				}
+				// Fixed, localized book titles sourced from the i18n table
+				// (key = "writings/<type>/<base>"). Missing translations fall
+				// back to the English row.
 				fixedTitle := func(base, lng string) string {
-					if byLang, ok := localizedTitles[base]; ok {
+					if byLang, ok := bookTitles[base]; ok {
 						if t, ok := byLang[lng]; ok {
 							return t
 						}
@@ -1152,11 +1218,19 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 			if wt.SplitParas {
 				entryCount = paraCount
 			}
+			// Localized writing-type title (falls back to wt.Title which is the en row).
+			locTitle := ""
+			if byLang, ok := typeTitles[wt.Key]; ok {
+				if t, ok := byLang[lang]; ok && t != wt.Title {
+					locTitle = t
+				}
+			}
 			wlangs = append(wlangs, WritingLang{
 				Code:  lang,
 				Name:  name,
 				Count: entryCount,
 				RTL:   rtlLangs[lang],
+				Title: locTitle,
 			})
 			wlf := WritingLangFile{Books: books}
 			writeJSON(filepath.Join(outDir, lang+".json"), wlf)
@@ -1168,12 +1242,13 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 		sort.Slice(wlangs, func(i, j int) bool { return wlangs[i].Name < wlangs[j].Name })
 
 		writingsIndex = append(writingsIndex, WritingType{
-			Key:        wt.Key,
-			Title:      wt.Title,
-			Author:     wt.Author,
-			ShowNames:  wt.ShowNames,
-			SingleBook: wt.SingleBook,
-			Langs:      wlangs,
+			Key:          wt.Key,
+			Title:        wt.Title,
+			Author:       wt.Author,
+			AuthorPrefix: wt.AuthorPrefix,
+			ShowNames:    wt.ShowNames,
+			SingleBook:   wt.SingleBook,
+			Langs:        wlangs,
 		})
 		log.Printf("  %s: %d languages", wt.Key, len(wlangs))
 	}

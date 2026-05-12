@@ -21,14 +21,16 @@
 
   document.title = slug + ' — Bahá\'í Prayers';
 
-  const AUTHORS = {
-    BH: "Bahá'u'lláh", BHU: "Bahá'u'lláh",
-    AB: "ʻAbdu'l-Bahá",  ABU: "ʻAbdu'l-Bahá",
-    BB: "The Báb",       BBU: "The Báb",
-  };
-  function authorFromPin(pin) {
+  // Authors map fetched from /data/authors.json (built from i18n table by gen_hugo_data.go).
+  // Structure: { "BH": { "en": "Bahá'u'lláh", "fr": "...", ... }, "AB": {...}, "UHR": {...}, "SEG": {...} }
+  let AUTHORS = {};
+  fetch('/data/authors.json').then(r => r.ok ? r.json() : {}).then(m => { AUTHORS = m || {}; });
+  function authorFromPin(pin, lang) {
     const m = pin.match(/^([A-Z]+)/);
-    return m ? (AUTHORS[m[1]] || '') : '';
+    if (!m) return '';
+    const byLang = AUTHORS[m[1]];
+    if (!byLang) return '';
+    return byLang[lang || 'en'] || byLang['en'] || '';
   }
 
   // basePIN: strip trailing 3-char alpha mnemonic suffix
