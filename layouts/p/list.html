@@ -171,7 +171,7 @@
     const byLang = map[m[1]];
     if (!byLang) return;
     const sig = document.getElementById('prayer-author-sig');
-    if (sig) sig.textContent = byLang[lang] || byLang.en || '';
+    if (sig) sig.textContent = byLang[lang] || byLang['default'] || byLang.en || '';
   });
 })();
 </script>

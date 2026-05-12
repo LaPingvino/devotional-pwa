@@ -30,7 +30,7 @@
     if (!m) return '';
     const byLang = AUTHORS[m[1]];
     if (!byLang) return '';
-    return byLang[lang || 'en'] || byLang['en'] || '';
+    return byLang[lang] || byLang['default'] || byLang['en'] || '';
   }
 
   // basePIN: strip trailing 3-char alpha mnemonic suffix

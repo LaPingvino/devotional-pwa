@@ -10,12 +10,16 @@
 {{ $showEntryLinks := and (not $multiBook) $showNames }}
 
 {{ partial "head.html" (dict "Title" .Title "Lang" $lang "Params" (dict "rtl" $rtl)) }}
-{{/* Resolve localized author via prefix → site.Data.authors[prefix][lang], fall back to English */}}
+{{/* Resolve localized author via prefix → site.Data.authors[prefix][lang],
+     falling back to the "default" row (bare canonical name) then English. */}}
 {{ $authorName := .Params.author }}
 {{ $pfx := .Params.authorPrefix }}
 {{ if $pfx }}
   {{ with index site.Data.authors $pfx }}
-    {{ with index . $lang }}{{ $authorName = . }}{{ end }}
+    {{ $map := . }}
+    {{ with index $map $lang }}{{ $authorName = . }}
+    {{ else }}{{ with index $map "default" }}{{ $authorName = . }}{{ end }}
+    {{ end }}
   {{ end }}
 {{ end }}
 <div class="page-body">

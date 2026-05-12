@@ -504,6 +504,36 @@
   const $ = id => document.getElementById(id);
 
   // renderMd provided by /js/render-md.js (loaded in foot.html)
+  // Author signature map from i18n table (BB/BH/AB/UH/SE).
+  let AUTHORS = {};
+  fetch('/data/authors.json').then(r => r.ok ? r.json() : {}).then(m => {
+    AUTHORS = m || {};
+    // Backfill any signature elements rendered before fetch resolved.
+    document.querySelectorAll('.prayer-author[data-phelps]:empty').forEach(el => {
+      el.textContent = authorFromPin(el.dataset.phelps, el.dataset.lang) || '';
+    });
+  });
+  function authorFromPin(pin, lang) {
+    const m = String(pin || '').match(/^([A-Z]{2})/);
+    if (!m) return '';
+    const byLang = AUTHORS[m[1]];
+    if (!byLang) return '';
+    return byLang[lang] || byLang['default'] || byLang.en || '';
+  }
+  // Append (or refresh) a "— <Author>" signature inside a container element.
+  function renderSignature(containerEl, phelps, lang, rtl) {
+    let sig = containerEl.querySelector(':scope > .prayer-author');
+    if (!sig) {
+      sig = document.createElement('div');
+      sig.className = 'prayer-author';
+      containerEl.appendChild(sig);
+    }
+    if (rtl) sig.setAttribute('dir', 'rtl'); else sig.removeAttribute('dir');
+    sig.dataset.phelps = phelps || '';
+    sig.dataset.lang = lang || '';
+    sig.textContent = authorFromPin(phelps, lang) || '';
+  }
+
   const today = () => new Date().toISOString().slice(0, 10);
   const storageKey = key => 'hw_daily_' + today() + '_' + key;
 
@@ -739,6 +769,7 @@
     el.innerHTML = renderMd(p.text || '');
     if (rtl) el.setAttribute('dir', 'rtl'); else el.removeAttribute('dir');
     const lang = selectedLang.toLowerCase();
+    renderSignature(el, p.phelps, lang, rtl);
     meta.innerHTML = (p.category ? p.category + ' &middot; ' : '') +
       '<a href="/prayers/' + lang + '/#' + p.phelps + '">' + (p.phelps || '') + '</a>';
   }
@@ -781,7 +812,9 @@
     el.innerHTML = renderMd(text);
     if (rtl) el.setAttribute('dir', 'rtl'); else el.removeAttribute('dir');
     const lang = selectedLang.toLowerCase();
-    meta.innerHTML = w.writingTitle + ' &middot; ' + w.author +
+    renderSignature(el, w.phelps, lang, rtl);
+    const localAuthor = authorFromPin(w.phelps, lang) || w.author;
+    meta.innerHTML = w.writingTitle + ' &middot; ' + localAuthor +
       ' &middot; <a href="/writings/' + w.writingKey + '/' + lang + '/#' + w.phelps + '">' +
       (w.name || w.phelps || '') + '</a>';
   }
@@ -849,6 +882,7 @@
       const rtl = selectedRtl;
       el.innerHTML = renderMd(prayer.text || '');
       if (rtl) el.setAttribute('dir', 'rtl'); else el.removeAttribute('dir');
+      renderSignature(el, code, selectedLang.toLowerCase(), rtl);
     } else {
       el.innerHTML = '<p class="placeholder">Not available in this language</p>';
     }

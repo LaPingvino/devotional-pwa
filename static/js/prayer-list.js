@@ -81,12 +81,15 @@
     });
   // Canonical author prefix = first 2 uppercase letters of the PIN.
   // BB/BBU → BB, BH/BHU → BH, AB/ABU → AB, UH/UHR/UHJ → UH, SE/SEGPB… → SE.
+  // Lookup order: [lang] → [default] → [en]. The "default" row carries the
+  // bare canonical name ("Báb", not "The Báb") used when no translation
+  // exists for the page language.
   function authorFromPin(pin, lang) {
     var m = String(pin || '').match(/^([A-Z]{2})/);
     if (!m) return '';
     var byLang = AUTHORS[m[1]];
     if (!byLang) return '';
-    return byLang[lang] || byLang.en || '';
+    return byLang[lang] || byLang['default'] || byLang.en || '';
   }
 
   function wordCount(text, lang) {

@@ -374,6 +374,7 @@ body {
 .prayer-card.folded .prayer-notes { display: none; }
 .prayer-card.folded .prayer-alt-sources { display: none; }
 .prayer-card.folded .prayer-meta { display: none; }
+.prayer-card.folded .prayer-author { display: none; }
 .prayer-card.folded .prayer-card-header { border-bottom: none; }
 .prayer-card.folded > .translit-line { display: none; }
 /* Notes and source meta */
