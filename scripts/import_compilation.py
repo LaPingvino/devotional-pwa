@@ -131,40 +131,90 @@ def load_collection(key):
     return m
 
 
+def _normalize_text(inner):
+    text = re.sub(r"<[^>]+>", "", inner)
+    text = re.sub(r"(\w)\d+(\s)", r"\1\2", text)
+    text = re.sub(r"(\w)\d+$", r"\1", text)
+    text = (text.replace("&nbsp;", " ").replace("&#160;", " ")
+                .replace("&mdash;", "—").replace("&rsquo;", "’")
+                .replace("&lsquo;", "‘").replace("&ldquo;", "“")
+                .replace("&rdquo;", "”").replace("&amp;", "&"))
+    text = re.sub(r"&[a-z]+;", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
 def parse_section(html):
+    """Parse a bahai.org reader section.
+
+    Two markup conventions are handled:
+      A. Multi-tablet pages — each tablet starts at <p class="brl-global-title">
+         (Paris Talks, Memorials of the Faithful).
+      B. Single-tablet pages — the whole section is one tablet titled by
+         <h2 class="…brl-title…"> (Summons of the Lord of Hosts, Tabernacle
+         of Unity, etc.). The section's body paragraphs all belong to that
+         one tablet.
+
+    Returns a list of (title, [paragraphs]).
+    """
     blocks = re.findall(r'<p(\s[^>]*)?>(.*?)</p>', html, re.DOTALL | re.IGNORECASE)
-    talks = []
-    cur_title = None
-    cur_paras = []
+    has_global_titles = any(
+        "brl-global-title" in (re.search(r'class="([^"]+)"', a or "") or [None, ""]).group(1)
+        if re.search(r'class="([^"]+)"', a or "")
+        else False
+        for a, _ in blocks
+    )
+
+    if has_global_titles:
+        # Convention A
+        talks = []
+        cur_title = None
+        cur_paras = []
+        for attrs, inner in blocks:
+            cls_m = re.search(r'class="([^"]+)"', attrs or "")
+            cls = cls_m.group(1) if cls_m else ""
+            text = _normalize_text(inner)
+            if not text:
+                continue
+            if "brl-global-title" in cls:
+                if cur_title is not None:
+                    talks.append((cur_title, cur_paras))
+                cur_title = text
+                cur_paras = []
+            elif "brl-head" in cls:
+                continue
+            else:
+                if cur_title is None:
+                    continue
+                if len(text) >= MIN_PARA_LEN:
+                    cur_paras.append(text)
+        if cur_title is not None:
+            talks.append((cur_title, cur_paras))
+        return talks
+
+    # Convention B — single tablet per page; pull title from h2.brl-title
+    title_m = re.search(
+        r'<h2[^>]*class="[^"]*brl-title[^"]*"[^>]*>(.*?)</h2>',
+        html, re.DOTALL | re.IGNORECASE,
+    )
+    if not title_m:
+        return []
+    title = _normalize_text(title_m.group(1))
+    if not title:
+        return []
+    paras = []
     for attrs, inner in blocks:
         cls_m = re.search(r'class="([^"]+)"', attrs or "")
         cls = cls_m.group(1) if cls_m else ""
-        text = re.sub(r"<[^>]+>", "", inner)
-        text = re.sub(r"(\w)\d+(\s)", r"\1\2", text)
-        text = re.sub(r"(\w)\d+$", r"\1", text)
-        text = (text.replace("&nbsp;", " ").replace("&#160;", " ")
-                    .replace("&mdash;", "—").replace("&rsquo;", "’")
-                    .replace("&lsquo;", "‘").replace("&ldquo;", "“")
-                    .replace("&rdquo;", "”").replace("&amp;", "&"))
-        text = re.sub(r"&[a-z]+;", " ", text)
-        text = re.sub(r"\s+", " ", text).strip()
-        if not text:
+        # Skip chrome paragraphs: footer, downloads info, search-result snippets
+        if any(skip in cls for skip in (
+            "btn-downloads-info", "footer-copyright", "result-snippet",
+            "result-source", "small",
+        )):
             continue
-        if "brl-global-title" in cls:
-            if cur_title is not None:
-                talks.append((cur_title, cur_paras))
-            cur_title = text
-            cur_paras = []
-        elif "brl-head" in cls:
-            continue
-        else:
-            if cur_title is None:
-                continue
-            if len(text) >= MIN_PARA_LEN:
-                cur_paras.append(text)
-    if cur_title is not None:
-        talks.append((cur_title, cur_paras))
-    return talks
+        text = _normalize_text(inner)
+        if len(text) >= MIN_PARA_LEN:
+            paras.append(text)
+    return [(title, paras)]
 
 
 def load_inventory_indices():
