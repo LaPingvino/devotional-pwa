@@ -163,12 +163,13 @@ def parse_section(html):
     if canvas_m:
         main_html = html[canvas_m.start():]
     blocks = re.findall(r'<p(\s[^>]*)?>(.*?)</p>', main_html, re.DOTALL | re.IGNORECASE)
-    has_global_titles = any(
-        "brl-global-title" in (re.search(r'class="([^"]+)"', a or "") or [None, ""]).group(1)
-        if re.search(r'class="([^"]+)"', a or "")
-        else False
-        for a, _ in blocks
-    )
+
+    def class_of(attrs):
+        m = re.search(r'class="([^"]+)"', attrs or "")
+        return m.group(1) if m else ""
+
+    has_global_titles = any("brl-global-title" in class_of(a) for a, _ in blocks)
+    has_selection_numbers = any("brl-global-selection-number" in class_of(a) for a, _ in blocks)
 
     if has_global_titles:
         # Convention A
@@ -196,6 +197,11 @@ def parse_section(html):
         if cur_title is not None:
             talks.append((cur_title, cur_paras))
         return talks
+
+    # Convention C (selection-number-only boundaries, e.g. Light of the World):
+    # parking — per-page numbers reset to 1 each section, so aligning to the
+    # bahai-library cumulative 1..N map needs caller-side bookkeeping that
+    # isn't worth adding for one work right now.
 
     # Convention B — single tablet per page (or a continuation of one).
     # Pull title from h2.brl-title if present; else from the page's H1
