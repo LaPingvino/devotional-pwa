@@ -79,7 +79,7 @@ WORKS = {
         "x_prefix": "XWT",
     },
     "light": {
-        "url": "https://www.bahai.org/library/authoritative-texts/abdul-baha/light-world/{n}",
+        "url": "https://www.bahai.org/library/authoritative-texts/abdul-baha/light-of-the-world/{n}",
         "sections": range(2, 20),
         "x_prefix": "XLW",
     },
