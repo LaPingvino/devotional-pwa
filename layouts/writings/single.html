@@ -98,6 +98,9 @@
   </aside>
 
   <main class="main-content">
+    <button type="button" id="reading-mode-toggle" class="reading-mode-toggle no-print"
+            aria-pressed="false" title="Reading mode (distraction-free)"
+            data-i18n-title="reading_mode_toggle">&#x1F4D6;</button>
     <h1>{{ .Params.writingTitle }}</h1>
     <p style="color:var(--text-secondary); margin-bottom:1.5rem;">
       {{ .Params.langName }} &middot; {{ with $authorName }}<span class="author-badge">{{ . }}</span>{{ end }}
@@ -304,6 +307,82 @@ a.entry-name:hover { text-decoration: underline; }
 .sidebar-lang.active {
   font-weight: 700;
   border-left-color: var(--accent);
+}
+
+/* ── Reading mode ─────────────────────────────────────────────
+   Toggle button sits top-right of the main column. When body has
+   .reading-mode, all chrome (header, sidebar, nav, devotional/range
+   widgets) is hidden and the text column is widened, padded, and
+   set in a larger, more comfortable face. RTL is preserved because
+   we never touch `dir`; only the writing-body's own `dir="rtl"`
+   matters. */
+.reading-mode-toggle {
+  position: absolute;
+  top: .5rem;
+  right: 1rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: .35rem .55rem;
+  border-radius: 6px;
+  cursor: pointer;
+  z-index: 10;
+  opacity: .65;
+  transition: opacity .15s;
+}
+.reading-mode-toggle:hover { opacity: 1; }
+.main-content { position: relative; }
+[dir="rtl"] .reading-mode-toggle, html[dir="rtl"] .reading-mode-toggle {
+  right: auto; left: 1rem;
+}
+
+body.reading-mode .site-header,
+body.reading-mode .sidebar,
+body.reading-mode .writing-range-bar,
+body.reading-mode .btn-add-devotional,
+body.reading-mode .range-marker,
+body.reading-mode .book-goto,
+body.reading-mode .phelps-link,
+body.reading-mode .range-banner {
+  display: none !important;
+}
+body.reading-mode .page-body { display: block; }
+body.reading-mode .main-content {
+  max-width: 680px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+}
+body.reading-mode .writing-body {
+  max-width: 100%;
+  font-size: 1.15rem;
+  line-height: 1.85;
+}
+body.reading-mode .writing-text { font-size: 1.15rem; line-height: 1.9; }
+body.reading-mode .writing-text p { margin-bottom: 1.1rem; }
+body.reading-mode .writing-entry { margin-bottom: 2.2rem; }
+body.reading-mode .writing-entry-label { gap: .4rem; margin-bottom: .5rem; }
+body.reading-mode .writing-book-header { border-bottom-color: var(--border); }
+body.reading-mode h1 { font-size: 1.8rem; }
+/* Floating exit button replaces the small toggle while active */
+body.reading-mode .reading-mode-toggle {
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  opacity: .5;
+  background: var(--bg);
+  box-shadow: 0 2px 6px rgba(0,0,0,.08);
+}
+body.reading-mode .reading-mode-toggle:hover { opacity: 1; }
+[dir="rtl"] body.reading-mode .reading-mode-toggle,
+html[dir="rtl"] body.reading-mode .reading-mode-toggle {
+  right: auto; left: 1rem;
+}
+@media (max-width: 720px) {
+  body.reading-mode .main-content { padding: 1.8rem 1rem 3rem; }
+  body.reading-mode .writing-body,
+  body.reading-mode .writing-text { font-size: 1.08rem; }
 }
 </style>
 
@@ -578,6 +657,38 @@ a.entry-name:hover { text-decoration: underline; }
       showWBanner();
     }
   });
+
+  // ── Reading mode toggle ──
+  (function() {
+    var KEY = 'hw_reading_mode';
+    var btn = document.getElementById('reading-mode-toggle');
+    if (!btn) return;
+    function apply(on) {
+      document.body.classList.toggle('reading-mode', !!on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      btn.textContent = on ? '✕' : '\u{1F4D6}';
+      btn.title = on ? 'Exit reading mode (Esc)' : 'Reading mode (distraction-free)';
+    }
+    // Restore prior preference
+    var stored = false;
+    try { stored = localStorage.getItem(KEY) === '1'; } catch (e) {}
+    apply(stored);
+    btn.addEventListener('click', function() {
+      var on = !document.body.classList.contains('reading-mode');
+      apply(on);
+      try { localStorage.setItem(KEY, on ? '1' : '0'); } catch (e) {}
+    });
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && document.body.classList.contains('reading-mode')) {
+        // Don't steal Esc from open overlays / inputs
+        if (document.querySelector('.expanded-overlay')) return;
+        var t = e.target;
+        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA')) return;
+        apply(false);
+        try { localStorage.setItem(KEY, '0'); } catch (e2) {}
+      }
+    });
+  })();
 
   // Show hint once
   if (!sessionStorage.getItem('hw_verse_hint_dismissed')) {
