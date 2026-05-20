@@ -41,24 +41,38 @@
     {{ if not (in $canon .) }}{{ $ordered = $ordered | append . }}{{ end }}
   {{ end }}
 
+  {{/* Map author_prefix → the writings_author_<code> i18n key (same labels
+       used by the top-bar dropdown). Author-section headings + writing-card
+       titles get JS-time translation via data-i18n. */}}
+  {{ $authorLabelKey := dict "BB" "writings_author_bab" "BH" "writings_author_baha" "AB" "writings_author_abdul" "SE" "writings_author_shoghi" "UH" "writings_author_uhj" }}
+  {{ $legacyI18n := dict "lawh" "writing_other_tablets" }}
+
   <div id="writings-by-author">
     {{ range $pref := $ordered }}
     {{ $works := index $byPrefix $pref }}
     {{ $author := index $prefixAuthor $pref }}
+    {{ $authorKey := index $authorLabelKey $pref }}
     <section class="author-section" data-prefix="{{ $pref }}" data-author="{{ $author | lower }}">
       <h2 class="author-heading">
+        {{ if $authorKey }}
+        <span class="author-name" data-i18n="{{ $authorKey }}">{{ $author }}</span>
+        {{ else }}
         <span class="author-name">{{ $author }}</span>
+        {{ end }}
         <span class="author-count" dir="ltr">{{ len $works }}</span>
       </h2>
       <div class="writings-grid">
         {{ range $works }}
         {{ $wt := . }}
+        {{ $k := .key }}
+        {{ $i18nKey := index $legacyI18n $k }}
+        {{ if not $i18nKey }}{{ $i18nKey = printf "writing_%s" (replace $k "-" "_") }}{{ end }}
         <div class="writing-card"
              data-title="{{ .title | lower }}"
              data-key="{{ .key | lower }}"
              data-author="{{ .author | lower }}"
              data-langcount="{{ len .langs }}">
-          <h2><a href="/writings/{{ .key }}/">{{ .title }}</a></h2>
+          <h2><a href="/writings/{{ .key }}/" data-i18n="{{ $i18nKey }}">{{ .title }}</a></h2>
           <p class="writing-lang-count">{{ len .langs }} <span data-i18n="languages">languages</span></p>
           <div class="writing-lang-list">
             {{ range .langs }}
@@ -86,10 +100,20 @@
     var q = search.value.toLowerCase().trim();
     var shown = 0;
     cards.forEach(function(c) {
+      // Match against English title/author (data-* attrs), the key, AND
+      // whatever the current i18n layer has rendered into the link/author
+      // textContent — so searches like "paroladoj" or "paris" both hit.
+      var titleEl = c.querySelector('h2 a');
+      var titleText = titleEl ? titleEl.textContent.toLowerCase() : '';
+      var sec = c.closest('.author-section');
+      var authEl = sec ? sec.querySelector('.author-name') : null;
+      var authText = authEl ? authEl.textContent.toLowerCase() : '';
       var hit = !q
         || c.dataset.title.indexOf(q) !== -1
         || c.dataset.author.indexOf(q) !== -1
-        || c.dataset.key.indexOf(q) !== -1;
+        || c.dataset.key.indexOf(q) !== -1
+        || titleText.indexOf(q) !== -1
+        || authText.indexOf(q) !== -1;
       c.style.display = hit ? '' : 'none';
       if (hit) shown++;
     });
