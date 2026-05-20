@@ -1,22 +1,26 @@
 #!/usr/bin/env python3
-"""Import Paris Talks into the writings table using REAL ABU phelps codes
-from bahai-library.com's position→code map.
+"""Import Paris Talks content into the writings table using the canonical
+ABU phelps codes already populated in writing_collections.
 
-Strategy:
-1. Fetch bahai-library.com/abdul-baha_paris_talks → extract position N → ABU code.
-2. Fetch bahai.org paris-talks/2..8 (the content pages; section 1 is TOC).
-3. Split each section into talks by class="brl-global-title" boundary.
-4. For talk N, base phelps = bahai-library code for PT#N.
-5. Each paragraph → 11-char phelps = <base 7-char> + <3-digit paragraph idx>.
-6. Insert with type='paristalks', source='bahai.org/paris-talks'.
-
-Also writes an `i18n` row for writings/paristalks so gen_hugo_data.go picks it up.
+Pipeline:
+1. Read writing_collections WHERE collection_key='paristalks' → list of
+   (position, phelps) pairs. Positions 41 and 43 are absent in bahai-
+   library's index; we keep that gap as-is.
+2. Scrape bahai.org/paris-talks/2..8 for content. Each <p class="brl-
+   global-title"> marks the start of a new talk. Body paragraphs follow
+   until the next title.
+3. Bahai.org has 60 talks: 1..59 numbered + 1 appendix ("Tablet Revealed
+   by 'Abdu'l-Bahá", which has its own AB code outside the PT# series).
+   We import only the numbered talks 1..59 that have a matching PT# in
+   the collection (so positions 41 and 43 stay un-imported).
+4. Each scraped paragraph becomes one writings row with extended phelps:
+   <ABU base 7 chars> + <3-digit paragraph index>. type='paristalks',
+   source='bahai.org/paris-talks'.
 
 Run:
   python3 scripts/import_paristalks.py [--dry-run]
 """
 import argparse
-import json
 import re
 import subprocess
 import sys
@@ -27,9 +31,8 @@ import urllib.request
 DOLT_DIR = "/home/joop/bahaiwritings"
 UA = "Mozilla/5.0 (compatible; BahaiTextAligner/1.0)"
 MIN_PARA_LEN = 30
-BAHAI_LIB_URL = "https://bahai-library.com/abdul-baha_paris_talks"
 BAHAI_ORG_TMPL = "https://www.bahai.org/library/authoritative-texts/abdul-baha/paris-talks/{n}"
-CONTENT_SECTIONS = range(2, 9)  # 2..8 inclusive
+CONTENT_SECTIONS = range(2, 9)
 
 
 def fetch(url, delay=1.5):
@@ -59,43 +62,31 @@ def sql_escape(s):
     return s.replace("\\", "\\\\").replace("'", "''")
 
 
-def fetch_code_map():
-    """Return list of (talk_num, phelps_code, has_x). Position N = index N+1."""
-    h = fetch(BAHAI_LIB_URL)
-    if not h:
-        sys.exit("could not fetch bahai-library page")
-    # Pattern: ABU0653[PT#01 p.001] or with x marker as ABU0653x[PT#...]
-    matches = re.findall(
-        r'(ABU?\d{4,5}|AB\d{5})(x?)\[PT#?(\d+)\s+p\.\d+\]', h
-    )
-    # Dedup by talk number (each appears twice in the page)
-    by_talk = {}
-    for code, x, tnum in matches:
-        n = int(tnum)
-        if n not in by_talk:
-            by_talk[n] = (code, x == 'x')
-    out = [(n, by_talk[n][0], by_talk[n][1]) for n in sorted(by_talk)]
-    return out
+def load_collection():
+    """Return dict {position: phelps} for paristalks."""
+    out = dolt("SELECT position, phelps FROM writing_collections WHERE collection_key='paristalks' ORDER BY position")
+    rows = out.strip().splitlines()[1:]
+    m = {}
+    for row in rows:
+        parts = row.split(",")
+        if len(parts) >= 2:
+            m[int(parts[0])] = parts[1].strip()
+    return m
 
 
 def parse_section(html):
     """Return list of (title, [paragraphs]) for each talk in this HTML page.
 
     A talk starts at <p class="brl-head brl-global-title">…</p>. Body
-    paragraphs follow until the next title or end of content. Selection
-    numbers (brl-global-selection-number) are skipped.
+    paragraphs follow until the next title. Numeric markers and other
+    brl-head paragraphs are skipped.
     """
-    # Find all <p>…</p> blocks with class attribute
-    # Capture class and inner text together so we can keep order
-    # Accept <p>, <p class="...">, <p id="...">, etc.
-    blocks = re.findall(
-        r'<p(\s[^>]*)?>(.*?)</p>', html, re.DOTALL | re.IGNORECASE
-    )
+    blocks = re.findall(r'<p(\s[^>]*)?>(.*?)</p>', html, re.DOTALL | re.IGNORECASE)
     talks = []
     cur_title = None
     cur_paras = []
     for attrs, inner in blocks:
-        cls_m = re.search(r'class="([^"]+)"', attrs)
+        cls_m = re.search(r'class="([^"]+)"', attrs or "")
         cls = cls_m.group(1) if cls_m else ""
         text = re.sub(r"<[^>]+>", "", inner)
         text = re.sub(r"(\w)\d+(\s)", r"\1\2", text)
@@ -108,26 +99,18 @@ def parse_section(html):
         text = re.sub(r"\s+", " ", text).strip()
         if not text:
             continue
-
         if "brl-global-title" in cls:
-            # New talk
             if cur_title is not None:
                 talks.append((cur_title, cur_paras))
             cur_title = text
             cur_paras = []
-        elif "brl-global-selection-number" in cls:
-            # Skip the "1, 2, 3…" markers
-            continue
         elif "brl-head" in cls:
-            # Skip other heading-style paragraphs (book chapters etc.)
             continue
         else:
             if cur_title is None:
-                # Pre-title content (preface). Skip; not part of a coded talk.
                 continue
             if len(text) >= MIN_PARA_LEN:
                 cur_paras.append(text)
-
     if cur_title is not None:
         talks.append((cur_title, cur_paras))
     return talks
@@ -138,54 +121,131 @@ def main():
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
-    print("Fetching bahai-library code map…")
-    code_map = fetch_code_map()
-    print(f"  got {len(code_map)} talks mapped")
-    # dict: talk number → (phelps, has_x)
-    code_by_n = {n: (code, x) for n, code, x in code_map}
+    print("Loading paristalks collection from Dolt…")
+    code_map = load_collection()  # {position: phelps}
+    print(f"  {len(code_map)} positions in collection")
+    if not code_map:
+        sys.exit("collection is empty; run build_collections.py first")
 
     print("\nScraping bahai.org content sections…")
-    all_talks = []  # list of (title, [paras])
+    all_talks = []
     for n in CONTENT_SECTIONS:
         url = BAHAI_ORG_TMPL.format(n=n)
         h = fetch(url)
         if not h:
             print(f"  section {n}: FAILED")
             continue
-        talks = parse_section(h)
-        print(f"  section {n}: {len(talks)} talks, {sum(len(p) for _, p in talks)} paragraphs")
-        all_talks.extend(talks)
-
+        s = parse_section(h)
+        print(f"  section {n}: {len(s)} talks, {sum(len(p) for _, p in s)} paragraphs")
+        all_talks.extend(s)
     print(f"\nTotal talks scraped: {len(all_talks)}")
-    print(f"Total bahai-library codes: {len(code_map)}")
 
-    if len(all_talks) != len(code_map):
-        print(f"  WARNING: count mismatch ({len(all_talks)} vs {len(code_map)})")
-        print(f"  Will pair by position up to min({len(all_talks)},{len(code_map)})")
-
-    # Build SQL inserts
-    values = []
-    paired = min(len(all_talks), len(code_map))
-    for i in range(paired):
-        talk_num = i + 1
-        title, paras = all_talks[i]
-        phelps_base, has_x = code_by_n.get(talk_num, (None, False))
-        if not phelps_base:
-            print(f"  skip talk {talk_num}: no code")
+    # For each scraped talk, find its phelps code by:
+    #   1. Position in writing_collections (canonical bahai-library map)
+    #   2. Title prefix match against inventory.Title (recovers PT#41, #43,
+    #      and the appendix tablet which bahai-library doesn't number)
+    #   3. Mint XPT placeholder only when both fail (exceptional)
+    print("\nLooking up inventory titles for fallback matches…")
+    inv_out = dolt(
+        "SELECT PIN, COALESCE(Title,''), COALESCE(`First line (translated)`,'') "
+        "FROM inventory "
+        "WHERE (PIN LIKE 'AB%' OR PIN LIKE 'ABU%') "
+        "ORDER BY PIN"
+    )
+    import csv as _csv, io as _io
+    inv_by_title_prefix = {}   # normalized title prefix → PIN
+    inv_by_firstline = []      # (normalized first 60-char first-line, PIN)
+    for row in _csv.reader(_io.StringIO(inv_out)):
+        if len(row) < 3:
             continue
-        # If excerpt-only, append 3-letter mnemonic from title's distinctive word.
-        # For Paris Talks, no x markers were seen — but handle defensively.
-        suffix = ""
-        if has_x:
-            # First 3 letters of last word in title, uppercase
-            words = re.findall(r"[A-Za-z]+", title)
-            if words:
-                suffix = words[-1][:3].upper()
-        base_full = phelps_base + suffix
+        pin = row[0]
+        if row[1]:
+            t = row[1].lower()
+            if ':' in t:
+                t = t.split(':', 1)[0]
+            t = re.sub(r"[‘’“”\"',.()—\-]", " ", t)
+            t = re.sub(r"\s+", " ", t).strip()
+            if t and t not in inv_by_title_prefix:
+                inv_by_title_prefix[t] = pin
+        if row[2]:
+            fl = row[2].lower()
+            fl = re.sub(r"[‘’“”\"',.!?()—\-]", " ", fl)
+            fl = re.sub(r"\s+", " ", fl).strip()
+            if len(fl) >= 30:
+                inv_by_firstline.append((fl[:80], pin))
+
+    def find_by_title(talk_title):
+        t = talk_title.lower()
+        if ':' in t:
+            t = t.split(':', 1)[0]
+        t = re.sub(r"[‘’“”\"',.()—\-]", " ", t)
+        t = re.sub(r"\s+", " ", t).strip()
+        return inv_by_title_prefix.get(t)
+
+    def find_by_first_para(text):
+        """Match a talk's first paragraph against inventory first-lines.
+        Slide a 6-word window across each inventory first-line and check
+        substring containment in the scraped paragraph (and vice versa).
+        Handles salutation differences ("O Thou my beloved daughter! Thine
+        eloquent..." vs "Thine eloquent...").
+        """
+        if not text or len(text) < 30:
+            return None
+        norm = text.lower()
+        norm = re.sub(r"[‘’“”\"',.!?()—\-]", " ", norm)
+        norm = re.sub(r"\s+", " ", norm).strip()
+        for fl, pin in inv_by_firstline:
+            words = fl.split()
+            for i in range(0, max(1, len(words) - 5)):
+                window = " ".join(words[i:i + 6])
+                if len(window) >= 25 and window in norm:
+                    return pin
+        return None
+
+    # Title match dominates: bahai.org has subheaders (location markers like
+    # "4 Avenue de Camoëns, Paris,") that share the .brl-global-title class
+    # with real talks, throwing off pure position alignment. Title matching
+    # against inventory gives canonical codes; position is only used as a
+    # last-resort fallback for talks whose title isn't in inventory.
+    # Collection-position-1 codes (which we trust because they came from
+    # bahai-library annotations) are also used when title-match returns the
+    # same code or no result.
+    values = []
+    minted = []
+    title_matched = []
+    position_used = []
+    skipped_non_talks = []
+    real_pt_num = 0  # canonical PT# (skips subheaders so position lines up with bahai-library)
+    for idx, (title, paras) in enumerate(all_talks, start=1):
+        # Detect non-talk subheaders: short titles that look like addresses or
+        # locations (start with digits, contain street keywords). Skip them.
+        if re.match(r'^\d+\s+(Avenue|Rue|Boulevard|Place|Street)', title) or \
+           (re.search(r'\bRue\s+[A-Z]', title) and len(title.split()) < 6 and ',' in title):
+            skipped_non_talks.append((idx, title))
+            continue
+        real_pt_num += 1
+        phelps_base = find_by_title(title)
+        source_method = "title"
+        if not phelps_base and paras:
+            phelps_base = find_by_first_para(paras[0])
+            if phelps_base:
+                source_method = "first_line"
+                title_matched.append((real_pt_num, phelps_base, title + " (via first-line)"))
+        if not phelps_base:
+            phelps_base = code_map.get(real_pt_num)
+            if phelps_base:
+                source_method = "position"
+                position_used.append((real_pt_num, phelps_base, title))
+            else:
+                phelps_base = f"XPT{real_pt_num:04d}"
+                source_method = "minted"
+                minted.append((real_pt_num, phelps_base, title))
+        elif source_method == "title":
+            title_matched.append((real_pt_num, phelps_base, title))
         for para_idx, text in enumerate(paras, start=1):
-            ext = f"{base_full}{para_idx:03d}"
+            ext = f"{phelps_base}{para_idx:03d}"
             text_html = f"<p>{sql_escape(text)}</p>"
-            name = f"{talk_num}. {title}"
+            name = f"Talk {real_pt_num}. {title}"
             version = f"paristalks:{ext}:en"
             values.append(
                 f"('{version}','{ext}','en','{sql_escape(name)}',"
@@ -193,40 +253,42 @@ def main():
             )
 
     print(f"\nReady to insert {len(values)} rows")
+    print(f"  {len(title_matched)} talks matched by inventory title")
+    print(f"  {len(position_used)} talks matched by collection position")
+    print(f"  {len(minted)} talks minted X-prefix codes (true gaps)")
+    print(f"  {len(skipped_non_talks)} bahai.org subheaders skipped (not real talks)")
+    if minted:
+        print("Minted:")
+        for pos, code, t in minted:
+            print(f"  PT#{pos}: {code} — {t[:60]}")
+    if skipped_non_talks:
+        print("Skipped subheaders:")
+        for pos, t in skipped_non_talks:
+            print(f"  idx{pos}: {t[:70]}")
+
     if args.dry_run:
-        print("DRY RUN; first 3 values:")
         for v in values[:3]:
             print("  " + v[:200])
         return
 
     if not values:
         return
+    # Clear any prior import for this type before re-inserting
+    print("\nClearing existing type='paristalks' rows…")
+    dolt("SET FOREIGN_KEY_CHECKS=0; DELETE FROM writings WHERE type='paristalks'; SET FOREIGN_KEY_CHECKS=1;")
+
     ins_prefix = (
         "INSERT INTO writings (version, phelps, language, name, type, text, source, source_id, is_verified) VALUES\n"
     )
-    BATCH = 500
-    for i in range(0, len(values), BATCH):
+    BATCH = 200
+    total = len(values)
+    for i in range(0, total, BATCH):
         chunk = values[i:i + BATCH]
         stmt = ins_prefix + ",\n".join(chunk) + ";"
         dolt("SET FOREIGN_KEY_CHECKS=0;" + stmt + "SET FOREIGN_KEY_CHECKS=1;")
-        print(f"  inserted rows {i}–{i + len(chunk)}")
+        print(f"  inserted rows {i}–{min(i + BATCH, total)} ({total} total)")
 
-    # i18n metadata
-    i18n_val = {
-        "author": "'Abdu'l-Bahá",
-        "author_prefix": "AB",
-        "db_type": "paristalks",
-        "flags": {"single_book": True, "show_names": True, "split_paras": False},
-        "order": 17,
-        "title": "Paris Talks",
-    }
-    val_json = json.dumps(i18n_val, ensure_ascii=False)
-    dolt(
-        f"INSERT INTO i18n (`key`, language, value) VALUES "
-        f"('writings/paristalks', 'en', '{sql_escape(val_json)}') "
-        f"ON DUPLICATE KEY UPDATE value=VALUES(value);"
-    )
-    print("Wrote i18n: writings/paristalks")
+    print("Done.")
 
 
 if __name__ == "__main__":
