@@ -53,7 +53,7 @@ SOURCES = [
     ("gems",       "GDM",  "https://bahai-library.com/bahaullah_gems_divine_mysteries"),
     ("tabernacle", "TU",   "https://bahai-library.com/bahaullah_tabernacle_unity"),
     ("call",       "CDB",  "https://bahai-library.com/bahaullah_call_divine_beloved"),
-    ("days",       "DOR",  "https://bahai-library.com/bahaullah_days_remembrance"),
+    ("days",       "DOR",  "https://bahai-library.com/compilation_days_remembrance"),
     ("tablets",    "TB",   "https://bahai-library.com/bahaullah_tablets_revealed_aqdas"),
     ("swab",       "SWAB", "https://bahai-library.com/abdul-baha_selections_writings"),
     ("memorials",  "MOF",  "https://bahai-library.com/abdul-baha_memorials_faithful"),
@@ -141,26 +141,28 @@ def parse_codes(html, abbrev):
       B) Bare list:  <code> in 'Inventory #' table row, ordered. Position
          is inferred from document order.
     """
-    # Position is required; page reference is optional (P&M-style annotations
-    # like [PM#001] omit it).
-    # Two annotated formats:
-    #   A) [<ABBR>#<NUM> p.<PAGE>]   — used by PT, P&M, SAQ, etc.
-    #   B) [<ABBR>#<NUM> (p.<PAGES>x)] — SWB (every section is an excerpt;
-    #      the 'x' is INSIDE the parens, attached to the page range)
+    # Position is required; page reference is optional.
+    # Annotated formats observed across bahai-library pages:
+    #   A) CODE[ABBR#NUM p.PAGE]            — PT, SAQ
+    #   B) CODE[ABBR#NUM (p.PAGES x?)]      — SWB (x inside parens)
+    #   C) CODE[ABBR#NUMx]                  — PM, APBH, APAB (x bare after number)
+    #   D) CODEx[ABBR#NUM ...]              — older convention, x before bracket
+    #   E) CODE [ABBR#NUM...]               — Gleanings (whitespace between code and bracket)
+    # The abbrev may be prefixed with BRL_ (e.g. BRL_APBH for APBH).
     pat_annotated = (
         rf'((?:AB|ABU|BB|BH|UH)\d{{4,5}})(x?)'
-        rf'\[\s*{re.escape(abbrev)}\s*#?\s*(\d+)'
+        rf'\s*\[\s*(?:BRL_)?{re.escape(abbrev)}\s*#?\s*(\d+)(x?)'
         rf'(?:\s+p\.(\d+))?'
         rf'(?:\s+\(p\.[\d\(\)abc\-]*(x)?\))?'
         rf'\s*\]'
     )
     matches = re.findall(pat_annotated, html)
-    # Normalize: if the format-B "x" capture (group 5) is set, treat the entry
-    # as an excerpt. Re-tuple to (code, is_excerpt, num, page).
+    # Normalize: any of the three x-capture positions makes it an excerpt.
+    # Re-tuple to (code, is_excerpt, num, page).
     norm = []
     for m in matches:
-        code, x_before, num, page, x_inside = m[0], m[1], m[2], m[3], m[4]
-        is_excerpt = (x_before == 'x') or (x_inside == 'x')
+        code, x_before, num, x_after_num, page, x_inside = m
+        is_excerpt = (x_before == 'x') or (x_after_num == 'x') or (x_inside == 'x')
         norm.append((code, is_excerpt, num, page))
     matches = norm
     if matches:
