@@ -1467,6 +1467,27 @@ func writingEntryLabel(pin string) string {
 			return chapter + ":" + para
 		}
 	}
+	// Generic paragraph-decomposed sub-codes: base PIN (7 chars) + 3 digits.
+	// Used for Paris Talks, Call of the Divine Beloved, Summons, Tabernacle,
+	// etc. Yields per-paragraph labels like "¶1, ¶2" so paragraphs don't all
+	// inherit the parent's single collection display_label.
+	if len(pin) == 10 {
+		suffix := pin[7:]
+		allDigits := true
+		for _, c := range suffix {
+			if c < '0' || c > '9' {
+				allDigits = false
+				break
+			}
+		}
+		if allDigits {
+			para := strings.TrimLeft(suffix, "0")
+			if para == "" {
+				para = "0"
+			}
+			return "¶" + para
+		}
+	}
 	return ""
 }
 
