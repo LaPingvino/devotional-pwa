@@ -66,6 +66,10 @@ SOURCES = [
     ("pdc",        "PDC",  "https://bahai-library.com/shoghieffendi_promised_day_come"),
     ("apbh",       "APBH", "https://bahai-library.com/bahaullah_additional_prayers"),
     ("apab",       "APAB", "https://bahai-library.com/abdul-baha_additional_prayers"),
+    # Annotated `[PM#NNN]` etc. — added after the regex was relaxed
+    ("pm",         "PM",   "https://bahai-library.com/bahaullah_prayers_meditations"),
+    ("gleanings",  "GWB",  "https://bahai-library.com/bahaullah_gleanings_writings"),
+    ("saq",        "SAQ",  "https://bahai-library.com/abdul-baha_some_answered_questions"),
 ]
 
 
@@ -133,14 +137,17 @@ def parse_codes(html, abbrev):
       B) Bare list:  <code> in 'Inventory #' table row, ordered. Position
          is inferred from document order.
     """
-    pat_annotated = rf'((?:AB|ABU|BB|BH|UH)\d{{4,5}})(x?)\[\s*{re.escape(abbrev)}\s*#?\s*(\d+)\s+p\.(\d+)\]'
+    # Position is required; page reference is optional (P&M-style annotations
+    # like [PM#001] omit it).
+    pat_annotated = rf'((?:AB|ABU|BB|BH|UH)\d{{4,5}})(x?)\[\s*{re.escape(abbrev)}\s*#?\s*(\d+)(?:\s+p\.(\d+))?\s*\]'
     matches = re.findall(pat_annotated, html)
     if matches:
         by_pos = {}
         for code, x, num, page in matches:
             n = int(num)
             if n not in by_pos:
-                by_pos[n] = (code, x == 'x', f"p.{page}")
+                page_ref = f"p.{page}" if page else None
+                by_pos[n] = (code, x == 'x', page_ref)
         return [(n, by_pos[n][0], by_pos[n][1], by_pos[n][2]) for n in sorted(by_pos)]
 
     # Fall back to bare-code extraction from the 'Inventory #' table cell.

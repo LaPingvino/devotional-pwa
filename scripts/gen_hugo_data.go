@@ -1054,6 +1054,31 @@ func loadBookTitles() map[string]map[string]string {
 	return out
 }
 
+// loadCollectionLabels reads writing_collections and returns a map from
+// phelps → display_label. Used by generateWritings() to attach human-facing
+// labels (e.g. "PM 42", "DOR 9", "Talk 1") to entries whose phelps suffix
+// doesn't already encode one. When the same phelps appears in multiple
+// collections we keep the first non-empty label (collection_key, position
+// order).
+func loadCollectionLabels() map[string]string {
+	rows := doltQuery(`
+		SELECT phelps, display_label
+		FROM writing_collections
+		WHERE phelps IS NOT NULL AND display_label IS NOT NULL
+		ORDER BY collection_key, position
+	`)
+	out := map[string]string{}
+	for _, row := range rows[1:] {
+		if len(row) < 2 || row[0] == "" || row[1] == "" {
+			continue
+		}
+		if _, ok := out[row[0]]; !ok {
+			out[row[0]] = row[1]
+		}
+	}
+	return out
+}
+
 // loadAuthorsByPrefix reads author/<prefix> rows from i18n and returns
 // map[prefix][lang] = name. English is the canonical fallback.
 func loadAuthorsByPrefix() map[string]map[string]string {
@@ -1112,6 +1137,31 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 	writingTypes := loadWritingTypes()
 	bookTitles := loadBookTitles()
 	typeTitles := loadWritingTypeTitles()
+	collectionLabels := loadCollectionLabels()
+
+	// Apply collection-derived display labels to entries that don't already
+	// have one from the suffix-heuristic (writingEntryLabel). Try the full
+	// extended phelps first; fall back to the base PIN so multi-paragraph
+	// tablets in compilation-style collections inherit the book-level label
+	// (e.g. all paragraphs of BB00002 inside SWB get the "SWB 1" label).
+	for dbType, byLang := range typeData {
+		for lang, entries := range byLang {
+			for i := range entries {
+				if entries[i].Label != "" {
+					continue
+				}
+				p := entries[i].Phelps
+				if lbl, ok := collectionLabels[p]; ok {
+					typeData[dbType][lang][i].Label = lbl
+					continue
+				}
+				base := writingBaseCode(p)
+				if lbl, ok := collectionLabels[base]; ok {
+					typeData[dbType][lang][i].Label = lbl
+				}
+			}
+		}
+	}
 
 	var writingsIndex []WritingType
 	for _, wt := range writingTypes {
