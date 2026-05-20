@@ -1,0 +1,351 @@
+#!/usr/bin/env python3
+"""Scrape bahai.org library books and import into the `writings` table.
+
+Targets section-paginated bahai.org URLs (e.g. paris-talks/1..N). For each
+section, extracts <p> paragraphs and stores them with synthetic 11-char
+phelps codes:
+   <5-char base prefix> + <2-digit section> + <3-digit paragraph>
+
+Each work registers a writings/<key> i18n metadata row so gen_hugo_data.go
+picks it up automatically.
+
+Usage:
+  python3 scripts/scrape_bahai_org.py [--only paristalks]
+"""
+import argparse
+import json
+import re
+import subprocess
+import sys
+import time
+import urllib.request
+import urllib.error
+
+DOLT_DIR = "/home/joop/bahaiwritings"
+MIN_PARA_LEN = 30
+UA = "Mozilla/5.0 (compatible; BahaiTextAligner/1.0)"
+
+# (key, code_prefix_5, base_url_template, section_range, language,
+#  author, author_prefix, title, order, single_book, source_tag)
+WORKS = [
+    {
+        "key": "paristalks",
+        "prefix": "XPT00",
+        "url_tmpl": "https://www.bahai.org/library/authoritative-texts/abdul-baha/paris-talks/{n}",
+        "sections": range(1, 30),  # stop on 404
+        "language": "en",
+        "author": "'Abdu'l-Bahá",
+        "author_prefix": "AB",
+        "title": "Paris Talks",
+        "order": 17,
+        "single_book": True,
+        "source_tag": "bahai.org/paris-talks",
+    },
+    {
+        "key": "summons",
+        "prefix": "XSL00",
+        "url_tmpl": "https://www.bahai.org/library/authoritative-texts/bahaullah/summons-lord-hosts/{n}",
+        "sections": range(1, 30),
+        "language": "en",
+        "author": "Bahá'u'lláh",
+        "author_prefix": "BH",
+        "title": "The Summons of the Lord of Hosts",
+        "order": 18,
+        "single_book": True,
+        "source_tag": "bahai.org/summons",
+    },
+    {
+        "key": "esw",
+        "prefix": "XEW00",
+        "url_tmpl": "https://www.bahai.org/library/authoritative-texts/bahaullah/epistle-son-wolf/{n}",
+        "sections": range(1, 30),
+        "language": "en",
+        "author": "Bahá'u'lláh",
+        "author_prefix": "BH",
+        "title": "Epistle to the Son of the Wolf",
+        "order": 19,
+        "single_book": True,
+        "source_tag": "bahai.org/esw",
+    },
+    {
+        "key": "svfv",
+        "prefix": "XSV00",
+        "url_tmpl": "https://www.bahai.org/library/authoritative-texts/bahaullah/seven-valleys-four-valleys/{n}",
+        "sections": range(1, 30),
+        "language": "en",
+        "author": "Bahá'u'lláh",
+        "author_prefix": "BH",
+        "title": "The Seven Valleys and the Four Valleys",
+        "order": 20,
+        "single_book": True,
+        "source_tag": "bahai.org/seven-valleys",
+    },
+    {
+        "key": "tabernacle",
+        "prefix": "XTU00",
+        "url_tmpl": "https://www.bahai.org/library/authoritative-texts/bahaullah/tabernacle-unity/{n}",
+        "sections": range(1, 30),
+        "language": "en",
+        "author": "Bahá'u'lláh",
+        "author_prefix": "BH",
+        "title": "The Tabernacle of Unity",
+        "order": 21,
+        "single_book": True,
+        "source_tag": "bahai.org/tabernacle",
+    },
+    {
+        "key": "call",
+        "prefix": "XCD00",
+        "url_tmpl": "https://www.bahai.org/library/authoritative-texts/bahaullah/call-divine-beloved/{n}",
+        "sections": range(1, 30),
+        "language": "en",
+        "author": "Bahá'u'lláh",
+        "author_prefix": "BH",
+        "title": "The Call of the Divine Beloved",
+        "order": 22,
+        "single_book": True,
+        "source_tag": "bahai.org/call-divine-beloved",
+    },
+    {
+        "key": "memorials",
+        "prefix": "XMF00",
+        "url_tmpl": "https://www.bahai.org/library/authoritative-texts/abdul-baha/memorials-faithful/{n}",
+        "sections": range(1, 30),
+        "language": "en",
+        "author": "'Abdu'l-Bahá",
+        "author_prefix": "AB",
+        "title": "Memorials of the Faithful",
+        "order": 23,
+        "single_book": True,
+        "source_tag": "bahai.org/memorials",
+    },
+    {
+        "key": "sdc",
+        "prefix": "XSD00",
+        "url_tmpl": "https://www.bahai.org/library/authoritative-texts/abdul-baha/secret-divine-civilization/{n}",
+        "sections": range(1, 30),
+        "language": "en",
+        "author": "'Abdu'l-Bahá",
+        "author_prefix": "AB",
+        "title": "The Secret of Divine Civilization",
+        "order": 24,
+        "single_book": True,
+        "source_tag": "bahai.org/secret-divine-civilization",
+    },
+    {
+        "key": "tn",
+        "prefix": "XTN00",
+        "url_tmpl": "https://www.bahai.org/library/authoritative-texts/abdul-baha/travelers-narrative/{n}",
+        "sections": range(1, 30),
+        "language": "en",
+        "author": "'Abdu'l-Bahá",
+        "author_prefix": "AB",
+        "title": "A Traveler's Narrative",
+        "order": 25,
+        "single_book": True,
+        "source_tag": "bahai.org/travelers-narrative",
+    },
+    {
+        "key": "wt",
+        "prefix": "XWT00",
+        "url_tmpl": "https://www.bahai.org/library/authoritative-texts/abdul-baha/will-testament-abdul-baha/{n}",
+        "sections": range(1, 30),
+        "language": "en",
+        "author": "'Abdu'l-Bahá",
+        "author_prefix": "AB",
+        "title": "Will and Testament of 'Abdu'l-Bahá",
+        "order": 26,
+        "single_book": True,
+        "source_tag": "bahai.org/will-testament",
+    },
+    {
+        "key": "adj",
+        "prefix": "XAD00",
+        "url_tmpl": "https://www.bahai.org/library/authoritative-texts/shoghi-effendi/advent-divine-justice/{n}",
+        "sections": range(1, 30),
+        "language": "en",
+        "author": "Shoghi Effendi",
+        "author_prefix": "SE",
+        "title": "The Advent of Divine Justice",
+        "order": 27,
+        "single_book": True,
+        "source_tag": "bahai.org/advent",
+    },
+    {
+        "key": "pdc",
+        "prefix": "XPD00",
+        "url_tmpl": "https://www.bahai.org/library/authoritative-texts/shoghi-effendi/promised-day-is-come/{n}",
+        "sections": range(1, 30),
+        "language": "en",
+        "author": "Shoghi Effendi",
+        "author_prefix": "SE",
+        "title": "The Promised Day Is Come",
+        "order": 28,
+        "single_book": True,
+        "source_tag": "bahai.org/promised-day",
+    },
+    {
+        "key": "wob",
+        "prefix": "XWO00",
+        "url_tmpl": "https://www.bahai.org/library/authoritative-texts/shoghi-effendi/world-order-bahaullah/{n}",
+        "sections": range(1, 30),
+        "language": "en",
+        "author": "Shoghi Effendi",
+        "author_prefix": "SE",
+        "title": "The World Order of Bahá'u'lláh",
+        "order": 29,
+        "single_book": True,
+        "source_tag": "bahai.org/world-order",
+    },
+]
+
+
+def fetch(url, delay=1.5):
+    req = urllib.request.Request(url, headers={"User-Agent": UA})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            content = resp.read().decode("utf-8", errors="replace")
+        time.sleep(delay)
+        return content
+    except urllib.error.HTTPError as e:
+        if e.code == 404:
+            return "__404__"
+        sys.stderr.write(f"  fetch HTTP {e.code} {url}\n")
+        return None
+    except Exception as e:
+        sys.stderr.write(f"  fetch error {url}: {e}\n")
+        return None
+
+
+def extract_paragraphs(html):
+    """Pull text out of <p> tags inside the main content."""
+    # Trim to brain.body / main if possible
+    m = re.search(r'<div[^>]+class="[^"]*brain-content[^"]*"', html)
+    if m:
+        html = html[m.start():]
+    # Drop scripts/styles/nav blocks
+    html = re.sub(r"<(script|style|nav|header|footer|aside)\b[^>]*>.*?</\1>", "", html, flags=re.DOTALL | re.IGNORECASE)
+    raw_paras = re.findall(r"<p[^>]*>(.*?)</p>", html, re.DOTALL | re.IGNORECASE)
+    out = []
+    for p in raw_paras:
+        text = re.sub(r"<[^>]+>", "", p)
+        # Drop footnote markers like 1, 2 attached to words
+        text = re.sub(r"(\w)\d+(\s)", r"\1\2", text)
+        text = re.sub(r"(\w)\d+$", r"\1", text)
+        text = (text.replace("&nbsp;", " ").replace("&#160;", " ")
+                    .replace("&mdash;", "—").replace("&rsquo;", "’")
+                    .replace("&lsquo;", "‘").replace("&ldquo;", "“")
+                    .replace("&rdquo;", "”").replace("&amp;", "&"))
+        text = re.sub(r"&[a-z]+;", " ", text)
+        text = re.sub(r"\s+", " ", text).strip()
+        if len(text) >= MIN_PARA_LEN:
+            out.append(text)
+    return out
+
+
+def dolt(query):
+    res = subprocess.run(
+        ["dolt", "sql", "--result-format", "csv"],
+        cwd=DOLT_DIR, capture_output=True, text=True, input=query,
+    )
+    if res.returncode != 0:
+        sys.stderr.write(f"DOLT ERROR: {res.stderr}\nQUERY: {query[:200]}\n")
+        sys.exit(1)
+    return res.stdout
+
+
+def sql_escape(s):
+    return s.replace("\\", "\\\\").replace("'", "''")
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--only", help="Only scrape this work key (e.g. paristalks)")
+    ap.add_argument("--dry-run", action="store_true")
+    args = ap.parse_args()
+
+    for w in WORKS:
+        if args.only and args.only != w["key"]:
+            continue
+        print(f"\n=== {w['key']} — {w['title']} ===")
+
+        all_values = []
+        section_paragraph_counts = []
+        for n in w["sections"]:
+            url = w["url_tmpl"].format(n=n)
+            html = fetch(url)
+            if html == "__404__":
+                print(f"  section {n}: 404 — stopping")
+                break
+            if html is None:
+                print(f"  section {n}: FAILED to fetch")
+                section_paragraph_counts.append(0)
+                continue
+            paras = extract_paragraphs(html)
+            section_paragraph_counts.append(len(paras))
+            print(f"  section {n}: {len(paras)} paragraphs")
+            for idx, text in enumerate(paras, start=1):
+                # Synthetic phelps: 5-char prefix + 2-digit section + 3-digit para
+                ext = f"{w['prefix']}{n:02d}{idx:03d}"
+                # 5 + 2 + 3 = 10 chars. We need to be 11-char convention?
+                # Actually doesn't strictly matter, but writingBaseCode strips
+                # anything past 7 chars. Our base is XPT00 + 2-digit section
+                # truncated to 7 chars = "XPT00NN" — but that varies per section.
+                # Use one base per section so each section = one "book".
+                base = f"{w['prefix']}{n:02d}"  # 7-char per-section base
+                if len(base) != 7:
+                    # Ensure 7 chars exactly
+                    base = (w["prefix"] + f"{n:02d}")[:7].ljust(7, "0")
+                ext = f"{base}{idx:03d}"  # 7 + 3 = 10 chars (LEN OK)
+                text_html = f"<p>{sql_escape(text)}</p>"
+                version = f"{w['key']}:{ext}:{w['language']}"
+                section_name = f"{w['title']} §{n}"
+                all_values.append(
+                    f"('{version}','{ext}','{w['language']}','{sql_escape(section_name)}',"
+                    f"'{w['key']}','{text_html}','{w['source_tag']}','{base}',1)"
+                )
+
+        total = len(all_values)
+        if total == 0:
+            print("  no paragraphs extracted; skipping")
+            continue
+        print(f"  total paragraphs: {total}")
+
+        if args.dry_run:
+            print(f"  [dry-run] would insert {total} rows + i18n metadata")
+            continue
+
+        # Batch insert
+        ins_prefix = (
+            "INSERT INTO writings (version, phelps, language, name, type, text, source, source_id, is_verified) VALUES\n"
+        )
+        BATCH = 500
+        for i in range(0, total, BATCH):
+            chunk = all_values[i:i + BATCH]
+            stmt = ins_prefix + ",\n".join(chunk) + ";"
+            dolt("SET FOREIGN_KEY_CHECKS=0;" + stmt + "SET FOREIGN_KEY_CHECKS=1;")
+            print(f"  inserted rows {i}–{i + len(chunk)}")
+
+        # i18n metadata
+        i18n_val = {
+            "author": w["author"],
+            "author_prefix": w["author_prefix"],
+            "db_type": w["key"],
+            "flags": {"single_book": w["single_book"], "show_names": True, "split_paras": False},
+            "order": w["order"],
+            "title": w["title"],
+        }
+        val_json = json.dumps(i18n_val, ensure_ascii=False)
+        i18n_sql = (
+            f"INSERT INTO i18n (`key`, language, value) VALUES "
+            f"('writings/{w['key']}', 'en', '{sql_escape(val_json)}') "
+            f"ON DUPLICATE KEY UPDATE value=VALUES(value);"
+        )
+        dolt(i18n_sql)
+        print(f"  wrote i18n: writings/{w['key']}")
+
+    print("\nDone.")
+
+
+if __name__ == "__main__":
+    main()

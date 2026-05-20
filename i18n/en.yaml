@@ -9,6 +9,9 @@ nav_catalog: "Catalog"
 nav_about: "About"
 nav_all_languages: "All languages"
 nav_all_writings: "All writings"
+writings_search: "Search works or authors…"
+writings_subtitle: "Sacred texts of the Bahá'í Faith in multiple languages."
+writings_works: "works"
 
 # Writings dropdown
 writing_hidden_words: "Hidden Words"

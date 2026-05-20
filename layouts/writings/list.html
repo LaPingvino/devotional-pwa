@@ -1,24 +1,112 @@
 {{ partial "head.html" (dict "Title" "Writings" "Lang" "en") }}
 <div class="main-content">
   <h1 data-i18n="nav_writings">Writings</h1>
-  <p style="color:var(--text-secondary); margin-bottom:2rem;">
-    Sacred texts of the Bah&aacute;&rsquo;&iacute; Faith in multiple languages.
+  <p style="color:var(--text-secondary); margin-bottom:1rem;">
+    <span id="writings-total">{{ len site.Data.writings }}</span> <span data-i18n="writings_works">works</span>
+    · <span data-i18n="writings_subtitle">Sacred texts of the Bahá'í Faith in multiple languages.</span>
   </p>
 
-  <div class="writings-grid">
-    {{ range site.Data.writings }}
-    {{ $wt := . }}
-    <div class="writing-card">
-      <h2><a href="/writings/{{ .key }}/">{{ .title }}</a></h2>
-      <p class="writing-author">{{ .author }}</p>
-      <p class="writing-lang-count">{{ len .langs }} language{{ if gt (len .langs) 1 }}s{{ end }}</p>
-      <div class="writing-lang-list">
-        {{ range .langs }}
-        <a href="/writings/{{ $wt.key }}/{{ .code | lower }}/" class="lang-chip">{{ .name }}</a>
+  <div class="lang-controls">
+    <input type="search" id="writings-search"
+           placeholder="Search works or authors…"
+           data-i18n-placeholder="writings_search"
+           autocomplete="off"
+           style="flex:1; min-width:200px; padding:.45rem .75rem; border:1px solid var(--border); border-radius:6px; background:var(--surface); color:var(--text); font-size:.95rem;">
+  </div>
+  <p id="writings-count-msg" style="font-size:.8rem; color:var(--text-secondary); margin:.4rem 0 1rem;"></p>
+
+  {{/* Group writings by author_prefix; preserve order from data/writings.json. */}}
+  {{ $byPrefix := dict }}
+  {{ $prefixOrder := slice }}
+  {{ $prefixAuthor := dict }}
+  {{ range site.Data.writings }}
+    {{ $pref := .author_prefix | default "_" }}
+    {{ if not (isset $byPrefix $pref) }}
+      {{ $byPrefix = merge $byPrefix (dict $pref (slice .)) }}
+      {{ $prefixOrder = $prefixOrder | append $pref }}
+      {{ $prefixAuthor = merge $prefixAuthor (dict $pref .author) }}
+    {{ else }}
+      {{ $existing := index $byPrefix $pref }}
+      {{ $byPrefix = merge $byPrefix (dict $pref ($existing | append .)) }}
+    {{ end }}
+  {{ end }}
+
+  {{/* Canonical author display order: BB, BH, AB, SE, UH, then anything else. */}}
+  {{ $canon := slice "BB" "BH" "AB" "SE" "UH" }}
+  {{ $ordered := slice }}
+  {{ range $canon }}
+    {{ if in $prefixOrder . }}{{ $ordered = $ordered | append . }}{{ end }}
+  {{ end }}
+  {{ range $prefixOrder }}
+    {{ if not (in $canon .) }}{{ $ordered = $ordered | append . }}{{ end }}
+  {{ end }}
+
+  <div id="writings-by-author">
+    {{ range $pref := $ordered }}
+    {{ $works := index $byPrefix $pref }}
+    {{ $author := index $prefixAuthor $pref }}
+    <section class="author-section" data-prefix="{{ $pref }}" data-author="{{ $author | lower }}">
+      <h2 class="author-heading">
+        <span class="author-name">{{ $author }}</span>
+        <span class="author-count" dir="ltr">{{ len $works }}</span>
+      </h2>
+      <div class="writings-grid">
+        {{ range $works }}
+        {{ $wt := . }}
+        <div class="writing-card"
+             data-title="{{ .title | lower }}"
+             data-key="{{ .key | lower }}"
+             data-author="{{ .author | lower }}"
+             data-langcount="{{ len .langs }}">
+          <h2><a href="/writings/{{ .key }}/">{{ .title }}</a></h2>
+          <p class="writing-lang-count">{{ len .langs }} <span data-i18n="languages">languages</span></p>
+          <div class="writing-lang-list">
+            {{ range .langs }}
+            <a href="/writings/{{ $wt.key }}/{{ .code | lower }}/" class="lang-chip">{{ .name }}</a>
+            {{ end }}
+          </div>
+        </div>
         {{ end }}
       </div>
-    </div>
+    </section>
     {{ end }}
   </div>
 </div>
+
+<script>
+(function() {
+  var search   = document.getElementById('writings-search');
+  var msg      = document.getElementById('writings-count-msg');
+  var sections = Array.from(document.querySelectorAll('.author-section'));
+  var cards    = Array.from(document.querySelectorAll('.writing-card'));
+
+  search.addEventListener('input', filter);
+
+  function filter() {
+    var q = search.value.toLowerCase().trim();
+    var shown = 0;
+    cards.forEach(function(c) {
+      var hit = !q
+        || c.dataset.title.indexOf(q) !== -1
+        || c.dataset.author.indexOf(q) !== -1
+        || c.dataset.key.indexOf(q) !== -1;
+      c.style.display = hit ? '' : 'none';
+      if (hit) shown++;
+    });
+    sections.forEach(function(s) {
+      var any = Array.from(s.querySelectorAll('.writing-card'))
+                     .some(function(c) { return c.style.display !== 'none'; });
+      s.style.display = any ? '' : 'none';
+    });
+    var total = cards.length;
+    if (q) {
+      msg.textContent = shown + ' / ' + total;
+    } else {
+      msg.textContent = '';
+    }
+  }
+
+  filter();
+})();
+</script>
 {{ partial "foot.html" . }}
