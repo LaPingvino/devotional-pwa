@@ -23,6 +23,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -932,11 +933,13 @@ type WritingLang struct {
 
 // WritingEntry is one paragraph/verse/section in a writing
 type WritingEntry struct {
-	Phelps string `json:"phelps"`
-	Name   string `json:"name,omitempty"`
-	Text   string `json:"text"`
-	Order  int    `json:"order"`           // numeric position for sorting / range-selection
-	Label  string `json:"label,omitempty"` // display label; differs from Order for chapter:para works (Íqán: "1:1", "2:186")
+	Phelps       string `json:"phelps"`
+	Name         string `json:"name,omitempty"`
+	Text         string `json:"text"`
+	Order        int    `json:"order"`                   // numeric position for sorting / range-selection
+	Label        string `json:"label,omitempty"`         // display label; differs from Order for chapter:para works (Íqán: "1:1", "2:186")
+	Chapter      string `json:"chapter,omitempty"`       // chapter/section label (e.g. "Part 1", "Arabic")
+	ChapterOrder int    `json:"chapter_order,omitempty"` // 1-based chapter position within the work
 }
 
 // WritingBook groups entries under a book/tablet heading
@@ -1054,26 +1057,40 @@ func loadBookTitles() map[string]map[string]string {
 	return out
 }
 
-// loadCollectionLabels reads writing_collections and returns a map from
-// phelps → display_label. Used by generateWritings() to attach human-facing
-// labels (e.g. "PM 42", "DOR 9", "Talk 1") to entries whose phelps suffix
-// doesn't already encode one. When the same phelps appears in multiple
-// collections we keep the first non-empty label (collection_key, position
-// order).
-func loadCollectionLabels() map[string]string {
+// CollectionMeta describes one writing_collections row's display attributes.
+type CollectionMeta struct {
+	Label        string // display_label
+	Chapter      string // chapter_label
+	ChapterOrder int    // chapter_position
+}
+
+// loadCollectionMeta reads writing_collections and returns phelps → meta.
+// Used by generateWritings() to attach human-facing labels and chapter
+// groupings. When the same phelps appears in multiple collections we keep
+// the first row encountered (collection_key, position order).
+func loadCollectionMeta() map[string]CollectionMeta {
 	rows := doltQuery(`
-		SELECT phelps, display_label
+		SELECT phelps,
+		       COALESCE(display_label, ''),
+		       COALESCE(chapter_label, ''),
+		       COALESCE(chapter_position, 0)
 		FROM writing_collections
-		WHERE phelps IS NOT NULL AND display_label IS NOT NULL
+		WHERE phelps IS NOT NULL AND phelps <> ''
 		ORDER BY collection_key, position
 	`)
-	out := map[string]string{}
+	out := map[string]CollectionMeta{}
 	for _, row := range rows[1:] {
-		if len(row) < 2 || row[0] == "" || row[1] == "" {
+		if len(row) < 4 || row[0] == "" {
 			continue
 		}
-		if _, ok := out[row[0]]; !ok {
-			out[row[0]] = row[1]
+		if _, ok := out[row[0]]; ok {
+			continue
+		}
+		chOrder, _ := strconv.Atoi(row[3])
+		out[row[0]] = CollectionMeta{
+			Label:        row[1],
+			Chapter:      row[2],
+			ChapterOrder: chOrder,
 		}
 	}
 	return out
@@ -1100,6 +1117,45 @@ func loadAuthorsByPrefix() map[string]map[string]string {
 		out[prefix][row[1]] = row[2]
 	}
 	return out
+}
+
+// loadInventoryTitles returns phelps → inventory.Title for all rows that have
+// a title. Used to enrich writings.name fields where the stored name is a
+// generic "{type} N" placeholder.
+func loadInventoryTitles() map[string]string {
+	rows := doltQuery(`SELECT PIN, COALESCE(Title,'') FROM inventory WHERE PIN IS NOT NULL`)
+	out := map[string]string{}
+	for _, row := range rows[1:] {
+		if len(row) < 2 || row[0] == "" || row[1] == "" {
+			continue
+		}
+		out[row[0]] = row[1]
+	}
+	return out
+}
+
+// cleanWritingName strips a leading "{typeTitle} N" prefix when that's all
+// the name carries (e.g. "Days of Remembrance 9" → ""), so the entry's
+// display label (e.g. "DOR 9") doesn't have a redundant echo next to it.
+// If the name is "{typeTitle} N: <real title>" the prefix is stripped to
+// leave "<real title>".
+var reTrailingNum = regexp.MustCompile(`^(.+?)\s+\d+(?::\s*(.*))?$`)
+
+func cleanWritingName(name, typeTitle string) string {
+	if name == "" || typeTitle == "" {
+		return name
+	}
+	m := reTrailingNum.FindStringSubmatch(name)
+	if m == nil {
+		return name
+	}
+	if m[1] != typeTitle {
+		return name
+	}
+	if len(m) >= 3 && m[2] != "" {
+		return strings.TrimSpace(m[2])
+	}
+	return ""
 }
 
 // generateWritings returns a reverse index: base phelps code → []WritingRef
@@ -1137,27 +1193,58 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 	writingTypes := loadWritingTypes()
 	bookTitles := loadBookTitles()
 	typeTitles := loadWritingTypeTitles()
-	collectionLabels := loadCollectionLabels()
+	collectionMeta := loadCollectionMeta()
+	invTitles := loadInventoryTitles()
 
-	// Apply collection-derived display labels to entries that don't already
-	// have one from the suffix-heuristic (writingEntryLabel). Try the full
-	// extended phelps first; fall back to the base PIN so multi-paragraph
-	// tablets in compilation-style collections inherit the book-level label
-	// (e.g. all paragraphs of BB00002 inside SWB get the "SWB 1" label).
+	// Index type-title by db_type so we can clean names like "Days of Remembrance 9" → "".
+	typeTitleByDBType := map[string]string{}
+	for _, wt := range writingTypes {
+		typeTitleByDBType[wt.DBType] = wt.Title
+	}
+	for dbType, byLang := range typeData {
+		tt := typeTitleByDBType[dbType]
+		for lang, entries := range byLang {
+			for i := range entries {
+				cleaned := cleanWritingName(entries[i].Name, tt)
+				if cleaned == "" {
+					// Fall back to the inventory title for the base PIN
+					if t, ok := invTitles[entries[i].Phelps]; ok && t != "" {
+						cleaned = t
+					} else if t, ok := invTitles[writingBaseCode(entries[i].Phelps)]; ok && t != "" {
+						cleaned = t
+					}
+				}
+				typeData[dbType][lang][i].Name = cleaned
+			}
+		}
+	}
+
+	// Apply collection-derived metadata to entries.
+	// Label is filled in only if not already set by the suffix heuristic
+	// (writingEntryLabel — e.g. Íqán "1:1").
+	// Chapter / ChapterOrder are always taken from collections when present.
+	// Falls back to the base PIN match so multi-paragraph tablets in
+	// compilation-style collections (e.g. SWB) inherit book-level metadata.
 	for dbType, byLang := range typeData {
 		for lang, entries := range byLang {
 			for i := range entries {
-				if entries[i].Label != "" {
-					continue
-				}
 				p := entries[i].Phelps
-				if lbl, ok := collectionLabels[p]; ok {
-					typeData[dbType][lang][i].Label = lbl
+				meta, ok := collectionMeta[p]
+				if !ok {
+					if m, ok2 := collectionMeta[writingBaseCode(p)]; ok2 {
+						meta = m
+						ok = true
+					}
+				}
+				if !ok {
 					continue
 				}
-				base := writingBaseCode(p)
-				if lbl, ok := collectionLabels[base]; ok {
-					typeData[dbType][lang][i].Label = lbl
+				if entries[i].Label == "" && meta.Label != "" {
+					typeData[dbType][lang][i].Label = meta.Label
+				}
+				if meta.Chapter != "" {
+					typeData[dbType][lang][i].Chapter = meta.Chapter
+					typeData[dbType][lang][i].ChapterOrder = meta.ChapterOrder
 				}
 			}
 		}
@@ -1216,7 +1303,7 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 						var title string
 						if ft := fixedTitle(base, lang); ft != "" {
 							title = ft
-						} else {
+						} else if e.Name != "" {
 							// Strip trailing section marker to get book title
 							// "Persian Hidden Word 1" → "Persian Hidden Words"
 							// "Epistle to the Son of the Wolf §1" → "Epistle to the Son of the Wolf"
@@ -1224,6 +1311,12 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 							title = strings.TrimRight(e.Name, " 0123456789§¶")
 							if title != e.Name && strings.HasSuffix(title, "Word") {
 								title += "s" // pluralize: "Persian Hidden Word" → "Persian Hidden Words"
+							}
+						}
+						// Final fall-back: inventory.Title for the base PIN
+						if title == "" {
+							if t, ok := invTitles[base]; ok && t != "" {
+								title = t
 							}
 						}
 						bookMap[base] = &WritingBook{

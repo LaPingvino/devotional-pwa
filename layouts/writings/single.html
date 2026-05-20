@@ -45,13 +45,35 @@
             <span class="toc-count">{{ len .entries }}</span>
           </a>
           {{ end }}
-        {{ else if $showNames }}
-          {{/* Single book with named entries: show entry titles as TOC */}}
-          {{ range (index $entries 0).entries }}
-          <a href="#{{ .phelps }}" class="toc-entry">
-            <span class="toc-entry-num">{{ with .label }}{{ . }}{{ else }}{{ .order }}{{ end }}</span>
-            <span class="toc-entry-name">{{ .name }}</span>
-          </a>
+        {{ else }}
+          {{/* Single book: render a chapter-aware TOC. If the entries have a
+               .chapter field (from writing_collections.chapter_label), show
+               chapter headings; if .name is present, also link to each named
+               entry. */}}
+          {{ $hasChapters := false }}
+          {{ range (index $entries 0).entries }}{{ if .chapter }}{{ $hasChapters = true }}{{ end }}{{ end }}
+          {{ if $hasChapters }}
+            {{ $lastCh := "" }}
+            {{ range (index $entries 0).entries }}
+              {{ if and .chapter (ne .chapter $lastCh) }}
+                {{ $lastCh = .chapter }}
+                <a href="#chapter-{{ .chapter_order }}" class="toc-chapter">{{ .chapter }}</a>
+              {{ end }}
+              {{ if $showNames }}
+                <a href="#{{ .phelps }}" class="toc-entry">
+                  <span class="toc-entry-num">{{ with .label }}{{ . }}{{ else }}{{ .order }}{{ end }}</span>
+                  <span class="toc-entry-name">{{ .name }}</span>
+                </a>
+              {{ end }}
+            {{ end }}
+          {{ else if $showNames }}
+            {{/* Single book with named entries: show entry titles as TOC */}}
+            {{ range (index $entries 0).entries }}
+            <a href="#{{ .phelps }}" class="toc-entry">
+              <span class="toc-entry-num">{{ with .label }}{{ . }}{{ else }}{{ .order }}{{ end }}</span>
+              <span class="toc-entry-name">{{ .name }}</span>
+            </a>
+            {{ end }}
           {{ end }}
         {{ end }}
       </div>
@@ -102,8 +124,13 @@
           <button class="btn-action btn-small range-add-btn">Add to devotional</button>
         </div>
 
+        {{ $lastChapter := "" }}
         {{ range .entries }}
-        <section class="writing-entry" id="{{ .phelps }}" data-order="{{ .order }}">
+        {{ if and .chapter (ne .chapter $lastChapter) }}
+        {{ $lastChapter = .chapter }}
+        <h2 class="writing-chapter-heading" id="chapter-{{ .chapter_order }}">{{ .chapter }}</h2>
+        {{ end }}
+        <section class="writing-entry" id="{{ .phelps }}" data-order="{{ .order }}"{{ with .chapter }} data-chapter="{{ . }}"{{ end }}>
           <div class="writing-entry-label">
             <a href="#{{ .phelps }}" class="entry-num" title="Link to this section">{{ with .label }}{{ . }}{{ else }}{{ .order }}{{ end }}</a>
             {{ if and $showNames .name }}<a href="#{{ .phelps }}" class="entry-name">{{ .name }}</a>{{ end }}
@@ -154,6 +181,26 @@
   gap: .5rem;
   flex: 1;
 }
+.writing-chapter-heading {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 2.5rem 0 1rem;
+  padding: .4rem 0 .5rem;
+  border-bottom: 2px solid var(--accent);
+  color: var(--text);
+}
+.writing-chapter-heading:first-child { margin-top: 0; }
+.toc-chapter {
+  display: block;
+  padding: .4rem 1rem .25rem;
+  margin-top: .3rem;
+  font-size: .85rem;
+  font-weight: 700;
+  color: var(--accent);
+  text-decoration: none;
+  border-left: 3px solid transparent;
+}
+.toc-chapter:hover { background: #fff3ef; }
 .writing-entry { margin-bottom: 1.5rem; }
 .writing-entry-label {
   display: flex;
