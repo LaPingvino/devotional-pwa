@@ -226,6 +226,29 @@ body {
   transition: background .1s;
 }
 .nav-dropdown-menu a:hover { background: var(--bg); }
+.nav-dropdown-group-label {
+  padding: .55rem 1rem .2rem;
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.nav-dropdown-group-label:first-child { padding-top: .2rem; }
+.nav-dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: .35rem .5rem;
+}
+
+/* Collapsed (hamburger) variant */
+.site-header.collapsed .nav-dropdown-group-label {
+  padding: .4rem 1.2rem .15rem;
+  color: rgba(255,255,255,.55);
+}
+.site-header.collapsed .nav-dropdown-divider {
+  background: rgba(255,255,255,.15);
+}
 
 /* ── Layout ─────────────────────────────────────────── */
 .page-body {
