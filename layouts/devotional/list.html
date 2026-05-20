@@ -1461,6 +1461,78 @@
         filter: function(e) { return codes.indexOf(e.phelps) >= 0; }
       };
     }
+    // gems:para or gems:start-end (Gems of Divine Mysteries — single base BH00012)
+    m = code.match(/^gems:(\d+)(?:-(\d+))?$/);
+    if (m) {
+      var start = parseInt(m[1]), end = m[2] ? parseInt(m[2]) : start;
+      var wanted = phelpsRange('BH00012', start, end, 4);
+      return {
+        key: 'gems', title: "Gems of Divine Mysteries",
+        label: "Gems ¶" + start + (end > start ? '–' + end : ''),
+        filter: function(e) { return wanted.indexOf(e.phelps) >= 0; }
+      };
+    }
+    // swb:BB#####:para or swb:BB#####:start-end (Selections from the Writings of the Báb)
+    m = code.match(/^swb:(BB\d{5}):(\d+)(?:-(\d+))?$/i);
+    if (m) {
+      var base = m[1].toUpperCase(), start = parseInt(m[2]), end = m[3] ? parseInt(m[3]) : start;
+      var wanted = phelpsRange(base, start, end, 4);
+      return {
+        key: 'swb', title: "Selections from the Writings of the Báb",
+        label: "SWB " + base + " ¶" + start + (end > start ? '–' + end : ''),
+        filter: function(e) { return wanted.indexOf(e.phelps) >= 0; }
+      };
+    }
+    // swb:BB##### (whole tablet)
+    m = code.match(/^swb:(BB\d{5})$/i);
+    if (m) {
+      var base = m[1].toUpperCase();
+      return {
+        key: 'swb', title: "Selections from the Writings of the Báb",
+        label: "SWB " + base,
+        filter: function(e) { return e.phelps && e.phelps.startsWith(base); }
+      };
+    }
+    // swab:AB#####:para — Selections from the Writings of 'Abdu'l-Bahá
+    m = code.match(/^swab:(AB\d{5}):(\d+)(?:-(\d+))?$/i);
+    if (m) {
+      var base = m[1].toUpperCase(), start = parseInt(m[2]), end = m[3] ? parseInt(m[3]) : start;
+      var wanted = phelpsRange(base, start, end, 4);
+      return {
+        key: 'swab', title: "Selections from the Writings of ‘Abdu’l-Bahá",
+        label: "SWAB " + base + " ¶" + start + (end > start ? '–' + end : ''),
+        filter: function(e) { return wanted.indexOf(e.phelps) >= 0; }
+      };
+    }
+    m = code.match(/^swab:(AB\d{5})$/i);
+    if (m) {
+      var base = m[1].toUpperCase();
+      return {
+        key: 'swab', title: "Selections from the Writings of ‘Abdu’l-Bahá",
+        label: "SWAB " + base,
+        filter: function(e) { return e.phelps && e.phelps.startsWith(base); }
+      };
+    }
+    // pup:ABU####:para — Promulgation of Universal Peace
+    m = code.match(/^pup:(ABU\d{4}):(\d+)(?:-(\d+))?$/i);
+    if (m) {
+      var base = m[1].toUpperCase(), start = parseInt(m[2]), end = m[3] ? parseInt(m[3]) : start;
+      var wanted = phelpsRange(base, start, end, 4);
+      return {
+        key: 'pup', title: "The Promulgation of Universal Peace",
+        label: "PUP " + base + " ¶" + start + (end > start ? '–' + end : ''),
+        filter: function(e) { return wanted.indexOf(e.phelps) >= 0; }
+      };
+    }
+    m = code.match(/^pup:(ABU\d{4})$/i);
+    if (m) {
+      var base = m[1].toUpperCase();
+      return {
+        key: 'pup', title: "The Promulgation of Universal Peace",
+        label: "PUP " + base,
+        filter: function(e) { return e.phelps && e.phelps.startsWith(base); }
+      };
+    }
     return null;
   }
 
