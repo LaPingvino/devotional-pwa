@@ -493,7 +493,14 @@ a.entry-name:hover { text-decoration: underline; }
   // ── Paragraph range selection by clicking entry numbers ──
   var wRangeStart = null, wRangeEnd = null, wRangeBook = null, wBanner = null;
   function clearWRange() {
-    document.querySelectorAll('.range-marker.range-selected').forEach(function(el) { el.checked = false; });
+    // Uncheck every range-marker checkbox in the active book (the
+    // .range-selected selector never matched — checkboxes don't get that
+    // class — so the boxes used to remain ticked after the × button).
+    if (wRangeBook) {
+      wRangeBook.querySelectorAll('.range-marker').forEach(function(el) { el.checked = false; });
+    } else {
+      document.querySelectorAll('.range-marker').forEach(function(el) { el.checked = false; });
+    }
     wRangeStart = null; wRangeEnd = null; wRangeBook = null;
     if (wBanner) { wBanner.remove(); wBanner = null; }
   }

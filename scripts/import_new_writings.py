@@ -113,8 +113,10 @@ def main():
         values = []
         for base_pin, language, part_str, text in rows:
             part = int(part_str)
-            # 11-char extended phelps: 7-char base + 4-digit suffix
-            ext = f"{base_pin}{part + 1:04d}"
+            # 10-char extended phelps: 7-char base + 3-digit suffix
+            # (matches the convention used by aqdas/ESW/etc.; the script
+            # originally used 4-digit which broke uniformity)
+            ext = f"{base_pin}{part + 1:03d}"
             name = titles.get(base_pin, "")
             text_html = f"<p>{text}</p>"
             # Deterministic primary key: type:phelps:language
