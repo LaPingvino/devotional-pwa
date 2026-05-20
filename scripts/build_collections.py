@@ -69,16 +69,21 @@ SOURCES = [
 ]
 
 
-def fetch(url, delay=1.0):
+def fetch(url, delay=1.0, _depth=0):
+    if _depth > 5:
+        sys.stderr.write(f"  too many redirects from {url}\n")
+        return None
     req = urllib.request.Request(url, headers={"User-Agent": UA})
     try:
         with urllib.request.urlopen(req, timeout=30) as resp:
             content = resp.read().decode("utf-8", errors="replace")
         time.sleep(delay)
         # Some bahai-library pages just serve a redirect meta. Follow it.
-        m = re.search(r'URL=([^"\s]+)', content[:500])
-        if m and 'redirecting' in content[:200].lower():
-            return fetch(m.group(1), delay)
+        head = content[:600]
+        if 'redirecting' in head.lower():
+            m = re.search(r'URL=([^"\s]+)', head)
+            if m:
+                return fetch(m.group(1), delay, _depth + 1)
         return content
     except urllib.error.HTTPError as e:
         sys.stderr.write(f"  fetch HTTP {e.code} {url}\n")
@@ -176,11 +181,31 @@ def main():
             continue
         print(f"\n=== {key} ({abbrev}) ===")
         h = fetch(url)
-        if not h:
-            print("  fetch failed, skipping")
-            continue
-        rows = parse_codes(h, abbrev)
-        print(f"  {len(rows)} positions found  ({url})")
+        rows = []
+        if h:
+            rows = parse_codes(h, abbrev)
+            print(f"  {len(rows)} positions found  ({url})")
+        else:
+            print(f"  primary fetch failed for {url}")
+
+        # Fallback: try /inventory/<ABBR> which lists all items by code.
+        # Position is alphabetical (not canonical book order) but better than nothing.
+        if not rows:
+            inv_url = f"https://bahai-library.com/inventory/{abbrev}"
+            print(f"  trying inventory fallback: {inv_url}")
+            h2 = fetch(inv_url)
+            if h2:
+                bare = re.findall(r'(?<![A-Za-z0-9])((?:AB|ABU|BB|BH|UH)\d{4,5})(x?)(?![A-Za-z0-9])', h2)
+                seen = set()
+                out = []
+                for code, x in bare:
+                    if (code, x) in seen:
+                        continue
+                    seen.add((code, x))
+                    out.append((len(out) + 1, code, x == 'x', None))
+                rows = out
+                print(f"  {len(rows)} positions from inventory fallback (alphabetical order)")
+
         if not rows:
             continue
 
