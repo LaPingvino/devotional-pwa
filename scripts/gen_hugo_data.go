@@ -1553,7 +1553,33 @@ func writingBaseCode(pin string) string {
 	if len(suffix) > 0 {
 		first := suffix[0]
 		if first >= '0' && first <= '9' {
-			// Numeric suffix → base is first 7
+			// Subnumbered scheme: AB00002{MM}{PP} (Memorials, W&T) — base is
+			// per-section so the site can render each section/memorial as its
+			// own "book" anchor. 11-char digit-only suffix → keep first 9.
+			// Íqán's 11-char codes follow the same rule (BH00002{P}{PPP}, with
+			// 1-digit chapter + 3-digit paragraph; first 8 chars = chapter,
+			// but we use 9-char convention uniformly for the digit-prefixed
+			// subnumbered family — Íqán's per-chapter base then ends up being
+			// "BH000022" / "BH000021" which is acceptable since Part-1 vs
+			// Part-2 then anchor as different "books").
+			//
+			// 10-char digit-only suffix → still whole-work base (first 7).
+			// This is the paragraph-decomposed pattern (Memorials before
+			// rename, Paris Talks, Call, Tabernacle, Summons, etc.) where
+			// each parent PIN already names one tablet.
+			if len(suffix) >= 4 {
+				// 11+ chars with digit-only suffix: subnumbered → 9-char base
+				allDigits := true
+				for _, c := range suffix {
+					if c < '0' || c > '9' {
+						allDigits = false
+						break
+					}
+				}
+				if allDigits {
+					return pin[:9]
+				}
+			}
 			return pin[:7]
 		}
 		if first >= 'A' && first <= 'Z' && len(suffix) > 1 {
