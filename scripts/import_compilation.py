@@ -156,7 +156,13 @@ def parse_section(html):
 
     Returns a list of (title, [paragraphs]).
     """
-    blocks = re.findall(r'<p(\s[^>]*)?>(.*?)</p>', html, re.DOTALL | re.IGNORECASE)
+    # Trim to the reader-canvas region so we don't pick up sidebar chrome
+    # like "Please enter your search terms." (paragraphs with no class).
+    main_html = html
+    canvas_m = re.search(r'<div[^>]*class="[^"]*reader-canvas[^"]*"', html, re.IGNORECASE)
+    if canvas_m:
+        main_html = html[canvas_m.start():]
+    blocks = re.findall(r'<p(\s[^>]*)?>(.*?)</p>', main_html, re.DOTALL | re.IGNORECASE)
     has_global_titles = any(
         "brl-global-title" in (re.search(r'class="([^"]+)"', a or "") or [None, ""]).group(1)
         if re.search(r'class="([^"]+)"', a or "")
@@ -191,21 +197,25 @@ def parse_section(html):
             talks.append((cur_title, cur_paras))
         return talks
 
-    # Convention B — single tablet per page; pull title from h2.brl-title
+    # Convention B — single tablet per page (or a continuation of one).
+    # Pull title from h2.brl-title if present; else from the page's H1
+    # (used for works like SDC where the first section has no brl-title
+    # but is still the start of the main text); else mark as a continuation
+    # so the caller can merge into the previous entry.
     title_m = re.search(
         r'<h2[^>]*class="[^"]*brl-title[^"]*"[^>]*>(.*?)</h2>',
         html, re.DOTALL | re.IGNORECASE,
     )
-    if not title_m:
-        return []
-    title = _normalize_text(title_m.group(1))
-    if not title:
-        return []
+    title = _normalize_text(title_m.group(1)) if title_m else ""
+    # Allow H1 as a one-time work-level title — used only when the first
+    # section of a multi-section work needs a starting title. Subsequent
+    # sections without a brl-title still come back as "__cont__".
+
     paras = []
     for attrs, inner in blocks:
         cls_m = re.search(r'class="([^"]+)"', attrs or "")
         cls = cls_m.group(1) if cls_m else ""
-        # Skip chrome paragraphs: footer, downloads info, search-result snippets
+        # Skip chrome paragraphs
         if any(skip in cls for skip in (
             "btn-downloads-info", "footer-copyright", "result-snippet",
             "result-source", "small",
@@ -214,7 +224,9 @@ def parse_section(html):
         text = _normalize_text(inner)
         if len(text) >= MIN_PARA_LEN:
             paras.append(text)
-    return [(title, paras)]
+    if not paras:
+        return []
+    return [(title or "__cont__", paras)]
 
 
 def load_inventory_indices():
@@ -339,8 +351,27 @@ def main():
         if not h:
             continue
         s = parse_section(h)
-        print(f"  section {n}: {len(s)} entries, {sum(len(p) for _, p in s)} paragraphs")
-        all_talks.extend(s)
+        # If the page yields no entries but has a meaningful H1, treat
+        # the entire page as one tablet with the H1 as the title (covers
+        # works whose first content section omits the brl-title).
+        if not s or (len(s) == 1 and s[0][0] == "__cont__" and not all_talks):
+            h1_m = re.search(r"<h1[^>]*>(.*?)</h1>", h, re.DOTALL | re.IGNORECASE)
+            if h1_m:
+                h1 = _normalize_text(h1_m.group(1))
+                if h1 and s and s[0][1]:
+                    s = [(h1, s[0][1])]
+        # Merge __cont__ sentinel entries into the previous real entry
+        # so works that span multiple URL sections accumulate correctly.
+        for title, paras in s:
+            if title == "__cont__" and all_talks:
+                prev_title, prev_paras = all_talks[-1]
+                all_talks[-1] = (prev_title, prev_paras + paras)
+            elif title and title != "__cont__":
+                all_talks.append((title, paras))
+        n_real = sum(1 for t, _ in s if t and t != "__cont__")
+        n_cont = sum(1 for t, _ in s if t == "__cont__")
+        n_paras = sum(len(p) for _, p in s)
+        print(f"  section {n}: {n_real} new + {n_cont} cont, {n_paras} paragraphs")
 
     if not all_talks:
         sys.exit("no entries scraped")
@@ -354,6 +385,7 @@ def main():
     title_matched = []
     position_used = []
     skipped = []
+    used_bases = set()  # phelps base codes already claimed by an earlier entry
     real_num = 0
     for idx, (title, paras) in enumerate(all_talks, start=1):
         if is_subheader(title):
@@ -361,19 +393,34 @@ def main():
             continue
         real_num += 1
         phelps_base = find_by_title(title, title_idx)
+        match_via = "title"
         if not phelps_base and paras:
-            phelps_base = find_by_first_para(paras[0], fl_idx)
-            if phelps_base:
-                title_matched.append((real_num, phelps_base, title + " (via first-line)"))
-        elif phelps_base:
-            title_matched.append((real_num, phelps_base, title))
+            cand = find_by_first_para(paras[0], fl_idx)
+            if cand and cand not in used_bases:
+                phelps_base = cand
+                match_via = "first_line"
         if not phelps_base:
-            phelps_base = code_map.get(real_num)
-            if phelps_base:
-                position_used.append((real_num, phelps_base, title))
-            else:
-                phelps_base = f"{cfg['x_prefix']}{real_num:04d}"
-                minted.append((real_num, phelps_base, title))
+            cand = code_map.get(real_num)
+            if cand and cand not in used_bases:
+                phelps_base = cand
+                match_via = "position"
+        if phelps_base and phelps_base in used_bases:
+            # Conflict — another entry already claimed this code. Mint instead
+            # of corrupting the data with a duplicate.
+            phelps_base = None
+        if not phelps_base:
+            phelps_base = f"{cfg['x_prefix']}{real_num:04d}"
+            match_via = "minted"
+
+        used_bases.add(phelps_base)
+        if match_via == "title":
+            title_matched.append((real_num, phelps_base, title))
+        elif match_via == "first_line":
+            title_matched.append((real_num, phelps_base, title + " (via first-line)"))
+        elif match_via == "position":
+            position_used.append((real_num, phelps_base, title))
+        else:
+            minted.append((real_num, phelps_base, title))
         for para_idx, text in enumerate(paras, start=1):
             ext = f"{phelps_base}{para_idx:03d}"
             text_html = f"<p>{sql_escape(text)}</p>"
