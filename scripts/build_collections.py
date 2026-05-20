@@ -245,17 +245,27 @@ def main():
                 print(f"  position {r[0]}: {r[1]} excerpt={r[2]} {r[3]}")
             continue
 
+        # display_label prefix mirrors what gen_hugo_data.go renders in the UI.
+        # Keep this map in sync with the labels used elsewhere in the table.
+        label_prefix = {
+            'apbh': 'APBH ', 'apab': 'APAB ', 'days': 'DOR ',
+            'gleanings': '§', 'pm': 'PM ', 'swab': 'SWAB ', 'swb': 'SWB ',
+            'saq': 'SAQ ', 'paristalks': 'PAR ', 'pup': 'PUP ',
+            'summons': 'SUM ', 'tabernacle': 'TAB ', 'call': 'CDB ',
+        }.get(key, key.upper() + ' ')
+
         # Clear and re-insert
         dolt(f"DELETE FROM writing_collections WHERE collection_key='{key}';")
         values = []
         for position, phelps, is_excerpt, page_ref in rows:
             page_ref_sql = f"'{page_ref}'" if page_ref else "NULL"
+            label = f"{label_prefix}{position}"
             values.append(
-                f"('{key}',{position},'{phelps}',{page_ref_sql},{1 if is_excerpt else 0},NULL,NULL,'{url}')"
+                f"('{key}',{position},'{phelps}',{page_ref_sql},{1 if is_excerpt else 0},NULL,NULL,'{url}','{sql_escape(label)}')"
             )
         stmt = (
             "INSERT INTO writing_collections "
-            "(collection_key, position, phelps, page_ref, is_excerpt, mnemonic, title, source_url) "
+            "(collection_key, position, phelps, page_ref, is_excerpt, mnemonic, title, source_url, display_label) "
             "VALUES " + ",".join(values) + ";"
         )
         dolt(stmt)
