@@ -47,7 +47,7 @@ echo "Bible/Quran data: $(ls static/data/bible/*.json 2>/dev/null | wc -l) bible
 
 # Generate i18n bundle
 echo "Generating i18n bundle..."
-go run scripts/gen_i18n.go
+go run scripts/gen_i18n.go --dolt-dir ./bahaiwritings
 
 # Install fonttools for font subsetting (reduces embedded font size in PDFs significantly)
 pip install fonttools 2>/dev/null || pip3 install fonttools 2>/dev/null || true
