@@ -188,27 +188,45 @@
                  autocomplete="off">
         </div>
         <div class="nav-dropdown-scroll">
-          <div class="nav-dropdown-group-label" data-i18n="writings_author_bab">The Báb</div>
-          <a href="/writings/swb/" data-i18n="writing_swb" data-search="bab selections">Selections from the Writings of the Báb</a>
-          <div class="nav-dropdown-group-label" data-i18n="writings_author_baha">Bahá'u'lláh</div>
-          <a href="/writings/hidden-words/" data-i18n="writing_hidden_words" data-search="hidden words">Hidden Words</a>
-          <a href="/writings/aqdas/" data-i18n="writing_aqdas" data-search="aqdas kitab">Kitáb-i-Aqdas</a>
-          <a href="/writings/iqan/" data-i18n="writing_iqan" data-search="iqan kitab">Kitáb-i-Íqán</a>
-          <a href="/writings/gleanings/" data-i18n="writing_gleanings" data-search="gleanings">Gleanings</a>
-          <a href="/writings/pm/" data-i18n="writing_pm" data-search="prayers meditations pm">Prayers &amp; Meditations</a>
-          <a href="/writings/gems/" data-i18n="writing_gems" data-search="gems divine mysteries">Gems of Divine Mysteries</a>
-          <a href="/writings/tablets/" data-i18n="writing_tablets" data-search="tablets bahaullah">Tablets of Bahá'u'lláh</a>
-          <a href="/writings/days/" data-i18n="writing_days" data-search="days remembrance">Days of Remembrance</a>
-          <a href="/writings/lawh/" data-i18n="writing_other_tablets" data-search="other tablets lawh esw epistle wolf">Other Tablets</a>
-          <div class="nav-dropdown-group-label" data-i18n="writings_author_abdul">'Abdu'l-Bahá</div>
-          <a href="/writings/saq/" data-i18n="writing_saq" data-search="some answered questions saq">Some Answered Questions</a>
-          <a href="/writings/swab/" data-i18n="writing_swab" data-search="selections abdul abdu writings swab">Selections from the Writings of 'Abdu'l-Bahá</a>
-          <a href="/writings/pup/" data-i18n="writing_pup" data-search="promulgation universal peace pup">Promulgation of Universal Peace</a>
-          <a href="/writings/divineplan/" data-i18n="writing_divineplan" data-search="divine plan tablets">Tablets of the Divine Plan</a>
-          <div class="nav-dropdown-group-label" data-i18n="writings_author_shoghi">Shoghi Effendi</div>
-          <a href="/writings/gpb/" data-i18n="writing_gpb" data-search="god passes by gpb">God Passes By</a>
-          <div class="nav-dropdown-group-label" data-i18n="writings_author_uhj">Universal House of Justice</div>
-          <a href="/writings/ridvan/" data-i18n="writing_ridvan" data-search="ridvan messages uhj">Ridván Messages</a>
+          {{/* Auto-build dropdown from site.Data.writings, grouped by author_prefix.
+               Canonical order: BB → BH → AB → SE → UH → any other.
+               i18n key for the work is writing_<key with - replaced by _>;
+               the lawh entry historically uses writing_other_tablets, kept as
+               special case until the legacy yaml key is removed. */}}
+          {{ $byPrefix := dict }}
+          {{ $prefixOrder := slice }}
+          {{ range site.Data.writings }}
+            {{ $pref := .author_prefix | default "_" }}
+            {{ if not (isset $byPrefix $pref) }}
+              {{ $byPrefix = merge $byPrefix (dict $pref (slice .)) }}
+              {{ $prefixOrder = $prefixOrder | append $pref }}
+            {{ else }}
+              {{ $existing := index $byPrefix $pref }}
+              {{ $byPrefix = merge $byPrefix (dict $pref ($existing | append .)) }}
+            {{ end }}
+          {{ end }}
+          {{ $canon := slice "BB" "BH" "AB" "SE" "UH" }}
+          {{ $ordered := slice }}
+          {{ range $canon }}{{ if in $prefixOrder . }}{{ $ordered = $ordered | append . }}{{ end }}{{ end }}
+          {{ range $prefixOrder }}{{ if not (in $canon .) }}{{ $ordered = $ordered | append . }}{{ end }}{{ end }}
+          {{ $authorLabelKey := dict "BB" "writings_author_bab" "BH" "writings_author_baha" "AB" "writings_author_abdul" "SE" "writings_author_shoghi" "UH" "writings_author_uhj" }}
+          {{ $legacyI18n := dict "lawh" "writing_other_tablets" }}
+          {{ range $pref := $ordered }}
+            {{ $works := index $byPrefix $pref }}
+            {{ $labelKey := index $authorLabelKey $pref }}
+            {{ $authorName := (index $works 0).author }}
+            {{ if $labelKey }}
+              <div class="nav-dropdown-group-label" data-i18n="{{ $labelKey }}">{{ $authorName }}</div>
+            {{ else }}
+              <div class="nav-dropdown-group-label">{{ $authorName }}</div>
+            {{ end }}
+            {{ range $works }}
+              {{ $k := .key }}
+              {{ $i18nKey := index $legacyI18n $k }}
+              {{ if not $i18nKey }}{{ $i18nKey = printf "writing_%s" (replace $k "-" "_") }}{{ end }}
+              <a href="/writings/{{ $k }}/" data-i18n="{{ $i18nKey }}" data-search="{{ lower .title }} {{ lower $k }} {{ lower .author }}">{{ .title }}</a>
+            {{ end }}
+          {{ end }}
         </div>
         <div class="nav-dropdown-divider"></div>
         <a href="/writings/" data-i18n="nav_all_writings" class="nav-dropdown-all">All writings…</a>
