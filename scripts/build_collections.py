@@ -42,6 +42,10 @@ UA = "Mozilla/5.0 (compatible; BahaiTextAligner/1.0)"
 # Paris Talks. Most often equals collection_key.upper(); included explicitly
 # for safety since some pages use different abbrevs (e.g. 'PUP', 'APBH').
 SOURCES = [
+    # SWB note: this URL is the per-section Phelps map (75 sections, all
+    # x-marked excerpts) — the earlier "abdul-baha_selections_writings"
+    # entry was wrong (that's SWAB, not SWB).
+    ("swb",        "SWB",  "https://bahai-library.com/bab_selections_writings"),
     ("paristalks", "PT",   "https://bahai-library.com/abdul-baha_paris_talks"),
     ("summons",    "SLH",  "https://bahai-library.com/bahaullah_summons_lord_hosts"),
     ("esw",        "ESW",  "https://bahai-library.com/bahaullah_epistle_son_wolf"),
@@ -139,15 +143,33 @@ def parse_codes(html, abbrev):
     """
     # Position is required; page reference is optional (P&M-style annotations
     # like [PM#001] omit it).
-    pat_annotated = rf'((?:AB|ABU|BB|BH|UH)\d{{4,5}})(x?)\[\s*{re.escape(abbrev)}\s*#?\s*(\d+)(?:\s+p\.(\d+))?\s*\]'
+    # Two annotated formats:
+    #   A) [<ABBR>#<NUM> p.<PAGE>]   — used by PT, P&M, SAQ, etc.
+    #   B) [<ABBR>#<NUM> (p.<PAGES>x)] — SWB (every section is an excerpt;
+    #      the 'x' is INSIDE the parens, attached to the page range)
+    pat_annotated = (
+        rf'((?:AB|ABU|BB|BH|UH)\d{{4,5}})(x?)'
+        rf'\[\s*{re.escape(abbrev)}\s*#?\s*(\d+)'
+        rf'(?:\s+p\.(\d+))?'
+        rf'(?:\s+\(p\.[\d\(\)abc\-]*(x)?\))?'
+        rf'\s*\]'
+    )
     matches = re.findall(pat_annotated, html)
+    # Normalize: if the format-B "x" capture (group 5) is set, treat the entry
+    # as an excerpt. Re-tuple to (code, is_excerpt, num, page).
+    norm = []
+    for m in matches:
+        code, x_before, num, page, x_inside = m[0], m[1], m[2], m[3], m[4]
+        is_excerpt = (x_before == 'x') or (x_inside == 'x')
+        norm.append((code, is_excerpt, num, page))
+    matches = norm
     if matches:
         by_pos = {}
-        for code, x, num, page in matches:
+        for code, is_excerpt, num, page in matches:
             n = int(num)
             if n not in by_pos:
                 page_ref = f"p.{page}" if page else None
-                by_pos[n] = (code, x == 'x', page_ref)
+                by_pos[n] = (code, is_excerpt, page_ref)
         return [(n, by_pos[n][0], by_pos[n][1], by_pos[n][2]) for n in sorted(by_pos)]
 
     # Fall back to bare-code extraction from the 'Inventory #' table cell.
