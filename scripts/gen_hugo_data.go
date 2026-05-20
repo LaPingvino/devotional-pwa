@@ -1171,17 +1171,25 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 
 	// Group: dbType → lang → []WritingEntry
 	typeData := map[string]map[string][]WritingEntry{}
-	for _, row := range rows[1:] {
-		if len(row) < 6 {
-			continue
+	// Track phelps already emitted per (section, lang) to avoid duplicates when
+	// the collection-membership second pass below adds rows.
+	emitted := map[string]map[string]map[string]bool{}
+	addEntry := func(section, lang, phelps, name, text string) {
+		if emitted[section] == nil {
+			emitted[section] = map[string]map[string]bool{}
 		}
-		dbType, lang, phelps, name, text := row[0], row[1], row[2], row[3], row[4]
-		_ = row[5] // source_id used for ORDER BY only
-		if typeData[dbType] == nil {
-			typeData[dbType] = map[string][]WritingEntry{}
+		if emitted[section][lang] == nil {
+			emitted[section][lang] = map[string]bool{}
 		}
-		fallbackOrder := len(typeData[dbType][lang]) + 1
-		typeData[dbType][lang] = append(typeData[dbType][lang], WritingEntry{
+		if emitted[section][lang][phelps] {
+			return
+		}
+		emitted[section][lang][phelps] = true
+		if typeData[section] == nil {
+			typeData[section] = map[string][]WritingEntry{}
+		}
+		fallbackOrder := len(typeData[section][lang]) + 1
+		typeData[section][lang] = append(typeData[section][lang], WritingEntry{
 			Phelps: phelps,
 			Name:   name,
 			Text:   text,
@@ -1189,6 +1197,19 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 			Label:  writingEntryLabel(phelps),
 		})
 	}
+	for _, row := range rows[1:] {
+		if len(row) < 6 {
+			continue
+		}
+		dbType, lang, phelps, name, text := row[0], row[1], row[2], row[3], row[4]
+		_ = row[5] // source_id used for ORDER BY only
+		addEntry(dbType, lang, phelps, name, text)
+	}
+
+	// Second pass (disabled): including rows whose phelps appears in
+	// writing_collections via OR'd LIKE+REGEXP was a cartesian-product trap
+	// (~50k writings × 1.1k collection rows). Re-enable with a proper Go-side
+	// lookup against a pre-built collectionPhelps map. See joop-zz9.
 
 	writingTypes := loadWritingTypes()
 	bookTitles := loadBookTitles()
