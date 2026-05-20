@@ -29,6 +29,12 @@ writing_swb: "Selections from the Writings of the Báb"
 writing_swab: "Selections from the Writings of 'Abdu'l-Bahá"
 writing_pup: "The Promulgation of Universal Peace"
 writing_gems: "Gems of Divine Mysteries"
+writings_dropdown_filter: "Filter…"
+writings_author_bab: "The Báb"
+writings_author_baha: "Bahá'u'lláh"
+writings_author_abdul: "'Abdu'l-Bahá"
+writings_author_shoghi: "Shoghi Effendi"
+writings_author_uhj: "Universal House of Justice"
 writing_gpb: "God Passes By"
 
 # Navigation extras
