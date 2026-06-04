@@ -1,0 +1,254 @@
+{{ partial "head.html" (dict "Title" .Title "Lang" "en" "Params" (dict "description" "Your saved prayers and writings — favorites, read later, and named collections")) }}
+
+<div class="col-page">
+  <div class="col-header">
+    <h1 data-i18n="collections_title">Saved</h1>
+    <button class="colpick-btn" id="btn-new-col" data-i18n="col_new_collection">New collection</button>
+  </div>
+  <p class="col-intro" data-i18n="collections_intro">Collections live in this browser. Export them to back up, move, or share.</p>
+
+  <div id="col-list"></div>
+
+  <section class="col-import">
+    <h2 data-i18n="col_import">Import</h2>
+    <p class="col-intro" data-i18n="col_import_hint">Paste a program link, a list of codes, or a text export.</p>
+    <textarea id="import-text" rows="4" spellcheck="false"></textarea>
+    <div class="col-import-row">
+      <label><span data-i18n="col_import_into">Into</span>
+        <select id="import-dest"></select>
+      </label>
+      <input type="text" id="import-newname" maxlength="60" style="display:none">
+      <button class="colpick-btn" id="btn-import" data-i18n="col_import">Import</button>
+      <span id="import-status" class="col-intro"></span>
+    </div>
+  </section>
+</div>
+
+<style>
+.col-page { max-width: 760px; margin: 0 auto; padding: 1rem; }
+.col-header { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.col-intro { color: var(--text-secondary); font-size: .9rem; }
+.col-card { border: 1px solid var(--border); border-radius: 10px; margin-bottom: 1rem; overflow: hidden; }
+.col-card-head { display: flex; align-items: baseline; gap: .6rem; padding: .7rem .9rem; cursor: pointer; flex-wrap: wrap; }
+.col-card-head:hover { background: var(--bg-secondary, rgba(128,128,128,.07)); }
+.col-card-head h2 { margin: 0; font-size: 1.05rem; }
+.col-count { color: var(--text-secondary); font-size: .85rem; }
+.col-actions { display: flex; gap: .4rem; flex-wrap: wrap; padding: 0 .9rem .7rem; }
+.colpick-btn { background: none; border: 1px solid var(--border); border-radius: 6px; padding: .3rem .65rem; cursor: pointer; color: inherit; font-size: .85rem; }
+.colpick-btn:hover { border-color: var(--accent); color: var(--accent); }
+.colpick-btn.btn-danger:hover { border-color: #c0392b; color: #c0392b; }
+.col-items { border-top: 1px solid var(--border); }
+.col-item { display: flex; align-items: center; gap: .6rem; padding: .45rem .9rem; border-bottom: 1px solid var(--border); }
+.col-item:last-child { border-bottom: none; }
+.col-item a { text-decoration: none; color: inherit; flex: 1; min-width: 0; }
+.col-item a:hover { color: var(--accent); }
+.col-item-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.col-item-code { font-family: monospace; font-size: .78rem; color: var(--text-secondary); }
+.col-lang-badge { font-size: .72rem; border: 1px solid var(--border); border-radius: 4px; padding: 0 .3rem; color: var(--text-secondary); }
+.col-item-remove { background: none; border: none; cursor: pointer; color: var(--text-secondary); font-size: .95rem; padding: .1rem .3rem; }
+.col-item-remove:hover { color: #c0392b; }
+.col-empty { padding: .7rem .9rem; color: var(--text-secondary); font-size: .9rem; }
+.col-import textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--border); border-radius: 8px; background: inherit; color: inherit; padding: .5rem; font-family: monospace; font-size: .85rem; }
+.col-import-row { display: flex; align-items: center; gap: .6rem; margin-top: .5rem; flex-wrap: wrap; }
+.col-import-row select, .col-import-row input { padding: .3rem .4rem; border: 1px solid var(--border); border-radius: 6px; background: inherit; color: inherit; }
+</style>
+
+<script>
+(function() {
+  'use strict';
+  const $ = id => document.getElementById(id);
+  function t(key, fallback) {
+    if (typeof window.__t === 'function') {
+      var v = window.__t(key);
+      if (v && v !== key) return v;
+    }
+    return fallback != null ? fallback : key;
+  }
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  // Where a saved item opens. Mirrors the link conventions used on the
+  // daily page and prayer cards.
+  function itemHref(item) {
+    if (window.hwCollections.isRef(item.code)) {
+      return '/devotional/#' + window.hwCollections.toHash([item]);
+    }
+    var lang = (item.lang || '').toLowerCase();
+    if (item.w) return '/writings/' + item.w + '/' + (lang || 'en') + '/#' + item.code;
+    if (lang) return '/prayers/' + lang + '/#' + item.code;
+    var m = item.code.toLowerCase().match(/^(.*?)([a-z]{3})$/);
+    if (m && /[a-z]{3}$/.test(item.code.toLowerCase()) && /\d/.test(m[1])) {
+      return '/phelps/' + m[1] + '/#' + m[2];
+    }
+    return '/phelps/' + item.code.toLowerCase() + '/';
+  }
+
+  function download(filename, text) {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
+    a.download = filename;
+    a.click();
+    setTimeout(function() { URL.revokeObjectURL(a.href); }, 5000);
+  }
+
+  function copy(text, btn) {
+    (navigator.clipboard ? navigator.clipboard.writeText(text) : Promise.reject())
+      .then(function() {
+        var orig = btn.textContent;
+        btn.textContent = t('col_copied', 'Copied');
+        setTimeout(function() { btn.textContent = orig; }, 1500);
+      }).catch(function() { window.prompt('', text); });
+  }
+
+  var openState = {}; // collection id → expanded?
+
+  function render() {
+    var C = window.hwCollections;
+    var listEl = $('col-list');
+    listEl.innerHTML = '';
+    C.list().forEach(function(col) {
+      var name = C.displayName(col);
+      var card = document.createElement('div');
+      card.className = 'col-card';
+
+      var head = document.createElement('div');
+      head.className = 'col-card-head';
+      head.innerHTML = '<h2>' + escapeHtml(name) + '</h2>' +
+        '<span class="col-count">' + col.items.length + ' <span data-i18n="col_items">items</span></span>';
+      head.addEventListener('click', function() {
+        openState[col.id] = !openState[col.id];
+        render();
+      });
+      card.appendChild(head);
+
+      if (openState[col.id]) {
+        var actions = document.createElement('div');
+        actions.className = 'col-actions';
+        function btn(label, i18nKey, fn, danger) {
+          var b = document.createElement('button');
+          b.className = 'colpick-btn' + (danger ? ' btn-danger' : '');
+          b.textContent = t(i18nKey, label);
+          b.addEventListener('click', function(e) { e.stopPropagation(); fn(b); });
+          actions.appendChild(b);
+          return b;
+        }
+        if (col.items.length) {
+          btn('Open as program', 'col_open_program', function() {
+            location.href = '/devotional/#' + C.toHash(col.items);
+          });
+          btn('Copy link', 'col_copy_link', function(b) {
+            copy(C.shareUrl(col.items), b);
+          });
+          btn('Export text', 'col_export_text', function(b) {
+            var orig = b.textContent;
+            b.textContent = '…';
+            C.exportText(col).then(function(text) {
+              b.textContent = orig;
+              download(name.replace(/[^\wÀ-￿ -]+/g, '').trim() + '.txt', text);
+            });
+          });
+        }
+        if (!col.builtin) {
+          btn('Rename', 'col_rename', function() {
+            var nn = window.prompt(t('col_rename', 'Rename'), name);
+            if (nn) { C.rename(col.id, nn); render(); }
+          });
+          btn('Delete', 'col_delete', function() {
+            if (window.confirm(t('col_delete_confirm', 'Delete this collection?'))) {
+              C.removeCollection(col.id); render();
+            }
+          }, true);
+        }
+        card.appendChild(actions);
+
+        var itemsEl = document.createElement('div');
+        itemsEl.className = 'col-items';
+        if (!col.items.length) {
+          itemsEl.innerHTML = '<div class="col-empty" data-i18n="col_empty">Nothing saved here yet.</div>';
+        }
+        col.items.forEach(function(item) {
+          var row = document.createElement('div');
+          row.className = 'col-item';
+          var label = item.title || item.code;
+          row.innerHTML = '<a href="' + escapeHtml(itemHref(item)) + '">' +
+            '<span class="col-item-title">' + escapeHtml(label) + '</span>' +
+            (item.title && !C.isRef(item.code) ? '<span class="col-item-code">' + escapeHtml(item.code) + '</span>' : '') +
+            '</a>' +
+            (item.lang ? '<span class="col-lang-badge">' + escapeHtml(item.lang) + '</span>' : '') +
+            '<button class="col-item-remove" title="' + escapeHtml(t('col_remove_item', 'Remove')) + '">&#x2715;</button>';
+          row.querySelector('.col-item-remove').addEventListener('click', function() {
+            C.removeItem(col.id, item.code, item.lang);
+            render();
+          });
+          itemsEl.appendChild(row);
+        });
+        card.appendChild(itemsEl);
+      }
+      listEl.appendChild(card);
+    });
+
+    // Import destination dropdown
+    var dest = $('import-dest');
+    dest.innerHTML = '';
+    C.list().forEach(function(col) {
+      var o = document.createElement('option');
+      o.value = col.id;
+      o.textContent = C.displayName(col);
+      dest.appendChild(o);
+    });
+    var newOpt = document.createElement('option');
+    newOpt.value = '__new__';
+    newOpt.textContent = '+ ' + t('col_new_collection', 'New collection');
+    dest.appendChild(newOpt);
+
+    if (typeof window.__translatePage === 'function') window.__translatePage();
+  }
+
+  function init() {
+    if (!window.hwCollections) return;
+    render();
+
+    $('btn-new-col').addEventListener('click', function() {
+      var name = window.prompt(t('col_new_collection', 'New collection'));
+      if (name && name.trim()) {
+        var col = window.hwCollections.create(name);
+        openState[col.id] = true;
+        render();
+      }
+    });
+
+    $('import-dest').addEventListener('change', function() {
+      $('import-newname').style.display = this.value === '__new__' ? '' : 'none';
+      if (this.value === '__new__') $('import-newname').focus();
+    });
+
+    $('btn-import').addEventListener('click', function() {
+      var C = window.hwCollections;
+      var items = C.parseList($('import-text').value);
+      var status = $('import-status');
+      if (!items.length) {
+        status.textContent = t('col_import_none', 'No codes recognized');
+        return;
+      }
+      var destId = $('import-dest').value;
+      if (destId === '__new__') {
+        var name = $('import-newname').value.trim() || t('col_new_collection', 'New collection');
+        destId = C.create(name).id;
+      }
+      items.forEach(function(it) { C.add(destId, it); });
+      openState[destId] = true;
+      $('import-text').value = '';
+      status.textContent = t('col_import_done', 'Imported') + ': ' + items.length;
+      render();
+    });
+  }
+
+  // collections.js is deferred; inline scripts run before it, so wait.
+  if (window.hwCollections) init();
+  else document.addEventListener('DOMContentLoaded', init);
+})();
+</script>
+{{ partial "foot.html" . }}

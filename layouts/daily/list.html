@@ -34,6 +34,7 @@
     <div class="card-header">
       <h2 data-i18n="daily_random_prayer">Random Prayer</h2>
       <div class="card-btns">
+        <button class="btn-refresh" id="btn-save-prayer" title="Save to collection" data-i18n-title="col_save_btn_title">&#x1F516;</button>
         <button class="btn-refresh" id="btn-new-prayer" title="New random prayer">&#x21bb;</button>
         <button class="btn-expand" title="Full screen">&#x26F6;</button>
       </div>
@@ -49,6 +50,7 @@
     <div class="card-header">
       <h2><span data-i18n="daily_random_writing">Random Writing</span><span id="writing-attribution" class="writing-attribution"></span></h2>
       <div class="card-btns">
+        <button class="btn-refresh" id="btn-save-writing" title="Save to collection" data-i18n-title="col_save_btn_title">&#x1F516;</button>
         <button class="btn-refresh" id="btn-new-writing" title="New random excerpt">&#x21bb;</button>
         <button class="btn-expand" title="Full screen">&#x26F6;</button>
       </div>
@@ -772,6 +774,11 @@
     el.innerHTML = renderMd(p.text || '');
     if (rtl) el.setAttribute('dir', 'rtl'); else el.removeAttribute('dir');
     const lang = selectedLang.toLowerCase();
+    // Current item for the 🔖 save-to-collection button
+    currentPrayerItem = {
+      code: p.phelps, lang: lang,
+      title: p.name || (p.text || '').replace(/[*#>\[\]]/g, '').replace(/\s+/g, ' ').trim().slice(0, 60)
+    };
     renderSignature(el, p.phelps, lang, rtl);
     meta.innerHTML = (p.category ? p.category + ' &middot; ' : '') +
       '<a href="/prayers/' + lang + '/#' + p.phelps + '">' + (p.phelps || '') + '</a>';
@@ -780,6 +787,16 @@
   $('btn-new-prayer').addEventListener('click', () => {
     const rtl = selectedRtl;
     showRandomPrayer(rtl, true);
+  });
+
+  // ── Save to collection (🔖) ──
+  let currentPrayerItem = null;
+  let currentWritingItem = null;
+  $('btn-save-prayer').addEventListener('click', () => {
+    if (currentPrayerItem && window.hwCollections) window.hwCollections.openPicker(currentPrayerItem);
+  });
+  $('btn-save-writing').addEventListener('click', () => {
+    if (currentWritingItem && window.hwCollections) window.hwCollections.openPicker(currentWritingItem);
   });
 
   // ── Random writing ──
@@ -815,6 +832,13 @@
     el.innerHTML = renderMd(text);
     if (rtl) el.setAttribute('dir', 'rtl'); else el.removeAttribute('dir');
     const lang = selectedLang.toLowerCase();
+    // Current item for the 🔖 save-to-collection button. `w:` records which
+    // writings collection the phelps code lives in so exports can resolve it.
+    currentWritingItem = {
+      code: w.phelps, lang: lang, w: w.writingKey,
+      title: (w.name || w.bookTitle || w.writingTitle || '') +
+        (w.name ? '' : ' — ' + (w.text || '').replace(/[*#>\[\]]/g, '').replace(/\s+/g, ' ').trim().slice(0, 40))
+    };
     const localAuthor = authorFromPin(w.phelps, lang) || w.author;
     // Writing attribution lives in the card heading ("Random Writing: <Author>")
     // rather than as a prayer-style "— Author" signature under the text.

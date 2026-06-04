@@ -144,6 +144,7 @@
             <span style="flex:1"></span>
             <input type="checkbox" class="range-marker" data-order="{{ .order }}">
             <button class="btn-add-devotional" data-phelps="{{ .phelps }}" aria-label="Add to devotional" title="Add to devotional program">+</button>
+            <button class="btn-save-col" data-phelps="{{ .phelps }}"{{ with .name }} data-name="{{ . }}"{{ end }} aria-label="Save to collection" title="Save to collection">&#x1F516;</button>
           </div>
           <div class="writing-text">{{ .text | markdownify }}</div>
         </section>
@@ -342,6 +343,7 @@ body.reading-mode .site-header,
 body.reading-mode .sidebar,
 body.reading-mode .writing-range-bar,
 body.reading-mode .btn-add-devotional,
+body.reading-mode .btn-save-col,
 body.reading-mode .range-marker,
 body.reading-mode .book-goto,
 body.reading-mode .phelps-link,
@@ -487,6 +489,29 @@ html[dir="rtl"] body.reading-mode .reading-mode-toggle {
       localStorage.setItem(DKEY, JSON.stringify(codes));
     });
   });
+  // Per-entry "save to collection" (🔖) buttons
+  document.querySelectorAll('.writing-entry .btn-save-col').forEach(function(btn) {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      if (!window.hwCollections) return;
+      var book = btn.closest('.writing-book');
+      var entry = btn.closest('.writing-entry');
+      var pageLang = '{{ $lang }}'.toLowerCase() || undefined;
+      var label = btn.dataset.name;
+      if (!label) {
+        var heading = book && book.querySelector('.writing-book-heading');
+        label = ((heading ? heading.textContent.trim().substring(0, 30) : '') +
+          ' ¶' + (entry ? entry.dataset.order : '')).trim();
+      }
+      window.hwCollections.openPicker({
+        code: btn.dataset.phelps,
+        lang: pageLang,
+        w: book ? book.dataset.key || undefined : undefined,
+        title: label
+      });
+    });
+  });
+
   // ── Range add to devotional ──
   var DKEY = 'hw_devotional_codes';
   function getCodes() { try { return JSON.parse(localStorage.getItem(DKEY) || '[]'); } catch(e) { return []; } }
@@ -601,6 +626,7 @@ html[dir="rtl"] body.reading-mode .reading-mode-toggle {
     wBanner.innerHTML = '<span>' + label + '</span> ' +
       '<button class="btn-action btn-small range-fullscreen" title="Full screen">\u26F6</button> ' +
       '<button class="btn-action btn-small range-add">' + window.__t('verse_add') + '</button> ' +
+      '<button class="btn-action btn-small range-save" title="Save to collection">\u{1F516}</button> ' +
       '<button class="btn-action btn-small range-cancel">\u2715</button>';
     document.body.appendChild(wBanner);
     wBanner.querySelector('.range-fullscreen').addEventListener('click', function() {
@@ -634,6 +660,23 @@ html[dir="rtl"] body.reading-mode .reading-mode-toggle {
       }
       saveCodes(codes);
       clearWRange();
+    });
+    wBanner.querySelector('.range-save').addEventListener('click', function() {
+      if (!window.hwCollections) return;
+      var pageLang = '{{ $lang }}'.toLowerCase() || undefined;
+      var items;
+      if (shortCode) {
+        items = [{ code: shortCode, title: label }];
+      } else {
+        items = [];
+        book.querySelectorAll('.writing-entry').forEach(function(e) {
+          var order = parseInt(e.dataset.order);
+          if (order >= lo && order <= hi) {
+            items.push({ code: e.id, lang: pageLang, w: key, title: label + ' ¶' + order });
+          }
+        });
+      }
+      window.hwCollections.openPicker(items, clearWRange);
     });
     wBanner.querySelector('.range-cancel').addEventListener('click', clearWRange);
   }

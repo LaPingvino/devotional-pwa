@@ -29,6 +29,7 @@
       <button class="btn-action" id="btn-qr" title="Show QR code">QR</button>
       <button class="btn-action" id="btn-compare" title="Compare languages side by side" data-i18n="dev_compare">Compare</button>
       <button class="btn-action" id="btn-print" title="Print / save as PDF" data-i18n="dev_print">Print</button>
+      <button class="btn-action" id="btn-save-collection" title="Save this program to a collection" data-i18n="col_save_btn_title">Save to collection</button>
       <button class="btn-action btn-danger" id="btn-clear" title="Clear all" data-i18n="dev_clear">Clear</button>
     </div>
     <label class="share-lang-opt" id="share-lang-opt">
@@ -1831,6 +1832,12 @@
     urlP.textContent = url;
     qrDiv.appendChild(urlP);
     setTimeout(() => window.print(), 200);
+  });
+
+  // ── Save program to a collection (🔖 picker from collections.js) ──
+  $('btn-save-collection').addEventListener('click', () => {
+    if (codes.length === 0 || !window.hwCollections) return;
+    window.hwCollections.openPicker(codes.map(i => ({ code: i.code, lang: i.lang, v: i.v })));
   });
 
   // ── Clear button ──

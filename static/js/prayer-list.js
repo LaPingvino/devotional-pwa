@@ -210,6 +210,7 @@
 
     html += ' <button class="btn-expand prayer-expand" title="Full screen">⛶</button>';
     html += ' <button class="fav-btn" data-phelps="' + escapeAttr(pin) + '" aria-label="Toggle favourite">☆</button>';
+    html += ' <button class="btn-save-col" data-phelps="' + escapeAttr(pin) + '" aria-label="Save to collection" title="' + escapeAttr(t('col_save_btn_title', 'Save to collection')) + '">\u{1F516}</button>';
     html += ' <button class="btn-add-devotional" data-phelps="' + escapeAttr(pin) + '" aria-label="Add to devotional" title="Add to devotional program">+</button>';
 
     if (showOpenInLang) {
@@ -446,13 +447,20 @@
   }
 
   // ── Favourites ────────────────────────────────────────────────────
+  // Stars live in the Favorites collection when collections.js is loaded
+  // (hw_favorites stays mirrored for back-compat); otherwise fall back to
+  // the legacy hw_favorites array directly.
   function setupFavourites(root) {
+    var C = window.hwCollections;
     var favs;
-    try { favs = new Set(JSON.parse(localStorage.getItem(FAVS_KEY) || '[]')); }
-    catch (e) { favs = new Set(); }
+    if (!C) {
+      try { favs = new Set(JSON.parse(localStorage.getItem(FAVS_KEY) || '[]')); }
+      catch (e) { favs = new Set(); }
+    }
+    function isFav(p) { return C ? C.isFavorite(p) : favs.has(p); }
     function paint() {
       root.querySelectorAll('.fav-btn').forEach(function (btn) {
-        btn.textContent = favs.has(btn.dataset.phelps) ? '★' : '☆';
+        btn.textContent = isFav(btn.dataset.phelps) ? '★' : '☆';
       });
     }
     paint();
@@ -460,9 +468,36 @@
       btn.addEventListener('click', function (e) {
         e.stopPropagation();
         var p = btn.dataset.phelps;
-        if (favs.has(p)) favs.delete(p); else favs.add(p);
-        try { localStorage.setItem(FAVS_KEY, JSON.stringify(Array.from(favs))); } catch (e2) {}
+        if (C) {
+          C.toggleFavorite(cardItem(btn));
+        } else {
+          if (favs.has(p)) favs.delete(p); else favs.add(p);
+          try { localStorage.setItem(FAVS_KEY, JSON.stringify(Array.from(favs))); } catch (e2) {}
+        }
         paint();
+      });
+    });
+  }
+
+  // Item descriptor for save-to-collection, captured from the card's DOM.
+  function cardItem(btn) {
+    var card = btn.closest('.prayer-card');
+    var nameEl = card && card.querySelector('.prayer-name');
+    var prevEl = card && card.querySelector('.prayer-preview');
+    return {
+      code: btn.dataset.phelps,
+      lang: card ? card.dataset.lang || undefined : undefined,
+      title: (nameEl && nameEl.textContent) || (prevEl && prevEl.textContent) || undefined
+    };
+  }
+
+  // ── Save to collection (🔖) ───────────────────────────────────────
+  function setupCollections(root) {
+    root.querySelectorAll('.btn-save-col').forEach(function (btn) {
+      btn.addEventListener('click', function (e) {
+        e.stopPropagation();
+        if (!window.hwCollections) return;
+        window.hwCollections.openPicker(cardItem(btn));
       });
     });
   }
@@ -680,6 +715,7 @@
       header.addEventListener('click', function (e) {
         if (e.target.closest('a') || e.target.closest('.fav-btn') ||
             e.target.closest('.btn-add-devotional') ||
+            e.target.closest('.btn-save-col') ||
             e.target.closest('.btn-expand') ||
             e.target.closest('.prayer-revert-btn')) return;
         header.closest('.prayer-card').classList.toggle('folded');
@@ -846,6 +882,7 @@
     setupFolding(rootEl);
     setupFullScreen(rootEl);
     setupFavourites(rootEl);
+    setupCollections(rootEl);
     // Devotional entries always carry the prayer's lang since cards may mix
     // languages (multilingual books) and the same phelps in two different
     // languages should be distinct devotional items.
