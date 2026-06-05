@@ -512,7 +512,7 @@
     AUTHORS = m || {};
     // Backfill any signature elements rendered before fetch resolved.
     document.querySelectorAll('.prayer-author[data-phelps]:empty').forEach(el => {
-      el.textContent = authorFromPin(el.dataset.phelps, el.dataset.lang) || '';
+      el.textContent = sigFromPin(el.dataset.phelps, el.dataset.lang) || '';
     });
   });
   function authorFromPin(pin, lang) {
@@ -521,6 +521,16 @@
     const byLang = AUTHORS[m[1]];
     if (!byLang) return '';
     return byLang[lang] || byLang['default'] || byLang.en || '';
+  }
+  // Signature form for the "— <Author>" line under prayer texts: a per-lang
+  // _sig override (e.g. «ع ع») wins over the display name.
+  function sigFromPin(pin, lang) {
+    const m = String(pin || '').match(/^([A-Z]{2})/);
+    if (!m) return '';
+    const byLang = AUTHORS[m[1]];
+    if (!byLang) return '';
+    const sig = byLang._sig || {};
+    return sig[lang] || authorFromPin(pin, lang);
   }
   // Render a "— <Author>" signature as a sibling element placed immediately
   // after `containerEl` (e.g. after .reading-content), so it sits between
@@ -536,7 +546,7 @@
     if (rtl) sig.setAttribute('dir', 'rtl'); else sig.removeAttribute('dir');
     sig.dataset.phelps = phelps || '';
     sig.dataset.lang = lang || '';
-    sig.textContent = authorFromPin(phelps, lang) || '';
+    sig.textContent = sigFromPin(phelps, lang) || '';
   }
 
   const today = () => new Date().toISOString().slice(0, 10);

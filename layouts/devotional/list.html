@@ -821,6 +821,16 @@
     if (!byLang) return '';
     return byLang[lang] || byLang['default'] || byLang.en || '';
   }
+  // Signature form for "— <Author>" lines under prayer texts: per-lang _sig
+  // override (e.g. «ع ع», 'Abdu'l-Bahá's actual Tablet signature) wins.
+  function sigFromPin(pin, lang) {
+    const m = String(pin || '').match(/^([A-Z]{2})/);
+    if (!m) return '';
+    const byLang = AUTHORS[m[1]];
+    if (!byLang) return '';
+    const sig = byLang._sig || {};
+    return sig[lang] || authorFromPin(pin, lang);
+  }
   // Build an attribution string per the active UI language's author_attribution
   // template (e.g. "by {name}", "von {name}", "{name}著"). Falls back to ": <name>".
   function formatAttribution(name) {
@@ -1600,9 +1610,10 @@
       // line under the text; non-prayer writings get an inline italic
       // attribution in the meta header.
       const localAuthor = authorFromPin(item.code, item.useLang);
+      const localSig = sigFromPin(item.code, item.useLang);
       const isPrayer = r && r.type === 'prayer';
-      const authorSigHtml = (isPrayer && localAuthor)
-        ? '<div class="prayer-author"' + (isRtl ? ' dir="rtl"' : '') + '>' + escapeHtml(localAuthor) + '</div>'
+      const authorSigHtml = (isPrayer && localSig)
+        ? '<div class="prayer-author"' + (isRtl ? ' dir="rtl"' : '') + '>' + escapeHtml(localSig) + '</div>'
         : '';
       const writingAttrHtml = (!isPrayer && localAuthor)
         ? '<span class="writing-attribution"> ' + escapeHtml(formatAttribution(localAuthor)) + '</span>'
@@ -1644,7 +1655,7 @@
             const colText = colResolved ? renderMd(colResolved.text) : '<span class="dev-item-na">' + cl + '</span>';
             const colClass = isTranslit ? ' translit-col' : '';
             // Per-column author signature in the column's own language.
-            const colAuthor = authorFromPin(item.code, cl);
+            const colAuthor = sigFromPin(item.code, cl);
             const colAuthorHtml = (isPrayer && colAuthor)
               ? '<div class="prayer-author"' + (colRtl ? ' dir="rtl"' : '') + '>' + escapeHtml(colAuthor) + '</div>'
               : '';

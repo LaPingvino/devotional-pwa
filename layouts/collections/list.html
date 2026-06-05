@@ -193,10 +193,11 @@
         var m = String(item.code).match(/^([A-Z]{2})/);
         var byLang = m && map[m[1]];
         if (!byLang) return;
+        var sigMap = byLang._sig || {};
         var sig = document.createElement('div');
         sig.className = 'prayer-author';
         if (rtl) sig.dir = 'rtl';
-        sig.textContent = byLang[got.lang] || byLang['default'] || byLang.en || '';
+        sig.textContent = sigMap[got.lang] || byLang[got.lang] || byLang['default'] || byLang.en || '';
         div.appendChild(sig);
       });
     });

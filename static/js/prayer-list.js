@@ -84,12 +84,17 @@
   // Lookup order: [lang] → [default] → [en]. The "default" row carries the
   // bare canonical name ("Báb", not "The Báb") used when no translation
   // exists for the page language.
+  //
+  // This module's author text only appears as the "— <Author>" signature
+  // under prayer texts, so a per-language _sig override (e.g. «ع ع», how
+  // 'Abdu'l-Bahá actually signed Tablets) wins over the display name.
   function authorFromPin(pin, lang) {
     var m = String(pin || '').match(/^([A-Z]{2})/);
     if (!m) return '';
     var byLang = AUTHORS[m[1]];
     if (!byLang) return '';
-    return byLang[lang] || byLang['default'] || byLang.en || '';
+    var sig = byLang._sig || {};
+    return sig[lang] || byLang[lang] || byLang['default'] || byLang.en || '';
   }
 
   function wordCount(text, lang) {

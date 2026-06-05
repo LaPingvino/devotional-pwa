@@ -1098,23 +1098,38 @@ func loadCollectionMeta() map[string]CollectionMeta {
 
 // loadAuthorsByPrefix reads author/<prefix> rows from i18n and returns
 // map[prefix][lang] = name. English is the canonical fallback.
-func loadAuthorsByPrefix() map[string]map[string]string {
+//
+// Rows may also carry an optional $.signature — the form used in the
+// "— <Author>" line under prayer texts when it differs from the display
+// name (e.g. 'Abdu'l-Bahá signed Tablets «ع ع»). Signatures land in a
+// "_sig" sub-map ({prefix: {_sig: {lang: sig}}}); lang codes never start
+// with "_", so existing byLang[lang] consumers are unaffected.
+func loadAuthorsByPrefix() map[string]map[string]interface{} {
 	rows := doltQuery(`
 		SELECT ` + "`key`" + `, language,
-		       JSON_UNQUOTE(JSON_EXTRACT(value, '$.name'))
+		       JSON_UNQUOTE(JSON_EXTRACT(value, '$.name')),
+		       COALESCE(JSON_UNQUOTE(JSON_EXTRACT(value, '$.signature')), '')
 		FROM i18n
 		WHERE ` + "`key`" + ` LIKE 'author/%'
 	`)
-	out := map[string]map[string]string{}
+	out := map[string]map[string]interface{}{}
 	for _, row := range rows[1:] {
 		if len(row) < 3 || row[2] == "" || row[2] == "NULL" {
 			continue
 		}
 		prefix := strings.TrimPrefix(row[0], "author/")
 		if out[prefix] == nil {
-			out[prefix] = map[string]string{}
+			out[prefix] = map[string]interface{}{}
 		}
 		out[prefix][row[1]] = row[2]
+		if len(row) >= 4 && row[3] != "" && row[3] != "NULL" {
+			sig, _ := out[prefix]["_sig"].(map[string]string)
+			if sig == nil {
+				sig = map[string]string{}
+				out[prefix]["_sig"] = sig
+			}
+			sig[row[1]] = row[3]
+		}
 	}
 	return out
 }

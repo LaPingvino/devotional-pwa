@@ -172,14 +172,16 @@
     });
   });
 
-  // Localized author signature from /data/authors.json (built from i18n table).
+  // Localized author signature from /data/authors.json (built from i18n
+  // table). Per-language _sig override (e.g. «ع ع») wins over the name.
   fetch('/data/authors.json').then(r => r.ok ? r.json() : {}).then(map => {
     const m = phelps.match(/^([A-Z]{2})/);
     if (!m) return;
     const byLang = map[m[1]];
     if (!byLang) return;
+    const sigMap = byLang._sig || {};
     const sig = document.getElementById('prayer-author-sig');
-    if (sig) sig.textContent = byLang[lang] || byLang['default'] || byLang.en || '';
+    if (sig) sig.textContent = sigMap[lang] || byLang[lang] || byLang['default'] || byLang.en || '';
   });
 })();
 </script>
