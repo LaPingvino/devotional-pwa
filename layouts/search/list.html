@@ -403,6 +403,16 @@ function applyFilters() {
   renderTable();
 }
 
+// Save-to-collection buttons in the results (delegated — rows re-render often)
+document.getElementById('exp-body').addEventListener('click', e => {
+  const btn = e.target.closest('.btn-save-col');
+  if (!btn || !window.hwCollections) return;
+  const pin = btn.dataset.pin;
+  const g = grouped[pin];
+  const desc = g ? (g.firsts[displayLang] || g.firsts['en'] || Object.values(g.firsts)[0] || '') : '';
+  window.hwCollections.openPicker({ code: pin, title: desc.slice(0, 60) || undefined });
+});
+
 function renderTable() {
   const tbody = document.getElementById('exp-body');
   const status = document.getElementById('exp-status');
@@ -412,7 +422,7 @@ function renderTable() {
   let html = '';
   rows.forEach(p => {
     const g = grouped[p];
-    const pinLink = `<a href="${phelpsUrl(p)}">${p}</a>`;
+    const pinLink = `<a href="${phelpsUrl(p)}">${p}</a> <button class="btn-save-col" data-pin="${p}" aria-label="Save to collection" title="Save to collection">\u{1F516}</button>`;
     const desc = g.firsts[displayLang] || g.firsts['en'] || Object.values(g.firsts)[0] || '';
     const maxLen = displayLang2 ? 80 : 120;
     const descShort = desc.length > maxLen ? desc.slice(0, maxLen) + '…' : desc;

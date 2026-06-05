@@ -127,7 +127,8 @@
         ${sc.title ? `<div style="font-size:1rem; font-weight:600; margin-bottom:.3rem">${sc.title}</div>` : ''}
         ${sc.first_line ? `<div style="color:var(--text-secondary); font-style:italic; font-size:.9rem; margin-bottom:.3rem">"${sc.first_line}"</div>` : ''}
         ${sc.first_line_orig ? `<div style="font-size:.85rem; color:var(--text-secondary); margin-bottom:.3rem">${sc.first_line_orig}</div>` : ''}
-        <div style="display:flex; flex-wrap:wrap; gap:.4rem; font-size:.8rem; margin-bottom:.6rem;">${parts.join('')}</div>
+        <div style="display:flex; flex-wrap:wrap; gap:.4rem; font-size:.8rem; margin-bottom:.6rem; align-items:center;">${parts.join('')}
+          <button class="btn-save-col" data-code="${sc.code}" aria-label="Save to collection" title="Save to collection">\u{1F516}</button></div>
         ${sc.subjects ? `<div class="meta-badge" style="display:block; margin-bottom:.6rem; font-size:.75rem">${sc.subjects}</div>` : ''}
         ${sc.notes ? `<div style="font-size:.8rem; color:var(--text-secondary); background:var(--surface); border-radius:4px; padding:.5rem; margin-bottom:.6rem;">${sc.notes}</div>` : ''}
         ${renderWritingRefs(sc.writing_refs)}
@@ -205,6 +206,21 @@
           <a href="/phelps/" data-i18n="inventory_back">← Back to Inventory</a>
         </p>`;
     }
+
+    // Save-to-collection buttons (one per subcode section)
+    root.querySelectorAll('.btn-save-col').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (!window.hwCollections) return;
+        const section = btn.closest('.subcode-section');
+        const titleEl = section && section.querySelector('div[style*="font-weight:600"]');
+        const firstEl = section && section.querySelector('div[style*="font-style:italic"]');
+        window.hwCollections.openPicker({
+          code: btn.dataset.code,
+          title: (titleEl && titleEl.textContent.trim()) ||
+                 (firstEl && firstEl.textContent.trim().replace(/^"|"$/g, '')) || undefined
+        });
+      });
+    });
 
     // Scroll to hash anchor if present
     if (hashSuffix) {

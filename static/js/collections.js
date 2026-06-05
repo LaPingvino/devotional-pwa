@@ -271,11 +271,13 @@
     }, Promise.resolve(null));
   }
 
-  function exportText(col) {
+  function exportText(col, defaultLang) {
     var name = displayName(col);
     var head = '# ' + name + ' — ' + location.host + '\n# ' + shareUrl(col.items) + '\n';
     return Promise.all(col.items.map(function (item) {
-      return resolveText(item).then(function (text) {
+      var rItem = item.lang || !defaultLang ? item :
+        { code: item.code, lang: defaultLang, w: item.w };
+      return resolveText(rItem).then(function (text) {
         var header = '## ' + item.code + (item.lang ? ':' + item.lang : '') +
           (item.title ? ' — ' + item.title : '');
         var body = text ? text.trim() : '(' + shareUrl([item]) + ')';
@@ -423,6 +425,7 @@
       return true;
     },
     isRef: isRef,
+    resolveText: resolveText,
     toHash: toHash,
     shareUrl: shareUrl,
     parseList: parseList,

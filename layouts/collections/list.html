@@ -3,6 +3,13 @@
 <div class="col-page">
   <div class="col-header">
     <h1 data-i18n="collections_title">Saved</h1>
+    <details class="lang-dropdown" id="col-lang-dropdown">
+      <summary id="col-lang-label">English</summary>
+      <div class="lang-dropdown-panel">
+        <input type="search" class="lang-filter-input" id="col-lang-filter" placeholder="Filter languages..." autocomplete="off" data-i18n-placeholder="filter_languages">
+        <div class="lang-dropdown-list" id="col-lang-list"></div>
+      </div>
+    </details>
     <button class="colpick-btn" id="btn-new-col" data-i18n="col_new_collection">New collection</button>
   </div>
   <p class="col-intro" data-i18n="collections_intro">Collections live in this browser. Export them to back up, move, or share.</p>
@@ -38,10 +45,15 @@
 .colpick-btn:hover { border-color: var(--accent); color: var(--accent); }
 .colpick-btn.btn-danger:hover { border-color: #c0392b; color: #c0392b; }
 .col-items { border-top: 1px solid var(--border); }
-.col-item { display: flex; align-items: center; gap: .6rem; padding: .45rem .9rem; border-bottom: 1px solid var(--border); }
-.col-item:last-child { border-bottom: none; }
-.col-item a { text-decoration: none; color: inherit; flex: 1; min-width: 0; }
-.col-item a:hover { color: var(--accent); }
+.col-item-wrap { border-bottom: 1px solid var(--border); }
+.col-item-wrap:last-child { border-bottom: none; }
+.col-item { display: flex; align-items: center; gap: .6rem; padding: .45rem .9rem; }
+.col-item .col-item-main { text-decoration: none; color: inherit; flex: 1; min-width: 0; cursor: pointer; }
+.col-item .col-item-main:hover { color: var(--accent); }
+.col-item-goto { text-decoration: none; color: var(--text-secondary); font-size: .85rem; }
+.col-item-goto:hover { color: var(--accent); }
+.col-item-text { padding: .2rem 1.2rem 1rem; line-height: 1.8; }
+.col-item-text .prayer-author { text-align: end; font-style: italic; color: var(--text-secondary); margin-top: .5rem; }
 .col-item-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .col-item-code { font-family: monospace; font-size: .78rem; color: var(--text-secondary); }
 .col-lang-badge { font-size: .72rem; border: 1px solid var(--border); border-radius: 4px; padding: 0 .3rem; color: var(--text-secondary); }
@@ -70,20 +82,124 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
-  // Where a saved item opens. Mirrors the link conventions used on the
-  // daily page and prayer cards.
+  // Where a saved item opens (↗). Always lands on a reading page — the
+  // prayerbook in the item's (or selected) language — never the catalog
+  // "tablet of origin" detail page; inline view covers quick reading.
   function itemHref(item) {
     if (window.hwCollections.isRef(item.code)) {
       return '/devotional/#' + window.hwCollections.toHash([item]);
     }
-    var lang = (item.lang || '').toLowerCase();
-    if (item.w) return '/writings/' + item.w + '/' + (lang || 'en') + '/#' + item.code;
-    if (lang) return '/prayers/' + lang + '/#' + item.code;
-    var m = item.code.toLowerCase().match(/^(.*?)([a-z]{3})$/);
-    if (m && /[a-z]{3}$/.test(item.code.toLowerCase()) && /\d/.test(m[1])) {
-      return '/phelps/' + m[1] + '/#' + m[2];
+    var lang = (item.lang || selectedLang || 'en').toLowerCase();
+    if (item.w) return '/writings/' + item.w + '/' + lang + '/#' + item.code;
+    return '/prayers/' + lang + '/#' + item.code;
+  }
+
+  // ── Display language (like the Program page: per-item lang locks win;
+  //    unlocked items render in the selected language) ──
+  var selectedLang = 'en';
+  var allLanguages = [];
+  var RTL = {};
+  function isRtl(lang) { return !!RTL[lang]; }
+
+  function initLangs() {
+    return fetch('/data/languages.json').then(function(r) { return r.ok ? r.json() : []; }).then(function(langs) {
+      allLanguages = langs || [];
+      allLanguages.forEach(function(l) { RTL[l.code] = !!l.rtl; });
+      var avail = allLanguages.map(function(l) { return l.code; });
+      selectedLang = window.__bestLang ? window.__bestLang('hw_collections_lang', avail) : 'en';
+      var label = $('col-lang-label');
+      var list = $('col-lang-list');
+      var dd = $('col-lang-dropdown');
+      var filter = $('col-lang-filter');
+      function setLabel() {
+        var l = allLanguages.find(function(x) { return x.code === selectedLang; });
+        label.textContent = l ? l.name : selectedLang;
+      }
+      setLabel();
+      allLanguages.slice().sort(function(a, b) { return a.name.localeCompare(b.name); }).forEach(function(l) {
+        var a = document.createElement('a');
+        a.href = '#';
+        a.dataset.code = l.code;
+        a.dataset.name = l.name.toLowerCase();
+        a.textContent = l.name;
+        if (l.code === selectedLang) a.classList.add('active');
+        a.addEventListener('click', function(e) {
+          e.preventDefault();
+          selectedLang = l.code;
+          try { localStorage.setItem('hw_collections_lang', l.code); } catch (e2) {}
+          list.querySelectorAll('a').forEach(function(x) { x.classList.toggle('active', x.dataset.code === l.code); });
+          dd.removeAttribute('open');
+          setLabel();
+          textCache = {};
+          render();
+        });
+        list.appendChild(a);
+      });
+      filter.addEventListener('input', function() {
+        var q = filter.value.toLowerCase().trim();
+        list.querySelectorAll('a').forEach(function(a) {
+          a.style.display = (!q || a.dataset.name.includes(q) || a.dataset.code.includes(q)) ? '' : 'none';
+        });
+      });
+      document.addEventListener('click', function(e) { if (!dd.contains(e.target)) dd.removeAttribute('open'); });
+    }).catch(function() {});
+  }
+
+  // ── Inline text view ──
+  var textCache = {}; // code|lang → {text, lang} or null
+  function resolveChain(item) {
+    // Lang-locked items show their language; unlocked follow the switcher.
+    var C = window.hwCollections;
+    var chain = [];
+    [item.lang, selectedLang, 'en'].forEach(function(l) {
+      if (l && chain.indexOf(l) < 0) chain.push(l);
+    });
+    return chain.reduce(function(p, l) {
+      return p.then(function(got) {
+        if (got) return got;
+        return C.resolveText({ code: item.code, lang: l, w: item.w }).then(function(text) {
+          return text ? { text: text, lang: l } : null;
+        });
+      });
+    }, Promise.resolve(null));
+  }
+
+  function toggleItemText(item, wrap) {
+    var existing = wrap.querySelector('.col-item-text');
+    if (existing) { existing.remove(); return; }
+    if (window.hwCollections.isRef(item.code)) {
+      // Range refs (iqan:1:3 …) resolve on the Program page
+      location.href = '/devotional/#' + window.hwCollections.toHash([item]);
+      return;
     }
-    return '/phelps/' + item.code.toLowerCase() + '/';
+    var div = document.createElement('div');
+    div.className = 'col-item-text';
+    div.innerHTML = '<span class="col-intro">…</span>';
+    wrap.appendChild(div);
+    var key = item.code + '|' + (item.lang || selectedLang);
+    var cached = textCache[key];
+    (cached !== undefined ? Promise.resolve(cached) : resolveChain(item)).then(function(got) {
+      textCache[key] = got || null;
+      if (!got) {
+        div.innerHTML = '<span class="col-intro">' + escapeHtml(t('col_no_text', 'No text available in this language')) +
+          ' — <a href="' + escapeHtml(itemHref(item)) + '">↗</a></span>';
+        return;
+      }
+      var rtl = isRtl(got.lang);
+      div.innerHTML = '<div' + (rtl ? ' dir="rtl"' : '') + '>' +
+        (window.renderMd ? window.renderMd(got.text) : escapeHtml(got.text)) + '</div>';
+      // Author signature, same convention as prayer cards
+      fetch('/data/authors.json').then(function(r) { return r.ok ? r.json() : {}; }).then(function(map) {
+        var m = String(item.code).match(/^([A-Z]{2})/);
+        var byLang = m && map[m[1]];
+        if (!byLang) return;
+        var sig = document.createElement('div');
+        sig.className = 'prayer-author';
+        if (rtl) sig.dir = 'rtl';
+        sig.textContent = byLang[got.lang] || byLang['default'] || byLang.en || '';
+        div.appendChild(sig);
+      });
+    });
   }
 
   function download(filename, text) {
@@ -145,7 +261,7 @@
           btn('Export text', 'col_export_text', function(b) {
             var orig = b.textContent;
             b.textContent = '…';
-            C.exportText(col).then(function(text) {
+            C.exportText(col, selectedLang).then(function(text) {
               b.textContent = orig;
               download(name.replace(/[^\wÀ-￿ -]+/g, '').trim() + '.txt', text);
             });
@@ -170,20 +286,27 @@
           itemsEl.innerHTML = '<div class="col-empty" data-i18n="col_empty">Nothing saved here yet.</div>';
         }
         col.items.forEach(function(item) {
+          var wrap = document.createElement('div');
+          wrap.className = 'col-item-wrap';
           var row = document.createElement('div');
           row.className = 'col-item';
           var label = item.title || item.code;
-          row.innerHTML = '<a href="' + escapeHtml(itemHref(item)) + '">' +
+          row.innerHTML = '<span class="col-item-main" role="button" tabindex="0">' +
             '<span class="col-item-title">' + escapeHtml(label) + '</span>' +
             (item.title && !C.isRef(item.code) ? '<span class="col-item-code">' + escapeHtml(item.code) + '</span>' : '') +
-            '</a>' +
+            '</span>' +
             (item.lang ? '<span class="col-lang-badge">' + escapeHtml(item.lang) + '</span>' : '') +
+            '<a class="col-item-goto" href="' + escapeHtml(itemHref(item)) + '" title="' + escapeHtml(t('col_open_source', 'Open page')) + '">&#x2197;</a>' +
             '<button class="col-item-remove" title="' + escapeHtml(t('col_remove_item', 'Remove')) + '">&#x2715;</button>';
+          var main = row.querySelector('.col-item-main');
+          main.addEventListener('click', function() { toggleItemText(item, wrap); });
+          main.addEventListener('keydown', function(e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleItemText(item, wrap); } });
           row.querySelector('.col-item-remove').addEventListener('click', function() {
             C.removeItem(col.id, item.code, item.lang);
             render();
           });
-          itemsEl.appendChild(row);
+          wrap.appendChild(row);
+          itemsEl.appendChild(wrap);
         });
         card.appendChild(itemsEl);
       }
@@ -209,6 +332,7 @@
 
   function init() {
     if (!window.hwCollections) return;
+    initLangs().then(render);
     render();
 
     $('btn-new-col').addEventListener('click', function() {
