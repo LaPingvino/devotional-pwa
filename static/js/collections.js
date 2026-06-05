@@ -407,6 +407,17 @@
       return true;
     },
     add: addItem,
+    // Replace a collection's whole item list (program-view widget edits —
+    // lang locks, version pins, reorder, remove — persist through here).
+    setItems: function (id, items) {
+      var state = load();
+      var col = state.collections.find(function (c) { return c.id === id; });
+      if (!col) return false;
+      col.items = (items || []).map(normalizeItem);
+      col.modified = Date.now();
+      save(state);
+      return true;
+    },
     removeItem: removeItem,
     has: hasItem,
     isFavorite: function (code) { return hasItem('favorites', code); },
