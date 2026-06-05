@@ -72,8 +72,8 @@
   fetch('/data/authors.json').then(function (r) { return r.ok ? r.json() : {}; })
     .then(function (m) {
       AUTHORS = m || {};
-      document.querySelectorAll('.prayer-author:empty').forEach(function (el) {
-        var card = el.closest('.prayer-card');
+      document.querySelectorAll('.prayer-author:empty').forEach(function (/** @type {HTMLElement} */ el) {
+        var card = /** @type {HTMLElement} */ (el.closest('.prayer-card'));
         if (!card) return;
         var name = authorFromPin(card.dataset.phelps, card.dataset.lang);
         if (name) el.textContent = name;

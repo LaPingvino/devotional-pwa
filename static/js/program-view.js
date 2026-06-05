@@ -347,26 +347,26 @@
 
     // Quran reference
     if (code.startsWith('quran:')) {
-      var ref = parseQuranRef(code);
-      if (!ref) return null;
+      var qref = parseQuranRef(code);
+      if (!qref) return null;
       var data = await fetchQuran(lang);
       if (!data) return null;
-      var surah = (data.surahs || []).find(function(s) { return s.number === ref.surah; });
+      var surah = (data.surahs || []).find(function(s) { return s.number === qref.surah; });
       if (!surah) return null;
       var ayahs = (surah.verses || []).filter(function(v) {
-        return v.ayah >= ref.ayahStart && v.ayah <= ref.ayahEnd;
+        return v.ayah >= qref.ayahStart && v.ayah <= qref.ayahEnd;
       });
       if (ayahs.length === 0) return null;
       var textParts = ayahs.map(function(v) {
         return '<sup>' + v.ayah + '</sup> ' + (v.text || '');
       });
-      var title = surah.name_trans || ('Surah ' + ref.surah);
-      if (ref.ayahEnd < 999) {
-        title += ' ' + ref.ayahStart;
-        if (ref.ayahEnd > ref.ayahStart) title += '-' + ref.ayahEnd;
+      var qtitle = surah.name_trans || ('Surah ' + qref.surah);
+      if (qref.ayahEnd < 999) {
+        qtitle += ' ' + qref.ayahStart;
+        if (qref.ayahEnd > qref.ayahStart) qtitle += '-' + qref.ayahEnd;
       }
       var quranLang = lang === 'en' ? 'en' : lang;
-      return { text: '<p>' + textParts.join(' ') + '</p>', category: "Qur'an", type: 'quran', name: title, link: '/quran/' + quranLang + '/#surah-' + ref.surah };
+      return { text: '<p>' + textParts.join(' ') + '</p>', category: "Qur'an", type: 'quran', name: qtitle, link: '/quran/' + quranLang + '/#surah-' + qref.surah };
     }
 
     // Writing shorthand: iqan:part:section, aqdas:para, etc.
@@ -710,7 +710,7 @@
 
         const div = document.createElement('div');
         div.className = 'dev-item';
-        div.dataset.idx = idx;
+        div.dataset.idx = String(idx);
 
         const r = item.resolved;
         const textHtml = r ? renderMd(r.text) : '<span class="dev-item-na">Not available in ' + item.useLang + '</span>';
@@ -806,7 +806,7 @@
         }
 
         // Lock/unlock version button (pin a specific translation by UUID)
-        const vLockBtn = div.querySelector('.dev-item-vlock');
+        const vLockBtn = /** @type {HTMLButtonElement} */ (div.querySelector('.dev-item-vlock'));
         if (vLockBtn && !vLockBtn.disabled) {
           vLockBtn.addEventListener('click', () => {
             if (codes[idx].v) {
@@ -844,7 +844,7 @@
               var ncols = columnsEl.querySelectorAll('.dev-item-col').length;
               contentHtml = '<div class="dev-item-columns dev-item-columns-scroll expand-body" ' +
                 'style="grid-template-columns:repeat(' + ncols + ',minmax(360px,1fr))">';
-              columnsEl.querySelectorAll('.dev-item-col').forEach(function(col) {
+              columnsEl.querySelectorAll('.dev-item-col').forEach(function(/** @type {HTMLElement} */ col) {
                 contentHtml += '<div class="' + col.className + '"' + (col.dir ? ' dir="' + col.dir + '"' : '') +
                   ' style="max-height:none;overflow:visible">' + col.innerHTML + '</div>';
               });
@@ -864,7 +864,7 @@
               (metaHtml ? '<div style="color:var(--text-secondary);font-size:.85rem;margin-bottom:1rem">' + metaHtml + '</div>' : '') +
               contentHtml;
             document.body.appendChild(overlay);
-            var body = overlay.querySelector('.expand-body');
+            var body = /** @type {HTMLElement} */ (overlay.querySelector('.expand-body'));
             var zoom = parseFloat(localStorage.getItem('dev_expand_zoom') || '1');
             var applyZoom = function() { if (body) body.style.fontSize = zoom + 'em'; };
             applyZoom();
@@ -885,7 +885,7 @@
         }
 
         // Drag-and-drop reordering — only from the drag handle
-        var dragHandle = div.querySelector('.dev-item-drag');
+        var dragHandle = /** @type {HTMLElement} */ (div.querySelector('.dev-item-drag'));
         dragHandle.addEventListener('mousedown', function() { div.draggable = true; });
         dragHandle.addEventListener('touchstart', function() { div.draggable = true; }, {passive: true});
         div.addEventListener('dragstart', e => {

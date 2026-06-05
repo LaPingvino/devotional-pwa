@@ -330,7 +330,7 @@
       document.removeEventListener('keydown', onKey);
       if (onChange) onChange();
     }
-    function onKey(e) { if (e.key === 'Escape') close(); }
+    function onKey(/** @type {KeyboardEvent} */ e) { if (e.key === 'Escape') close(); }
 
     function render() {
       var state = load();
@@ -351,7 +351,7 @@
         '</div>' +
         '<div class="colpick-footer"><button class="colpick-btn colpick-done">' + escapeHtml(t('col_done', 'Done')) + '</button></div>';
 
-      box.querySelectorAll('input[type="checkbox"]').forEach(function (cb) {
+      box.querySelectorAll('input[type="checkbox"]').forEach(function (/** @type {HTMLInputElement} */ cb) {
         cb.addEventListener('change', function () {
           items.forEach(function (it) {
             if (cb.checked) addItem(cb.dataset.col, it);
@@ -360,7 +360,7 @@
           render();
         });
       });
-      var nameInput = box.querySelector('.colpick-new input');
+      var nameInput = /** @type {HTMLInputElement} */ (box.querySelector('.colpick-new input'));
       function createAndTick() {
         var name = nameInput.value.trim();
         if (!name) return;
@@ -369,7 +369,7 @@
         render();
       }
       box.querySelector('.colpick-create').addEventListener('click', createAndTick);
-      nameInput.addEventListener('keydown', function (e) { if (e.key === 'Enter') createAndTick(); });
+      nameInput.addEventListener('keydown', function (/** @type {KeyboardEvent} */ e) { if (e.key === 'Enter') createAndTick(); });
       box.querySelector('.colpick-done').addEventListener('click', close);
     }
 

@@ -45,6 +45,13 @@ cp assets/bible/*.json static/data/bible/ 2>/dev/null || true
 cp assets/quran/*.json static/data/quran/ 2>/dev/null || true
 echo "Bible/Quran data: $(ls static/data/bible/*.json 2>/dev/null | wc -l) bible, $(ls static/data/quran/*.json 2>/dev/null | wc -l) quran"
 
+# Type-check the shared JS modules (tsgo over checkJs; see tsconfig.json).
+# Catches undefined names / typo'd members / bad calls in static/js/ before
+# they ship. Inline layout scripts are not covered — keep shared logic in
+# static/js/ partly for this reason.
+echo "Type-checking static/js (tsgo)..."
+npx -y @typescript/native-preview --noEmit
+
 # Generate i18n bundle
 echo "Generating i18n bundle..."
 go run scripts/gen_i18n.go --dolt-dir ./bahaiwritings

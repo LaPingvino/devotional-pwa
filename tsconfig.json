@@ -1,0 +1,20 @@
+{
+  // Type-checking only — the site has no JS build step; Hugo serves
+  // static/js/*.js as-is. Run: npx -y @typescript/native-preview --noEmit
+  // (tsgo; also works with plain tsc). Inline <script> blocks in layouts/
+  // are NOT covered — shared logic belongs in static/js/ partly for this.
+  "compilerOptions": {
+    "noEmit": true,
+    "allowJs": true,
+    "checkJs": true,
+    "target": "es2022",
+    "lib": ["es2022", "dom", "dom.iterable"],
+    "module": "preserve",
+    // Loose baseline: catch undefined names / typo'd members / bad calls
+    // without demanding annotations everywhere. Tighten over time.
+    "strict": false,
+    "noImplicitAny": false,
+    "skipLibCheck": true
+  },
+  "include": ["static/js/**/*.js", "types.d.ts"]
+}

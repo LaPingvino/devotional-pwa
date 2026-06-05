@@ -309,7 +309,6 @@
       'عبد': '\'Abd',
       'حسین': '\u1E24usayn',
       'حسن': '\u1E24asan',
-      'علی': '\'Al\u00ED',
       'فاطمه': 'F\u00E1\u1E6Dimih',
       'قران': 'Qur\'\u00E1n',
       'انجیل': 'Inj\u00EDl',
@@ -332,7 +331,6 @@
       'من': 'min',
       'هذا': 'h\u00E1dh\u00E1',
       'هذه': 'h\u00E1dhihi',
-      'ذلک': 'dh\u00E1lika',
       'کل': 'kull',
       'کلّ': 'kull',
       'بعد': 'ba\'d',
@@ -364,7 +362,6 @@
       'أنتم': 'antum',
       // More common terms
       'اکبر': 'Akbar', 'اكبر': 'Akbar',
-      'بسمالله': 'Bismi\'ll\u00E1h',
       'بهاءالابهی': 'Bah\u00E1\'u\'l-Abh\u00E1',
       'بهاءالابهى': 'Bah\u00E1\'u\'l-Abh\u00E1',
       'یابهاءالابهی': 'Y\u00E1 Bah\u00E1\'u\'l-Abh\u00E1',
@@ -582,7 +579,7 @@
       return;
     }
     dictLoading = true;
-    var origFetchFn = window.__origFetch || window.fetch;
+    var origFetchFn = window['__origFetch'] || window.fetch;
     Promise.all([
       origFetchFn('/data/ar_vowels.json').then(function(r) { return r.json(); }),
       origFetchFn('/data/ar_bigrams.json').then(function(r) { return r.json(); }).catch(function() { return null; })
@@ -601,7 +598,7 @@
     var walker = document.createTreeWalker(
       root,
       NodeFilter.SHOW_ELEMENT,
-      { acceptNode: function(node) {
+      { acceptNode: function(/** @type {HTMLElement} */ node) {
         if (node.closest('.site-header, .sidebar, script, style, .translit-line, .nav-dropdown-menu, .ui-lang-menu, .search-lang-dropdown')) return NodeFilter.FILTER_REJECT;
         var dir = node.getAttribute('dir');
         var text = node.textContent || '';
@@ -695,7 +692,7 @@
   // Watch for fullscreen overlays and inject a translit toggle button
   var observer = new MutationObserver(function(mutations) {
     mutations.forEach(function(m) {
-      m.addedNodes.forEach(function(node) {
+      m.addedNodes.forEach(function(/** @type {HTMLElement} */ node) {
         if (node.nodeType !== 1 || !node.classList.contains('expanded-overlay')) return;
         if (!hasArabic(node.textContent || '')) return;
         // Add translit button next to close button
@@ -778,7 +775,7 @@
   // Also check after any fetch-driven content loads
   var origFetch = window.fetch;
   if (origFetch) {
-    window.__origFetch = origFetch; // save for dict loading
+    window['__origFetch'] = origFetch; // save for dict loading
     window.fetch = function() {
       return origFetch.apply(this, arguments).then(function(r) {
         setTimeout(checkAndShow, 500);
