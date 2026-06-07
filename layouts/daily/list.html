@@ -832,6 +832,24 @@
       }
     }
 
+    // Step past fragmentary excerpts — imperfect paragraph imports leave
+    // entries that start or end mid-sentence (e.g. the BH00111 leaf stubs,
+    // PUP page-break splits; bd joop-16l / joop-vqq). Deterministic stepping
+    // keeps the daily pick stable for everyone.
+    function looksFragmentary(t) {
+      t = (t || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+      if (t.length < 100) return true;
+      if (/^[a-zà-ý]/.test(t)) return true;                       // mid-sentence start (Latin)
+      if (/^(and|but|or|which|that|of|in|to|for)\b/i.test(t)) return true;
+      if (!/[.!?。！？؟۔…»”"')۔]\s*$/.test(t)) return true;   // no sentence-final punctuation
+      return false;
+    }
+    let skipTries = 0;
+    while (skipTries < 15 && looksFragmentary(writingEntries[idx % writingEntries.length].text)) {
+      idx++; skipTries++;
+    }
+    saveState('writing_idx', idx);
+
     const w = writingEntries[idx % writingEntries.length];
     // Truncate long texts to a reasonable excerpt
     let text = w.text || '';
