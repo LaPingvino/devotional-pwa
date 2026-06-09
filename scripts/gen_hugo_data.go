@@ -763,16 +763,31 @@ func writePerBookJSON(staticDir, assetsDir string,
 	// have source='bahaiprayers.app' and a different source_id space.
 	// Use DISTINCT to dedupe when a phelps has multiple writings rows in the
 	// same language (e.g. bahaiprayers.net + bahaiprayers.app variants).
+	// Multilingual books (mul-*, nai-*) carry a DIFFERENT language per entry
+	// that is NOT derivable from the source_language prefix (e.g. "mul-NA",
+	// "nai-CA" are not real writings.language values). For those, resolve the
+	// exact scraped writings row via pbs.version (each PBS row stores the
+	// writings PK it came from). For every other book keep the original
+	// phelps + prefix-language join so behaviour and :bpapp/:bpnet variant
+	// deduping stay unchanged. Without this, multilingual books rendered 0
+	// prayers (the prefix never matched a real language).
 	rows := doltQuery(`
-		SELECT DISTINCT pbs.source_language, w.language, pbs.phelps_code,
+		SELECT DISTINCT pbs.source_language,
+		       CASE WHEN pbs.source_language LIKE 'mul-%'
+		             OR pbs.source_language LIKE 'nai-%'
+		            THEN wv.language ELSE wf.language END AS lang,
+		       pbs.phelps_code,
 		       COALESCE(pbs.category_name,''),
 		       COALESCE(pbs.category_order,0),
 		       COALESCE(pbs.order_in_category,0)
 		FROM prayer_book_structure pbs
-		JOIN writings w
-		    ON w.phelps = pbs.phelps_code
-		   AND w.language = SUBSTRING_INDEX(pbs.source_language, ':', 1)
+		LEFT JOIN writings wv ON wv.version = pbs.version
+		LEFT JOIN writings wf ON wf.phelps = pbs.phelps_code
+		     AND wf.language = SUBSTRING_INDEX(pbs.source_language, ':', 1)
 		WHERE pbs.phelps_code IS NOT NULL AND pbs.phelps_code <> ''
+		  AND COALESCE(CASE WHEN pbs.source_language LIKE 'mul-%'
+		                     OR pbs.source_language LIKE 'nai-%'
+		                    THEN wv.version ELSE wf.version END, '') <> ''
 	`)
 	for _, r := range rows[1:] {
 		if len(r) < 6 {
