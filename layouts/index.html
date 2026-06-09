@@ -1,9 +1,34 @@
 {{ partial "head.html" (dict "Title" "Home" "Lang" "en") }}
 <div class="main-content">
   <h1 data-i18n="home_title">Holy Writings</h1>
-  <p style="color:var(--text-secondary); margin-bottom:2rem;" data-i18n="home_subtitle">
+  <p style="color:var(--text-secondary); margin-bottom:1.25rem;" data-i18n="home_subtitle">
     A multilingual collection of sacred texts.
   </p>
+
+  <!-- Search hero: routes to the full search page (which honours ?q=) -->
+  <form class="home-search" action="/search/" method="get" role="search">
+    <input type="search" name="q" id="home-search" autocomplete="off"
+           data-i18n-placeholder="search_placeholder" placeholder="Search in any language…"
+           aria-label="Search">
+    <button type="submit" data-i18n="nav_search">Search</button>
+  </form>
+
+  <!-- Live daily reading: a random prayer in the reader's language -->
+  <section class="home-daily-card" id="home-daily" hidden>
+    <div class="home-daily-head">
+      <h2 data-i18n="daily_reading">Daily Reading</h2>
+      <span class="home-daily-actions">
+        <button type="button" class="btn-refresh" id="home-new-prayer"
+                title="New random prayer" aria-label="New random prayer">&#x21bb;</button>
+        <a class="btn-refresh" id="home-daily-more" href="/daily/"
+           title="Daily Devotions" aria-label="Daily Devotions" data-i18n-title="daily_title">&#x2197;</a>
+      </span>
+    </div>
+    <a class="home-daily-body" id="home-prayer-link" href="/daily/">
+      <div id="home-prayer-text" class="reading-content"></div>
+    </a>
+    <div id="home-prayer-meta" class="reading-meta"></div>
+  </section>
 
   <div class="home-sections">
     <a href="/daily/" class="home-card">
@@ -36,6 +61,11 @@
       <p data-i18n="home_bible_desc">KJV and Van Dyck translations with Hebrew, Syriac, and Greek originals.</p>
     </a>
 
+    <a href="/collections/" class="home-card">
+      <h2 data-i18n="nav_collections">Saved</h2>
+      <p data-i18n="home_collections_desc">Your saved prayers, reading lists, and custom collections.</p>
+    </a>
+
     <a href="/phelps/" class="home-card">
       <h2 data-i18n="nav_catalog">Catalog</h2>
       <p data-i18n="home_catalog_desc">Browse the Phelps index — a catalog of 29,000+ Bahá'í Holy Writings.</p>
@@ -47,4 +77,112 @@
     </a>
   </div>
 </div>
+
+<style>
+.home-search { display:flex; gap:.5rem; margin:0 0 1.75rem; max-width:640px; }
+.home-search input {
+  flex:1; padding:.7rem .9rem; font-size:1rem; border:1px solid var(--border);
+  border-radius:8px; background:var(--surface); color:var(--text);
+}
+.home-search input:focus { outline:none; border-color:var(--accent); box-shadow:0 0 0 2px #ff795433; }
+.home-search button {
+  padding:.7rem 1.1rem; font-size:1rem; border:none; border-radius:8px;
+  background:var(--accent); color:#fff; cursor:pointer; white-space:nowrap;
+}
+.home-search button:hover { filter:brightness(.95); }
+
+.home-daily-card {
+  border:1px solid var(--border); border-radius:10px; background:var(--surface);
+  padding:1rem 1.1rem; margin:0 0 1.75rem; max-width:760px;
+}
+.home-daily-head { display:flex; align-items:center; gap:.5rem; margin-bottom:.4rem; }
+.home-daily-head h2 { margin:0; font-size:1.05rem; flex:1; }
+.home-daily-actions { display:flex; gap:.25rem; align-items:center; }
+.home-daily-card .btn-refresh {
+  background:none; border:none; cursor:pointer; font-size:1.1rem; line-height:1;
+  color:var(--text-secondary); text-decoration:none; padding:.2rem;
+}
+.home-daily-card .btn-refresh:hover { color:var(--accent); }
+.home-daily-body { display:block; color:inherit; text-decoration:none; }
+.home-daily-card .reading-content {
+  font-size:1.02rem; line-height:1.6; color:var(--text); margin:0;
+}
+.home-daily-card .reading-content p { margin:0 0 .5rem; }
+.home-daily-card .reading-meta { margin-top:.5rem; font-size:.85rem; color:var(--text-secondary); }
+.home-daily-card .reading-meta a { color:var(--accent); text-decoration:none; }
+</style>
+
+<script>
+(function(){
+  function $(id){ return document.getElementById(id); }
+  var card = $('home-daily');
+  if (!card) return;
+
+  // mulberry32 seeded PRNG + day seed → a stable "reading of the day"
+  function mulberry32(a){ return function(){ a|=0; a=a+0x6D2B79F5|0; var t=Math.imul(a^a>>>15,1|a); t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296; }; }
+  function dateSeed(){ var d=new Date(); return d.getFullYear()*10000 + (d.getMonth()+1)*100 + d.getDate(); }
+
+  function esc(s){ return s.replace(/[&<>]/g, function(c){ return ({'&':'&amp;','<':'&lt;','>':'&gt;'})[c]; }); }
+  // Minimal markdown→paragraphs, trimmed to maxChars with an ellipsis.
+  function prayerHtml(md, maxChars){
+    var paras = (md||'').replace(/\r/g,'').split(/\n\s*\n/)
+      .map(function(p){ return p.replace(/^#+\s*/gm,'').replace(/[*_>#`\[\]]/g,'').replace(/\s+/g,' ').trim(); })
+      .filter(Boolean);
+    var out=[], total=0;
+    for (var i=0;i<paras.length;i++){
+      if (total>=maxChars) break;
+      var seg=paras[i];
+      if (total+seg.length>maxChars){ seg=seg.slice(0,Math.max(0,maxChars-total)).replace(/\s+\S*$/,'')+'…'; out.push('<p>'+esc(seg)+'</p>'); break; }
+      out.push('<p>'+esc(seg)+'</p>'); total+=seg.length;
+    }
+    return out.join('');
+  }
+
+  var prayers=null, lang='en', rtl=false;
+
+  function render(forceNew){
+    if (!prayers || !prayers.length) return;
+    var idx;
+    if (forceNew){ idx=Math.floor(Math.random()*prayers.length); }
+    else { idx=Math.floor(mulberry32(dateSeed())()*prayers.length); }
+    var p=prayers[idx%prayers.length];
+    var txtEl=$('home-prayer-text');
+    txtEl.innerHTML=prayerHtml(p.text, 480);
+    if (rtl) txtEl.setAttribute('dir','rtl'); else txtEl.removeAttribute('dir');
+    var href='/prayers/'+lang+'/#'+(p.phelps||'');
+    $('home-prayer-link').setAttribute('href', href);
+    var meta=$('home-prayer-meta');
+    meta.innerHTML=(p.category?esc(p.category)+' &middot; ':'')+'<a href="'+href+'">'+esc(p.phelps||'')+'</a>';
+    card.hidden=false;
+  }
+
+  function pickLang(langs){
+    var codes=langs.filter(function(l){ return (l.prayer_count||0)>0; }).map(function(l){ return l.code; });
+    var byCode={}; langs.forEach(function(l){ byCode[l.code]=l; });
+    var chosen = (window.__bestLang ? window.__bestLang('hw_daily_lang', codes) : 'en');
+    if (codes.indexOf(chosen)<0) chosen = (codes.indexOf('en')>=0?'en':codes[0]);
+    rtl = !!(byCode[chosen] && byCode[chosen].rtl);
+    return chosen;
+  }
+
+  fetch('/data/languages.json').then(function(r){ return r.json(); }).then(function(langs){
+    lang = pickLang(langs).toLowerCase();
+    return fetch('/data/prayers/'+lang+'.json');
+  }).then(function(r){ return r.ok ? r.json() : null; }).then(function(d){
+    if (!d || !d.prayers || !d.prayers.length){
+      // fall back to English if the chosen language has no prayer file
+      if (lang!=='en'){ lang='en'; rtl=false; return fetch('/data/prayers/en.json').then(function(r){ return r.ok?r.json():null; }); }
+      return null;
+    }
+    return d;
+  }).then(function(d){
+    if (!d || !d.prayers || !d.prayers.length) return;
+    prayers=d.prayers;
+    render(false);
+  }).catch(function(){ /* leave card hidden on any error */ });
+
+  var btn=$('home-new-prayer');
+  if (btn) btn.addEventListener('click', function(e){ e.preventDefault(); render(true); });
+})();
+</script>
 {{ partial "foot.html" . }}
