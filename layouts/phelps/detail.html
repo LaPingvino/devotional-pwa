@@ -113,6 +113,37 @@
       </div>`;
   }
 
+  function renderRefs(sc) {
+    const refs = sc.refs || [];
+    const kinds = [
+      ['manuscript', 'Manuscripts', '\u{1F4DC}'],
+      ['publication', 'Published in', '\u{1F4D6}'],
+      ['translation', 'Translations', '\u{1F310}'],
+      ['music', 'Music', '\u{1F3B5}'],
+    ];
+    const chip = (label, url) => url
+      ? `<a href="${url}" target="_blank" rel="noopener" style="font-size:.78rem; padding:.15rem .5rem; background:var(--bg); border:1px solid var(--border); border-radius:12px; text-decoration:none; color:var(--accent);">${label}</a>`
+      : `<span style="font-size:.78rem; padding:.15rem .5rem; background:var(--bg); border:1px solid var(--border); border-radius:12px; color:var(--text);">${label}</span>`;
+    const blocks = kinds.map(([kind, label, icon]) => {
+      const items = refs.filter(r => r.kind === kind);
+      if (!items.length) return '';
+      return `<div style="margin-bottom:.45rem; display:flex; flex-wrap:wrap; gap:.35rem; align-items:baseline;">
+        <span style="font-size:.78rem; font-weight:600; color:var(--text-secondary); min-width:7.5rem;">${icon} ${label}</span>
+        ${items.map(r => chip(r.code, r.url)).join('')}
+      </div>`;
+    }).join('');
+    // Always offer the Loom of Reality entry for real PINs (not TMP/X codes).
+    const loom = /^(BB|BH|AB)U?\d/.test(sc.code)
+      ? `<div style="margin-top:.3rem;">${chip('Loom of Reality entry ↗', 'https://bahai-library.com/inventory/' + encodeURIComponent(sc.code))}</div>`
+      : '';
+    if (!blocks.trim() && !loom) return '';
+    return `
+      <details style="margin-bottom:.8rem;">
+        <summary style="cursor:pointer; font-size:.85rem; font-weight:600; color:var(--text-secondary);" data-i18n="sources_study">Sources &amp; study</summary>
+        <div style="margin-top:.5rem;">${blocks}${loom}</div>
+      </details>`;
+  }
+
   function renderSubcode(sc, multi) {
     const parts = [];
     if (sc.language) parts.push(`<span class="meta-badge">${sc.language}</span>`);
@@ -132,6 +163,7 @@
         ${sc.subjects ? `<div class="meta-badge" style="display:block; margin-bottom:.6rem; font-size:.75rem">${sc.subjects}</div>` : ''}
         ${sc.notes ? `<div style="font-size:.8rem; color:var(--text-secondary); background:var(--surface); border-radius:4px; padding:.5rem; margin-bottom:.6rem;">${sc.notes}</div>` : ''}
         ${renderWritingRefs(sc.writing_refs)}
+        ${renderRefs(sc)}
         ${renderTranslations(sc.translations, sc.code)}
       </div>`;
   }

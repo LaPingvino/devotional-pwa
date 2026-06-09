@@ -135,6 +135,17 @@ type SubCode struct {
 	FullTextParts []string      `json:"full_text_parts,omitempty"` // English full text chunks from inventory_fulltext
 	Translations  []LangRef    `json:"translations"`              // languages that have this code; no text here
 	WritingRefs   []WritingRef `json:"writing_refs,omitempty"`    // writings pages containing this code
+	Refs          []InvRef     `json:"refs,omitempty"`            // sources & study refs from inventory_refs
+}
+
+// InvRef is one normalized reference from the inventory_refs table:
+// a manuscript scan, publication, official translation, or musical rendition.
+type InvRef struct {
+	Kind    string `json:"kind"`              // manuscript | publication | translation | music
+	Code    string `json:"code"`              // e.g. AQA7#402 p.186, INBA92:089, PM#165
+	Source  string `json:"source,omitempty"`  // compilation/source code, e.g. AQA7, INBA92
+	Locator string `json:"locator,omitempty"` // page/item within the source
+	URL     string `json:"url,omitempty"`     // deep link (afnanlibrary scan page, bahai.org ref, …)
 }
 
 // WritingRef links to a writings page where this code appears
@@ -378,6 +389,10 @@ func main() {
 	fullTexts := queryFullText()
 	log.Printf("  %d fulltext entries", len(fullTexts))
 
+	log.Println("→ loading inventory refs (sources & study links)...")
+	invRefs := queryRefs()
+	log.Printf("  %d PINs have refs", len(invRefs))
+
 	log.Println("→ writing phelps files grouped by base PIN...")
 	for base, codes := range basePINMap {
 		// Also include any inventory-only sub-codes under this same base PIN
@@ -414,6 +429,7 @@ func main() {
 				Notes:         inv.Notes,
 				FullTextParts: fullTexts[code],
 				Translations:  trans,
+				Refs:          invRefs[code],
 			})
 		}
 		pf := PhelpsFile{
@@ -501,6 +517,7 @@ func main() {
 					WordCount:     inv.WordCount,
 					Subjects:      inv.Subjects,
 					Notes:         inv.Notes,
+					Refs:          invRefs[base],
 					Translations:  []LangRef{},
 					WritingRefs:   refs,
 				}},
@@ -2057,6 +2074,26 @@ func queryInventory() []InventoryEntry {
 			Subjects:      row[6],
 			Notes:         row[7],
 			Prefix:        row[8],
+		})
+	}
+	return out
+}
+
+// queryRefs returns the normalized source references (manuscripts, publications,
+// translations, musical interpretations) from inventory_refs, keyed by PIN.
+func queryRefs() map[string][]InvRef {
+	rows := doltQuery("SELECT PIN, kind, code, COALESCE(`source`,''), COALESCE(locator,''), COALESCE(url,'') FROM inventory_refs ORDER BY PIN, kind, code")
+	out := map[string][]InvRef{}
+	for _, row := range rows[1:] {
+		if len(row) < 6 {
+			continue
+		}
+		out[row[0]] = append(out[row[0]], InvRef{
+			Kind:    row[1],
+			Code:    row[2],
+			Source:  row[3],
+			Locator: row[4],
+			URL:     row[5],
 		})
 	}
 	return out
