@@ -132,10 +132,11 @@
         ${items.map(r => chip(r.code, r.url)).join('')}
       </div>`;
     }).join('');
-    // Offer the Loom of Reality entry only for unsuffixed base PINs:
-    // the inventory has no entries for excerpt sub-codes (or TMP/X codes).
+    // Offer the Partial Inventory entry (Phelps, via bahai-library.com) only
+    // for unsuffixed base PINs: it has no entries for excerpt sub-codes (or
+    // TMP/X codes).
     const loom = /^(BB|BH|AB)U?\d+$/.test(sc.code)
-      ? `<div style="margin-top:.3rem;">${chip('Loom of Reality entry ↗', 'https://bahai-library.com/inventory/' + encodeURIComponent(sc.code))}</div>`
+      ? `<div style="margin-top:.3rem;">${chip('Partial Inventory entry ↗', 'https://bahai-library.com/inventory/' + encodeURIComponent(sc.code))}</div>`
       : '';
     if (!blocks.trim() && !loom) return '';
     return `
