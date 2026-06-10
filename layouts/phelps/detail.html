@@ -132,8 +132,9 @@
         ${items.map(r => chip(r.code, r.url)).join('')}
       </div>`;
     }).join('');
-    // Always offer the Loom of Reality entry for real PINs (not TMP/X codes).
-    const loom = /^(BB|BH|AB)U?\d/.test(sc.code)
+    // Offer the Loom of Reality entry only for unsuffixed base PINs:
+    // the inventory has no entries for excerpt sub-codes (or TMP/X codes).
+    const loom = /^(BB|BH|AB)U?\d+$/.test(sc.code)
       ? `<div style="margin-top:.3rem;">${chip('Loom of Reality entry ↗', 'https://bahai-library.com/inventory/' + encodeURIComponent(sc.code))}</div>`
       : '';
     if (!blocks.trim() && !loom) return '';
