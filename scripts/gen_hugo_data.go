@@ -1318,6 +1318,47 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 		}
 	}
 
+	// Whole-book imports whose phelps codes carry the division (see CODES.md
+	// "Book-unit code spaces"): derive chapter headings and entry labels from
+	// the unit suffix. Chapter headings use the books' own header style
+	// (الواحد الاول…), matching the original text the reader sees.
+	vahidOrdinals := []string{"", "الاول", "الثانی", "الثالث", "الرابع", "الخامس",
+		"السادس", "السابع", "الثامن", "التاسع", "العاشر", "الحادی عشر"}
+	for dbType, byLang := range typeData {
+		for lang, entries := range byLang {
+			for i := range entries {
+				p := entries[i].Phelps
+				if len(p) != 11 {
+					continue
+				}
+				switch dbType {
+				case "bayan_persian": // BB00001VVBB: váḥid chapters, "V:B" labels
+					v, errV := strconv.Atoi(p[7:9])
+					b, errB := strconv.Atoi(p[9:11])
+					if errV != nil || errB != nil {
+						continue
+					}
+					if v == 0 {
+						typeData[dbType][lang][i].Chapter = "مقدمه"
+						typeData[dbType][lang][i].ChapterOrder = 1
+					} else if v < len(vahidOrdinals) {
+						typeData[dbType][lang][i].Chapter = "الواحد " + vahidOrdinals[v]
+						typeData[dbType][lang][i].ChapterOrder = v + 1
+						typeData[dbType][lang][i].Label = fmt.Sprintf("%d:%d", v, b)
+					}
+				case "bayan_arabic": // BB00020VV00: one entry per váḥid
+					if v, err := strconv.Atoi(p[7:9]); err == nil && v >= 1 && v < len(vahidOrdinals) {
+						typeData[dbType][lang][i].Label = strconv.Itoa(v)
+					}
+				case "qayyum_al_asma": // BB000020SSS: súrih number labels
+					if s, err := strconv.Atoi(p[8:]); err == nil && s >= 1 {
+						typeData[dbType][lang][i].Label = strconv.Itoa(s)
+					}
+				}
+			}
+		}
+	}
+
 	var writingsIndex []WritingType
 	for _, wt := range writingTypes {
 		langData := typeData[wt.DBType]
