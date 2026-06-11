@@ -23,6 +23,9 @@
       </div>
     </details>
     <input type="search" class="search-box" id="exp-search" data-i18n-placeholder="search_placeholder" placeholder="Search in any language…">
+    <label style="display:inline-flex; align-items:center; gap:.25rem; font-size:.8rem; white-space:nowrap; cursor:pointer" title="Search the complete text of all prayers and writings in the selected language(s)">
+      <input type="checkbox" id="ft-toggle"> <span data-i18n="search_fulltext">full text</span>
+    </label>
   </div>
 
   <div style="display:flex; gap:.5rem; align-items:center; margin-bottom:.5rem; flex-wrap:wrap;">
@@ -372,9 +375,75 @@ function matchesPrefix(pin) {
   return m && m[1] === activePrefix;
 }
 
+// ---- Full-text (deep) search: lazy per-language complete texts ----
+let ftActive = false;
+const ftCache = {};   // lang -> entries [{p,b,t,c,u,tn}]
+let ftHits = {};      // base -> [{e, lang}]
+async function loadFt(lang) {
+  if (!lang || ftCache[lang]) return;
+  ftCache[lang] = [];
+  try {
+    const res = await fetch(`/data/searchtext/${lang}.json`);
+    if (!res.ok) return;
+    const data = await res.json();
+    data.forEach(e => {
+      let t = e.t.toLowerCase();
+      if (window.normalizeAr) t = normalizeAr(t);
+      e.tn = t;
+    });
+    ftCache[lang] = data;
+  } catch (err) { /* no file for this language */ }
+}
+async function ensureFt() {
+  const status = document.getElementById('exp-status');
+  if (!ftCache[displayLang] || (displayLang2 && !ftCache[displayLang2])) {
+    status.textContent = '… loading full text';
+    await loadFt(displayLang);
+    if (displayLang2) await loadFt(displayLang2);
+  }
+}
+function ftSearch(q) {
+  ftHits = {};
+  let passages = 0;
+  const langs = displayLang2 ? [displayLang, displayLang2] : [displayLang];
+  langs.forEach(lang => {
+    (ftCache[lang] || []).forEach(e => {
+      if (e.tn.indexOf(q) === -1) return;
+      (ftHits[e.b] = ftHits[e.b] || []).push({ e, lang });
+      passages++;
+    });
+  });
+  return passages;
+}
+function ftFragment(hit, q) {
+  const t = hit.e.t;
+  let i = t.toLowerCase().indexOf(q);
+  if (i < 0 && window.normalizeAr) {
+    // diacritic-shifted match: locate roughly via normalized prefix length ratio
+    i = -1;
+  }
+  const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+  if (i < 0) return esc(t.slice(0, 160)) + (t.length > 160 ? '…' : '');
+  const start = Math.max(0, i - 70), end = Math.min(t.length, i + q.length + 90);
+  return (start > 0 ? '…' : '') + esc(t.slice(start, i)) +
+         '<mark>' + esc(t.slice(i, i + q.length)) + '</mark>' +
+         esc(t.slice(i + q.length, end)) + (end < t.length ? '…' : '');
+}
+
 function applyFilters() {
   let q = searchTerm.toLowerCase();
   if (window.normalizeAr) q = normalizeAr(q);
+  if (ftActive && q.length >= 2) {
+    if (!ftCache[displayLang] || (displayLang2 && !ftCache[displayLang2])) {
+      // first use via shared link or language switch: load, then re-run once
+      ensureFt().then(applyFilters);
+    }
+    ftSearch(q);
+    filtered = Object.keys(ftHits).filter(b => matchesPrefix(b));
+    filtered.sort((x, y) => ftHits[y].length - ftHits[x].length || x.localeCompare(y));
+    renderTable();
+    return;
+  }
   filtered = sortedKeys.filter(p => {
     if (!matchesPrefix(p)) return false;
     const g = grouped[p];
@@ -413,9 +482,42 @@ document.getElementById('exp-body').addEventListener('click', e => {
   window.hwCollections.openPicker({ code: pin, title: desc.slice(0, 60) || undefined });
 });
 
+function renderFtRows() {
+  const tbody = document.getElementById('exp-body');
+  const status = document.getElementById('exp-status');
+  let passages = 0;
+  filtered.forEach(b => passages += ftHits[b].length);
+  status.textContent = `${filtered.length.toLocaleString()} ${window.__t('search_codes')} · ${passages.toLocaleString()} passages`;
+  let q = searchTerm.toLowerCase();
+  const rows = filtered.slice(0, 200);
+  let html = '';
+  rows.forEach(b => {
+    const hits = ftHits[b];
+    const first = hits[0];
+    const frag = ftFragment(first, q);
+    const cat = first.e.c ? `<span style="font-size:.7rem;color:var(--text-secondary)">${first.e.c}</span> ` : '';
+    const more = hits.length > 1
+      ? ` <span style="font-size:.75rem;color:var(--text-secondary)">+${hits.length - 1} more</span>` : '';
+    html += `<tr>
+      <td class="pin-cell"><a href="${phelpsUrl(b)}">${b}</a></td>
+      <td style="font-size:.75rem; color:var(--text-secondary); white-space:nowrap">${authorFromPin(b)}</td>
+      <td style="font-size:.85rem">${cat}${frag} <a href="${first.e.u}" style="white-space:nowrap" title="Open in context">↗ ${first.e.p}</a>${more}</td>
+      <td style="text-align:right">${hits.length}</td>
+      <td style="font-size:.8rem">${hits.map(h => h.lang).filter((v, i, a) => a.indexOf(v) === i).join(' ')}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+  if (filtered.length > 200) {
+    tbody.innerHTML += `<tr><td colspan="6" style="color:var(--text-secondary); padding:.5rem">
+      … ${(filtered.length - 200).toLocaleString()} more works. Refine your search.
+    </td></tr>`;
+  }
+}
+
 function renderTable() {
   const tbody = document.getElementById('exp-body');
   const status = document.getElementById('exp-status');
+  if (ftActive && searchTerm.trim().length >= 2) { renderFtRows(); return; }
   status.textContent = `${filtered.length.toLocaleString()} ${window.__t('search_codes')}`;
 
   const rows = filtered.slice(0, 500);
@@ -500,6 +602,7 @@ function syncHash() {
   if (activePrefix) parts.push('prefix=' + encodeURIComponent(activePrefix));
   if (searchTerm) parts.push('q=' + encodeURIComponent(searchTerm));
   if (sortMode !== 'count') parts.push('sort=' + encodeURIComponent(sortMode));
+  if (ftActive) parts.push('ft=1');
   const hash = parts.length ? '#' + parts.join('&') : '';
   if (hash !== window.location.hash)
     history.replaceState(null, '', window.location.pathname + window.location.search + hash);
@@ -516,6 +619,8 @@ function reflectState() {
   if (more) more.classList.toggle('has-active',
     !!activePrefix && !!more.querySelector(`.prefix-btn[data-prefix="${activePrefix}"]`));
   document.getElementById('exp-search').value = searchTerm;
+  const ft = document.getElementById('ft-toggle');
+  if (ft) ft.checked = ftActive;
 }
 
 function applyStateFromHash() {
@@ -524,6 +629,7 @@ function applyStateFromHash() {
   activePrefix = h.get('prefix') || '';
   searchTerm = h.get('q') || '';
   sortMode = h.get('sort') || 'count';
+  ftActive = h.get('ft') === '1';
   reflectState();
   return true;
 }
@@ -559,11 +665,20 @@ document.querySelectorAll('.sort-btn').forEach(btn => {
 let searchTimer;
 document.getElementById('exp-search').addEventListener('input', e => {
   clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => {
+  searchTimer = setTimeout(async () => {
     searchTerm = e.target.value.trim();
     syncHash();
+    if (ftActive && searchTerm.length >= 2) await ensureFt();
     applyFilters();
   }, 300);
+});
+
+// Full-text toggle
+document.getElementById('ft-toggle').addEventListener('change', async e => {
+  ftActive = e.target.checked;
+  syncHash();
+  if (ftActive && searchTerm.trim().length >= 2) await ensureFt();
+  applyFilters();
 });
 
 // URL params (legacy ?q=&prefix= still honored; hash wins when present)

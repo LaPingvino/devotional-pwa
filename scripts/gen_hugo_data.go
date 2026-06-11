@@ -618,17 +618,26 @@ func main() {
 		) g ON w.phelps = g.first_phelps AND w.language = g.language AND w.type = g.type
 		ORDER BY w.phelps, w.language
 	`)
-	writingTypeNames := map[string]string{
-		"hidden_words": "Hidden Words", "aqdas": "Kitáb-i-Aqdas", "iqan": "Kitáb-i-Íqán",
-		"gleanings": "Gleanings", "pm": "Prayers & Meditations", "saq": "Some Answered Questions",
-		"tablets": "Tablets of Bahá'u'lláh", "days_remembrance": "Days of Remembrance",
-		"ridvan": "Ridván Messages", "lawh": "Other Tablets",
+	// db_type → section key/title from the i18n table (writings/<type> defs),
+	// so every section defined there is searchable — no hardcoded whitelist.
+	// When several sections share a db_type (esw and lawh both map to lawh),
+	// the section whose key equals the db_type wins; otherwise first by order.
+	writingTypeNames := map[string]string{}
+	writingTypeKeys := map[string]string{}
+	for _, wt := range loadWritingTypes() {
+		dbt := wt.DBType
+		if dbt == "" || dbt == "null" {
+			continue
+		}
+		if cur, ok := writingTypeKeys[dbt]; ok && cur == dbt {
+			continue // identity mapping already claimed this db_type
+		}
+		if _, ok := writingTypeKeys[dbt]; !ok || wt.Key == dbt {
+			writingTypeKeys[dbt] = wt.Key
+			writingTypeNames[dbt] = wt.Title
+		}
 	}
-	writingTypeKeys := map[string]string{
-		"hidden_words": "hidden-words", "aqdas": "aqdas", "iqan": "iqan",
-		"gleanings": "gleanings", "pm": "pm", "saq": "saq",
-		"tablets": "tablets", "days_remembrance": "days", "ridvan": "ridvan", "lawh": "lawh",
-	}
+	skippedTypes := map[string]int{}
 	for _, row := range writingRows[1:] {
 		if len(row) < 4 {
 			continue
@@ -643,6 +652,7 @@ func main() {
 		}
 		key := writingTypeKeys[wtype]
 		if key == "" {
+			skippedTypes[wtype]++
 			continue
 		}
 		link := "/writings/" + key + "/" + lang + "/#" + phelps
@@ -657,6 +667,67 @@ func main() {
 	}
 	writeJSON(filepath.Join(staticDir, "search.json"), searchEntries)
 	log.Printf("  %d search entries", len(searchEntries))
+
+	// 8b. Full-text search files — one per language, EVERY coded row's
+	// complete text (prayers and writings paragraphs alike), so client-side
+	// search can cover all text. Lazy-loaded by the search page per language;
+	// results group by Base and deep-link via Link into the right page.
+	log.Println("→ full-text search files...")
+	ftDir := filepath.Join(staticDir, "searchtext")
+	os.MkdirAll(ftDir, 0755)
+	type FTEntry struct {
+		Phelps string `json:"p"`
+		Base   string `json:"b"`
+		Text   string `json:"t"`
+		Cat    string `json:"c,omitempty"`
+		Link   string `json:"u"`
+	}
+	ftLangs := doltQuery(`SELECT DISTINCT language FROM writings WHERE phelps IS NOT NULL AND phelps <> '' AND language IS NOT NULL AND language <> ''`)
+	ftTotal, ftFiles := 0, 0
+	for _, lr := range ftLangs[1:] {
+		if len(lr) < 1 || lr[0] == "" {
+			continue
+		}
+		lang := lr[0]
+		rows := doltQuery(fmt.Sprintf(`SELECT phelps, text, IFNULL(type,'') FROM writings WHERE language = '%s' AND phelps IS NOT NULL AND phelps <> '' AND text IS NOT NULL`, lang))
+		var entries []FTEntry
+		for _, row := range rows[1:] {
+			if len(row) < 3 {
+				continue
+			}
+			phelps, text, wtype := row[0], stripHTML(row[1]), row[2]
+			if text == "" {
+				continue
+			}
+			base := phelps
+			if len(base) > 7 {
+				base = base[:7]
+			}
+			var link, cat string
+			if wtype == "" || wtype == "prayer" {
+				link = "/prayers/" + lang + "/#" + phelps
+			} else {
+				key := writingTypeKeys[wtype]
+				if key == "" {
+					skippedTypes[wtype]++
+					continue
+				}
+				link = "/writings/" + key + "/" + lang + "/#" + phelps
+				cat = writingTypeNames[wtype]
+			}
+			entries = append(entries, FTEntry{Phelps: phelps, Base: base, Text: text, Cat: cat, Link: link})
+		}
+		if len(entries) == 0 {
+			continue
+		}
+		writeJSON(filepath.Join(ftDir, lang+".json"), entries)
+		ftTotal += len(entries)
+		ftFiles++
+	}
+	log.Printf("  %d full-text entries across %d language files", ftTotal, ftFiles)
+	for wtype, n := range skippedTypes {
+		log.Printf("  ⚠ search: %d entries skipped — type %q has no writings/<type> i18n def", n, wtype)
+	}
 
 	// 8. Generate prayer explorer: one entry per phelps code with translation count
 	log.Println("→ generating prayer explorer (grouped by phelps, sorted by translation count)...")
