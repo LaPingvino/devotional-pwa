@@ -1278,6 +1278,11 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 			Label:  writingEntryLabel(phelps),
 		})
 	}
+	// Synthetic 'orig' language for the writings sections too: a row joins
+	// when its language is among its base PIN's original languages per the
+	// original_language key table. This is where the full-tablet ar/fa
+	// originals live (the prayers pipeline only covers type='prayer').
+	origSet := loadOriginalLanguageSet()
 	for _, row := range rows[1:] {
 		if len(row) < 6 {
 			continue
@@ -1285,6 +1290,9 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 		dbType, lang, phelps, name, text := row[0], row[1], row[2], row[3], row[4]
 		_ = row[5] // source_id used for ORDER BY only
 		addEntry(dbType, lang, phelps, name, text)
+		if set := origSet[writingBaseCode(phelps)]; set != nil && set[lang] {
+			addEntry(dbType, "orig", phelps, name, text)
+		}
 	}
 
 	// Second pass (disabled): including rows whose phelps appears in
@@ -2306,11 +2314,9 @@ func queryFullTextLanguages(langNames map[string]string) map[string][]LangRef {
 
 // basePINKey strips a trailing 3-char alpha mnemonic suffix from a Phelps code.
 // BH01313NAM → BH01313, AB04427GUI → AB04427, BH05849 → BH05849 (unchanged).
-// buildOrigCollection assembles the synthetic 'orig' language: every prayer
-// row whose writings.language appears in its base PIN's original_language
-// entry. Rows keep their content and gain a Lang badge; versions stay unique
-// so /p/?v= permalinks keep resolving to the real language (see versionIndex).
-func buildOrigCollection(allPrayers map[string][]Prayer) []Prayer {
+// loadOriginalLanguageSet reads the original_language key table into a
+// base-PIN → language-set map. Returns nil if the table is empty/absent.
+func loadOriginalLanguageSet() map[string]map[string]bool {
 	rows := doltQuery(`SELECT phelps, languages FROM original_language`)
 	if len(rows) < 2 {
 		return nil
@@ -2327,6 +2333,18 @@ func buildOrigCollection(allPrayers map[string][]Prayer) []Prayer {
 			}
 		}
 		origSet[row[0]] = set
+	}
+	return origSet
+}
+
+// buildOrigCollection assembles the synthetic 'orig' language: every prayer
+// row whose writings.language appears in its base PIN's original_language
+// entry. Rows keep their content and gain a Lang badge; versions stay unique
+// so /p/?v= permalinks keep resolving to the real language (see versionIndex).
+func buildOrigCollection(allPrayers map[string][]Prayer) []Prayer {
+	origSet := loadOriginalLanguageSet()
+	if origSet == nil {
+		return nil
 	}
 	var out []Prayer
 	seen := map[string]bool{} // version dedup across source languages
