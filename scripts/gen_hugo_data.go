@@ -1295,12 +1295,58 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 		}
 	}
 
-	// Second pass (disabled): including rows whose phelps appears in
-	// writing_collections via OR'd LIKE+REGEXP was a cartesian-product trap
-	// (~50k writings × 1.1k collection rows). Re-enable with a proper Go-side
-	// lookup against a pre-built collectionPhelps map. See joop-zz9.
-
 	writingTypes := loadWritingTypes()
+
+	// Second pass (re-enabled Go-side — see joop-zz9; the old SQL approach
+	// was a cartesian-product trap): prayer-typed rows whose phelps (or base
+	// code) belongs to a writing_collections entry join that collection's
+	// section as fallback entries. Sections are resolved collection_key →
+	// section key → db_type (e.g. esw→lawh, days→days_remembrance). addEntry
+	// dedups per (section, lang, phelps), so properly typed rows keep
+	// priority and fallbacks only fill gaps — collections prefer their own
+	// writing type but never refuse a member that only exists as a prayer.
+	{
+		sectionDBType := map[string]string{}
+		for _, wt := range writingTypes {
+			sectionDBType[wt.Key] = wt.DBType
+		}
+		collOfPhelps := map[string][]string{} // collection-member phelps → db_types
+		for _, row := range doltQuery(`SELECT DISTINCT collection_key, phelps FROM writing_collections WHERE phelps IS NOT NULL AND phelps <> ''`)[1:] {
+			if len(row) < 2 {
+				continue
+			}
+			if dbt, ok := sectionDBType[row[0]]; ok {
+				collOfPhelps[row[1]] = append(collOfPhelps[row[1]], dbt)
+			}
+		}
+		prayerRows := doltQuery(`
+			SELECT language, phelps, COALESCE(name,''), text
+			FROM writings
+			WHERE type = 'prayer' AND phelps IS NOT NULL AND phelps <> ''
+			ORDER BY CASE source WHEN 'bahaiprayers.net' THEN 0 ELSE 1 END, language, phelps
+		`)
+		fallbacks := 0
+		for _, row := range prayerRows[1:] {
+			if len(row) < 4 {
+				continue
+			}
+			lang, phelps, name, text := row[0], row[1], row[2], row[3]
+			dbts := collOfPhelps[phelps]
+			if len(dbts) == 0 {
+				dbts = collOfPhelps[writingBaseCode(phelps)]
+			}
+			for _, dbt := range dbts {
+				if emitted[dbt] == nil || emitted[dbt][lang] == nil || !emitted[dbt][lang][phelps] {
+					fallbacks++
+				}
+				addEntry(dbt, lang, phelps, name, text)
+				if set := origSet[writingBaseCode(phelps)]; set != nil && set[lang] {
+					addEntry(dbt, "orig", phelps, name, text)
+				}
+			}
+		}
+		log.Printf("  collection fallback pass: %d prayer-typed entries joined their collections", fallbacks)
+	}
 	bookTitles := loadBookTitles()
 	typeTitles := loadWritingTypeTitles()
 	collectionMeta := loadCollectionMeta()
