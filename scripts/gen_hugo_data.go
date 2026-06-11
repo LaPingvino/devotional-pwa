@@ -118,6 +118,10 @@ type Prayer struct {
 	AltSources    []PrayerSource     `json:"alt_sources,omitempty"`  // additional sources for same prayer
 	BookCats      map[string]BookCat `json:"book_cats,omitempty"`    // prayerbook code → category assignment
 	Translations  []LangRef          `json:"translations,omitempty"` // other languages with this phelps code
+	// Lang is the real writings.language of this row. Only set in the
+	// synthetic 'orig' collection, where prayers from several original
+	// languages (ar/fa/ota/en/tr) share one file and need badges.
+	Lang          string             `json:"lang,omitempty"`
 }
 
 // SubCode is one passage within a base PIN (e.g. BH01313NAM within BH01313).
@@ -202,9 +206,6 @@ func main() {
 	// 1. Languages
 	log.Println("→ languages...")
 	langs := queryLanguages()
-	writeJSON(filepath.Join(dataDir, "languages.json"), langs)
-	writeJSON(filepath.Join(staticDir, "languages.json"), langs)
-	log.Printf("  %d languages", len(langs))
 
 	// Build lang name lookup from ALL languages (not just prayer languages)
 	langNames := map[string]string{}
@@ -222,6 +223,33 @@ func main() {
 	// 2a. First pass: one bulk query for all prayers across all languages
 	log.Println("→ prayers (bulk query, all languages)...")
 	allPrayers := queryAllPrayers() // langCode → prayers
+
+	// 2a'. Synthetic 'orig' language: prayers shown in their original
+	// language(s), driven by the original_language key table in Dolt
+	// (PIN → languages; inventory-independent, explicit + overridable).
+	// A row joins the collection iff its writings.language is one of its
+	// base PIN's original languages. Display name from i18n language/orig.
+	log.Println("→ synthesizing 'orig' (original-language) collection...")
+	if origPrayers := buildOrigCollection(allPrayers); len(origPrayers) > 0 {
+		allPrayers["orig"] = origPrayers
+		origName := origLanguageName()
+		langNames["orig"] = origName
+		distinct := map[string]bool{}
+		for _, p := range origPrayers {
+			distinct[p.Phelps] = true
+		}
+		// RTL: the collection is dominated by ar/fa originals; per-prayer
+		// Lang badges let the client refine direction per text.
+		langs = append(langs, Language{Code: "orig", Name: origName, PrayerCount: len(distinct), RTL: true})
+		sort.Slice(langs, func(i, j int) bool { return langs[i].Name < langs[j].Name })
+		log.Printf("  orig: %d prayers (%d distinct codes)", len(origPrayers), len(distinct))
+	} else {
+		log.Println("  orig: original_language table empty or absent — skipped")
+	}
+
+	writeJSON(filepath.Join(dataDir, "languages.json"), langs)
+	writeJSON(filepath.Join(staticDir, "languages.json"), langs)
+	log.Printf("  %d languages", len(langs))
 	phelpsLangs := map[string][]LangRef{}  // phelps full code → deduped lang refs
 	phelpsLangsSeen := map[string]map[string]bool{}
 	for langCode, prayers := range allPrayers {
@@ -292,6 +320,12 @@ func main() {
 	log.Println("→ version index for /p/?v=<uuid> permalinks...")
 	versionIndex := map[string][]string{}
 	for langCode, prayers := range allPrayers {
+		// orig rows are copies of rows already indexed under their real
+		// language — indexing them again would make /p/?v= permalinks
+		// resolve to "orig" nondeterministically (map iteration order).
+		if langCode == "orig" {
+			continue
+		}
 		for _, p := range prayers {
 			if p.Version != "" {
 				versionIndex[p.Version] = []string{langCode, p.Phelps}
@@ -2272,6 +2306,82 @@ func queryFullTextLanguages(langNames map[string]string) map[string][]LangRef {
 
 // basePINKey strips a trailing 3-char alpha mnemonic suffix from a Phelps code.
 // BH01313NAM → BH01313, AB04427GUI → AB04427, BH05849 → BH05849 (unchanged).
+// buildOrigCollection assembles the synthetic 'orig' language: every prayer
+// row whose writings.language appears in its base PIN's original_language
+// entry. Rows keep their content and gain a Lang badge; versions stay unique
+// so /p/?v= permalinks keep resolving to the real language (see versionIndex).
+func buildOrigCollection(allPrayers map[string][]Prayer) []Prayer {
+	rows := doltQuery(`SELECT phelps, languages FROM original_language`)
+	if len(rows) < 2 {
+		return nil
+	}
+	origSet := map[string]map[string]bool{} // base PIN → original language set
+	for _, row := range rows[1:] {
+		if len(row) < 2 {
+			continue
+		}
+		set := map[string]bool{}
+		for _, l := range strings.Split(row[1], ",") {
+			if l = strings.TrimSpace(l); l != "" {
+				set[l] = true
+			}
+		}
+		origSet[row[0]] = set
+	}
+	var out []Prayer
+	seen := map[string]bool{} // version dedup across source languages
+	for lang, prayers := range allPrayers {
+		if lang == "orig" {
+			continue
+		}
+		for _, p := range prayers {
+			set := origSet[basePINKey(p.Phelps)]
+			if set == nil || !set[lang] {
+				continue
+			}
+			key := p.Version
+			if key == "" {
+				key = lang + "|" + p.Phelps
+			}
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			p.Lang = lang
+			out = append(out, p)
+		}
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Phelps != out[j].Phelps {
+			return out[i].Phelps < out[j].Phelps
+		}
+		return out[i].Version < out[j].Version
+	})
+	return out
+}
+
+// origLanguageName reads the display name for the synthetic 'orig' language
+// from the i18n table (key language/orig), preferring en, then default.
+func origLanguageName() string {
+	rows := doltQuery(`SELECT language, value FROM i18n WHERE ` + "`key`" + ` = 'language/orig' AND language IN ('en','default')`)
+	name := "Original"
+	for _, row := range rows[1:] {
+		if len(row) < 2 {
+			continue
+		}
+		var v struct {
+			Name string `json:"name"`
+		}
+		if err := json.Unmarshal([]byte(row[1]), &v); err == nil && v.Name != "" {
+			name = v.Name
+			if row[0] == "en" {
+				break
+			}
+		}
+	}
+	return name
+}
+
 func basePINKey(pin string) string {
 	n := len(pin)
 	if n < 4 {
