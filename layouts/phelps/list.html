@@ -135,6 +135,9 @@ function buildSubjectList() {
     });
     list.appendChild(a);
   });
+  if (activeSubject) {
+    list.querySelectorAll('a').forEach(el => el.classList.toggle('active', el.dataset.subj === activeSubject));
+  }
   document.getElementById('subj-search').addEventListener('input', function() {
     const q = this.value.toLowerCase().trim();
     list.querySelectorAll('a').forEach(a => a.style.display = !q || a.dataset.search.includes(q) ? '' : 'none');
@@ -147,7 +150,36 @@ function buildSubjectList() {
   });
 }
 
+// Hash-addressable state: #prefix=BH&translated=1&q=...&subj=... survives refresh and is shareable.
+function syncHash() {
+  const parts = [];
+  if (activePrefix) parts.push('prefix=' + encodeURIComponent(activePrefix));
+  if (translatedOnly) parts.push('translated=1');
+  if (searchTerm) parts.push('q=' + encodeURIComponent(searchTerm));
+  if (activeSubject) parts.push('subj=' + encodeURIComponent(activeSubject));
+  const hash = parts.length ? '#' + parts.join('&') : '';
+  if (hash !== window.location.hash)
+    history.replaceState(null, '', window.location.pathname + window.location.search + hash);
+}
+
+function applyStateFromHash() {
+  const h = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  if (![...h.keys()].length) return false;
+  activePrefix = h.get('prefix') || '';
+  translatedOnly = h.get('translated') === '1';
+  searchTerm = h.get('q') || '';
+  activeSubject = h.get('subj') || '';
+  document.querySelectorAll('.prefix-btn:not(.translated-only)').forEach(b => {
+    b.classList.toggle('active', b.dataset.prefix === activePrefix);
+  });
+  document.querySelector('.translated-only').classList.toggle('active', translatedOnly);
+  document.getElementById('inv-search').value = searchTerm;
+  document.getElementById('subj-active').textContent = activeSubject ? '✕ ' + activeSubject : '';
+  return true;
+}
+
 function applyFilters() {
+  syncHash();
   filtered = allEntries.filter(e => {
     if (translatedOnly && !e.translations) return false;
     if (activePrefix && e.prefix !== activePrefix) return false;
@@ -285,6 +317,20 @@ if (pinParam) {
   document.getElementById('inv-search').value = pinParam;
   searchTerm = pinParam;
 }
+applyStateFromHash();
+
+window.addEventListener('hashchange', () => {
+  if (!applyStateFromHash()) {
+    activePrefix = ''; translatedOnly = false; searchTerm = ''; activeSubject = '';
+    document.querySelectorAll('.prefix-btn:not(.translated-only)').forEach(b => {
+      b.classList.toggle('active', !b.dataset.prefix);
+    });
+    document.querySelector('.translated-only').classList.remove('active');
+    document.getElementById('inv-search').value = '';
+    document.getElementById('subj-active').textContent = '';
+  }
+  if (allEntries.length) applyFilters();
+});
 
 function enableResize(table) {
   if (window.innerWidth <= 600) return; // skip on mobile

@@ -494,6 +494,40 @@ function enableResize(table) {
   });
 }
 
+// Hash-addressable state: #prefix=TMP&q=...&sort=code survives refresh and is shareable.
+function syncHash() {
+  const parts = [];
+  if (activePrefix) parts.push('prefix=' + encodeURIComponent(activePrefix));
+  if (searchTerm) parts.push('q=' + encodeURIComponent(searchTerm));
+  if (sortMode !== 'count') parts.push('sort=' + encodeURIComponent(sortMode));
+  const hash = parts.length ? '#' + parts.join('&') : '';
+  if (hash !== window.location.hash)
+    history.replaceState(null, '', window.location.pathname + window.location.search + hash);
+}
+
+function reflectState() {
+  document.querySelectorAll('.prefix-btn[data-prefix]').forEach(b => {
+    b.classList.toggle('active', b.dataset.prefix === activePrefix);
+  });
+  document.querySelectorAll('.sort-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.sort === sortMode);
+  });
+  const more = document.getElementById('prefix-more');
+  if (more) more.classList.toggle('has-active',
+    !!activePrefix && !!more.querySelector(`.prefix-btn[data-prefix="${activePrefix}"]`));
+  document.getElementById('exp-search').value = searchTerm;
+}
+
+function applyStateFromHash() {
+  const h = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  if (![...h.keys()].length) return false;
+  activePrefix = h.get('prefix') || '';
+  searchTerm = h.get('q') || '';
+  sortMode = h.get('sort') || 'count';
+  reflectState();
+  return true;
+}
+
 // Prefix buttons
 document.querySelectorAll('.prefix-btn[data-prefix]').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -505,6 +539,7 @@ document.querySelectorAll('.prefix-btn[data-prefix]').forEach(btn => {
       more.classList.toggle('has-active', more.contains(btn) && !!activePrefix);
       if (more.contains(btn)) more.removeAttribute('open');
     }
+    syncHash();
     applyFilters();
   });
 });
@@ -515,6 +550,7 @@ document.querySelectorAll('.sort-btn').forEach(btn => {
     document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     sortMode = btn.dataset.sort;
+    syncHash();
     applyFilters();
   });
 });
@@ -525,11 +561,12 @@ document.getElementById('exp-search').addEventListener('input', e => {
   clearTimeout(searchTimer);
   searchTimer = setTimeout(() => {
     searchTerm = e.target.value.trim();
+    syncHash();
     applyFilters();
   }, 300);
 });
 
-// URL params
+// URL params (legacy ?q=&prefix= still honored; hash wins when present)
 const urlParams = new URLSearchParams(window.location.search);
 if (urlParams.get('q')) {
   document.getElementById('exp-search').value = urlParams.get('q');
@@ -541,6 +578,15 @@ if (urlParams.get('prefix')) {
     b.classList.toggle('active', b.dataset.prefix === activePrefix);
   });
 }
+applyStateFromHash();
+
+window.addEventListener('hashchange', () => {
+  if (!applyStateFromHash()) {
+    activePrefix = ''; searchTerm = ''; sortMode = 'count';
+    reflectState();
+  }
+  applyFilters();
+});
 
 loadData();
 </script>
