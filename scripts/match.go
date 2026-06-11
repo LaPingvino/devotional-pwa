@@ -45,6 +45,7 @@ import (
 	"sync/atomic"
 	"time"
 	"unicode"
+	"unicode/utf8"
 )
 
 // ── Configuration ───────────────────────────────────────────────────────────
@@ -1620,12 +1621,12 @@ type enPrayerProps struct {
 
 func loadEnglishPropsMap(doltDir string) map[string]enPrayerProps {
 	rows := doltQuery(doltDir,
-		`SELECT phelps, CHAR_LENGTH(text) as tlen, text FROM writings `+
+		`SELECT phelps, text FROM writings `+
 			`WHERE language='en' AND source='bahaiprayers.net' AND phelps IS NOT NULL AND phelps <> '' AND phelps NOT LIKE 'TMP%'`)
 	props := make(map[string]enPrayerProps, len(rows))
 	for _, r := range rows {
 		text := r["text"]
-		tlen, _ := strconv.Atoi(r["tlen"])
+		tlen := utf8.RuneCountInString(text)
 		paras := 0
 		for _, p := range strings.Split(text, "\n\n") {
 			if strings.TrimSpace(p) != "" {
@@ -2374,7 +2375,7 @@ func runDetectDuplicates(doltDir, lang string) []Proposal {
 		cnt, _ := strconv.Atoi(r["cnt"])
 		// Get the actual prayer entries
 		entries := doltQuery(doltDir, fmt.Sprintf(
-			`SELECT source_id, LEFT(text, 120) as text, CHAR_LENGTH(text) as tlen FROM writings `+
+			`SELECT source_id, text FROM writings `+
 				`WHERE language='%s' AND source='%s' AND phelps='%s' ORDER BY CAST(source_id AS UNSIGNED)`,
 			sqlEsc(lang), sqlEsc(prayerSource), sqlEsc(code)))
 
@@ -2439,7 +2440,7 @@ func runVerify(doltDir, lang string, inv map[string]InvEntry, reverify, dryRun b
 
 	// Load all matched prayers for this language
 	rows := doltQuery(doltDir, fmt.Sprintf(
-		`SELECT source_id, phelps, LEFT(text,120) as text, CHAR_LENGTH(text) as text_len FROM writings `+
+		`SELECT source_id, phelps, text FROM writings `+
 			`WHERE language='%s' AND source='%s' AND phelps IS NOT NULL AND phelps <> '' `+
 			`ORDER BY CAST(source_id AS UNSIGNED)`, sqlEsc(lang), sqlEsc(prayerSource)))
 
@@ -2494,6 +2495,34 @@ func runVerify(doltDir, lang string, inv map[string]InvEntry, reverify, dryRun b
 	}
 	total := len(rows)
 
+	// Pre-compile sub-passage regular expression
+	subPassageRe := regexp.MustCompile(`^([A-Z]{2,3}\d{4,5})[A-Z]{3}$`)
+
+	// Find all base codes that have sub-passages in the current rows (e.g. AB00431PIT or BH00001156)
+	hasSubpassage := map[string]bool{}
+	for _, r := range rows {
+		c := r["phelps"]
+		if m := subPassageRe.FindStringSubmatch(c); m != nil {
+			hasSubpassage[m[1]] = true
+		} else if len(c) > 7 && !strings.HasPrefix(c, "TMP") {
+			hasSubpassage[c[:7]] = true
+		}
+	}
+
+	// Load text lengths for all matched prayers in the DB (in bytes) to avoid per-prayer queries in Check 7
+	lenRows := doltQuery(doltDir,
+		`SELECT phelps, LENGTH(text) as l FROM writings `+
+			`WHERE source='bahaiprayers.net' AND phelps IS NOT NULL AND phelps <> ''`)
+	codeLengths := map[string][]int{}
+	for _, r := range lenRows {
+		c := r["phelps"]
+		if lStr := r["l"]; lStr != "" {
+			if l, err := strconv.Atoi(lStr); err == nil {
+				codeLengths[c] = append(codeLengths[c], l)
+			}
+		}
+	}
+
 	var issues []VerifyIssue
 	var clearCount, warnCount int
 
@@ -2514,19 +2543,17 @@ func runVerify(doltDir, lang string, inv map[string]InvEntry, reverify, dryRun b
 		issue := VerifyIssue{SourceID: sid, Phelps: code, EnFirst: enFirst, TextSnip: snip}
 
 		// Check 1: Code not in inventory
-		// Sub-passage codes (e.g. AB00431PIT) have 3-letter suffix — check base code too
+		// Sub-passage codes (e.g. AB00431PIT, BH00001156) are longer than 7 characters.
+		// Check if the 7-character base code exists in the inventory.
 		// TMP codes (TMP00001) are legitimate temporary codes — never flag as hallucination
-		subPassageRe := regexp.MustCompile(`^([A-Z]{2,3}\d{4,5})[A-Z]{3}$`)
 		_, inInv := inv[code]
 		baseCode := code
 		isSubPassage := false
 		isTMP := strings.HasPrefix(code, "TMP")
-		if !inInv && !isTMP {
-			if m := subPassageRe.FindStringSubmatch(code); m != nil {
-				baseCode = m[1]
-				_, inInv = inv[baseCode]
-				isSubPassage = inInv
-			}
+		if !inInv && !isTMP && len(code) > 7 {
+			baseCode = code[:7]
+			_, inInv = inv[baseCode]
+			isSubPassage = inInv
 		}
 		if !inInv && !isTMP {
 			issue.Reason = fmt.Sprintf("code %s not in inventory (likely hallucination)", code)
@@ -2535,7 +2562,6 @@ func runVerify(doltDir, lang string, inv map[string]InvEntry, reverify, dryRun b
 			clearCount++
 			continue
 		}
-		_ = isSubPassage // used below
 
 		// Check 2: Known false positive codes (also catches sub-passages of FP base codes)
 		if falsePositiveCodes[code] || falsePositiveCodes[baseCode] {
@@ -2548,12 +2574,8 @@ func runVerify(doltDir, lang string, inv map[string]InvEntry, reverify, dryRun b
 
 		// Check 3: Base code used where sub-passage codes exist for same base
 		// (e.g. prayer has BH01234 but BH01234ABC, BH01234DEF are in DB for this lang)
-		if !isSubPassage && subPassageRe.FindString(code) == "" {
-			subRows := doltQuery(doltDir, fmt.Sprintf(
-				`SELECT COUNT(*) as cnt FROM writings `+
-					`WHERE language='%s' AND source='bahaiprayers.net' `+
-					`AND phelps REGEXP '^%s[A-Z]{3}$'`, sqlEsc(lang), sqlEsc(code)))
-			if len(subRows) > 0 && subRows[0]["cnt"] != "0" {
+		if !isSubPassage && len(code) == 7 && !isTMP {
+			if hasSubpassage[code] {
 				issue.Reason = fmt.Sprintf("base code %s used but sub-passage codes exist in %s (may need sub-code)", code, lang)
 				issue.Severity = "warn"
 				issues = append(issues, issue)
@@ -2604,24 +2626,22 @@ func runVerify(doltDir, lang string, inv map[string]InvEntry, reverify, dryRun b
 			}
 		}
 
-		// Check 7: Length anomaly — prayer text length vs median for that code across all languages
-		// (LLM-free: if this prayer is <20% or >500% of median length for the code, suspicious)
-		prayerLen, _ := strconv.Atoi(r["text_len"])
-		lenRows := doltQuery(doltDir, fmt.Sprintf(
-			`SELECT AVG(CHAR_LENGTH(text)) as avg_len FROM writings `+
-				`WHERE phelps='%s' AND source='bahaiprayers.net'`, sqlEsc(code)))
-		if len(lenRows) > 0 && lenRows[0]["avg_len"] != "" {
-			var avgLen float64
-			fmt.Sscanf(lenRows[0]["avg_len"], "%f", &avgLen)
-			if avgLen > 0 {
-				ratio := float64(prayerLen) / avgLen
-				if ratio < 0.15 || ratio > 6.0 {
-					issue.Reason = fmt.Sprintf("length anomaly: prayer is %d chars but avg for %s is %.0f (ratio %.1fx)",
-						prayerLen, code, avgLen, ratio)
-					issue.Severity = "warn"
-					issues = append(issues, issue)
-					warnCount++
-				}
+		// Check 7: Length anomaly — prayer text length vs average for that code across all languages
+		// (if this prayer is <15% or >600% of average length for the code, suspicious)
+		prayerLen := len(text)
+		if lengths, ok := codeLengths[code]; ok && len(lengths) > 0 {
+			var totalLen int
+			for _, l := range lengths {
+				totalLen += l
+			}
+			avgLen := float64(totalLen) / float64(len(lengths))
+			ratio := float64(prayerLen) / avgLen
+			if ratio < 0.15 || ratio > 6.0 {
+				issue.Reason = fmt.Sprintf("length anomaly: prayer is %d bytes but avg for %s is %.0f (ratio %.1fx)",
+					prayerLen, code, avgLen, ratio)
+				issue.Severity = "warn"
+				issues = append(issues, issue)
+				warnCount++
 			}
 		}
 
