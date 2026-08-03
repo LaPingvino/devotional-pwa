@@ -149,6 +149,27 @@
           <div class="writing-text">{{ .text | markdownify }}</div>
         </section>
         {{ end }}
+
+        {{ with .related }}
+        {{/* Prayers that sit INSIDE one of this book's tablets but are not
+             entries of the collection. Linked out to /phelps/<code>/ rather
+             than inlined — being part of the tablet is not being the item. */}}
+        <section class="writing-related">
+          <h3 class="writing-related-heading" data-i18n="writings_related_prayers">Prayers within these texts</h3>
+          <p class="writing-related-note" data-i18n="writings_related_prayers_note">Separate prayers found within the tablets above. They are not part of this collection.</p>
+          <ul class="writing-related-list">
+            {{ range . }}
+            <li>
+              <a href="/phelps/{{ .phelps | lower }}/" class="writing-related-link">{{ with .name }}{{ . }}{{ else }}{{ .phelps }}{{ end }}</a>
+              <span class="writing-related-meta">
+                <a href="/phelps/{{ .phelps | lower }}/" class="phelps-link">{{ .phelps }}</a>
+                {{ with .title }}<span class="writing-related-parent">{{ . }}</span>{{ end }}
+              </span>
+            </li>
+            {{ end }}
+          </ul>
+        </section>
+        {{ end }}
       </div>
       {{ end }}
     </div>
@@ -249,6 +270,46 @@ a.entry-name:hover { text-decoration: underline; }
 .phelps-link:hover { color: var(--accent); }
 .writing-text { font-size: 1rem; line-height: 1.8; }
 .writing-text p { margin-bottom: .8rem; }
+
+/* Related prayers — inside the tablets, not part of the collection */
+.writing-related {
+  margin-top: 2.5rem;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--border);
+}
+.writing-related-heading {
+  font-size: .95rem;
+  margin: 0 0 .25rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.writing-related-note {
+  font-size: .8rem;
+  color: var(--text-secondary);
+  margin: 0 0 .75rem;
+}
+.writing-related-list { list-style: none; margin: 0; padding: 0; }
+.writing-related-list li {
+  padding: .3rem 0;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: .5rem;
+}
+.writing-related-link {
+  font-size: .9rem;
+  color: var(--accent-dark);
+  text-decoration: none;
+}
+.writing-related-link:hover { text-decoration: underline; }
+.writing-related-meta {
+  display: inline-flex;
+  align-items: baseline;
+  gap: .5rem;
+  margin-inline-start: auto;
+}
+.writing-related-parent { font-size: .72rem; color: var(--text-secondary); }
 
 /* Sidebar TOC */
 .toc-book {

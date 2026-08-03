@@ -1081,9 +1081,25 @@ type WritingEntry struct {
 
 // WritingBook groups entries under a book/tablet heading
 type WritingBook struct {
-	Base    string         `json:"base"`              // base Phelps code (e.g. BH02324)
-	Title   string         `json:"title"`             // book/tablet title from first entry's name
+	Base    string         `json:"base"`  // base Phelps code (e.g. BH02324)
+	Title   string         `json:"title"` // book/tablet title from first entry's name
 	Entries []WritingEntry `json:"entries"`
+	// Related lists prayers that live INSIDE one of this book's tablets but
+	// are not entries of the collection themselves — they matched only on the
+	// base code (e.g. BH01313NAM inside PM §170's BH01313). Rendering them as
+	// entries would claim they are the collection item, which is the
+	// opening-match-is-not-extent error; they are linked out instead.
+	Related []RelatedPrayer `json:"related,omitempty"`
+}
+
+// RelatedPrayer is a prayer-typed row that belongs to a book's tablet but not
+// to the book itself. It carries no text: the reader is sent to /phelps/<code>/
+// where every language of that prayer lives.
+type RelatedPrayer struct {
+	Phelps string `json:"phelps"`
+	Base   string `json:"base"`            // parent tablet code (the collection member)
+	Name   string `json:"name,omitempty"`  // row name, or a first-line snippet
+	Title  string `json:"title,omitempty"` // parent tablet title, for single-book sections
 }
 
 // WritingLangFile is written to assets/writings/{type}/{lang}.json
@@ -1321,12 +1337,68 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 		ORDER BY type, language, CAST(REGEXP_REPLACE(source_id, '[^0-9]', '') AS UNSIGNED), phelps
 	`)
 
+	writingTypes := loadWritingTypes()
+	sectionDBType := map[string]string{}
+	for _, wt := range writingTypes {
+		sectionDBType[wt.Key] = wt.DBType
+	}
+
+	// writing_related: rows adjudicated (per writing, not by rule) as prayers
+	// that live INSIDE one of a section's tablets without being the section's
+	// item. dbType → phelps → parent tablet code. They are linked out instead
+	// of rendered as entries; see
+	// data/tmp_research/writings_prayer_intruders_2026_08_03.md.
+	relatedCodes := map[string]map[string]string{}
+	for _, row := range doltQuery(`SELECT collection_key, phelps, COALESCE(parent_phelps,'') FROM writing_related`)[1:] {
+		if len(row) < 3 {
+			continue
+		}
+		dbt, ok := sectionDBType[row[0]]
+		if !ok {
+			continue
+		}
+		if relatedCodes[dbt] == nil {
+			relatedCodes[dbt] = map[string]string{}
+		}
+		parent := row[2]
+		if parent == "" {
+			parent = writingBaseCode(row[1])
+		}
+		relatedCodes[dbt][row[1]] = parent
+	}
+
 	// Group: dbType → lang → []WritingEntry
 	typeData := map[string]map[string][]WritingEntry{}
+	// relatedIdx holds prayers routed out of the entry list:
+	// dbType → lang → parent tablet code → items.
+	relatedIdx := map[string]map[string]map[string][]RelatedPrayer{}
+	relSeen := map[string]bool{}
+	addRelated := func(dbt, lang, base, phelps, name, text string) {
+		k := dbt + "\x00" + lang + "\x00" + phelps
+		if relSeen[k] {
+			return
+		}
+		relSeen[k] = true
+		if name == "" {
+			name = firstLineSnippet(text)
+		}
+		if relatedIdx[dbt] == nil {
+			relatedIdx[dbt] = map[string]map[string][]RelatedPrayer{}
+		}
+		if relatedIdx[dbt][lang] == nil {
+			relatedIdx[dbt][lang] = map[string][]RelatedPrayer{}
+		}
+		relatedIdx[dbt][lang][base] = append(relatedIdx[dbt][lang][base],
+			RelatedPrayer{Phelps: phelps, Base: base, Name: name})
+	}
 	// Track phelps already emitted per (section, lang) to avoid duplicates when
 	// the collection-membership second pass below adds rows.
 	emitted := map[string]map[string]map[string]bool{}
 	addEntry := func(section, lang, phelps, name, text string) {
+		if parent, ok := relatedCodes[section][phelps]; ok {
+			addRelated(section, lang, parent, phelps, name, text)
+			return
+		}
 		if emitted[section] == nil {
 			emitted[section] = map[string]map[string]bool{}
 		}
@@ -1366,8 +1438,6 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 		}
 	}
 
-	writingTypes := loadWritingTypes()
-
 	// Second pass (re-enabled Go-side — see joop-zz9; the old SQL approach
 	// was a cartesian-product trap): prayer-typed rows whose phelps (or base
 	// code) belongs to a writing_collections entry join that collection's
@@ -1377,10 +1447,6 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 	// priority and fallbacks only fill gaps — collections prefer their own
 	// writing type but never refuse a member that only exists as a prayer.
 	{
-		sectionDBType := map[string]string{}
-		for _, wt := range writingTypes {
-			sectionDBType[wt.Key] = wt.DBType
-		}
 		collOfPhelps := map[string][]string{} // collection-member phelps → db_types
 		for _, row := range doltQuery(`SELECT DISTINCT collection_key, phelps FROM writing_collections WHERE phelps IS NOT NULL AND phelps <> ''`)[1:] {
 			if len(row) < 2 {
@@ -1396,27 +1462,40 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 			WHERE type = 'prayer' AND phelps IS NOT NULL AND phelps <> ''
 			ORDER BY CASE source WHEN 'bahaiprayers.net' THEN 0 ELSE 1 END, language, phelps
 		`)
-		fallbacks := 0
+		fallbacks, related := 0, 0
 		for _, row := range prayerRows[1:] {
 			if len(row) < 4 {
 				continue
 			}
 			lang, phelps, name, text := row[0], row[1], row[2], row[3]
-			dbts := collOfPhelps[phelps]
-			if len(dbts) == 0 {
-				dbts = collOfPhelps[writingBaseCode(phelps)]
-			}
-			for _, dbt := range dbts {
+			base := writingBaseCode(phelps)
+			// Exact members are real collection entries and stay inline.
+			for _, dbt := range collOfPhelps[phelps] {
 				if emitted[dbt] == nil || emitted[dbt][lang] == nil || !emitted[dbt][lang][phelps] {
 					fallbacks++
 				}
 				addEntry(dbt, lang, phelps, name, text)
-				if set := origSet[writingBaseCode(phelps)]; set != nil && set[lang] {
+				if set := origSet[base]; set != nil && set[lang] {
 					addEntry(dbt, "orig", phelps, name, text)
 				}
 			}
+			if len(collOfPhelps[phelps]) > 0 || phelps == base {
+				continue
+			}
+			// Base-only match: a prayer *within* the tablet the collection
+			// lists. Not an entry — link it out instead (joop: "accidentally
+			// match part of the writing").
+			for _, dbt := range collOfPhelps[base] {
+				related++
+				addRelated(dbt, lang, base, phelps, name, text)
+				if set := origSet[base]; set != nil && set[lang] {
+					addRelated(dbt, "orig", base, phelps, name, text)
+				}
+			}
 		}
-		log.Printf("  collection fallback pass: %d prayer-typed entries joined their collections", fallbacks)
+		log.Printf("  collection fallback pass: %d prayer-typed entries joined their collections, "+
+			"%d base-only matches linked out; %d related-prayer rows total (incl. writing_related)",
+			fallbacks, related, len(relSeen))
 	}
 	bookTitles := loadBookTitles()
 	typeTitles := loadWritingTypeTitles()
@@ -1622,6 +1701,71 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 					}
 					books[i].Entries = split
 					paraCount += len(split)
+				}
+			}
+
+			// Attach related prayers (base-only collection matches). In a
+			// multi-book section each list goes to the book that owns the
+			// base; in a single-book section they all gather at the end,
+			// where the parent title tells the reader which tablet they
+			// came from. Codes already shown as entries are skipped.
+			if rel := relatedIdx[wt.DBType][lang]; len(rel) > 0 {
+				parentTitle := func(base string) string {
+					if byLang, ok := bookTitles[base]; ok {
+						if t, ok := byLang[lang]; ok && t != "" {
+							return t
+						}
+						if t, ok := byLang["en"]; ok && t != "" {
+							return t
+						}
+					}
+					if t := invTitles[base]; t != "" {
+						return t
+					}
+					// Last resort: name the parent by its code. An orphaned
+					// related prayer (parent tablet absent in this language)
+					// otherwise renders under an unrelated book heading with
+					// nothing to say where it came from.
+					return base
+				}
+				// A related item whose parent tablet has no book in this
+				// language would otherwise vanish; collect those and hang
+				// them off the last book so nothing is silently dropped.
+				orphans := []RelatedPrayer{}
+				if !wt.SingleBook {
+					haveBook := map[string]bool{}
+					for i := range books {
+						haveBook[books[i].Base] = true
+					}
+					for base, v := range rel {
+						if !haveBook[base] {
+							orphans = append(orphans, v...)
+						}
+					}
+				}
+				for i := range books {
+					var items []RelatedPrayer
+					if wt.SingleBook {
+						for _, v := range rel {
+							items = append(items, v...)
+						}
+					} else {
+						items = rel[books[i].Base]
+						if i == len(books)-1 {
+							items = append(append([]RelatedPrayer{}, items...), orphans...)
+						}
+					}
+					var out []RelatedPrayer
+					for _, it := range items {
+						if emitted[wt.DBType] != nil && emitted[wt.DBType][lang] != nil &&
+							emitted[wt.DBType][lang][it.Phelps] {
+							continue
+						}
+						it.Title = parentTitle(it.Base)
+						out = append(out, it)
+					}
+					sort.Slice(out, func(a, b int) bool { return out[a].Phelps < out[b].Phelps })
+					books[i].Related = out
 				}
 			}
 
@@ -2536,6 +2680,24 @@ func basePINKey(pin string) string {
 }
 
 // stripHTML removes HTML tags and collapses whitespace.
+// firstLineSnippet renders an unnamed row as a short opening-words label for
+// the related-prayers list. Rune-safe so ar/fa snippets don't split mid-character.
+func firstLineSnippet(text string) string {
+	s := stripHTML(text)
+	r := []rune(s)
+	if len(r) <= 60 {
+		return s
+	}
+	cut := 60
+	for i := 60; i > 30; i-- {
+		if r[i] == ' ' {
+			cut = i
+			break
+		}
+	}
+	return strings.TrimSpace(string(r[:cut])) + "…"
+}
+
 func stripHTML(s string) string {
 	out := make([]byte, 0, len(s))
 	inTag := false
