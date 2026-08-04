@@ -134,6 +134,56 @@
     return col;
   }
 
+  // ── Offline ────────────────────────────────────────────────────────
+  // Saving is a promise that the item will be there later — including on a
+  // plane. The item's title is already stored inline, but its TEXT lives in a
+  // data file that may never have been fetched, so pull it into a cache the
+  // service worker protects from version cleanup (SAVED_CACHE in sw.js).
+  // Best-effort and non-blocking: saving must never fail because caching did.
+  function itemDataUrls(item) {
+    if (!item || isRef(item.code)) return [];   // range refs stay links
+    var lang = (item.lang || 'en').toLowerCase();
+    var urls = ['/data/prayers/' + lang + '.json'];
+    if (item.w) urls.unshift('/data/writings/' + item.w + '/' + lang + '.json');
+    return urls;
+  }
+
+  function cacheItemOffline(item) {
+    if (typeof caches === 'undefined') return Promise.resolve();
+    var urls = itemDataUrls(item);
+    if (!urls.length) return Promise.resolve();
+    return caches.open('hw-saved').then(function (cache) {
+      return Promise.all(urls.map(function (u) {
+        // Individually, so one 404 (e.g. a language with no writings file)
+        // doesn't discard the rest the way cache.addAll would.
+        return fetch(u).then(function (r) {
+          return r.ok ? cache.put(u, r.clone()) : null;
+        }).catch(function () { return null; });
+      }));
+    }).catch(function () {});
+  }
+
+  // Every data file every saved item needs, deduped — typically one or two
+  // however many items are saved, since they share language files.
+  function cacheAllSaved() {
+    if (typeof caches === 'undefined') return Promise.resolve();
+    var seen = {};
+    load().collections.forEach(function (c) {
+      (c.items || []).forEach(function (i) {
+        itemDataUrls(i).forEach(function (u) { seen[u] = 1; });
+      });
+    });
+    var urls = Object.keys(seen);
+    if (!urls.length) return Promise.resolve();
+    return caches.open('hw-saved').then(function (cache) {
+      return Promise.all(urls.map(function (u) {
+        return fetch(u).then(function (r) {
+          return r.ok ? cache.put(u, r.clone()) : null;
+        }).catch(function () { return null; });
+      }));
+    }).catch(function () {});
+  }
+
   function addItem(id, item) {
     var state = load();
     var col = state.collections.find(function (c) { return c.id === id; });
@@ -143,6 +193,7 @@
       col.items.push(item);
       col.modified = Date.now();
       save(state);
+      cacheItemOffline(item);
     }
     return true;
   }
@@ -441,6 +492,19 @@
     shareUrl: shareUrl,
     parseList: parseList,
     exportText: exportText,
-    openPicker: openPicker
+    openPicker: openPicker,
+    cacheItemOffline: cacheItemOffline,
+    cacheAllSaved: cacheAllSaved
   };
+
+  // Backfill: items saved before save-time caching existed have no cached
+  // data file, so the first offline read would still fail. The URL set
+  // dedupes hard (one file per language, per writings collection), so this
+  // is a handful of requests however many prayers are saved. Deferred to
+  // idle so it never competes with rendering.
+  if (typeof window !== 'undefined' && navigator.onLine !== false) {
+    var kick = function () { cacheAllSaved(); };
+    if (typeof requestIdleCallback === 'function') requestIdleCallback(kick, { timeout: 8000 });
+    else setTimeout(kick, 3000);
+  }
 })();
