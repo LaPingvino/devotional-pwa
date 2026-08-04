@@ -69,6 +69,14 @@ interface Window {
     parseList(text: string): HwCollectionItem[];
     exportText(col: HwCollection, defaultLang?: string): Promise<string>;
     openPicker(items: HwCollectionItem | HwCollectionItem[], onChange?: () => void): void;
+    // Offline availability: saving an item pulls its data file into a cache
+    // the service worker protects, and the Saved page reports per-item state.
+    cacheItemOffline(item: HwCollectionItem): Promise<unknown>;
+    cacheCollection(col: HwCollection): Promise<unknown>;
+    cacheAllSaved(): Promise<unknown>;
+    isItemOffline(item: HwCollectionItem): Promise<boolean>;
+    offlineStatus(col: HwCollection): Promise<{ ready: number; total: number; offline: boolean }>;
+    shellReady(): Promise<boolean>;
   };
 
   // program-view.js
