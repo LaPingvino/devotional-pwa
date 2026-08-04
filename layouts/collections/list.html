@@ -314,8 +314,12 @@
             getLang: function() { return selectedLang; },
             getAllLanguages: function() { return allLanguages; },
             removable: true
-          }).render();
-          markOfflineAvailability(mount, liveItems, card);
+          }).render().then(function() {
+            // render() is async (it fetches each item's text), so the
+            // .dev-item-header rows do not exist until it resolves — calling
+            // this synchronously found zero rows and silently did nothing.
+            markOfflineAvailability(mount, liveItems, card);
+          });
         }
         card.appendChild(itemsEl);
       }
