@@ -172,7 +172,13 @@
 
   try {
     // Try loading the rich phelps JSON first (has subcodes, translations, writing_refs)
-    const phelpsSlug = slug.toLowerCase();
+    // A colon separates IDENTITY from STRUCTURE (BH00002:1:1, BH00001G166:3).
+    // The JSON files are written per identity — base, or base+mnemonic — so cut
+    // at the colon to find the file and keep the remainder to anchor within it.
+    // Legacy codes contain no colon, so they are unaffected.
+    // (Anchoring to the structural part within the page is not implemented
+    // yet — resolving to the right page is the half that matters first.)
+    const phelpsSlug = slug.split(':')[0].toLowerCase();
     let phelpsData = null;
     try {
       const pRes = await fetch(`/data/phelps/${phelpsSlug}.json`);
