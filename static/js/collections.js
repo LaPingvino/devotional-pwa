@@ -87,6 +87,15 @@
         });
       }
     } catch (e) {}
+    // Upgrade legacy codes on read. The catalog repunctuated 5,845 structural
+    // codes, so anything saved before that would resolve to nothing. Done here
+    // rather than as a one-off migration because it is idempotent and because
+    // a list may be imported from an old share link at any time.
+    state.collections.forEach(function (c) {
+      (c.items || []).forEach(function (i) {
+        if (i && i.code) i.code = upgradeCode(i.code);
+      });
+    });
     return state;
   }
 
@@ -107,10 +116,45 @@
 
   function itemKey(code, lang) { return code + '|' + (lang || ''); }
 
+  // ── Legacy code upgrade ────────────────────────────────────────────
+  // Phelps codes gained punctuation (2026-08-04): a colon separates IDENTITY
+  // from STRUCTURE. Base+mnemonic is the identity of a work and is unchanged;
+  // structural suffixes became colon segments. 5,845 codes moved, so anything
+  // saved before then is stale and would resolve to nothing.
+  //
+  // Mirrors scripts/phelpscode (Go). Total and idempotent: already-punctuated
+  // codes, mnemonics, bare codes and shorthand refs all pass through untouched,
+  // so it is safe to apply to every stored code on every read.
+  //
+  // The six bases whose legacy suffix packed two levels into four digits, with
+  // the digit count of the FIRST level:
+  var TWO_LEVEL = {
+    AB00002: 2, // Memorials — memorial : paragraph
+    BH00002: 1, // Íqán — part : paragraph
+    BB00001: 2, // Persian Bayán — váḥid : báb
+    BB00002: 1, // Qayyúmu'l-Asmá' — (leading 0) : súrih
+    AB00001: 2, // Will & Testament — section : paragraph
+    BB00020: 2  // Arabic Bayán — váḥid : (trailing 00)
+  };
+
+  function trimZeros(s) { return s.replace(/^0+/, '') || '0'; }
+
+  function upgradeCode(code) {
+    var s = String(code == null ? '' : code).trim();
+    if (!s || s.indexOf(':') >= 0) return s;          // punctuated or empty
+    var m = /^([A-Z]{2}[0-9]{5})([0-9]+)$/.exec(s);   // structural suffix only
+    if (!m) return s;                                 // bare, or a mnemonic
+    var base = m[1], suffix = m[2], n = TWO_LEVEL[base];
+    if (n && suffix.length === 4) {
+      return base + ':' + trimZeros(suffix.slice(0, n)) + ':' + trimZeros(suffix.slice(n));
+    }
+    return base + ':' + trimZeros(suffix);
+  }
+
   function normalizeItem(item) {
     if (typeof item === 'string') item = { code: item };
     return {
-      code: item.code,
+      code: upgradeCode(item.code),
       lang: item.lang || undefined,
       v: item.v || undefined,
       title: item.title || undefined,
