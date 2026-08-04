@@ -119,7 +119,15 @@
     };
   }
 
-  function isRef(code) { return String(code || '').indexOf(':') >= 0; }
+  // `iqan:1:3` and `BH00002:1:3` are the SAME grammar — an identity followed
+  // by structural segments — differing only in whether the head is a friendly
+  // alias or a PIN. So this asks "is the head an alias?", not "is there a
+  // colon?". The old contains-a-colon test predates Phelps codes using the
+  // separator and would now misread BH00002:1:1 as a range reference, and
+  // refs are never resolved to text: saved items would silently lose theirs.
+  function isRef(code) {
+    return REF_PREFIXES.indexOf(String(code || '').split(':')[0].toLowerCase()) >= 0;
+  }
 
   // ── Mutations ──────────────────────────────────────────────────────
   function create(name) {
