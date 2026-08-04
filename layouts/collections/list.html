@@ -51,6 +51,26 @@
 .col-lang-badge { font-size: .72rem; border: 1px solid var(--border); border-radius: 4px; padding: 0 .3rem; color: var(--text-secondary); }
 .col-item-remove { background: none; border: none; cursor: pointer; color: var(--text-secondary); font-size: .95rem; padding: .1rem .3rem; }
 .col-item-remove:hover { color: #c0392b; }
+/* Offline availability — "will this be here on a plane?" */
+.offline-badge {
+  font-size: .8rem;
+  line-height: 1;
+  margin-inline-end: .35rem;
+  color: var(--text-secondary);
+  cursor: help;
+  flex: none;
+}
+.offline-badge.is-offline { color: #2e8b57; }
+.col-offline-bar {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+  padding: .3rem 1rem .5rem;
+  font-size: .8rem;
+}
+.offline-ok { color: #2e8b57; }
+.offline-warn { color: var(--text-secondary); }
 .col-empty { padding: .7rem .9rem; color: var(--text-secondary); font-size: .9rem; }
 .col-import textarea { width: 100%; box-sizing: border-box; border: 1px solid var(--border); border-radius: 8px; background: inherit; color: inherit; padding: .5rem; font-family: monospace; font-size: .85rem; }
 .col-import-row { display: flex; align-items: center; gap: .6rem; margin-top: .5rem; flex-wrap: wrap; }
@@ -143,6 +163,74 @@
 
   var openState = {}; // collection id → expanded?
 
+  // ── Offline availability markers ──────────────────────────────────
+  // Answers "will this still be here on a plane?" per saved item. Each badge
+  // is a conjunction: the app shell must boot offline AND the item's data file
+  // must be cached — a per-item tick would be a lie if the shell won't load.
+  // Decorates the shared program-view output from outside, so the Program
+  // page is untouched.
+  function markOfflineAvailability(mount, items, card) {
+    if (!window.hwCollections || !window.hwCollections.isItemOffline) return;
+    var rows = mount.querySelectorAll('.dev-item-header');
+    if (!rows.length) return;
+
+    window.hwCollections.shellReady().then(function(shellOk) {
+      return Promise.all(items.map(function(it) {
+        return window.hwCollections.isItemOffline(it);
+      })).then(function(flags) {
+        var missing = 0;
+        flags.forEach(function(ok, i) {
+          var head = rows[i];
+          if (!head) return;
+          var old = head.querySelector('.offline-badge');
+          if (old) old.remove();
+          if (!ok) missing++;
+          var b = document.createElement('span');
+          b.className = 'offline-badge' + (ok ? ' is-offline' : '');
+          b.textContent = ok ? '✓' : '☁';
+          b.title = ok
+            ? (window.__t ? window.__t('col_offline_yes') : '') || 'Available offline'
+            : (window.__t ? window.__t('col_offline_no') : '') || 'Needs a connection — open once online to save it for offline';
+          var codeEl = head.querySelector('.dev-item-code');
+          if (codeEl) head.insertBefore(b, codeEl); else head.appendChild(b);
+        });
+        showOfflineSummary(card, flags.length - missing, flags.length, shellOk, items);
+      });
+    }).catch(function() {});
+  }
+
+  function showOfflineSummary(card, ready, total, shellOk, items) {
+    var head = card.querySelector('.col-card-head');
+    if (!head) return;
+    var bar = card.querySelector('.col-offline-bar');
+    if (!bar) {
+      bar = document.createElement('div');
+      bar.className = 'col-offline-bar';
+      // After the header, never inside it: the header toggles collapse on
+      // click, which would swallow the button.
+      head.parentNode.insertBefore(bar, head.nextSibling);
+    }
+    if (!shellOk) {
+      bar.innerHTML = '<span class="offline-warn" data-i18n="col_offline_shell">' +
+        'Offline reading is not set up yet on this device — reload once while online.</span>';
+      return;
+    }
+    if (ready === total) {
+      bar.innerHTML = '<span class="offline-ok" data-i18n="col_offline_all">✓ All saved items available offline</span>';
+      return;
+    }
+    bar.innerHTML = '<span class="offline-warn">' + ready + '/' + total +
+      ' <span data-i18n="col_offline_some">available offline</span></span> ' +
+      '<button class="btn-action btn-small col-offline-fetch" data-i18n="col_offline_fetch">Save the rest for offline</button>';
+    var btn = bar.querySelector('.col-offline-fetch');
+    if (btn) btn.addEventListener('click', function() {
+      btn.disabled = true;
+      btn.textContent = (window.__t ? window.__t('col_offline_fetching') : '') || 'Saving…';
+      Promise.all(items.map(function(it) { return window.hwCollections.cacheItemOffline(it); }))
+        .then(function() { render(); });
+    });
+  }
+
   function render() {
     var C = window.hwCollections;
     var listEl = $('col-list');
@@ -227,6 +315,7 @@
             getAllLanguages: function() { return allLanguages; },
             removable: true
           }).render();
+          markOfflineAvailability(mount, liveItems, card);
         }
         card.appendChild(itemsEl);
       }

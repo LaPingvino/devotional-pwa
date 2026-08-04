@@ -163,6 +163,53 @@
     }).catch(function () {});
   }
 
+  // Can the app itself boot with no network? A per-item "available offline"
+  // tick is a lie if the shell won't load, so every item check is gated on
+  // this. Deliberately conservative: the pages a saved item is read through.
+  var SHELL_PROBE = ['/', '/collections/', '/p/', '/data/version_index.json'];
+  var _shellReady = null;
+  function shellReady() {
+    if (_shellReady) return _shellReady;
+    if (typeof caches === 'undefined') return (_shellReady = Promise.resolve(false));
+    _shellReady = Promise.all(SHELL_PROBE.map(function (u) {
+      return caches.match(u).then(function (r) { return !!r; }).catch(function () { return false; });
+    })).then(function (hits) {
+      return hits.every(Boolean);
+    }).catch(function () { return false; });
+    return _shellReady;
+  }
+
+  // Is this item readable with no network? True when the shell can boot AND a
+  // data file that could resolve it is cached. File-level granularity is the
+  // right answer for the data half: if the file is cached, resolveText() will
+  // find the entry in it.
+  function isItemOffline(item) {
+    if (typeof caches === 'undefined') return Promise.resolve(false);
+    return shellReady().then(function (ok) {
+      if (!ok) return false;
+      var urls = itemDataUrls(item);
+      if (!urls.length) return true;   // range refs are links, not fetched text
+      return Promise.all(urls.map(function (u) {
+        return caches.match(u).then(function (r) { return !!r; }).catch(function () { return false; });
+      })).then(function (hits) { return hits.some(Boolean); });
+    });
+  }
+
+  // {ready, total, offline} for a collection — what the page badge reports.
+  function offlineStatus(col) {
+    var items = (col && col.items) || [];
+    if (!items.length) return Promise.resolve({ ready: 0, total: 0, offline: true });
+    return Promise.all(items.map(isItemOffline)).then(function (flags) {
+      var ready = flags.filter(Boolean).length;
+      return { ready: ready, total: items.length, offline: ready === items.length };
+    });
+  }
+
+  function cacheCollection(col) {
+    var items = (col && col.items) || [];
+    return Promise.all(items.map(cacheItemOffline));
+  }
+
   // Every data file every saved item needs, deduped — typically one or two
   // however many items are saved, since they share language files.
   function cacheAllSaved() {
@@ -494,7 +541,11 @@
     exportText: exportText,
     openPicker: openPicker,
     cacheItemOffline: cacheItemOffline,
-    cacheAllSaved: cacheAllSaved
+    cacheCollection: cacheCollection,
+    cacheAllSaved: cacheAllSaved,
+    isItemOffline: isItemOffline,
+    offlineStatus: offlineStatus,
+    shellReady: shellReady
   };
 
   // Backfill: items saved before save-time caching existed have no cached
@@ -502,7 +553,10 @@
   // dedupes hard (one file per language, per writings collection), so this
   // is a handful of requests however many prayers are saved. Deferred to
   // idle so it never competes with rendering.
-  if (typeof window !== 'undefined' && navigator.onLine !== false) {
+  // Guarded on `caches` so the module has no side effect (and leaves no timer
+  // running) in environments without the Cache API — jsdom under jest, for one.
+  if (typeof window !== 'undefined' && typeof caches !== 'undefined' &&
+      navigator.onLine !== false) {
     var kick = function () { cacheAllSaved(); };
     if (typeof requestIdleCallback === 'function') requestIdleCallback(kick, { timeout: 8000 });
     else setTimeout(kick, 3000);
