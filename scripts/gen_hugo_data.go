@@ -27,6 +27,8 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/lapingvino/devotional-pwa/scripts/phelpscode"
 )
 
 var (
@@ -1933,6 +1935,18 @@ func writingEntryNumber(pin string, fallback int) int {
 }
 
 func writingBaseCode(pin string) string {
+	// NOTE: despite the name this returns a DISPLAY GROUPING KEY, not a base
+	// PIN — 9 chars for the subnumbered family so Memorials/Íqán render each
+	// section as its own book anchor, and G-mnemonics stripped so all the
+	// Gleanings passages of one tablet group together. Use phelpscode.BasePIN
+	// when the actual work is wanted.
+	//
+	// Punctuated codes are folded back to the legacy shape first, so this
+	// keeps returning identical keys either side of the code migration and
+	// the site's book structure does not move. See scripts/phelpscode.
+	if strings.Contains(pin, ":") {
+		pin = phelpscode.Legacy(pin)
+	}
 	if len(pin) <= 7 {
 		return pin
 	}
