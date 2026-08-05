@@ -113,6 +113,50 @@ Letters in use for citation mnemonics: `G` Gleanings, `S` Selections,
 `A`/`P` Arabic and Persian Hidden Words, `D` Duʻá for *Prayers and
 Meditations* — `P` being already taken.
 
+## Compilations and quoting works
+
+Three kinds, three treatments. The discriminator between the first two is
+**unitary circulation** — does it recite as one text, or read as many items? —
+not the presence or absence of connective prose.
+
+1. **A fused compilation.** Another's words welded by a compiler into a single
+   text that circulates as one work: one title, one opening, one closer. The
+   Ziyáratnámih (Tablet of Visitation, compiled by Nabíl-i-Aʻẓam) is the
+   type. **This is a work.** It takes the Phelps PIN where one has been
+   assigned — `BH02307` is catalogued as *"Ziyarat-Namih (Tablet of
+   Visitation)"*, so nothing is minted — and otherwise `C<author>####`, e.g.
+   `CBH0001` for a compilation of Bahá'u'lláh's words. Full mnemonic and
+   structural grammar applies. Its sources are recorded as relations, not as
+   codes.
+
+2. **An arranged anthology.** Extracts that remain discrete items, with or
+   without connective prose — Gleanings, *Selections*, themed extract books.
+   **This is a collection, never a code.** Items keep their own codes, the
+   book is a `writing_collections` key, membership lives in refs. Gleanings
+   is the reason the discriminator is circulation rather than voice: it has
+   no connective prose either, yet its items stay items.
+
+3. **A work in its author's own voice that quotes.** *God Passes By*,
+   *Bahá'u'lláh and the New Era*. **This is its author's work** — its
+   quotations are refs in `inventory_refs`, never codes of their own. At the
+   scale of a book that is mostly quotation, per-quotation codes would be
+   unusable anyway; the refs table already holds ~70k of them.
+
+C binds the **content-author** — whose words the compilation contains — which
+stays knowable even when the compiler is someone else. The compiler is
+provenance, recorded in notes. Note the risk this inherits: `XT` exists
+because 16 of 16 `XAB` codes turned out to be Bahá'u'lláh, the scrape's author
+claim never having been evidence. A `C` mint asserts authorship and must
+establish it rather than inherit a source's label.
+
+## Namespaces beyond the central figures
+
+`UH` and `SE` are extension namespaces rather than Phelps space, minted freely.
+`W` extends that to Bahá'í works by other authors — `WES` for Esslemont, so
+*Bahá'u'lláh and the New Era* is a work by its author with its quotations as
+refs, not a compilation of anyone's words. Base codes stay 7 characters so
+`LEFT(phelps,7)` keeps working uniformly.
+
 ## Paragraph spaces belong to one edition
 
 A numbered structural space names slices of exactly **one** edition's
