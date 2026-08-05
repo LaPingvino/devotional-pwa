@@ -113,41 +113,78 @@ Letters in use for citation mnemonics: `G` Gleanings, `S` Selections,
 `A`/`P` Arabic and Persian Hidden Words, `D` Duʻá for *Prayers and
 Meditations* — `P` being already taken.
 
-## Compilations and quoting works
+## Books that exist as books
 
-Three kinds, three treatments. The discriminator between the first two is
-**unitary circulation** — does it recite as one text, or read as many items? —
-not the presence or absence of connective prose.
+Three kinds, but one genus. **A book earns a work's name the same way a passage
+does — by unitary circulation.** Gleanings is translated as a unit into 25
+languages, cited by its own item numbers, and already named in the inventory's
+own reference layer: `inventory_refs` carries 165 `GWB` refs over 122 PINs,
+locators `001x`–`166x`, alongside `SWAB` 229, `PM` 182, `BNE`/`BNEP` 38 and
+`ESW` 3. These labels *are* the books' names; the only open question was ever
+which namespace holds them.
 
-1. **A fused compilation.** Another's words welded by a compiler into a single
-   text that circulates as one work: one title, one opening, one closer. The
-   Ziyáratnámih (Tablet of Visitation, compiled by Nabíl-i-Aʻẓam) is the
-   type. **This is a work.** It takes the Phelps PIN where one has been
-   assigned — `BH02307` is catalogued as *"Ziyarat-Namih (Tablet of
-   Visitation)"*, so nothing is minted — and otherwise `C<author>####`, e.g.
-   `CBH0001` for a compilation of Bahá'u'lláh's words. Full mnemonic and
-   structural grammar applies. Its sources are recorded as relations, not as
-   codes.
+The kinds differ in **where the text lives**, and that decides what the code may
+carry.
 
-2. **An arranged anthology.** Extracts that remain discrete items, with or
-   without connective prose — Gleanings, *Selections*, themed extract books.
-   **This is a collection, never a code.** Items keep their own codes, the
-   book is a `writing_collections` key, membership lives in refs. Gleanings
-   is the reason the discriminator is circulation rather than voice: it has
-   no connective prose either, yet its items stay items.
+1. **A fused compilation** recites as one text: one title, one opening, one
+   closer. The Ziyáratnámih (Tablet of Visitation, compiled by Nabíl-i-Aʻẓam) is
+   the type. **Its code carries text** — rows in `writings`, full mnemonic and
+   structural grammar. It takes the Phelps PIN where one exists (`BH02307` is
+   catalogued as *"Ziyarat-Namih (Tablet of Visitation)"*, so nothing is minted).
+   Its sources are relations.
 
-3. **A work in its author's own voice that quotes.** *God Passes By*,
-   *Bahá'u'lláh and the New Era*. **This is its author's work** — its
-   quotations are refs in `inventory_refs`, never codes of their own. At the
-   scale of a book that is mostly quotation, per-quotation codes would be
-   unusable anyway; the refs table already holds ~70k of them.
+2. **An arranged anthology** reads as many items — Gleanings, *Selections*,
+   themed extract books. **Its code carries an arrangement, not a text.** The
+   book-level work is the selection, the order and the apparatus; that content is
+   carried by `writing_collections` exactly as a textual work's content is
+   carried by `writings`. The code is the book's identifier — collection key,
+   ref-source label (`GWB` ↔ `CBHGLEA`), i18n key, and the anchor for its
+   citation letter, so that "`G` is the citation letter of `CBHGLEA`" becomes
+   data rather than a sentence in this file.
 
-C binds the **content-author** — whose words the compilation contains — which
-stays knowable even when the compiler is someone else. The compiler is
-provenance, recorded in notes. Note the risk this inherits: `XT` exists
-because 16 of 16 `XAB` codes turned out to be Bahá'u'lláh, the scrape's author
-claim never having been evidence. A `C` mint asserts authorship and must
-establish it rather than inherit a source's label.
+   **No `writings` row ever bears an anthology's code, and it takes no
+   structural segments.** Not `CBHGLEA`, not `CBHGLEA:166`. Its positions are
+   membership rows, addressed by (key, position), each resolving to an item under
+   the item's *own* name. Item identities are never renamed: `BH00001G166` stays,
+   its base carrying whose tablet and its mnemonic carrying which citation.
+   Compiler prose, where a compiler writes any, is the compiler's own work
+   (`SEGPBFW`) and never the anthology's slice.
+
+3. **A work in its author's own voice that quotes** — *God Passes By*,
+   *Bahá'u'lláh and the New Era*. **This is its author's work**; its quotations
+   are refs, never codes. At the scale of a book that is mostly quotation,
+   per-quotation codes would be unusable anyway.
+
+Why the constraint on kind 2 is exact rather than cautious: every character of
+Gleanings, in every language, belongs to some item. A code on the book that
+carried text could therefore only carry text taken from items — which is
+displacement of the origin codes, the one thing such a code must not do. So the
+invariant is checkable:
+
+```sql
+-- for any arrangement-only code, this must be 0, permanently
+SELECT COUNT(*) FROM writings WHERE phelps LIKE 'CBHGLEA%';
+```
+
+This makes `C` a **two-mode namespace**: text-carrying (kind 1) takes the full
+grammar, arrangement-only (kind 2) takes none. The mode is declared at mint time,
+in the registry, alongside the code.
+
+### Shape of a C base
+
+`C` + content-author + a four-character mnemonic: `CBHGLEA` is C + BH + GLEA. A
+serial (`CBH0001`) is simply the degenerate mnemonic for a compilation with no
+established name — consistent with mnemonics being allowed to contain digits.
+Prefer the semantic four where a book has a name. Seven characters either way.
+
+Four characters collide easily, so **C bases mint from the registry only**.
+
+C binds the **content-author** — whose words the book contains — which stays
+knowable even when the compiler is someone else; the compiler is provenance,
+recorded in notes. Note the risk this inherits: `XT` exists because 16 of 16
+`XAB` codes turned out to be Bahá'u'lláh, the scrape's author claim never having
+been evidence. A `C` mint asserts authorship and must establish it rather than
+inherit a source's label.
 
 ## A name is not an address
 
@@ -174,15 +211,12 @@ the right, reversible by query and never minted as codes.
   There is no alias class, and citation is not a reason to mint one: "cite BNE
   ¶4.12 and land on the passage" asks for a resolver over the relation tables,
   and an address can be derived at read time where an identity must be stored.
-- **An anthology's identifier is its `collection_key`.** A code on the
-  book-object could never have a carrier, every character in it belonging to some
-  item, so its only possible use would be positional coding of those items —
-  displacement of the origin codes. Where tooling wants a code-shaped handle for
-  a book, that is presentation of the key; it never enters `writings.phelps` or
-  any relation table's phelps column. Many keys *do* map to real codes
+- **An anthology's code names the book, never its items' text.** The book is a
+  real work (see above) and may hold an identifier; what it may not hold is a
+  `writings` row or a structural segment, because every character in it belongs
+  to some item. Many collection keys also map to ordinary textual works
   (`iqan` → `BH00002`, `hidden-words` → `BH00386`/`BH00113`), and that mapping is
-  worth making explicit — but for the pure anthologies the right-hand side is
-  empty and must stay empty.
+  worth making explicit either way.
 
 ## Namespaces beyond the central figures
 
@@ -228,12 +262,11 @@ visible without reading the text at a slot.
 ## Related tables
 
 - `writings.phelps` — the coded rows
-- `writing_collections` — anthology membership and positions. **One table, two
-  readings:** `gleanings` rows point outward to member works, while `gpb` rows
-  point at the book's *own* chapters. Nothing disambiguates them but knowing
-  which kind of book you are looking at. It has not bitten yet; it will the first
-  time a fused compilation lists both its own slices and its sources, so that
-  case needs a key convention before it arrives.
+- `writing_collections` — anthology membership and positions, and for a kind-2
+  book **this table is where its content lives**. Two readings share it:
+  `gleanings` rows point outward to member works, while `gpb` rows are the book's
+  own table of contents. That is just the two kinds showing through — once a key
+  maps to a code, the code's kind tells the reader which reading applies.
 - `writing_related` — passages that live inside a collection's tablet without
   being the collection's item; the site links these out rather than rendering
   them as entries
