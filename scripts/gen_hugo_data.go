@@ -1934,6 +1934,10 @@ func writingEntryNumber(pin string, fallback int) int {
 	return n
 }
 
+// legacyBaseShape matches the Phelps base spelling that has an unpunctuated
+// legacy form. Extension namespaces (SE/UH/C/W) do not.
+var legacyBaseShape = regexp.MustCompile(`^[A-Z]{2}[0-9]{5}$`)
+
 func writingBaseCode(pin string) string {
 	// NOTE: despite the name this returns a DISPLAY GROUPING KEY, not a base
 	// PIN — 9 chars for the subnumbered family so Memorials/Íqán render each
@@ -1945,6 +1949,14 @@ func writingBaseCode(pin string) string {
 	// keeps returning identical keys either side of the code migration and
 	// the site's book structure does not move. See scripts/phelpscode.
 	if strings.Contains(pin, ":") {
+		// Legacy() only round-trips bases of the Phelps shape [A-Z]{2}[0-9]{5}.
+		// The extension namespaces (SEBKGPB, CBHGLEA, WESBANE) have no legacy
+		// spelling at all, so folding them would produce a mangled key — e.g.
+		// SEBKGPB:1 → "SEBKGPB001" → the 9-char subnumbered rule → "SEBKGPB00",
+		// collapsing chapters 1–9 onto one anchor. Group those on the base.
+		if !legacyBaseShape.MatchString(phelpscode.Parse(pin).Base) {
+			return phelpscode.Parse(pin).Base
+		}
 		pin = phelpscode.Legacy(pin)
 	}
 	if len(pin) <= 7 {

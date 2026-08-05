@@ -530,7 +530,7 @@
     // gpb:fw:para or gpb:rp:para (Foreword / Reference Points)
     m = code.match(/^gpb:(fw|rp):(\d+)(?:-(\d+))?$/i);
     if (m) {
-      var chCode = 'SEGPB' + m[1].toUpperCase();
+      var chCode = 'SEBKGPB' + m[1].toUpperCase();
       var start = parseInt(m[2]), end = m[3] ? parseInt(m[3]) : start;
       var label = m[1].toUpperCase();
       return {
@@ -542,7 +542,7 @@
     // gpb:fw or gpb:rp (whole Foreword / Reference Points)
     m = code.match(/^gpb:(fw|rp)$/i);
     if (m) {
-      var chCode = 'SEGPB' + m[1].toUpperCase();
+      var chCode = 'SEBKGPB' + m[1].toUpperCase();
       var label = m[1].toUpperCase();
       return {
         key: 'gpb', title: "God Passes By",
@@ -554,7 +554,7 @@
     m = code.match(/^gpb:(\d+):(\d+)(?:-(\d+))?$/);
     if (m) {
       var ch = parseInt(m[1]), start = parseInt(m[2]), end = m[3] ? parseInt(m[3]) : start;
-      var chCode = 'SEGPB' + (ch < 10 ? '0' : '') + ch;
+      var chCode = 'SEBKGPB:' + ch;
       return {
         key: 'gpb', title: "God Passes By",
         label: "GPB " + ch + ":" + start + (end > start ? '–' + end : ''),
@@ -566,7 +566,7 @@
     if (m) {
       var start = parseInt(m[1]), end = m[2] ? parseInt(m[2]) : start;
       var codes = [];
-      for (var c = start; c <= end; c++) codes.push('SEGPB' + (c < 10 ? '0' : '') + c);
+      for (var c = start; c <= end; c++) codes.push('SEBKGPB:' + c);
       return {
         key: 'gpb', title: "God Passes By",
         label: "GPB Ch " + start + (end > start ? '–' + end : ''),

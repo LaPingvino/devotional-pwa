@@ -148,7 +148,7 @@ carry.
    the item's *own* name. Item identities are never renamed: `BH00001G166` stays,
    its base carrying whose tablet and its mnemonic carrying which citation.
    Compiler prose, where a compiler writes any, is the compiler's own work
-   (`SEGPBFW`) and never the anthology's slice.
+   (`SEBKGPBFW`) and never the anthology's slice.
 
 3. **A work in its author's own voice that quotes** — *God Passes By*,
    *Bahá'u'lláh and the New Era*. **This is its author's work**; its quotations
@@ -177,7 +177,52 @@ serial (`CBH0001`) is simply the degenerate mnemonic for a compilation with no
 established name — consistent with mnemonics being allowed to contain digits.
 Prefer the semantic four where a book has a name. Seven characters either way.
 
+The existing `inventory_refs` source labels (`GWB`, `SWAB`, `PM`, `BNE`) are
+**conveniences of the inventory, not canonical names**, so there is no obligation
+to reuse them and no obstacle to coining a fitting four. Some fit exactly —
+`CABSWAB` is C + AB + SWAB — and where a label is shorter than the slot, either
+coin a four-letter mnemonic or pad with `X`. The mapping from label to code is
+recorded as data; nothing depends on the two strings matching.
+
 Four characters collide easily, so **C bases mint from the registry only**.
+
+### The registry
+
+Reviewed, not yet minted into the data. Content-author derived from the
+membership rows rather than assumed: every collection is single-author, the sole
+exception being one Báb prayer inside *Additional Prayers Revealed by
+Bahá'u'lláh*, which is an open question about that row and not about the book.
+
+| key | code | book |
+|---|---|---|
+| gleanings | `CBHGLEA` | Gleanings from the Writings of Bahá'u'lláh |
+| pm | `CBHPMED` | Prayers and Meditations |
+| days | `CBHDAYS` | Days of Remembrance |
+| tablets | `CBHTABL` | Tablets of Bahá'u'lláh |
+| summons | `CBHSUMM` | The Summons of the Lord of Hosts |
+| call | `CBHCALL` | The Call of the Divine Beloved |
+| tabernacle | `CBHTABE` | The Tabernacle of Unity |
+| apbh | `CBHAPRY` | Additional Prayers Revealed by Bahá'u'lláh |
+| swab | `CABSWAB` | Selections from the Writings of ʻAbdu'l-Bahá |
+| pup | `CABPUPE` | The Promulgation of Universal Peace |
+| saq | `CABSAQS` | Some Answered Questions |
+| light | `CABLOTW` | Light of the World |
+| paristalks | `CABPART` | Paris Talks |
+| divineplan | `CABTDPL` | Tablets of the Divine Plan |
+| apab | `CABAPRY` | Additional Prayers Revealed by ʻAbdu'l-Bahá |
+| swb | `CBBSWBH` | Selections from the Writings of the Báb |
+| ridvan | `CUHRIDV` | Riḍván messages |
+
+The remaining keys need no mint because they already name ordinary works:
+`iqan`→`BH00002`, `esw`→`BH00005`, `gems`→`BH00012`, `aqdas`→`BH00001`,
+`memorials`→`AB00002`, `gpb`→`SEBKGPB`, `wt`→`AB00001`, `sdc`→`AB00004`,
+`tn`→`AB00003`, and `hidden-words`→`BH00386`+`BH00113`, the one book that is two
+works.
+
+The two populations separate themselves in the data, so nothing has to be
+declared by hand: a key whose membership rows share **one** base is a work whose
+rows are its own paragraphs or chapters; a key whose base count tracks its item
+count is an anthology.
 
 C binds the **content-author** — whose words the book contains — which stays
 knowable even when the compiler is someone else; the compiler is provenance,
@@ -225,7 +270,7 @@ the right, reversible by query and never minted as codes.
 *Bahá'u'lláh and the New Era*, so a book that is mostly quotation is a work by
 its author with its quotations as refs, not a compilation of anyone's words.
 
-**Every base in every namespace is exactly 7 characters** — `BH00002`, `SEGPBFW`,
+**Every base in every namespace is exactly 7 characters** — `BH00002`, `SEBKGPB`,
 `CBH0001`, `WESBANE` — so `LEFT(phelps,7)` keeps working uniformly.
 
 `C` and `W` bases carry no mnemonics, and the parser knows none: it splits base
