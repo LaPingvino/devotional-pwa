@@ -92,6 +92,27 @@ A passage that circulates independently — printed in an anthology, cited by it
 item number, read on its own — has earned a name. A boundary alone never earns
 one.
 
+### One passage, two circulation contexts
+
+The anthologies work alike even where they were coded differently. A tablet
+quarried by *Selections* and the same passage circulating in prayer books are
+the **same ground truth at slightly different identity** — the prayer-book
+rendering is often a shorter variant, and the two carry different extents.
+
+Where that happens, both names are legitimate and neither is a stranger-split:
+the semantic mnemonic names the prayer as it circulates devotionally, the
+citation mnemonic names the anthology item at that book's extent. Record the
+relationship rather than merging them.
+
+Worked example: `AB03461MAR` (the marriage prayer, prayer-book rendering,
+en 102w) and `AB03461S086` (Selections item 86, en 73+44w) coexist on one
+tablet. The signature to look for is an extent difference that tracks the
+source, within one language.
+
+Letters in use for citation mnemonics: `G` Gleanings, `S` Selections,
+`A`/`P` Arabic and Persian Hidden Words, `D` Duʻá for *Prayers and
+Meditations* — `P` being already taken.
+
 ## Paragraph spaces belong to one edition
 
 A numbered structural space names slices of exactly **one** edition's
