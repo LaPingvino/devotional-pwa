@@ -149,13 +149,61 @@ because 16 of 16 `XAB` codes turned out to be Bahá'u'lláh, the scrape's author
 claim never having been evidence. A `C` mint asserts authorship and must
 establish it rather than inherit a source's label.
 
+## A name is not an address
+
+One stretch of text can be reached two ways: by what it is — its code — and by
+where it appears — a position in some containing book. **These are not two
+names.** A code asserts that text rows exist whose identity it is; a position is
+an address, computed from the relation tables at read time.
+
+The catalog already runs on this split. The `gleanings` collection addresses all
+166 of its items by **origin** code — not one membership row carries a G-code —
+while the 63 `G#` identities live in `writings` exactly where a text row carries
+that extent. Phelps recorded the *Bahá'u'lláh and the New Era* positions the same
+way: 41 refs like `BNE.071x` against 39 PINs, origin on the left and book page on
+the right, reversible by query and never minted as codes.
+
+- A row's `phelps` is the identity of its text **as it circulates**. An anthology
+  item circulates as its origin work: origin code stored, book position a
+  relation. A fused compilation's paragraph circulates as the compilation:
+  `CBH0001:3` stored, the source span a relation. Same rule, opposite outcomes —
+  which is how you can tell the rule is circulation rather than origin-worship.
+- **Two codes for one ground truth require two circulating identities** — an
+  extent or variant difference, as with `AB03461MAR` and `AB03461S086`. Identical
+  characters under two addressing structures are one code plus one relation row.
+  There is no alias class, and citation is not a reason to mint one: "cite BNE
+  ¶4.12 and land on the passage" asks for a resolver over the relation tables,
+  and an address can be derived at read time where an identity must be stored.
+- **An anthology's identifier is its `collection_key`.** A code on the
+  book-object could never have a carrier, every character in it belonging to some
+  item, so its only possible use would be positional coding of those items —
+  displacement of the origin codes. Where tooling wants a code-shaped handle for
+  a book, that is presentation of the key; it never enters `writings.phelps` or
+  any relation table's phelps column. Many keys *do* map to real codes
+  (`iqan` → `BH00002`, `hidden-words` → `BH00386`/`BH00113`), and that mapping is
+  worth making explicit — but for the pure anthologies the right-hand side is
+  empty and must stay empty.
+
 ## Namespaces beyond the central figures
 
 `UH` and `SE` are extension namespaces rather than Phelps space, minted freely.
-`W` extends that to Bahá'í works by other authors — `WES` for Esslemont, so
-*Bahá'u'lláh and the New Era* is a work by its author with its quotations as
-refs, not a compilation of anyone's words. Base codes stay 7 characters so
-`LEFT(phelps,7)` keeps working uniformly.
+`W` extends that to Bahá'í works by other authors — `WESBANE` is Esslemont's
+*Bahá'u'lláh and the New Era*, so a book that is mostly quotation is a work by
+its author with its quotations as refs, not a compilation of anyone's words.
+
+**Every base in every namespace is exactly 7 characters** — `BH00002`, `SEGPBFW`,
+`CBH0001`, `WESBANE` — so `LEFT(phelps,7)` keeps working uniformly.
+
+`C` and `W` bases carry no mnemonics, and the parser knows none: it splits base
+from mnemonic on `[A-Z]{2}[0-9]{5}`, so these namespaces parse as base-only while
+their structural segments work normally. **This is correct rather than a gap.** A
+famous passage inside a quoting work is the origin author's work — named on the
+origin base if circulation has earned it a name, held as a ref otherwise — and a
+compilation's sub-passage is always a source span, named at origin. A `W`
+mnemonic could only ever name a passage in the author's *own* voice that
+circulates independently, and no such case exists yet. Because the base length is
+fixed at 7, the split point is already defined if one ever does; the parser
+extends losslessly then.
 
 ## Paragraph spaces belong to one edition
 
@@ -180,7 +228,12 @@ visible without reading the text at a slot.
 ## Related tables
 
 - `writings.phelps` — the coded rows
-- `writing_collections` — anthology membership and positions
+- `writing_collections` — anthology membership and positions. **One table, two
+  readings:** `gleanings` rows point outward to member works, while `gpb` rows
+  point at the book's *own* chapters. Nothing disambiguates them but knowing
+  which kind of book you are looking at. It has not bitten yet; it will the first
+  time a fused compilation lists both its own slices and its sources, so that
+  case needs a key convention before it arrives.
 - `writing_related` — passages that live inside a collection's tablet without
   being the collection's item; the site links these out rather than rendering
   them as entries
