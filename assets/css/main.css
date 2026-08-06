@@ -157,6 +157,16 @@ body {
   padding: .5rem 0;
   box-shadow: 0 4px 8px rgba(0,0,0,.2);
   z-index: 99;
+  /* The Writings list is long (one entry per book), and an absolutely
+     positioned panel does not grow the page — without a bound it simply runs
+     off the bottom of the viewport with nothing to scroll. Bound it to the
+     space below the header and let THIS be the one scroll region.
+     dvh tracks the mobile URL bar; vh is the fallback for browsers without it. */
+  max-height: calc(100vh - 56px);
+  max-height: calc(100dvh - 56px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 .site-header.collapsed nav.open { display: flex !important; }
 .site-header.collapsed nav a {
@@ -278,6 +288,21 @@ body {
 
 /* Collapsed (hamburger) variant */
 .site-header.collapsed .nav-dropdown-menu { min-width: auto; max-width: none; }
+/* One scroll region, not two: the panel above scrolls, so the inner list must
+   not also cap itself at 60vh — nested scrollers are what made this feel broken
+   on a phone (you would hit the inner limit while the outer panel was already
+   off-screen). */
+.site-header.collapsed .nav-dropdown-scroll {
+  max-height: none;
+  overflow-y: visible;
+}
+/* Keep the filter box reachable while scrolling a long book list. */
+.site-header.collapsed .nav-dropdown-search {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--accent);
+}
 .site-header.collapsed .nav-dropdown-search { background: transparent; border-bottom-color: rgba(255,255,255,.15); }
 .site-header.collapsed .nav-dropdown-search input {
   background: rgba(255,255,255,.08);
