@@ -188,10 +188,13 @@ Four characters collide easily, so **C bases mint from the registry only**.
 
 ### The registry
 
-Reviewed, not yet minted into the data. Content-author derived from the
-membership rows rather than assumed: every collection is single-author, the sole
-exception being one Báb prayer inside *Additional Prayers Revealed by
-Bahá'u'lláh*, which is an open question about that row and not about the book.
+Content-author derived from the membership rows rather than assumed: **every
+collection is single-author.** The one apparent exception closed on inspection —
+`BB00633`, a Báb code, sits at item 24 of *Additional Prayers Revealed by
+Bahá'u'lláh* because **Phelps put it there**: `inventory_refs` carries 23
+`BRL_APBH` locators, `01x`–`24`, and `#24` is that code. The 2024 bahai.org
+edition dropped the item. So the membership row records the edition the locator
+space indexes and stands; see the note on collection positions below.
 
 | key | code | book |
 |---|---|---|
@@ -223,6 +226,28 @@ The two populations separate themselves in the data, so nothing has to be
 declared by hand: a key whose membership rows share **one** base is a work whose
 rows are its own paragraphs or chapters; a key whose base count tracks its item
 count is an anthology.
+
+### Collection positions are a locator space, and it has an owner
+
+A membership position is not a running index we assign — it is the book's own
+citation locator, and it belongs to **one edition**, exactly as a paragraph space
+does. `apbh`'s positions are the inventory's `BRL_APBH` locators, so they index
+the pre-2024 edition of the book. Read that way, three things that look like
+defects are not:
+
+- **A position whose code has no text rows is normal.** `BB00633` at #24 and
+  `BH11772` at #19 both have none. No language is guaranteed to exist for any
+  work, and that applies to a whole item as much as to a translation.
+- **Two positions on one code may be a claim, not a duplicate.** `apbh` #05x and
+  #06x are both `BH01873`, both marked `is_excerpt` — Phelps stating that two
+  items are separate excerpts of one tablet.
+- **A gap may be the inventory's.** `apbh` has no #03; Phelps appears never to
+  have identified that item.
+
+The consequence for repair work: **re-syncing a collection to a newer edition is
+a realignment, not a fix**, and needs the owner declared first. A newer edition
+that reorders and drops items — as the 2024 *Additional Prayers* does — does not
+make the recorded positions wrong; it makes them positions in a different book.
 
 C binds the **content-author** — whose words the book contains — which stays
 knowable even when the compiler is someone else; the compiler is provenance,

@@ -711,11 +711,16 @@ func main() {
 			} else {
 				key := writingTypeKeys[wtype]
 				if key == "" {
+					// A coded text with no browse section is still a work and
+					// must stay searchable — dropping it made 248 INBA-typed
+					// standalone tablets unfindable, and they belong to no book
+					// to be browsed under. Point at the code's own page instead.
 					skippedTypes[wtype]++
-					continue
+					link = "/phelps/" + strings.ToLower(phelpscode.Parse(phelps).Base) + "/"
+				} else {
+					link = "/writings/" + key + "/" + lang + "/#" + phelps
+					cat = writingTypeNames[wtype]
 				}
-				link = "/writings/" + key + "/" + lang + "/#" + phelps
-				cat = writingTypeNames[wtype]
 			}
 			entries = append(entries, FTEntry{Phelps: phelps, Base: base, Text: text, Cat: cat, Link: link})
 		}
@@ -728,7 +733,7 @@ func main() {
 	}
 	log.Printf("  %d full-text entries across %d language files", ftTotal, ftFiles)
 	for wtype, n := range skippedTypes {
-		log.Printf("  ⚠ search: %d entries skipped — type %q has no writings/<type> i18n def", n, wtype)
+		log.Printf("  ⓘ search: %d entries linked to /phelps/ — type %q has no writings/<type> i18n def", n, wtype)
 	}
 
 	// 8. Generate prayer explorer: one entry per phelps code with translation count

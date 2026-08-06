@@ -611,7 +611,11 @@ html[dir="rtl"] body.reading-mode .reading-mode-toggle {
       // GPB is now one book (SEBKGPB) whose entries are its chapters, so the
       // range is over chapters directly. It used to be one "book" per chapter
       // (SEGPB01…), which put the chapter in the base and left each book with
-      // a single entry.
+      // a single entry. Foreword and Retrospect stayed mnemonics rather than
+      // becoming :0 and :26, so they render as their own books and must not
+      // fall through to the chapter numbering.
+      if (base === 'SEBKGPBFW') return 'gpb:fw';
+      if (base === 'SEBKGPBRP') return 'gpb:rp';
       return 'gpb:' + from + (to > from ? '-' + to : '');
     }
   };
