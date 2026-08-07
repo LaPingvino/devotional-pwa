@@ -84,6 +84,7 @@ func main() {
 	fmt.Fprintf(tsv, "phelps\tcollection\tposition\tlang\titem\twords\tinv_words\tratio\tnote\tfinal_url\topening\n")
 	fmt.Fprintf(sql, "-- ingest_brl %s — review before applying\n", time.Now().UTC().Format(time.RFC3339))
 
+	invWords := inventoryWords()
 	client := &http.Client{Timeout: 45 * time.Second}
 	best := map[string]result{}
 	var ok, empty, failed int
@@ -107,6 +108,16 @@ func main() {
 			continue
 		}
 		num, text := itemText(page, anchor[1])
+		// A long tablet is paginated as one page of many sections, and the
+		// anchor points at a paragraph inside it — so the section walk returns
+		// only that paragraph. When the result is a small fraction of what the
+		// catalogue says the work is, and the page holds many sections, the
+		// page IS the work: take all of it.
+		if inv := invWords[j.Phelps]; inv > 0 && len(strings.Fields(text)) < inv/4 {
+			if whole := wholeWork(page); len(strings.Fields(whole)) > len(strings.Fields(text)) {
+				text = whole
+			}
+		}
 		if text == "" {
 			log.Printf("  ~ %s: anchor %s not found in %s", j.Phelps, anchor[1], final)
 			empty++
@@ -131,7 +142,6 @@ func main() {
 	// own word count and refuse to emit a bare INSERT for an implausible one.
 	// Flagged rows are still written, commented, so nothing is lost silently
 	// and the repo's apply idiom (grep '^INSERT' | dolt sql) skips them.
-	invWords := inventoryWords()
 	var clean, flagged int
 	for _, r := range best {
 		words := len(strings.Fields(r.Text))
@@ -252,6 +262,31 @@ func inventoryWords() map[string]int {
 		}
 	}
 	return out
+}
+
+// wholeWork concatenates every section on the page. BRL pages have no single
+// content wrapper, but the sections themselves are the text, so joining them
+// yields the work without the navigation furniture around it.
+func wholeWork(page string) string {
+	idx := sectionRe.FindAllStringIndex(page, -1)
+	if len(idx) < 4 {
+		return ""
+	}
+	var b strings.Builder
+	for i, m := range idx {
+		end := len(page)
+		if i+1 < len(idx) {
+			end = idx[i+1][0]
+		}
+		seg := page[m[0]:end]
+		seg = pnumRe.ReplaceAllString(seg, " ")
+		seg = attribRe.ReplaceAllString(seg, " ")
+		seg = scriptRe.ReplaceAllString(seg, " ")
+		seg = tagRe.ReplaceAllString(seg, " ")
+		b.WriteString(html.UnescapeString(seg))
+		b.WriteString(" ")
+	}
+	return strings.TrimSpace(wsRe.ReplaceAllString(b.String(), " "))
 }
 
 // langOf reads the language from the resolved path: bahai.org serves English

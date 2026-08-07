@@ -100,45 +100,45 @@ func uuidToBase36(uuid string) string {
 
 // Prayer for per-language data files
 type Prayer struct {
-	Phelps        string         `json:"phelps"`
-	Text          string         `json:"text"`
-	Name          string         `json:"name,omitempty"`
-	Category      string         `json:"category,omitempty"`
-	CategoryOrder int            `json:"cat_order,omitempty"`
-	OrderInCat    int            `json:"order_in_cat,omitempty"`
-	Source        string         `json:"source,omitempty"`
-	Version       string         `json:"version,omitempty"`
+	Phelps        string `json:"phelps"`
+	Text          string `json:"text"`
+	Name          string `json:"name,omitempty"`
+	Category      string `json:"category,omitempty"`
+	CategoryOrder int    `json:"cat_order,omitempty"`
+	OrderInCat    int    `json:"order_in_cat,omitempty"`
+	Source        string `json:"source,omitempty"`
+	Version       string `json:"version,omitempty"`
 	// VersionB36 is the base36-encoded form of Version, used by templates
 	// to build short /p/?v=<b36> permalinks without runtime conversion.
-	VersionB36    string         `json:"v,omitempty"`
-	Notes         string         `json:"notes,omitempty"`
+	VersionB36 string `json:"v,omitempty"`
+	Notes      string `json:"notes,omitempty"`
 	// Book is the prayerbook this prayer's native PBS entry belongs to
 	// (e.g. "mul-NA:bp" for an Otjiherero prayer in the Namibian compilation).
 	// Used to compute the default book for the language; also surfaced to
 	// the client so /p/?v= can show "Part of: <book>" navigation.
-	Book          string             `json:"book,omitempty"`
-	AltSources    []PrayerSource     `json:"alt_sources,omitempty"`  // additional sources for same prayer
-	BookCats      map[string]BookCat `json:"book_cats,omitempty"`    // prayerbook code → category assignment
-	Translations  []LangRef          `json:"translations,omitempty"` // other languages with this phelps code
+	Book         string             `json:"book,omitempty"`
+	AltSources   []PrayerSource     `json:"alt_sources,omitempty"`  // additional sources for same prayer
+	BookCats     map[string]BookCat `json:"book_cats,omitempty"`    // prayerbook code → category assignment
+	Translations []LangRef          `json:"translations,omitempty"` // other languages with this phelps code
 	// Lang is the real writings.language of this row. Only set in the
 	// synthetic 'orig' collection, where prayers from several original
 	// languages (ar/fa/ota/en/tr) share one file and need badges.
-	Lang          string             `json:"lang,omitempty"`
+	Lang string `json:"lang,omitempty"`
 }
 
 // SubCode is one passage within a base PIN (e.g. BH01313NAM within BH01313).
 // Translations contains only language refs — prayer text lives in the per-language files.
 type SubCode struct {
-	Code          string    `json:"code"`
-	Anchor        string    `json:"anchor"`                    // lowercase mnemonic suffix (e.g. "nam"), "" for base codes
-	Title         string    `json:"title,omitempty"`
-	FirstLine     string    `json:"first_line,omitempty"`      // English first line
-	FirstLineOrig string    `json:"first_line_orig,omitempty"` // original-language first line
-	Language      string    `json:"language,omitempty"`        // original language (Ara, Per, Eng, …)
-	WordCount     string    `json:"word_count,omitempty"`
-	Subjects      string    `json:"subjects,omitempty"`
-	Notes         string    `json:"notes,omitempty"`
-	FullTextParts []string      `json:"full_text_parts,omitempty"` // English full text chunks from inventory_fulltext
+	Code          string       `json:"code"`
+	Anchor        string       `json:"anchor"` // lowercase mnemonic suffix (e.g. "nam"), "" for base codes
+	Title         string       `json:"title,omitempty"`
+	FirstLine     string       `json:"first_line,omitempty"`      // English first line
+	FirstLineOrig string       `json:"first_line_orig,omitempty"` // original-language first line
+	Language      string       `json:"language,omitempty"`        // original language (Ara, Per, Eng, …)
+	WordCount     string       `json:"word_count,omitempty"`
+	Subjects      string       `json:"subjects,omitempty"`
+	Notes         string       `json:"notes,omitempty"`
+	FullTextParts []string     `json:"full_text_parts,omitempty"` // English full text chunks from inventory_fulltext
 	Translations  []LangRef    `json:"translations"`              // languages that have this code; no text here
 	WritingRefs   []WritingRef `json:"writing_refs,omitempty"`    // writings pages containing this code
 	Refs          []InvRef     `json:"refs,omitempty"`            // sources & study refs from inventory_refs
@@ -252,7 +252,7 @@ func main() {
 	writeJSON(filepath.Join(dataDir, "languages.json"), langs)
 	writeJSON(filepath.Join(staticDir, "languages.json"), langs)
 	log.Printf("  %d languages", len(langs))
-	phelpsLangs := map[string][]LangRef{}  // phelps full code → deduped lang refs
+	phelpsLangs := map[string][]LangRef{} // phelps full code → deduped lang refs
 	phelpsLangsSeen := map[string]map[string]bool{}
 	for langCode, prayers := range allPrayers {
 		for _, p := range prayers {
@@ -667,6 +667,57 @@ func main() {
 			Link:     link,
 		})
 	}
+	// Works we hold only in a language most people cannot read are, in practice,
+	// unfindable: 1,807 of the works in the corpus have no English row at all.
+	// The inventory carries an English FIRST LINE for nearly all of them, so a
+	// searcher can at least reach the work and see what it is. This invents no
+	// translation — it is the catalogue's own description, marked as such, and
+	// it is skipped the moment a real English row exists.
+	firstLineRows := doltQuery("SELECT PIN, `First line (translated)` FROM inventory WHERE `First line (translated)` IS NOT NULL AND `First line (translated)` <> ''")
+	firstLine := make(map[string]string, len(firstLineRows))
+	for _, r := range firstLineRows[1:] {
+		if len(r) >= 2 {
+			firstLine[r[0]] = r[1]
+		}
+	}
+	haveEnglish := map[string]bool{}
+	for k := range searchSeen {
+		if strings.HasSuffix(k, "|en") {
+			haveEnglish[strings.TrimSuffix(k, "|en")] = true
+		}
+	}
+	firstLineAdded := 0
+	for _, r := range doltQuery("SELECT DISTINCT phelps FROM writings WHERE phelps IS NOT NULL AND phelps <> ''")[1:] {
+		if len(r) < 1 || haveEnglish[r[0]] {
+			continue
+		}
+		// Only for codes that ARE their base. A mnemonic names an excerpt and a
+		// segment names a slice; the inventory first line describes the whole
+		// tablet, so attaching it there would claim the wrong extent — the exact
+		// identity-versus-extent confusion the method warns about.
+		c := phelpscode.Parse(r[0])
+		if c.Mnemonic != "" || len(c.Parts) > 0 || r[0] != c.Base {
+			continue
+		}
+		fl := firstLine[c.Base]
+		if fl == "" {
+			continue
+		}
+		if len([]rune(fl)) > 150 {
+			fl = string([]rune(fl)[:150])
+		}
+		searchEntries = append(searchEntries, SearchEntry{
+			Phelps:   r[0],
+			Language: "en",
+			LangName: "English",
+			Text:     fl,
+			Category: "First line only — no English translation held",
+			Link:     "/phelps/" + strings.ToLower(c.Base) + "/",
+		})
+		firstLineAdded++
+	}
+	log.Printf("  %d works reachable in English by inventory first line only", firstLineAdded)
+
 	writeJSON(filepath.Join(staticDir, "search.json"), searchEntries)
 	log.Printf("  %d search entries", len(searchEntries))
 
@@ -756,7 +807,10 @@ func main() {
 		// Add language if not already present
 		found := false
 		for _, l := range ee.Langs {
-			if l == e.Language { found = true; break }
+			if l == e.Language {
+				found = true
+				break
+			}
 		}
 		if !found {
 			ee.Langs = append(ee.Langs, e.Language)
@@ -773,7 +827,10 @@ func main() {
 		for _, lr := range langs {
 			found := false
 			for _, l := range ee.Langs {
-				if l == lr.Language { found = true; break }
+				if l == lr.Language {
+					found = true
+					break
+				}
 			}
 			if !found {
 				ee.Langs = append(ee.Langs, lr.Language)
@@ -814,7 +871,7 @@ type BookPrayer struct {
 	LangName     string             `json:"lang_name,omitempty"`
 	Name         string             `json:"name,omitempty"`
 	Text         string             `json:"text"`
-	Source       string             `json:"source,omitempty"`     // which source the displayed text came from
+	Source       string             `json:"source,omitempty"` // which source the displayed text came from
 	Category     string             `json:"category,omitempty"`
 	CatOrder     int                `json:"cat_order,omitempty"`
 	OrderInCat   int                `json:"order_in_cat,omitempty"`
@@ -1860,6 +1917,7 @@ func generateWritings(assetsDir, dataDir, staticDir string, langNames map[string
 //   - Aqdas       BH00001190 → "190" → 190
 //   - Íqán        BH000022186 → "186" (paragraph within chapter)
 //   - Gleanings   BH00001G166 → "G166" → 166
+//
 // Standalone 7-char prayer codes have no suffix and fall back to sequential
 // position.
 // writingEntryLabel returns a human-readable display label that may differ
@@ -2091,9 +2149,9 @@ func queryAllPrayers() map[string][]Prayer {
 
 	type rawRow struct {
 		lang, phelps, text, name, source, version, notes string
-		catName                                           string
-		catOrd, ordInCat                                  int
-		book                                              string
+		catName                                          string
+		catOrd, ordInCat                                 int
+		book                                             string
 	}
 	type group struct {
 		primary rawRow
@@ -2174,11 +2232,11 @@ func queryAllPrayers() map[string][]Prayer {
 
 // prayerBookEntry holds one row from prayer_book_structure
 type prayerBookEntry struct {
-	bookCode   string
-	bookName   string
-	catName    string
-	catOrder   int
-	ordInCat   int
+	bookCode string
+	bookName string
+	catName  string
+	catOrder int
+	ordInCat int
 }
 
 // queryAllBookCats loads the full prayer_book_structure table (~10K rows) plus
@@ -2306,14 +2364,14 @@ func loadLanguageGroups() map[string][]string {
 
 // pickDefaultBook resolves the prayerbook to select on first load for `lang`.
 // Fallback chain:
-//   1. own-language :bp (e.g. "eo:bpnet" for Esperanto)
-//   2. the most common book among the language's own prayers — this picks
-//      mul-NA:bp for hz/kj/diu/naq, nai-CA:bp for First Nations languages,
-//      etc., based on actual data rather than a hard-coded map
-//   3. linguistically-near sibling's :bp via language_groups (e.g. tpi → fj:bp)
-//   4. en:bpnet (universal fallback)
-//   5. first available book in the picker
-//   6. "" (no book; caller may hide the picker)
+//  1. own-language :bp (e.g. "eo:bpnet" for Esperanto)
+//  2. the most common book among the language's own prayers — this picks
+//     mul-NA:bp for hz/kj/diu/naq, nai-CA:bp for First Nations languages,
+//     etc., based on actual data rather than a hard-coded map
+//  3. linguistically-near sibling's :bp via language_groups (e.g. tpi → fj:bp)
+//  4. en:bpnet (universal fallback)
+//  5. first available book in the picker
+//  6. "" (no book; caller may hide the picker)
 func pickDefaultBook(lang string, books []BookRef, prayers []Prayer, siblings map[string][]string) string {
 	wantOwn := lang + ":bpnet"
 	for _, b := range books {
