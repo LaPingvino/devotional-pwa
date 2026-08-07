@@ -2903,8 +2903,8 @@ func writeQualityReport(dataDir string) {
 		Checks: []qualityCheck{
 			{"Orphaned prayer-book entries", qNum("SELECT COUNT(*) FROM prayer_book_structure p LEFT JOIN writings w ON w.phelps=p.phelps_code WHERE w.phelps IS NULL"), "", "Structure rows pointing at a code that holds no text.", true},
 			{"Orphaned relations", qNum("SELECT COUNT(*) FROM writing_related r LEFT JOIN writings w ON w.phelps=r.phelps WHERE w.phelps IS NULL"), "", "Link-outs pointing nowhere.", true},
-			{"Texts that are empty", qNum("SELECT COUNT(*) FROM writings WHERE text IS NULL OR TRIM(text)=''"), "", "A row that names a work but holds no text for it.", false},
-			{"Texts with leaked markup", qNum(`SELECT COUNT(*) FROM writings WHERE text LIKE '%<div%' OR text LIKE '%&lt;%'`), "", "Scraper residue. Ingests strip markup, unescape, then strip again precisely to keep this at zero.", true},
+			{"Texts that are empty", qNum("SELECT COUNT(*) FROM writings WHERE text IS NULL OR TRIM(text)=''"), "", "A row that names a work but holds no text for it, so it gathers nothing and gives a reader nothing.", false},
+			{"Texts with leaked markup", qNum(`SELECT COUNT(*) FROM writings WHERE text LIKE '%<div%' OR text LIKE '%&lt;%'`), "", "Scraper residue, not markup as such. Stored HTML is normal here — 34,000 rows carry paragraph tags that render through Markdown — so this looks only for a stray <div wrapper or double-escaped markup, neither of which belongs in a text.", true},
 		},
 	})
 
