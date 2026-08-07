@@ -244,8 +244,7 @@ func itemText(page, anchor string) (string, string) {
 	seg = headRe.ReplaceAllString(seg, " ")   // the "– N –" heading is apparatus
 	seg = attribRe.ReplaceAllString(seg, " ") // and so is the signature line
 	seg = scriptRe.ReplaceAllString(seg, " ")
-	seg = tagRe.ReplaceAllString(seg, " ")
-	return num, strings.TrimSpace(wsRe.ReplaceAllString(html.UnescapeString(seg), " "))
+	return num, clean(seg)
 }
 
 // inventoryWords is the yardstick for the extent gate: the catalogue's own
@@ -282,11 +281,24 @@ func wholeWork(page string) string {
 		seg = pnumRe.ReplaceAllString(seg, " ")
 		seg = attribRe.ReplaceAllString(seg, " ")
 		seg = scriptRe.ReplaceAllString(seg, " ")
-		seg = tagRe.ReplaceAllString(seg, " ")
-		b.WriteString(html.UnescapeString(seg))
+		b.WriteString(seg)
 		b.WriteString(" ")
 	}
-	return strings.TrimSpace(wsRe.ReplaceAllString(b.String(), " "))
+	return clean(b.String())
+}
+
+// clean turns a markup fragment into text. Order matters: unescape FIRST, then
+// strip — stripping first lets escaped markup (&lt;div …) survive and become
+// literal markup once unescaped, which leaked "<div class=\"" into 122 rows on
+// 2026-08-06. Stripping twice around the unescape makes that impossible.
+func clean(seg string) string {
+	seg = tagRe.ReplaceAllString(seg, " ")
+	seg = html.UnescapeString(seg)
+	seg = tagRe.ReplaceAllString(seg, " ")
+	for _, ui := range []string{"ادامۀ مطالعه", "Continue reading"} {
+		seg = strings.ReplaceAll(seg, ui, " ")
+	}
+	return strings.TrimSpace(wsRe.ReplaceAllString(seg, " "))
 }
 
 // langOf reads the language from the resolved path: bahai.org serves English
