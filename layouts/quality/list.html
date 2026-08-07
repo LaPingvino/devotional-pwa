@@ -1,0 +1,129 @@
+{{ partial "head.html" (dict "Title" "Data Quality" "Lang" "en") }}
+{{ $q := site.Data.quality }}
+{{ if not $q }}
+  <div class="quality-page">
+    <h1>Data Quality</h1>
+    <p>The report is generated from the database at build time and is not
+       available in this build.</p>
+  </div>
+{{ else }}
+<div class="quality-page">
+
+  <h1>Data Quality</h1>
+  <p class="quality-lede">
+    This catalogue is large enough that nobody can check it by reading it. So it
+    checks itself: every figure below is recomputed from the database each time
+    the site is built, and none of it is maintained by hand.
+  </p>
+  <p class="quality-generated">Recomputed {{ $q.generated }}</p>
+
+  {{ range $q.groups }}
+  <section class="quality-group">
+    <h2>{{ .title }}</h2>
+    {{ with .note }}<p class="quality-note">{{ . }}</p>{{ end }}
+    <div class="quality-checks">
+      {{ range .checks }}
+      <div class="quality-check{{ if not .good }} quality-check-open{{ end }}">
+        <div class="quality-value">{{ lang.FormatNumber 0 .value }}</div>
+        <div class="quality-body">
+          <div class="quality-name">{{ .name }}</div>
+          <div class="quality-meaning">{{ .meaning }}</div>
+        </div>
+      </div>
+      {{ end }}
+    </div>
+  </section>
+  {{ end }}
+
+  <section class="quality-group">
+    <h2>How many languages a work reaches</h2>
+    <p class="quality-note">
+      A code gathers every translation of one work under one name — that is what
+      makes a corpus in 500+ languages navigable at all. This is the shape of
+      what it gathers.
+    </p>
+    <table class="quality-table">
+      <thead><tr><th>Languages</th><th>Works</th></tr></thead>
+      <tbody>
+        {{ range $q.language_spread }}
+        <tr><td>{{ .band }}</td><td class="num">{{ lang.FormatNumber 0 .works }}</td></tr>
+        {{ end }}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="quality-group">
+    <h2>Coverage by book</h2>
+    <p class="quality-note">
+      Every book here has a known item order taken from the catalogue itself, so
+      an item we hold no text for is <em>visible</em> rather than simply absent.
+      Knowing what is missing is the precondition for filling it.
+    </p>
+    <table class="quality-table">
+      <thead><tr><th>Book</th><th>Items</th><th>With text</th><th>Coverage</th></tr></thead>
+      <tbody>
+        {{ range $q.books }}
+        {{ $pct := 0 }}{{ if gt .items 0 }}{{ $pct = div (mul .with_text 100.0) .items }}{{ end }}
+        <tr>
+          <td>{{ .key }}</td>
+          <td class="num">{{ .items }}</td>
+          <td class="num">{{ .with_text }}</td>
+          <td class="num">
+            <span class="quality-bar" style="--pct:{{ $pct }}%"></span>
+            {{ lang.FormatNumber 0 $pct }}%
+          </td>
+        </tr>
+        {{ end }}
+      </tbody>
+    </table>
+  </section>
+
+  <section class="quality-group">
+    <h2>What these numbers are not</h2>
+    <p class="quality-note">
+      Several figures that look like faults are the catalogue being honest. A
+      work held in only one language is normal — no language is guaranteed to
+      exist for any work, and a code with only translations is a name waiting
+      for its original rather than a gap in the evidence. A code marked
+      <em>identity pending</em> is a work that has been brought into being while
+      the question of which work it is stays open; that is a truthful state, and
+      preferable to a confident guess. The figures worth acting on are the ones
+      marked in the lists above.
+    </p>
+  </section>
+
+</div>
+{{ end }}
+
+<style>
+.quality-page { max-width: 60rem; margin: 0 auto; padding: 1rem; }
+.quality-lede { font-size: 1.05rem; line-height: 1.6; color: var(--text); max-width: 44rem; }
+.quality-generated { color: var(--text-secondary); font-size: .85rem; margin-top: -.4rem; }
+.quality-group { margin-top: 2.5rem; }
+.quality-group h2 { font-size: 1.15rem; margin-bottom: .35rem; }
+.quality-note { color: var(--text-secondary); max-width: 44rem; line-height: 1.55; margin-top: 0; }
+.quality-checks { display: grid; gap: .5rem; margin-top: 1rem; }
+.quality-check {
+  display: grid; grid-template-columns: 7rem 1fr; gap: 1rem;
+  align-items: baseline; padding: .7rem .9rem;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+}
+.quality-check-open { border-left: 3px solid var(--accent); }
+.quality-value { font-size: 1.5rem; font-weight: 700; text-align: right; font-variant-numeric: tabular-nums; }
+.quality-name { font-weight: 600; }
+.quality-meaning { color: var(--text-secondary); font-size: .9rem; line-height: 1.5; margin-top: .15rem; }
+.quality-table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: .92rem; }
+.quality-table th, .quality-table td { text-align: left; padding: .4rem .6rem; border-bottom: 1px solid var(--border); }
+.quality-table td.num, .quality-table th:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+.quality-bar {
+  display: inline-block; width: 4rem; height: .45rem; margin-right: .5rem;
+  border-radius: 3px; background: var(--border); vertical-align: middle;
+  background-image: linear-gradient(to right, var(--accent) var(--pct), transparent var(--pct));
+}
+@media (max-width: 34rem) {
+  .quality-check { grid-template-columns: 1fr; gap: .2rem; }
+  .quality-value { text-align: left; }
+  .quality-bar { display: none; }
+}
+</style>
+{{ partial "foot.html" . }}

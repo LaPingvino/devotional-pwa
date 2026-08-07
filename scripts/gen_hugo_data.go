@@ -27,6 +27,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/lapingvino/devotional-pwa/scripts/phelpscode"
 )
@@ -860,6 +861,8 @@ func main() {
 	})
 	writeJSON(filepath.Join(staticDir, "explorer.json"), explorerList)
 	log.Printf("  %d explorer entries", len(explorerList))
+
+	writeQualityReport(dataDir)
 
 	log.Println("Done!")
 }
@@ -2802,4 +2805,130 @@ func stripHTML(s string) string {
 	}
 	result := strings.Join(strings.Fields(string(out)), " ")
 	return strings.TrimSpace(result)
+}
+
+// ── Data quality report ───────────────────────────────────────────────────
+//
+// Regenerated on every build, so it can never go stale relative to the data it
+// describes. Each check is one query and states what it MEANS, not just a
+// number: a count with no interpretation invites the wrong conclusion, and
+// several of these numbers are healthy rather than alarming (a work held only
+// in translation is normal; an unowned paragraph space is honest).
+
+type qualityCheck struct {
+	Name    string `json:"name"`
+	Value   int    `json:"value"`
+	Detail  string `json:"detail,omitempty"`
+	Meaning string `json:"meaning"`
+	Good    bool   `json:"good"` // true when the number is fine as it stands
+}
+
+type qualityGroup struct {
+	Title  string         `json:"title"`
+	Note   string         `json:"note,omitempty"`
+	Checks []qualityCheck `json:"checks"`
+}
+
+type qualityReport struct {
+	Generated string           `json:"generated"`
+	Groups    []qualityGroup   `json:"groups"`
+	Books     []qualityBook    `json:"books"`
+	Langs     []qualityLangRow `json:"language_spread"`
+}
+
+type qualityBook struct {
+	Key      string `json:"key"`
+	Items    int    `json:"items"`
+	WithText int    `json:"with_text"`
+}
+
+type qualityLangRow struct {
+	Band  string `json:"band"`
+	Works int    `json:"works"`
+}
+
+func qNum(q string) int {
+	rows := doltQuery(q)
+	if len(rows) < 2 || len(rows[1]) < 1 {
+		return 0
+	}
+	n, _ := strconv.Atoi(strings.TrimSpace(rows[1][0]))
+	return n
+}
+
+func writeQualityReport(dataDir string) {
+	log.Println("→ data quality report...")
+
+	coded := "phelps IS NOT NULL AND phelps <> ''"
+	rep := qualityReport{Generated: time.Now().UTC().Format("2006-01-02")}
+
+	rep.Groups = append(rep.Groups, qualityGroup{
+		Title: "Scale",
+		Note:  "What the catalogue holds.",
+		Checks: []qualityCheck{
+			{"Works named", qNum("SELECT COUNT(DISTINCT phelps) FROM writings WHERE " + coded), "", "Distinct codes. A code is a work: a tablet, a prayer within one, an excerpt that circulates on its own.", true},
+			{"Texts held", qNum("SELECT COUNT(*) FROM writings"), "", "Rows — one work in one language, from one source.", true},
+			{"Languages", qNum("SELECT COUNT(DISTINCT language) FROM writings WHERE language <> ''"), "", "Counting every language in which we hold at least one text.", true},
+			{"Books catalogued", qNum("SELECT COUNT(DISTINCT collection_key) FROM writing_collections"), "", "Collections with a known item order.", true},
+		},
+	})
+
+	noMajor := `SELECT COUNT(*) FROM (SELECT phelps FROM writings WHERE ` + coded +
+		` AND phelps NOT LIKE 'TMP%' AND phelps NOT LIKE 'X%' GROUP BY phelps
+		  HAVING SUM(language IN ('en','es','fr','de','pt','ru','zh-Hans','zh-Hant','ar','hi','id','nl'))=0) t`
+	rep.Groups = append(rep.Groups, qualityGroup{
+		Title: "Findability",
+		Note:  "A work nobody can search for is, in practice, unnamed. This is the measure that matters most, and the one hardest to move.",
+		Checks: []qualityCheck{
+			{"Works in one language only", qNum("SELECT COUNT(*) FROM (SELECT phelps FROM writings WHERE " + coded + " GROUP BY phelps HAVING COUNT(DISTINCT language)=1) t"), "", "Usually an original with no translation yet. Not an error — no language is guaranteed to exist for any work — but it is the ceiling on who can read it.", false},
+			{"Works in no widely-read language", qNum(noMajor), "", "Reachable only by someone who reads the original.", false},
+			{"…of those, given an English first line", qNum(`SELECT COUNT(*) FROM (SELECT DISTINCT phelps FROM writings WHERE phelps REGEXP '^[A-Z]{2}[0-9]{5}$') b JOIN inventory i ON i.PIN=b.phelps WHERE i.` + "`First line (translated)`" + ` IS NOT NULL AND i.` + "`First line (translated)`" + ` <> '' AND NOT EXISTS (SELECT 1 FROM writings w WHERE w.phelps=b.phelps AND w.language='en')`), "", "The catalogue's own English opening, surfaced in search so the work can at least be found and identified. No translation is invented.", true},
+		},
+	})
+
+	rep.Groups = append(rep.Groups, qualityGroup{
+		Title: "Identity",
+		Note:  "Every text must carry a name. A missing name is the one state the catalogue does not allow.",
+		Checks: []qualityCheck{
+			{"Texts with no code", qNum("SELECT COUNT(*) FROM writings WHERE phelps IS NULL OR phelps=''"), "", "Must be zero. A text with no name cannot gather its translations.", true},
+			{"Identity pending (TMP)", qNum("SELECT COUNT(DISTINCT phelps) FROM writings WHERE phelps LIKE 'TMP%'"), "", "One work, identity not yet established. Constitutive but deferred — an honest state, not a defect.", true},
+			{"Identity absent (X)", qNum("SELECT COUNT(DISTINCT phelps) FROM writings WHERE phelps LIKE 'X%'"), "", "Identity could not be established with the tools used. Reopened whenever better tools arrive.", true},
+			{"Malformed codes", qNum(`SELECT COUNT(DISTINCT phelps) FROM writings WHERE ` + coded + ` AND phelps NOT REGEXP '^[A-Z]{1,2}[A-Z0-9]{4,}'`), "", "Codes that do not parse. Should be zero.", true},
+		},
+	})
+
+	rep.Groups = append(rep.Groups, qualityGroup{
+		Title: "Integrity",
+		Note:  "Every reference should resolve. These are the checks that catch a rename that swept some tables but not all.",
+		Checks: []qualityCheck{
+			{"Orphaned prayer-book entries", qNum("SELECT COUNT(*) FROM prayer_book_structure p LEFT JOIN writings w ON w.phelps=p.phelps_code WHERE w.phelps IS NULL"), "", "Structure rows pointing at a code that holds no text.", true},
+			{"Orphaned relations", qNum("SELECT COUNT(*) FROM writing_related r LEFT JOIN writings w ON w.phelps=r.phelps WHERE w.phelps IS NULL"), "", "Link-outs pointing nowhere.", true},
+			{"Texts that are empty", qNum("SELECT COUNT(*) FROM writings WHERE text IS NULL OR TRIM(text)=''"), "", "A row that names a work but holds no text for it.", false},
+			{"Texts with leaked markup", qNum(`SELECT COUNT(*) FROM writings WHERE text LIKE '%<div%' OR text LIKE '%&lt;%'`), "", "Scraper residue. Ingests strip markup, unescape, then strip again precisely to keep this at zero.", true},
+		},
+	})
+
+	for _, r := range doltQuery(`
+		SELECT wc.collection_key, COUNT(*) AS items,
+		       SUM(EXISTS(SELECT 1 FROM writings w WHERE w.phelps = wc.phelps)) AS with_text
+		FROM writing_collections wc GROUP BY wc.collection_key ORDER BY items DESC`)[1:] {
+		if len(r) < 3 {
+			continue
+		}
+		items, _ := strconv.Atoi(strings.TrimSpace(r[1]))
+		with, _ := strconv.Atoi(strings.TrimSpace(r[2]))
+		rep.Books = append(rep.Books, qualityBook{r[0], items, with})
+	}
+
+	for _, band := range []struct{ label, cond string }{
+		{"1 language", "= 1"}, {"2", "= 2"}, {"3–5", "BETWEEN 3 AND 5"},
+		{"6–20", "BETWEEN 6 AND 20"}, {"more than 20", "> 20"},
+	} {
+		rep.Langs = append(rep.Langs, qualityLangRow{band.label,
+			qNum("SELECT COUNT(*) FROM (SELECT phelps FROM writings WHERE " + coded +
+				" GROUP BY phelps HAVING COUNT(DISTINCT language) " + band.cond + ") t")})
+	}
+
+	writeJSON(filepath.Join(dataDir, "quality.json"), rep)
+	log.Printf("  quality report: %d groups, %d books", len(rep.Groups), len(rep.Books))
 }
