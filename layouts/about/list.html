@@ -186,68 +186,36 @@ If you have thoughts on better associations, I&rsquo;d love to hear them.</p>
 <!-- ============================================================ -->
 <h2 id="quality">Data quality</h2>
 
-<p>This is a work in progress. The matching process is imperfect, and I&rsquo;m
-continuously improving it. Here&rsquo;s an honest picture of where things stand:</p>
+<p>The <a href="/quality/">data quality page</a> shows where the collection
+currently stands &mdash; how many works it holds, in how many languages, and what
+the automatic checks flag. Those figures are recalculated from the database every
+time the site is rebuilt, so they describe the data you are actually reading.</p>
 
-<h3>What&rsquo;s solid</h3>
+<p>What that is worth knowing as a reader:</p>
+
 <ul>
-  <li>Every prayer entry has an identifier &mdash; no untagged entries.</li>
-  <li>Of the ~2,000 distinct works represented, over 1,250 carry their
-    original Arabic or Persian text alongside the translations.</li>
-  <li>Identity codes are aligned to <strong>Phelps Inventory 6.0</strong>
-    (June 2026), including all of its catalog mergers.</li>
-  <li>Systematic length-ratio audits have been completed across the eight
-    largest translation languages (German, Spanish, Portuguese, Italian,
-    Dutch, French, Russian, Ukrainian) &mdash; every flagged entry was
-    verified against opening <em>and</em> closing lines, and dozens of
-    mis-filed prayers were re-identified. Two structural import defects
-    found this way (an Italian tablet collection joined at offset ordinals,
-    and swapped French <em>Some Answered Questions</em> chapters) have been
-    fully repaired.</li>
-  <li>Cross-language matching for major languages is well-tested.</li>
-  <li>400+ prayer excerpts have proper mnemonic sub-codes for disambiguation,
-    following a consistent rule: a prayer used on its own always gets its own
-    named code, even when it lives inside a larger tablet or book.</li>
-  <li>Known false positives are blacklisted to prevent recurrence.</li>
-  <li>All 24 Kit&aacute;b-i-&Iacute;q&aacute;n translations aligned to 287 paragraphs.</li>
+  <li><strong>Every text carries an identifier</strong>, which is what lets the
+    same prayer in different languages be shown together. The codes follow the
+    Phelps Inventory (6.0).</li>
+  <li><strong>Most of the matching was done with machine assistance</strong> and
+    then checked. Mistakes survive, and they cluster in predictable places: short
+    prayers, prayers that open with a common formula, and languages with few
+    other translations to compare against.</li>
+  <li><strong>A prayer may be absent rather than wrong.</strong> No work is
+    guaranteed to exist in every language, and a missing translation is not an
+    error. Around 70 texts have not been identified at all; those are labelled as
+    unidentified rather than assigned a guess.</li>
+  <li><strong>Categories come from the source sites</strong> and are sometimes
+    wrong.</li>
+  <li><strong>Transliteration is predicted</strong> where the original is
+    unvocalised. Uncertain vowels are shown faded so you can see which are
+    guesses.</li>
 </ul>
 
-<h3>What needs work</h3>
-<ul>
-  <li><strong>Under 100 unidentified texts</strong> (TMP/X codes) remain &mdash; down
-    from roughly 500 at the start of 2026. The core is a block of ~70 Persian
-    devotional texts with no Inventory match by any tool we have; they are
-    currently under joint investigation with the Inventory&rsquo;s compiler.</li>
-  <li><strong>Inventory metadata pages</strong> still show the 5.x catalog
-    snapshot &mdash; the 6.0 import is staged on a database branch awaiting a
-    corrected export (the 6.0 CSV lost its Arabic first-line columns in
-    transit), so identity codes are already 6.0 while entry descriptions
-    lag slightly behind.</li>
-  <li><strong>Most matching was done with LLM assistance</strong> &mdash; initial bulk
-    matching of 10,000+ prayers across 500+ languages was done through extensive
-    Gemini sessions, followed by ongoing cleanup with Claude. The LLM helps
-    translate excerpts, identify prayers by context, and flag suspicious matches.
-    The results are then verified and corrected manually, but some errors
-    inevitably remain &mdash; especially for short prayers or prayers with similar
-    openings in less-common languages.</li>
-  <li><strong>Categories come from the source sites</strong> and occasionally have
-    errors.</li>
-  <li><strong>Transliteration</strong> uses heuristics and statistical prediction &mdash;
-    predicted vowels are marked but may be wrong, especially for unvocalized
-    Arabic text where multiple readings are possible.</li>
-</ul>
-
-<h3>How I&rsquo;m checking</h3>
-<ul>
-  <li>Using LLM assistance to run length-ratio scans across languages
-    &mdash; if the &ldquo;same&rdquo; prayer is 5x longer in one language, something is probably
-    miscoded.</li>
-  <li>Systematic category audits across the top languages.</li>
-  <li>Splitting same-tablet prayers that were incorrectly sharing one code.</li>
-  <li>Fingerprint-vector similarity matching for cross-language verification.</li>
-  <li>And of course: reading reports from people who actually use these prayers and
-    notice when something is off.</li>
-</ul>
+<p>Automatic checks catch structural faults &mdash; a broken reference, a text that
+went missing. They cannot tell whether a text is the prayer its code says it is.
+If something looks wrong to you, it may well be, and saying so is the most
+reliable check this collection has. See <a href="#help">how you can help</a>.</p>
 
 <!-- ============================================================ -->
 <h2 id="help">How you can help</h2>

@@ -28,6 +28,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/lapingvino/devotional-pwa/scripts/phelpscode"
 )
@@ -2908,6 +2909,8 @@ func writeQualityReport(dataDir string) {
 		},
 	})
 
+	rep.Groups = append(rep.Groups, linguisticGroup())
+
 	for _, r := range doltQuery(`
 		SELECT wc.collection_key, COUNT(*) AS items,
 		       SUM(EXISTS(SELECT 1 FROM writings w WHERE w.phelps = wc.phelps)) AS with_text
@@ -2931,4 +2934,230 @@ func writeQualityReport(dataDir string) {
 
 	writeJSON(filepath.Join(dataDir, "quality.json"), rep)
 	log.Printf("  quality report: %d groups, %d books", len(rep.Groups), len(rep.Books))
+}
+
+// ── Linguistic proxies ────────────────────────────────────────────────────
+//
+// The structural checks above are exact. These are not: they are cheap signals
+// that CORRELATE with the errors this corpus actually produces, and every one
+// of them has a legitimate exception. None is a verdict; each is a place to
+// look. They earn their keep by being computable over 60,000 rows in seconds,
+// where reading them would take a lifetime and reading them across 500
+// languages is not possible for any one person at all.
+//
+// Each proxy below is derived from a defect that really happened, not imagined.
+
+// scriptOf classifies a rune into the writing system it belongs to. Only the
+// systems present in this corpus are distinguished; everything else is "other"
+// and never triggers a flag.
+func scriptOf(r rune) string {
+	switch {
+	case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= 0x00C0 && r <= 0x024F:
+		return "latin"
+	case r >= 0x0600 && r <= 0x06FF, r >= 0x0750 && r <= 0x077F, r >= 0xFB50 && r <= 0xFDFF:
+		return "arabic"
+	case r >= 0x0400 && r <= 0x04FF:
+		return "cyrillic"
+	case r >= 0x0370 && r <= 0x03FF:
+		return "greek"
+	case r >= 0x0590 && r <= 0x05FF:
+		return "hebrew"
+	case r >= 0x0900 && r <= 0x097F:
+		return "devanagari"
+	case r >= 0x0E00 && r <= 0x0E7F:
+		return "thai"
+	case r >= 0x4E00 && r <= 0x9FFF, r >= 0x3040 && r <= 0x30FF:
+		return "han"
+	}
+	return "other"
+}
+
+// expectedScript maps a language to the script its texts should be written in.
+// Only languages whose script is unambiguous are listed — a language absent
+// here is never flagged, which is the conservative direction.
+var expectedScript = map[string]string{
+	"ar": "arabic", "fa": "arabic", "ur": "arabic", "ps": "arabic", "sd": "arabic",
+	"ru": "cyrillic", "uk": "cyrillic", "bg": "cyrillic", "mk": "cyrillic",
+	"be": "cyrillic", "kk": "cyrillic", "ky": "cyrillic", "mn": "cyrillic",
+	"el": "greek", "he": "hebrew", "hi": "devanagari", "ne": "devanagari",
+	"mr": "devanagari", "sa": "devanagari", "th": "thai",
+	"zh-Hans": "han", "zh-Hant": "han", "ja": "han",
+	"en": "latin", "es": "latin", "fr": "latin", "de": "latin", "nl": "latin",
+	"pt": "latin", "it": "latin", "pl": "latin", "sv": "latin", "da": "latin",
+	"fi": "latin", "cs": "latin", "hu": "latin", "ro": "latin", "tr": "latin",
+	"id": "latin", "vi": "latin", "af": "latin", "eo": "latin",
+}
+
+// dominantScript reports the script most of a text is written in, ignoring
+// digits, spaces and punctuation, plus how dominant it is.
+func dominantScript(s string) (string, float64) {
+	counts := map[string]int{}
+	total := 0
+	for _, r := range s {
+		if sc := scriptOf(r); sc != "other" {
+			counts[sc]++
+			total++
+		}
+	}
+	if total < 20 { // too short to judge
+		return "", 0
+	}
+	best, bestN := "", 0
+	for sc, n := range counts {
+		if n > bestN {
+			best, bestN = sc, n
+		}
+	}
+	return best, float64(bestN) / float64(total)
+}
+
+// normKey is a crude fingerprint for "is this the same text": letters and
+// digits only, lowercased. Crude on purpose — it should survive differences in
+// punctuation and markup, which vary by source for identical text.
+func normKey(s string) string {
+	var b strings.Builder
+	for _, r := range strings.ToLower(s) {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) {
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
+// tokenSet splits a text into distinct lowercased word-ish tokens. Scripts
+// without spaces would collapse to one token, so those are cut into characters
+// instead — otherwise every Chinese text would look identical to every other.
+func tokenSet(s string) map[string]bool {
+	out := map[string]bool{}
+	spaceless := 0
+	for _, r := range s {
+		if sc := scriptOf(r); sc == "han" || sc == "thai" {
+			spaceless++
+		}
+	}
+	if spaceless > 20 {
+		for _, r := range s {
+			if unicode.IsLetter(r) {
+				out[string(r)] = true
+			}
+		}
+		return out
+	}
+	for _, f := range strings.Fields(strings.ToLower(s)) {
+		t := strings.TrimFunc(f, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
+		if len([]rune(t)) > 1 {
+			out[t] = true
+		}
+	}
+	return out
+}
+
+// overlap is the share of the smaller set found in the larger — the same
+// containment measure used elsewhere in this project, because one text being a
+// shorter rendering of another is an extent relationship, not a conflict.
+func overlap(a, b map[string]bool) float64 {
+	if len(a) == 0 || len(b) == 0 {
+		return 1 // nothing to say
+	}
+	if len(a) > len(b) {
+		a, b = b, a
+	}
+	hit := 0
+	for t := range a {
+		if b[t] {
+			hit++
+		}
+	}
+	return float64(hit) / float64(len(a))
+}
+
+func linguisticGroup() qualityGroup {
+	rows := doltQuery(`SELECT phelps, language, LEFT(text, 600) FROM writings
+	                   WHERE phelps IS NOT NULL AND phelps <> '' AND text IS NOT NULL AND TRIM(text) <> ''`)
+
+	var scriptMismatch int
+	// Per code+language we keep a few token sets rather than just fingerprints:
+	// two rows differing only in punctuation or source formatting are the same
+	// text, and even two genuinely different TRANSLATIONS into one language share
+	// most of their proper nouns. Only texts that barely overlap are suspicious.
+	// Capped at 4 per group to bound memory.
+	byCodeLang := map[string][]map[string]bool{}
+	byText := map[string]map[string]bool{} // fingerprint → set of base codes
+
+	for _, r := range rows[1:] {
+		if len(r) < 3 {
+			continue
+		}
+		code, lang, text := r[0], r[1], stripHTML(r[2])
+		if strings.TrimSpace(text) == "" {
+			continue
+		}
+
+		if want, known := expectedScript[lang]; known {
+			if got, share := dominantScript(text); got != "" && got != want && share > 0.6 {
+				scriptMismatch++
+			}
+		}
+
+		fp := normKey(text)
+		if len(fp) < 40 { // too short to fingerprint safely
+			continue
+		}
+		ck := code + "|" + lang
+		if len(byCodeLang[ck]) < 4 {
+			byCodeLang[ck] = append(byCodeLang[ck], tokenSet(text))
+		}
+
+		base := phelpscode.Parse(code).Base
+		if byText[fp] == nil {
+			byText[fp] = map[string]bool{}
+		}
+		byText[fp][base] = true
+	}
+
+	divergent := 0
+	for _, sets := range byCodeLang {
+		if len(sets) < 2 {
+			continue
+		}
+		// Flag only when some pair shares almost nothing. A second translation
+		// into the same language still carries the same names and epithets;
+		// a different prayer does not.
+		worst := 1.0
+		for i := 0; i < len(sets); i++ {
+			for j := i + 1; j < len(sets); j++ {
+				if o := overlap(sets[i], sets[j]); o < worst {
+					worst = o
+				}
+			}
+		}
+		// 0.05, calibrated against the corpus: 566 groups fall under 0.3 and most
+		// are simply second translations, while 111 fall under 0.05 and those
+		// cluster in languages with plenty of data — where sharing nothing is
+		// hard to explain innocently.
+		if worst < 0.05 {
+			divergent++
+		}
+	}
+	shared := 0
+	for _, bases := range byText {
+		if len(bases) > 1 {
+			shared++
+		}
+	}
+
+	return qualityGroup{
+		Title: "Linguistic signals",
+		Note: "These are proxies, not proofs. Each correlates with a real class of error, " +
+			"each has honest exceptions, and none should be acted on without reading the rows. " +
+			"They exist because a corpus this size in this many languages cannot be checked by reading it.",
+		Checks: []qualityCheck{
+			{"Texts not in their language's script", scriptMismatch, "",
+				"A row labelled Persian written in Latin letters, or the reverse. Usually a mislabelled language or a transliteration filed as the original. Only languages with an unambiguous script are tested, and only when one script dominates the text.", false},
+			{"One code and language, two unrelated texts", divergent, "",
+				"The same work claimed twice in one language by texts that share almost no words. Holding several renderings of a prayer in a language is normal and not counted here — a second translation still carries the same names and epithets. Only near-zero overlap is flagged, which is the shape of every crossed row found so far.", false},
+			{"One text under two different works", shared, "",
+				"Identical text filed under two codes. Sometimes a genuine duplicate from two sources, sometimes a work that has been split in two by mistake. Worth reading either way.", false},
+		},
+	}
 }
