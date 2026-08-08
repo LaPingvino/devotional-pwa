@@ -104,7 +104,7 @@ all common.
 ## Measuring the right thing
 
 Most false findings in this corpus come from a measurement that was correct in
-itself and answered the wrong question. Five that have each produced a confident
+itself and answered the wrong question. Seven that have each produced a confident
 mistake:
 
 **Match the granularity of the measurement to the granularity of the claim.** A
@@ -153,6 +153,15 @@ carry the measurement that was actually verified.
 whether an item's tablet has any text becomes true for every item the moment a
 collection is anchored — a check that cannot fail. Ask instead whether there is
 text in a language the reader has.
+
+**Measure existing coverage before building an ingest.** The instinct on finding
+a gap is to build the fetcher, and the fetcher is the expensive, error-prone
+part. Ask first how much of the gap is already held: Prayers and Meditations
+looked like it needed an ingest of every item, and the texts were largely present
+already — what was missing was the numbering that connects item to text, which is
+a query, not a scrape. Of the catalogued items that genuinely held nothing, all
+88 turned out to have deep links, so the measurement also chose the method. The
+coverage query costs minutes and decides both whether to build and what to build.
 
 ## Safeguards before a write
 
