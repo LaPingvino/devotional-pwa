@@ -67,6 +67,27 @@ an extent relationship, not a conflict. Containment requires **full text** —
 screening on a truncated prefix can only ever find excerpts that are themselves
 prefixes, and misreads a closing-sentence excerpt as a stranger.
 
+**But containment alone cannot make a join.** It answers "does this sit inside
+that", and a long work contains *every* excerpt of itself — so it will happily
+report 0.99 for a dozen different passages against one code. Ten Selections
+positions scored 0.99 against `BB00018MAJ` on exactly this: all true, none of
+them identity. A join asserts "this item **is** that work", which needs extent
+agreement as well as content, so require Jaccard too. On one pass the Jaccard
+gate removed 14 of 40 candidate joins, every one an excerpt sitting inside a
+larger work. Use containment to *discover* the relationship and Jaccard to
+decide whether it is sameness or containment-proper.
+
+**Compare same-language witnesses only.** A containment score between a Persian
+text and an English one is noise wearing a number. Where the two sides have no
+language in common, fall back to extent plus opening comparison in whatever
+languages do pair up — and say that is what you did.
+
+**Know whose text you are holding.** When an item's text is taken from its
+*base* code, every membership position on that base shares it, so the comparison
+cannot tell those positions apart — it is evidence about the base, not the item.
+Restrict such a pass to bases carrying a single position, or fetch per-item text
+first.
+
 Expect false positives from alternate translations of one prayer and from
 rubric-prefixed rows. Structured sources with position codes give the
 trustworthy signal.
