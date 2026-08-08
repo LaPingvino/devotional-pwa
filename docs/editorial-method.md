@@ -71,6 +71,33 @@ Expect false positives from alternate translations of one prayer and from
 rubric-prefixed rows. Structured sources with position codes give the
 trustworthy signal.
 
+**Where does it start, and how much of it is there?** These are two questions,
+and a collection item that claims a whole tablet's code needs both answered
+before you believe it. The inventory answers both without fetching anything:
+`Word count` gives extent in the original language, and `First line (original)`
+gives the opening. Neither instrument decides alone — a short text that opens at
+the tablet's start is an excerpt *from the beginning*, and a full-length text
+that opens elsewhere is a different work. Only agreement means "whole tablet".
+
+Comparing openings needs a different normalizer from comparing texts. `norm()`
+returns a **set**, which is what containment wants and which throws word order
+away; an opening is a **sequence**, so `opening()` keeps the order and drops the
+spaces — Persian word boundaries are not stable between the inventory's
+transcriptions and the published editions (هر چند / هرچند). Even folded, the two
+disagree on real spellings (علا/علی, به/ب as a prefix), so `opens_alike()` scores
+similarity rather than demanding an exact prefix. Across 43 SWAB items the score
+came out bimodal — ≥0.83 or ≤0.48, nothing between — so the 0.85 cut sits in an
+empty gap rather than on a slope. Check that gap on each new population; if the
+scores are continuous there, the threshold is doing the work, not the evidence.
+
+Calibrate on rows already known to be excerpts before trusting either number.
+SWAB's 33 tightened excerpts average 0.23 extent (max 0.56) and Gleanings' 62
+average 0.07 (max 0.43) — in both the whole-tablet region is empty of known
+excerpts, which is what earns the reading. The two books then answer very
+differently: 17 of 43 SWAB items are whole tablets, against 6 of 81 in Gleanings.
+That contrast is the instrument tracking the corpus — Gleanings is a book of
+extracts, SWAB reprints many complete tablets — and not a threshold choice.
+
 ## Cross-language placement
 
 Similarity scores do not cross languages. What works instead: **extent
