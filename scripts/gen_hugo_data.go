@@ -3221,14 +3221,20 @@ func linguisticGroup() qualityGroup {
 	// opening, or differing only in punctuation, would register as one wording —
 	// both of which make this LOOSER than the sweep the fix was verified against.
 	// Exact text, full length, so the number on the page means what it says.
+	// GROUP_CONCAT must stay OUT of the HAVING clause. With it there, and an
+	// outer COUNT(*) around the derived table, Dolt fails with "unable to find
+	// field with index 14 in row of 6 columns" — and doltQuery calls
+	// log.Fatalf, so that would take the whole site build down. Selecting the
+	// concatenation and filtering it outside returns the same answer and works.
 	wrongLabel := qNum("SELECT COUNT(*) FROM (" +
-		"SELECT phelps, source_id, MD5(text) AS h " +
+		"SELECT phelps, source_id, MD5(text) AS h, " +
+		"       GROUP_CONCAT(DISTINCT language ORDER BY language) AS langs " +
 		"FROM writings " +
 		"WHERE phelps IS NOT NULL AND phelps <> '' AND source_id IS NOT NULL " +
 		"  AND source_id <> '' AND LENGTH(text) > 200 " +
 		"GROUP BY phelps, source_id, MD5(text) " +
-		"HAVING COUNT(DISTINCT language) > 1 " +
-		"   AND GROUP_CONCAT(DISTINCT language ORDER BY language) <> 'ar,fa') t")
+		"HAVING COUNT(DISTINCT language) > 1) t " +
+		"WHERE t.langs <> 'ar,fa'")
 
 	return qualityGroup{
 		Title: "Linguistic signals",
