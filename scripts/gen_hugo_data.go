@@ -2841,6 +2841,8 @@ type qualityBook struct {
 	Key      string `json:"key"`
 	Items    int    `json:"items"`
 	WithText int    `json:"with_text"`
+	Readable int    `json:"readable"`
+	Excerpts int    `json:"excerpts"`
 }
 
 type qualityLangRow struct {
@@ -2911,16 +2913,25 @@ func writeQualityReport(dataDir string) {
 
 	rep.Groups = append(rep.Groups, linguisticGroup())
 
+	// "with_text" only asks whether the item's TABLET is held, which becomes
+	// true for every item the moment a collection is anchored — a check that
+	// cannot fail tells you nothing. "readable" asks the reader's question
+	// instead: is there an English text at that code? For Prayers and
+	// Meditations the two answers are 183 and 156, and the gap is the point.
 	for _, r := range doltQuery(`
 		SELECT wc.collection_key, COUNT(*) AS items,
-		       SUM(EXISTS(SELECT 1 FROM writings w WHERE w.phelps = wc.phelps)) AS with_text
+		       SUM(EXISTS(SELECT 1 FROM writings w WHERE w.phelps = wc.phelps)) AS with_text,
+		       SUM(EXISTS(SELECT 1 FROM writings w WHERE w.phelps = wc.phelps AND w.language='en')) AS readable,
+		       SUM(wc.is_excerpt) AS excerpts
 		FROM writing_collections wc GROUP BY wc.collection_key ORDER BY items DESC`)[1:] {
-		if len(r) < 3 {
+		if len(r) < 5 {
 			continue
 		}
 		items, _ := strconv.Atoi(strings.TrimSpace(r[1]))
 		with, _ := strconv.Atoi(strings.TrimSpace(r[2]))
-		rep.Books = append(rep.Books, qualityBook{r[0], items, with})
+		readable, _ := strconv.Atoi(strings.TrimSpace(r[3]))
+		exc, _ := strconv.Atoi(strings.TrimSpace(r[4]))
+		rep.Books = append(rep.Books, qualityBook{r[0], items, with, readable, exc})
 	}
 
 	for _, band := range []struct{ label, cond string }{
