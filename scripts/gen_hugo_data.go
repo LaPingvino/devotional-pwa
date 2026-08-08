@@ -2904,8 +2904,15 @@ func writeQualityReport(dataDir string) {
 		Title: "Integrity",
 		Note:  "Every reference should resolve. These are the checks that catch a rename that swept some tables but not all.",
 		Checks: []qualityCheck{
-			{"Orphaned prayer-book entries", qNum("SELECT COUNT(*) FROM prayer_book_structure p LEFT JOIN writings w ON w.phelps=p.phelps_code WHERE w.phelps IS NULL"), "", "Structure rows pointing at a code that holds no text.", true},
-			{"Orphaned relations", qNum("SELECT COUNT(*) FROM writing_related r LEFT JOIN writings w ON w.phelps=r.phelps WHERE w.phelps IS NULL"), "", "Link-outs pointing nowhere.", true},
+			// NOT EXISTS, not LEFT JOIN ... IS NULL. Dolt's LeftOuterMergeJoin
+			// with a residual sel: predicate misses matches and emits phantom
+			// orphans (dolt#11350) — a real audit here once read 197 as ~15k
+			// when a filter nudged the planner onto that path. Both queries
+			// currently plan as LeftOuterLookupJoin and answer correctly, so
+			// this is not a live bug; it removes the shape that lets one appear
+			// silently, on a page whose whole job is to be trusted.
+			{"Orphaned prayer-book entries", qNum("SELECT COUNT(*) FROM prayer_book_structure p WHERE NOT EXISTS (SELECT 1 FROM writings w WHERE w.phelps=p.phelps_code)"), "", "Structure rows pointing at a code that holds no text.", true},
+			{"Orphaned relations", qNum("SELECT COUNT(*) FROM writing_related r WHERE NOT EXISTS (SELECT 1 FROM writings w WHERE w.phelps=r.phelps)"), "", "Link-outs pointing nowhere.", true},
 			{"Texts that are empty", qNum("SELECT COUNT(*) FROM writings WHERE text IS NULL OR TRIM(text)=''"), "", "A row that names a work but holds no text for it, so it gathers nothing and gives a reader nothing.", false},
 			{"Texts with leaked markup", qNum(`SELECT COUNT(*) FROM writings WHERE text LIKE '%<div%' OR text LIKE '%&lt;%'`), "", "Scraper residue, not markup as such. Stored HTML is normal here — 34,000 rows carry paragraph tags that render through Markdown — so this looks only for a stray <div wrapper or double-escaped markup, neither of which belongs in a text.", true},
 		},
