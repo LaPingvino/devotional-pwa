@@ -3024,6 +3024,33 @@ func normKey(s string) string {
 	return b.String()
 }
 
+// foldOrthography normalises Arabic/Persian letter variants and strips vowel
+// marks, mirroring scripts/textnorm.py. Without it the SAME text written with
+// ی vs ي, or ک vs ك, or with harakat, scores as unrelated: AB03082's two
+// Persian rows scored 0.18 unfolded and 0.96 folded. ar/fa are the majority of
+// what this check looks at, so the folding is not optional.
+func foldOrthography(r rune) rune {
+	switch r {
+	case 'ي', 'ى', 'ﻰ', 'ﻱ':
+		return 'ی'
+	case 'ك':
+		return 'ک'
+	case 'أ', 'إ', 'آ', 'ٱ', 'ٲ', 'ٳ':
+		return 'ا'
+	case 'ة':
+		return 'ه'
+	case 'ؤ':
+		return 'و'
+	case 'ئ':
+		return 'ی'
+	}
+	// harakat, tanwin, sukun, superscript alef, tatweel
+	if (r >= 0x064B && r <= 0x0652) || r == 0x0670 || r == 0x0640 || (r >= 0x06D6 && r <= 0x06ED) {
+		return -1
+	}
+	return r
+}
+
 // tokenSet splits a text into distinct lowercased word-ish tokens. Scripts
 // without spaces would collapse to one token, so those are cut into characters
 // instead — otherwise every Chinese text would look identical to every other.
@@ -3043,6 +3070,7 @@ func tokenSet(s string) map[string]bool {
 		}
 		return out
 	}
+	s = strings.Map(foldOrthography, s)
 	for _, f := range strings.Fields(strings.ToLower(s)) {
 		t := strings.TrimFunc(f, func(r rune) bool { return !unicode.IsLetter(r) && !unicode.IsDigit(r) })
 		if len([]rune(t)) > 1 {
@@ -3103,8 +3131,12 @@ func linguisticGroup() qualityGroup {
 		if len(fp) < 40 { // too short to fingerprint safely
 			continue
 		}
+		// Short texts are excluded: at prayer length a rubric or a heading is a
+		// large share of the words, so two identical prayers can score as
+		// unrelated purely because one source prefixes "to be recited at noon".
+		// The Short Obligatory Prayer is the worked example.
 		ck := code + "|" + lang
-		if len(byCodeLang[ck]) < 4 {
+		if len(strings.Fields(text)) >= 40 && len(byCodeLang[ck]) < 4 {
 			byCodeLang[ck] = append(byCodeLang[ck], tokenSet(text))
 		}
 
@@ -3155,7 +3187,7 @@ func linguisticGroup() qualityGroup {
 			{"Texts not in their language's script", scriptMismatch, "",
 				"A row labelled Persian written in Latin letters, or the reverse. Usually a mislabelled language or a transliteration filed as the original. Only languages with an unambiguous script are tested, and only when one script dominates the text.", false},
 			{"One code and language, two unrelated texts", divergent, "",
-				"The same work claimed twice in one language by texts that share almost no words. Holding several renderings of a prayer in a language is normal and not counted here — a second translation still carries the same names and epithets. Only near-zero overlap is flagged, which is the shape of every crossed row found so far.", false},
+				"The same work claimed twice in one language by texts that share almost no words. Holding several renderings of a prayer in a language is normal and not counted here — a second translation still carries the same names and epithets. Texts under forty words are also left out, because at that length a rubric like <em>to be recited at noon</em> outweighs the prayer itself.", false},
 			{"One text under two different works", shared, "",
 				"Identical text filed under two codes. Sometimes a genuine duplicate from two sources, sometimes a work that has been split in two by mistake. Worth reading either way.", false},
 		},
