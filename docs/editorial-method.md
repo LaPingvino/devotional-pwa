@@ -77,6 +77,16 @@ gate removed 14 of 40 candidate joins, every one an excerpt sitting inside a
 larger work. Use containment to *discover* the relationship and Jaccard to
 decide whether it is sameness or containment-proper.
 
+**An opening mismatch cannot refute a containment match.** The rule that an
+opening tells you *which* work and never *how much* has a mirror image that is
+easier to get wrong: a passage may begin anywhere inside its parent, so two
+texts opening differently can still be one contained in the other. A TMP row was
+briefly dismissed as a false positive on exactly this reasoning — its opening
+looked nothing like BH00568:9's — and it turned out to start at character 390 of
+that slot's 782. Openings admit; only extent measurements refute. (And search
+for a phrase with both sides folded: the same row carries full harakat, so an
+unfolded `INSTR` returned 0 for a phrase that was demonstrably present.)
+
 **Compare same-language witnesses only.** A containment score between a Persian
 text and an English one is noise wearing a number. Where the two sides have no
 language in common, fall back to extent plus opening comparison in whatever
