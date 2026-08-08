@@ -101,6 +101,59 @@ often mis-segmented than misidentified. Mid-formula cuts, rows spanning two
 anthology items, and paragraph fragments duplicating a whole-passage row are
 all common.
 
+## Measuring the right thing
+
+Most false findings in this corpus come from a measurement that was correct in
+itself and answered the wrong question. Five that have each produced a confident
+mistake:
+
+**Match the granularity of the measurement to the granularity of the claim.** A
+ratio is evidence about the unit it was computed over — nothing finer, nothing
+coarser. The Tablets of the Divine Plan appeared to have ~194 truncated Persian
+rows, 1 to 10 words against English paragraphs of 100 to 345; summed per work
+every one is in band (0.64–0.74), so the *work-level* claim "text is missing" is
+false. But the slot-level claim "this row is aligned with that one" is a
+different claim and still false, and only a slot-level measurement can settle
+it. Totals answer whether anything was lost; slots answer whether it sits where
+its code says. Reaching for the wrong one produced both a false alarm here and,
+in the SWAB case, four rows that looked like they spanned an item boundary and
+read 0.62 and 0.50 against English totals.
+
+**A count-check is evidence only for the rows it measured.** Verifying on a
+subset and applying to the superset is worse than not checking, because it
+produces confidence. The WHERE clause of the measurement must be the WHERE clause
+of the update, character for character.
+
+**Name the known-good population before running a check.** "Identical text under
+two language labels" returns 168, of which 163 are the Persian/Arabic twins that
+are *correct* — the label there records which section of a source a row came
+from. "Markup in a text" looks alarming until you know 34,000 rows legitimately
+carry paragraph tags. A check that has not had its exceptions named is not ready
+to run, and a check that fires far more often than the truth teaches its reader
+to ignore it.
+
+**A mint needs a referent, not necessarily a text.** A code with no text is
+normal — no language is guaranteed to exist for any work, and a catalogued item
+we hold nothing for is an honest gap. What a mint cannot do without is something
+that says *what the name names*: a text row, or an inventory or registry entry.
+Prayers and Meditations is the worked example of getting this wrong in the other
+direction — eleven item codes were nearly minted whose items existed only as
+positions in a collection, which would have replaced one useful page with
+several blank ones. Fetching the per-item texts first gave each code a referent.
+
+**A screen and an assertion are different instruments.** A loose fingerprint
+that tolerates false positives is a fine way to generate a reading list; a
+published count is a claim that must mean exactly what it says. Swapping them is
+easy and quiet: a quality-page check once shipped keying on a truncated,
+punctuation-stripped fingerprint while its "returns zero" claim had been verified
+with exact full-text comparison. Screens go in research passes. Published numbers
+carry the measurement that was actually verified.
+
+**"We hold it" and "a reader can read it" are different questions.** Asking
+whether an item's tablet has any text becomes true for every item the moment a
+collection is anchored — a check that cannot fail. Ask instead whether there is
+text in a language the reader has.
+
 ## Safeguards before a write
 
 - **Name the act.** Placing a row under an existing name (a *join*) is the safe

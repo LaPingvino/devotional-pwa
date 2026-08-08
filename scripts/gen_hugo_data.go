@@ -2943,6 +2943,27 @@ func writeQualityReport(dataDir string) {
 				" GROUP BY phelps HAVING COUNT(DISTINCT language) " + band.cond + ") t")})
 	}
 
+	// Checks that assert a zero must not keep claiming to be fine once they are
+	// not. Their Good flag was hardcoded true, so a regression would have
+	// rendered in the calm style and said nothing — the page would report the
+	// fault and present it as health. Compute the flag from the value instead.
+	mustBeZero := map[string]bool{
+		"Texts with no code":                 true,
+		"Malformed codes":                    true,
+		"Orphaned prayer-book entries":       true,
+		"Orphaned relations":                 true,
+		"Texts with leaked markup":           true,
+		"One item labelled as two languages": true,
+	}
+	for gi := range rep.Groups {
+		for ci := range rep.Groups[gi].Checks {
+			c := &rep.Groups[gi].Checks[ci]
+			if mustBeZero[c.Name] {
+				c.Good = c.Value == 0
+			}
+		}
+	}
+
 	writeJSON(filepath.Join(dataDir, "quality.json"), rep)
 	log.Printf("  quality report: %d groups, %d books", len(rep.Groups), len(rep.Books))
 }
@@ -3111,7 +3132,7 @@ func overlap(a, b map[string]bool) float64 {
 }
 
 func linguisticGroup() qualityGroup {
-	rows := doltQuery(`SELECT phelps, language, LEFT(text, 600), IFNULL(source_id,'') FROM writings
+	rows := doltQuery(`SELECT phelps, language, LEFT(text, 600) FROM writings
 	                   WHERE phelps IS NOT NULL AND phelps <> '' AND text IS NOT NULL AND TRIM(text) <> ''`)
 
 	var scriptMismatch int
@@ -3122,15 +3143,12 @@ func linguisticGroup() qualityGroup {
 	// Capped at 4 per group to bound memory.
 	byCodeLang := map[string][]map[string]bool{}
 	byText := map[string]map[string]bool{} // fingerprint → set of base codes
-	// (code, source_id, exact text) → the language labels carrying it. One item
-	// from one source, in one wording, should have exactly one language.
-	byItem := map[string]map[string]bool{}
 
 	for _, r := range rows[1:] {
-		if len(r) < 4 {
+		if len(r) < 3 {
 			continue
 		}
-		code, lang, text, srcID := r[0], r[1], stripHTML(r[2]), r[3]
+		code, lang, text := r[0], r[1], stripHTML(r[2])
 		if strings.TrimSpace(text) == "" {
 			continue
 		}
@@ -3152,14 +3170,6 @@ func linguisticGroup() qualityGroup {
 		ck := code + "|" + lang
 		if len(strings.Fields(text)) >= 40 && len(byCodeLang[ck]) < 4 {
 			byCodeLang[ck] = append(byCodeLang[ck], tokenSet(text))
-		}
-
-		if srcID != "" && len(text) > 200 {
-			ik := code + "\x00" + srcID + "\x00" + fp
-			if byItem[ik] == nil {
-				byItem[ik] = map[string]bool{}
-			}
-			byItem[ik][lang] = true
 		}
 
 		base := phelpscode.Parse(code).Base
@@ -3205,16 +3215,20 @@ func linguisticGroup() qualityGroup {
 	// Arabic in both its Persian and its Arabic section, so the label there
 	// records the section rather than the language. Run without that exception
 	// this check reports 168 and 163 of the "fixes" would destroy correct rows.
-	wrongLabel := 0
-	for _, langs := range byItem {
-		if len(langs) < 2 {
-			continue
-		}
-		if len(langs) == 2 && langs["ar"] && langs["fa"] {
-			continue
-		}
-		wrongLabel++
-	}
+	//
+	// Deliberately its own query rather than computed from the loop above. That
+	// loop reads LEFT(text,600) and fingerprints loosely, so two rows sharing an
+	// opening, or differing only in punctuation, would register as one wording —
+	// both of which make this LOOSER than the sweep the fix was verified against.
+	// Exact text, full length, so the number on the page means what it says.
+	wrongLabel := qNum("SELECT COUNT(*) FROM (" +
+		"SELECT phelps, source_id, MD5(text) AS h " +
+		"FROM writings " +
+		"WHERE phelps IS NOT NULL AND phelps <> '' AND source_id IS NOT NULL " +
+		"  AND source_id <> '' AND LENGTH(text) > 200 " +
+		"GROUP BY phelps, source_id, MD5(text) " +
+		"HAVING COUNT(DISTINCT language) > 1 " +
+		"   AND GROUP_CONCAT(DISTINCT language ORDER BY language) <> 'ar,fa') t")
 
 	return qualityGroup{
 		Title: "Linguistic signals",
