@@ -3076,12 +3076,19 @@ func foldOrthography(r rune) rune {
 		return 'ک'
 	case 'أ', 'إ', 'آ', 'ٱ', 'ٲ', 'ٳ':
 		return 'ا'
-	case 'ة':
+	case 'ة', 'ۀ':
 		return 'ه'
 	case 'ؤ':
 		return 'و'
 	case 'ئ':
 		return 'ی'
+	case 'ء', '‎', '‏':
+		return -1
+	case '‌', '​':
+		// ZWNJ separates the parts of a Persian compound, and the same word is
+		// written with it, with a space, or with neither. Mapping it to a space
+		// makes all three tokenize alike — dropping it would not.
+		return ' '
 	}
 	// harakat, tanwin, sukun, superscript alef, tatweel
 	if (r >= 0x064B && r <= 0x0652) || r == 0x0670 || r == 0x0640 || (r >= 0x06D6 && r <= 0x06ED) {
