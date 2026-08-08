@@ -315,6 +315,21 @@ A numbered structural space names slices of exactly **one** edition's
 paragraphing. Until that owner is declared the space is contested, and
 single-row edits there choose a witness rather than fix a defect.
 
+### Where a declaration lives
+
+A declaration is data, not prose. It sits in `i18n` under `space/<base>` with
+`language='und'`, alongside the collection registry:
+
+```json
+{"owner": "bahai.org/summons", "declared": "2026-08-08",
+ "note": "de facto and mint owner: 238 of the rows, ar+en, 119 slots"}
+```
+
+Without a queryable home the rule below is unenforceable — "legal only once an
+owner is declared" cannot be checked against a sentence in a document. A space
+with no `space/<base>` row is **contested**, which is the default and needs no
+entry; realignment there is not permitted.
+
 The repair shape:
 
 1. Declare the owner — normally the edition the codes were minted from.
