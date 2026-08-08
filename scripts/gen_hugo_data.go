@@ -3111,7 +3111,7 @@ func overlap(a, b map[string]bool) float64 {
 }
 
 func linguisticGroup() qualityGroup {
-	rows := doltQuery(`SELECT phelps, language, LEFT(text, 600) FROM writings
+	rows := doltQuery(`SELECT phelps, language, LEFT(text, 600), IFNULL(source_id,'') FROM writings
 	                   WHERE phelps IS NOT NULL AND phelps <> '' AND text IS NOT NULL AND TRIM(text) <> ''`)
 
 	var scriptMismatch int
@@ -3122,12 +3122,15 @@ func linguisticGroup() qualityGroup {
 	// Capped at 4 per group to bound memory.
 	byCodeLang := map[string][]map[string]bool{}
 	byText := map[string]map[string]bool{} // fingerprint → set of base codes
+	// (code, source_id, exact text) → the language labels carrying it. One item
+	// from one source, in one wording, should have exactly one language.
+	byItem := map[string]map[string]bool{}
 
 	for _, r := range rows[1:] {
-		if len(r) < 3 {
+		if len(r) < 4 {
 			continue
 		}
-		code, lang, text := r[0], r[1], stripHTML(r[2])
+		code, lang, text, srcID := r[0], r[1], stripHTML(r[2]), r[3]
 		if strings.TrimSpace(text) == "" {
 			continue
 		}
@@ -3149,6 +3152,14 @@ func linguisticGroup() qualityGroup {
 		ck := code + "|" + lang
 		if len(strings.Fields(text)) >= 40 && len(byCodeLang[ck]) < 4 {
 			byCodeLang[ck] = append(byCodeLang[ck], tokenSet(text))
+		}
+
+		if srcID != "" && len(text) > 200 {
+			ik := code + "\x00" + srcID + "\x00" + fp
+			if byItem[ik] == nil {
+				byItem[ik] = map[string]bool{}
+			}
+			byItem[ik][lang] = true
 		}
 
 		base := phelpscode.Parse(code).Base
@@ -3189,6 +3200,22 @@ func linguisticGroup() qualityGroup {
 		}
 	}
 
+	// One item, one source, one wording — but two language labels. The ar/fa
+	// pair is EXCLUDED and must stay excluded: bahaiprayers.net serves the same
+	// Arabic in both its Persian and its Arabic section, so the label there
+	// records the section rather than the language. Run without that exception
+	// this check reports 168 and 163 of the "fixes" would destroy correct rows.
+	wrongLabel := 0
+	for _, langs := range byItem {
+		if len(langs) < 2 {
+			continue
+		}
+		if len(langs) == 2 && langs["ar"] && langs["fa"] {
+			continue
+		}
+		wrongLabel++
+	}
+
 	return qualityGroup{
 		Title: "Linguistic signals",
 		Note: "These are proxies, not proofs. Each correlates with a real class of error, " +
@@ -3199,6 +3226,8 @@ func linguisticGroup() qualityGroup {
 				"A row labelled Persian written in Latin letters, or the reverse. Usually a mislabelled language or a transliteration filed as the original. Only languages with an unambiguous script are tested, and only when one script dominates the text.", false},
 			{"One code and language, two unrelated texts", divergent, "",
 				"The same work claimed twice in one language by texts that share almost no words. Holding several renderings of a prayer in a language is normal and not counted here — a second translation still carries the same names and epithets. Texts under forty words are also left out, because at that length a rubric like <em>to be recited at noon</em> outweighs the prayer itself.", false},
+			{"One item labelled as two languages", wrongLabel, "",
+				"The same text, from the same source item, carrying two different language labels — so one of them is wrong. Six were found this way, including Polish filed as Vietnamese and Slovak as Swedish, none of which a script test can see because the languages share an alphabet. Persian/Arabic pairs are excluded by design: there the label records which section of the source a row came from, not the language of the text.", true},
 			{"One text under two different works", shared, "",
 				"Identical text filed under two codes. Sometimes a genuine duplicate from two sources, sometimes a work that has been split in two by mistake. Worth reading either way.", false},
 		},
