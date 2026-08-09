@@ -3240,15 +3240,26 @@ func linguisticGroup() qualityGroup {
 	// field with index 14 in row of 6 columns" — and doltQuery calls
 	// log.Fatalf, so that would take the whole site build down. Selecting the
 	// concatenation and filtering it outside returns the same answer and works.
+	// Keyed on (phelps, text) alone. It used to require source_id <> '', which
+	// silently excluded every bahai.org row — that source leaves source_id
+	// empty — and so reported 0 while 75 groups existed, including 61 slots of
+	// Words of Paradise where the Spanish, French and Portuguese rows hold the
+	// English text verbatim. A must-be-zero check that cannot see a whole
+	// source is worse than no check: it renders the fault as health.
+	//
+	// Variant labels of ONE language (gbm/gbm-b, gwi-b/gwi-c) are excluded —
+	// those are two editions of the same language, not a mislabelling. ar/fa
+	// stays excluded because there the label records which section of the
+	// source a row came from.
 	wrongLabel := qNum("SELECT COUNT(*) FROM (" +
-		"SELECT phelps, source_id, MD5(text) AS h, " +
-		"       GROUP_CONCAT(DISTINCT language ORDER BY language) AS langs " +
+		"SELECT phelps, MD5(text) AS h, " +
+		"       GROUP_CONCAT(DISTINCT language ORDER BY language) AS langs, " +
+		"       COUNT(DISTINCT SUBSTRING_INDEX(language,'-',1)) AS base_langs " +
 		"FROM writings " +
-		"WHERE phelps IS NOT NULL AND phelps <> '' AND source_id IS NOT NULL " +
-		"  AND source_id <> '' AND LENGTH(text) > 200 " +
-		"GROUP BY phelps, source_id, MD5(text) " +
+		"WHERE phelps IS NOT NULL AND phelps <> '' AND LENGTH(text) > 200 " +
+		"GROUP BY phelps, MD5(text) " +
 		"HAVING COUNT(DISTINCT language) > 1) t " +
-		"WHERE t.langs <> 'ar,fa'")
+		"WHERE t.langs <> 'ar,fa' AND t.base_langs > 1")
 
 	return qualityGroup{
 		Title: "Linguistic signals",
@@ -3261,7 +3272,7 @@ func linguisticGroup() qualityGroup {
 			{"One code and language, two unrelated texts", divergent, "",
 				"The same work claimed twice in one language by texts that share almost no words. Holding several renderings of a prayer in a language is normal and not counted here — a second translation still carries the same names and epithets. Texts under forty words are also left out, because at that length a rubric like <em>to be recited at noon</em> outweighs the prayer itself.", false},
 			{"One item labelled as two languages", wrongLabel, "",
-				"The same text, from the same source item, carrying two different language labels — so one of them is wrong. Six were found this way, including Polish filed as Vietnamese and Slovak as Swedish, none of which a script test can see because the languages share an alphabet. Persian/Arabic pairs are excluded by design: there the label records which section of the source a row came from, not the language of the text.", true},
+				"Byte-identical text carrying two different language labels, so one of them is wrong — invisible to a script test when the languages share an alphabet, as with Polish filed as Vietnamese or Slovak as Swedish. Most of the current count is a single fault: 61 paragraphs of the Words of Paradise whose Spanish, French and Portuguese rows hold the English text verbatim, so a reader asking for Spanish is served English. Persian/Arabic pairs are excluded by design — there the label records which section of the source a row came from — as are variant labels of one language, which are two editions rather than a mislabelling.", true},
 			{"One text under two different works", shared, "",
 				"Identical text filed under two codes. Sometimes a genuine duplicate from two sources, sometimes a work that has been split in two by mistake. Worth reading either way.", false},
 		},
