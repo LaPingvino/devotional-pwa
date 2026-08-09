@@ -189,6 +189,14 @@ slot counts and different cuts. The check costs one query: read the same slot in
 every edition and see whether it holds the same passage. Do that before
 believing any claim about a space, including your own.
 
+**And two probes are not a scan.** Having learned to read slots rather than
+count them, it is tempting to read two and generalise. Words of Paradise looked
+unanimous at slots 20 and 40; scanning all 62 — by comparing each edition's
+per-slot length against its own median ratio to the owner — showed five of
+eleven editions diverging, one of them by a clean one-slot offset running the
+length of the tablet. Sampling finds agreement wherever agreement happens to
+be. The full scan is one query and it prices the declaration properly.
+
 **A count-check is evidence only for the rows it measured.** Verifying on a
 subset and applying to the superset is worse than not checking, because it
 produces confidence. The WHERE clause of the measurement must be the WHERE clause
