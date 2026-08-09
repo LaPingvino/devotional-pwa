@@ -177,6 +177,18 @@ its code says. Reaching for the wrong one produced both a false alarm here and,
 in the SWAB case, four rows that looked like they spanned an item boundary and
 read 0.62 and 0.50 against English totals.
 
+**Slot counts say nothing about slot boundaries.** Two editions with the same
+number of paragraphs need not cut them in the same places, so "these editions
+agree on 62 slots" is not evidence that slot 20 names the same passage in each.
+This is a gate that cannot fail: it would declare a family for any set of
+similar-length editions, and its output looks orderly whether or not it is
+right. Three separate owner proposals have now been built on it and retracted —
+BH00568, where one probe found seven different passages sharing a slot, and the
+fourteen Tablets of the Divine Plan spaces, where English and Persian have equal
+slot counts and different cuts. The check costs one query: read the same slot in
+every edition and see whether it holds the same passage. Do that before
+believing any claim about a space, including your own.
+
 **A count-check is evidence only for the rows it measured.** Verifying on a
 subset and applying to the superset is worse than not checking, because it
 produces confidence. The WHERE clause of the measurement must be the WHERE clause
