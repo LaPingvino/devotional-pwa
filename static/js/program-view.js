@@ -167,13 +167,35 @@
       (data.books || []).forEach(b => {
         (b.entries || []).forEach(e => {
           const entry = { ...e, bookTitle: b.title };
-          all.push(entry);
-          // For types where entries share phelps (e.g. GPB paragraphs): merge text so
-          // a direct phelps lookup yields the full chapter instead of only the last paragraph.
-          if (!map[e.phelps]) {
-            map[e.phelps] = entry;
-          } else {
-            map[e.phelps] = { ...map[e.phelps], text: (map[e.phelps].text || '') + '\n' + (entry.text || '') };
+          function indexEntry(k) {
+            if (!k) return;
+            if (!map[k]) {
+              map[k] = entry;
+            } else if (map[k] !== entry) {
+              map[k] = { ...map[k], text: (map[k].text || '') + '\n' + (entry.text || '') };
+            }
+          }
+          indexEntry(e.phelps);
+          // Dual-key indexing: BH00002:1:2 <-> BH000021002, BH00001:42 <-> BH00001042
+          var mIqan = e.phelps && e.phelps.match(/^BH00002:(\d+):(\d+)$/);
+          if (mIqan) {
+            var s = String(mIqan[2]);
+            while (s.length < 3) s = '0' + s;
+            indexEntry('BH00002' + mIqan[1] + s);
+          }
+          var mLegIqan = e.phelps && e.phelps.match(/^BH00002(\d)(\d{3})$/);
+          if (mLegIqan) {
+            indexEntry('BH00002:' + mLegIqan[1] + ':' + parseInt(mLegIqan[2], 10));
+          }
+          var mAqdas = e.phelps && e.phelps.match(/^BH00001:(\d+)$/);
+          if (mAqdas) {
+            var sa = String(mAqdas[1]);
+            while (sa.length < 3) sa = '0' + sa;
+            indexEntry('BH00001' + sa);
+          }
+          var mLegAqdas = e.phelps && e.phelps.match(/^BH00001(\d{3})$/);
+          if (mLegAqdas) {
+            indexEntry('BH00001:' + parseInt(mLegAqdas[1], 10));
           }
         });
       });
@@ -397,8 +419,28 @@
       var w = wIdx[wi];
       if (w.langs.some(function(l) { return l.code === lang; })) {
         var wMap = await getWritingMap(w.key, lang);
-        if (wMap[code]) {
-          var e = wMap[code];
+        var e = wMap[code];
+        if (!e) {
+          var mI = code.match(/^BH00002:(\d+):(\d+)$/);
+          if (mI) {
+            var s = String(mI[2]); while (s.length < 3) s = '0' + s;
+            e = wMap['BH00002' + mI[1] + s];
+          }
+          var mLI = code.match(/^BH00002(\d)(\d{3})$/);
+          if (mLI) {
+            e = wMap['BH00002:' + mLI[1] + ':' + parseInt(mLI[2], 10)];
+          }
+          var mA = code.match(/^BH00001:(\d+)$/);
+          if (mA) {
+            var sa = String(mA[1]); while (sa.length < 3) sa = '0' + sa;
+            e = wMap['BH00001' + sa];
+          }
+          var mLA = code.match(/^BH00001(\d{3})$/);
+          if (mLA) {
+            e = wMap['BH00001:' + parseInt(mLA[1], 10)];
+          }
+        }
+        if (e) {
           return { text: e.text, category: w.title, type: 'writing', name: e.name || e.bookTitle, link: '/writings/' + w.key + '/' + lang + '/#' + code };
         }
       }
@@ -425,7 +467,12 @@
     m = code.match(/^iqan:(\d+):(\d+)(?:-(\d+))?$/);
     if (m) {
       var part = m[1], start = parseInt(m[2]), end = m[3] ? parseInt(m[3]) : start;
-      var wanted = phelpsRange('BH00002' + part, start, end, 3);
+      var wanted = [];
+      for (var i = start; i <= end; i++) {
+        var s = String(i); while (s.length < 3) s = '0' + s;
+        wanted.push('BH00002' + part + s);
+        wanted.push('BH00002:' + part + ':' + i);
+      }
       return {
         key: 'iqan', title: "Kitáb-i-Íqán",
         label: "Íqán " + part + ":" + start + (end > start ? '–' + end : ''),
@@ -436,7 +483,12 @@
     m = code.match(/^aqdas:(\d+)(?:-(\d+))?$/);
     if (m) {
       var start = parseInt(m[1]), end = m[2] ? parseInt(m[2]) : start;
-      var wanted = phelpsRange('BH00001', start, end, 3);
+      var wanted = [];
+      for (var i = start; i <= end; i++) {
+        var s = String(i); while (s.length < 3) s = '0' + s;
+        wanted.push('BH00001' + s);
+        wanted.push('BH00001:' + i);
+      }
       return {
         key: 'aqdas', title: "Kitáb-i-Aqdas",
         label: "Aqdas ¶" + start + (end > start ? '–' + end : ''),
