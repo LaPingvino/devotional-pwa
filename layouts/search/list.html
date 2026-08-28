@@ -22,6 +22,7 @@
         <button class="prefix-btn" data-prefix="X" title="Unverified">X</button>
       </div>
     </details>
+    <button class="prefix-btn prefix-lib-btn" data-prefix="LIB" title="Search 3,500+ books in the Library">📚 Library</button>
     <input type="search" class="search-box" id="exp-search" data-i18n-placeholder="search_placeholder" placeholder="Search in any language…">
     <label style="display:inline-flex; align-items:center; gap:.25rem; font-size:.8rem; white-space:nowrap; cursor:pointer" title="Search the complete text of all prayers and writings in the selected language(s)">
       <input type="checkbox" id="ft-toggle"> <span data-i18n="search_fulltext">full text</span>
@@ -367,12 +368,37 @@ function buildLangPicker(id, langs, counts, initial, onSelect) {
 }
 
 function matchesPrefix(pin) {
+  if (activePrefix === 'LIB') return false;
   if (!activePrefix) return true;
   if (activePrefix === 'X') return pin.startsWith('X');
   if (activePrefix === 'UH') return pin.startsWith('UH');
   if (activePrefix === 'SE') return pin.startsWith('SE');
   const m = pin.match(/^([A-Z]+)/);
   return m && m[1] === activePrefix;
+}
+
+// ---- Library Catalog Integration ----
+let libraryBooks = null;
+let filteredLib = [];
+async function ensureLibraryBooks() {
+  if (libraryBooks) return libraryBooks;
+  try {
+    const res = await fetch('/data/library_catalog.json');
+    libraryBooks = await res.json();
+  } catch(e) {
+    libraryBooks = [];
+  }
+  return libraryBooks;
+}
+
+function countMatchingLibBooks(q) {
+  if (!libraryBooks || !q) return 0;
+  return libraryBooks.filter(b => {
+    return (b.title || '').toLowerCase().includes(q) ||
+           (b.author || '').toLowerCase().includes(q) ||
+           (b.cat || '').toLowerCase().includes(q) ||
+           (b.id || '').toLowerCase().includes(q);
+  }).length;
 }
 
 // ---- Full-text (deep) search: lazy per-language complete texts ----
@@ -431,8 +457,42 @@ function ftFragment(hit, q) {
 }
 
 function applyFilters() {
-  let q = searchTerm.toLowerCase();
+  let q = searchTerm.toLowerCase().trim();
   if (window.normalizeAr) q = normalizeAr(q);
+
+  if (activePrefix === 'LIB') {
+    ensureLibraryBooks().then(books => {
+      filteredLib = books.filter(b => {
+        if (filterLangs.length > 0) {
+          const hasLang = filterLangs.some(f => f.mode === 'has' && f.code === b.lang);
+          const missingLang = filterLangs.some(f => f.mode === 'missing' && f.code === b.lang);
+          if (missingLang) return false;
+          if (filterLangs.some(f => f.mode === 'has') && !hasLang) return false;
+        }
+        if (!q) return true;
+        return (b.title || '').toLowerCase().includes(q) ||
+               (b.author || '').toLowerCase().includes(q) ||
+               (b.cat || '').toLowerCase().includes(q) ||
+               (b.id || '').toLowerCase().includes(q);
+      });
+
+      if (sortMode === 'count') {
+        filteredLib.sort((a, b) => (b.words || 0) - (a.words || 0));
+      } else {
+        filteredLib.sort((a, b) => (a.title || '').localeCompare(b.title || ''));
+      }
+      renderTable();
+    });
+    return;
+  }
+
+  // Pre-load library books in background when searching to show count hint
+  if (q.length >= 2 && !libraryBooks) {
+    ensureLibraryBooks().then(() => {
+      if (activePrefix !== 'LIB') renderTable();
+    });
+  }
+
   if (ftActive && q.length >= 2) {
     if (!ftCache[displayLang] || (displayLang2 && !ftCache[displayLang2])) {
       // first use via shared link or language switch: load, then re-run once
@@ -514,11 +574,60 @@ function renderFtRows() {
   }
 }
 
+function renderLibTable() {
+  const tbody = document.getElementById('exp-body');
+  const status = document.getElementById('exp-status');
+  status.innerHTML = `${filteredLib.length.toLocaleString()} books in Library · <a href="#prefix=&q=${encodeURIComponent(searchTerm)}" class="prefix-btn" style="display:inline-block;padding:.1rem .5rem;margin-left:.5rem;text-decoration:none;font-size:.8rem">← Back to writings</a>`;
+
+  const rows = filteredLib.slice(0, 300);
+  let html = '';
+  rows.forEach(b => {
+    const idLink = `<a href="/library/#book=${b.id}">${b.id}</a>`;
+    const author = b.author || '<span style="opacity:.4">—</span>';
+    const catBadge = b.cat ? `<span style="font-size:.7rem;color:var(--text-secondary)">(${b.cat})</span>` : '';
+    const title = `<b>${b.title}</b> ${catBadge}`;
+    const words = b.words ? b.words.toLocaleString() + ' words' : '';
+    const paras = b.paras ? b.paras.toLocaleString() + ' ¶' : '';
+    const stats = [words, paras].filter(Boolean).join(' · ');
+
+    const langHtml = `<span class="lang-chip">${b.lang.toUpperCase()}</span> <a href="/library/#book=${b.id}" class="lang-chip" style="background:var(--accent);color:#fff;font-weight:600;text-decoration:none" title="Read book">Read ↗</a>`;
+
+    html += `<tr>
+      <td class="pin-cell">${idLink}</td>
+      <td style="font-size:.75rem; color:var(--text-secondary); white-space:nowrap">${author}</td>
+      <td style="font-size:.85rem">${title}</td>
+      ${displayLang2 ? '<td style="font-size:.8rem;color:var(--text-secondary)">—</td>' : ''}
+      <td style="text-align:right; font-weight:600">${b.paras || 0}</td>
+      <td style="font-size:.8rem">${langHtml}</td>
+    </tr>`;
+  });
+  tbody.innerHTML = html;
+  if (filteredLib.length > 300) {
+    tbody.innerHTML += `<tr><td colspan="${displayLang2 ? 6 : 5}" style="color:var(--text-secondary); padding:.5rem">
+      … ${(filteredLib.length - 300).toLocaleString()} more books. <a href="/library/?q=${encodeURIComponent(searchTerm)}">Explore in Library page →</a>
+    </td></tr>`;
+  }
+}
+
 function renderTable() {
+  if (activePrefix === 'LIB') {
+    renderLibTable();
+    return;
+  }
   const tbody = document.getElementById('exp-body');
   const status = document.getElementById('exp-status');
   if (ftActive && searchTerm.trim().length >= 2) { renderFtRows(); return; }
-  status.textContent = `${filtered.length.toLocaleString()} ${window.__t('search_codes')}`;
+
+  let qClean = searchTerm.toLowerCase().trim();
+  let libHint = '';
+  if (qClean.length >= 2 && libraryBooks) {
+    const libMatches = countMatchingLibBooks(qClean);
+    if (libMatches > 0) {
+      libHint = ` · <a href="#prefix=LIB&q=${encodeURIComponent(searchTerm)}" class="lib-hit-hint" style="color:var(--accent);font-weight:600;text-decoration:underline">📚 ${libMatches.toLocaleString()} books in Library</a>`;
+    }
+  }
+
+  status.innerHTML = `${filtered.length.toLocaleString()} ${window.__t('search_codes')}${libHint}`;
 
   const rows = filtered.slice(0, 500);
   let html = '';

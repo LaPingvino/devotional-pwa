@@ -39,6 +39,10 @@ fi
 echo "Generating data files..."
 go run scripts/gen_hugo_data.go --dolt-dir ./bahaiwritings --out-dir .
 
+# Generate Library catalog from Dolt
+echo "Generating library catalog..."
+go run scripts/gen_library_data.go --dolt-dir ./bahaiwritings --out-dir .
+
 # Copy Bible and Quran JSON to static/data for client-side fetch
 mkdir -p static/data/bible static/data/quran
 cp assets/bible/*.json static/data/bible/ 2>/dev/null || true

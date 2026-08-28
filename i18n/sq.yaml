@@ -1,0 +1,5 @@
+# Auto-generated from Dolt i18n table by gen_i18n.go — do not hand-edit
+# Source: holywritings/bahaiwritings@main, rows WHERE `key` LIKE 'ui/%' AND language='sq'
+
+library_subtitle: "Eksploroni mbi 3,500 libra dytu00ebsoru00eb, pu00ebrmbledhje, studime dhe shkrime ndu00ebrfetare nu00eb 19 gjuhu00eb."
+nav_library: "Biblioteka"

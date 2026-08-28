@@ -1,0 +1,5 @@
+# Auto-generated from Dolt i18n table by gen_i18n.go — do not hand-edit
+# Source: holywritings/bahaiwritings@main, rows WHERE `key` LIKE 'ui/%' AND language='id'
+
+library_subtitle: "Jelajahi lebih dari 3.500 buku sekunder, kompilasi, studi, dan kitab suci lintas agama dalam 19 bahasa."
+nav_library: "Perpustakaan"

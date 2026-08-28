@@ -19,6 +19,7 @@ resources/
 
 # Dolt database clone (generated at build time by cloudflare-build.sh)
 bahaiwritings/
+static/data/library/
 
 # Environment variables
 .env

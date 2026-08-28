@@ -1,0 +1,789 @@
+{{ partial "head.html" (dict "Title" "Library" "Lang" "en") }}
+<div class="main-content library-container">
+  <div class="library-header">
+    <h1 data-i18n="nav_library">Library</h1>
+    <p class="library-subtitle" data-i18n="library_subtitle">
+      Explore 3,500+ secondary books, compilations, studies, and interfaith scriptures across 19 languages.
+    </p>
+  </div>
+
+  <div class="library-controls">
+    <div class="library-search-row">
+      <input type="search" id="lib-search" class="search-box"
+             placeholder="Search by title, author, category…"
+             autocomplete="off" autofocus>
+      <div class="library-sort-group">
+        <label for="lib-sort" class="sort-label">Sort:</label>
+        <select id="lib-sort" class="library-select">
+          <option value="title">Title (A–Z)</option>
+          <option value="author">Author</option>
+          <option value="words-desc" selected>Length (Words ↓)</option>
+          <option value="paras-desc">Paragraphs ↓</option>
+          <option value="lang">Language</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="library-filter-row">
+      <div class="library-pill-group" id="lib-tradition-pills">
+        <button class="pill-btn active" data-rel="all">All Traditions</button>
+        <button class="pill-btn" data-rel="bahai">Bahá'í Literature</button>
+        <button class="pill-btn" data-rel="islam">Islam</button>
+        <button class="pill-btn" data-rel="christianity">Christianity</button>
+        <button class="pill-btn" data-rel="other">Other Scriptures</button>
+      </div>
+
+      <div class="library-lang-group">
+        <select id="lib-lang-select" class="library-select">
+          <option value="all">All Languages (3,562)</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div class="library-status" id="lib-status">Loading library catalog…</div>
+
+  <div class="library-grid" id="lib-grid"></div>
+
+  <div class="library-pagination" id="lib-pagination" style="display:none">
+    <button id="lib-load-more" class="load-more-btn">Load more books</button>
+  </div>
+</div>
+
+<!-- Reader Modal -->
+<div id="lib-reader-modal" class="reader-modal" style="display:none" role="dialog" aria-modal="true">
+  <div class="reader-dialog">
+    <div class="reader-header">
+      <div class="reader-title-box">
+        <h2 id="reader-book-title"></h2>
+        <div id="reader-book-author" class="reader-author"></div>
+      </div>
+      <div class="reader-actions">
+        <button id="reader-font-dec" class="font-btn" title="Decrease font size">A−</button>
+        <button id="reader-font-inc" class="font-btn" title="Increase font size">A+</button>
+        <a id="reader-source-link" href="#" target="_blank" rel="noopener" class="source-btn" title="Open original source">Source ↗</a>
+        <button id="reader-close-btn" class="close-btn" aria-label="Close reader">×</button>
+      </div>
+    </div>
+    <div id="reader-content" class="reader-body">
+      <div class="reader-loading">Loading book text…</div>
+    </div>
+  </div>
+</div>
+
+<style>
+.library-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+.library-header h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: .25rem;
+}
+.library-subtitle {
+  color: var(--text-secondary);
+  font-size: .95rem;
+  margin-bottom: 1.25rem;
+}
+.library-controls {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: .75rem;
+  box-shadow: 0 1px 3px rgba(0,0,0,.05);
+}
+.library-search-row {
+  display: flex;
+  gap: .75rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.library-search-row .search-box {
+  flex: 1;
+  min-width: 240px;
+  padding: .6rem .85rem;
+  font-size: .95rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--text);
+}
+.library-search-row .search-box:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--surface);
+}
+.library-sort-group, .library-lang-group {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+}
+.sort-label {
+  font-size: .85rem;
+  color: var(--text-secondary);
+}
+.library-select {
+  padding: .5rem .75rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: .85rem;
+  cursor: pointer;
+}
+.library-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+.library-filter-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: .75rem;
+  flex-wrap: wrap;
+}
+.library-pill-group {
+  display: flex;
+  gap: .4rem;
+  flex-wrap: wrap;
+}
+.pill-btn {
+  padding: .35rem .75rem;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-size: .8rem;
+  cursor: pointer;
+  transition: all .15s ease;
+}
+.pill-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.pill-btn.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+}
+.library-status {
+  font-size: .85rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+}
+.library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1rem;
+}
+.book-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,.04);
+}
+.book-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,.08);
+  border-color: var(--accent);
+}
+.book-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: .3rem;
+  line-height: 1.35;
+}
+.book-author {
+  font-size: .85rem;
+  color: var(--text-secondary);
+  margin-bottom: .75rem;
+  font-style: italic;
+}
+.book-badges {
+  display: flex;
+  gap: .35rem;
+  flex-wrap: wrap;
+  margin-bottom: .75rem;
+}
+.badge {
+  padding: .15rem .45rem;
+  border-radius: 4px;
+  font-size: .7rem;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .02em;
+}
+.badge-lang { background: #e3f2fd; color: #1976d2; }
+.badge-rel { background: #fff3e0; color: #e65100; }
+.badge-cat { background: #f5f5f5; color: #616161; }
+.book-meta {
+  font-size: .75rem;
+  color: var(--text-secondary);
+  margin-bottom: .9rem;
+}
+.book-actions {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+  padding-top: .75rem;
+  border-top: 1px solid var(--border);
+}
+.btn-read {
+  flex: 1;
+  padding: .45rem .75rem;
+  background: var(--accent);
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  font-size: .85rem;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: center;
+  transition: background .15s;
+}
+.btn-read:hover { background: var(--accent-dark); }
+.btn-source {
+  padding: .45rem .65rem;
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  font-size: .8rem;
+  text-decoration: none;
+  text-align: center;
+  transition: all .15s;
+}
+.btn-source:hover {
+  border-color: var(--text-secondary);
+  color: var(--text);
+}
+.library-pagination {
+  margin-top: 1.5rem;
+  text-align: center;
+}
+.load-more-btn {
+  padding: .6rem 1.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: .9rem;
+  color: var(--text);
+  cursor: pointer;
+  transition: all .15s;
+}
+.load-more-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Reader Modal Styles */
+.reader-modal {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,.6);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 1rem;
+}
+.reader-dialog {
+  background: var(--surface);
+  width: 100%;
+  max-width: 850px;
+  height: 90vh;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0,0,0,.3);
+  overflow: hidden;
+}
+.reader-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg);
+  gap: 1rem;
+}
+.reader-title-box h2 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.2;
+}
+.reader-author {
+  font-size: .85rem;
+  color: var(--text-secondary);
+  margin-top: .15rem;
+}
+.reader-actions {
+  display: flex;
+  gap: .5rem;
+  align-items: center;
+}
+.font-btn, .close-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: .3rem .6rem;
+  cursor: pointer;
+  font-size: .85rem;
+  color: var(--text);
+}
+.close-btn {
+  font-size: 1.2rem;
+  padding: .15rem .65rem;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+}
+.close-btn:hover { color: var(--text); }
+.source-btn {
+  font-size: .8rem;
+  color: var(--accent);
+  text-decoration: none;
+  padding: .3rem .5rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.reader-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem 2rem;
+  font-size: 1.05rem;
+  line-height: 1.75;
+  color: var(--text);
+}
+.reader-para {
+  margin-bottom: 1.25rem;
+  position: relative;
+  display: flex;
+  gap: .75rem;
+  align-items: baseline;
+}
+.para-add-btn {
+  opacity: 0;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--accent);
+  border-radius: 3px;
+  font-size: .75rem;
+  padding: .1rem .35rem;
+  cursor: pointer;
+  transition: opacity .15s;
+}
+.reader-para:hover .para-add-btn {
+  opacity: 1;
+}
+.reader-loading {
+  text-align: center;
+  color: var(--text-secondary);
+  padding: 3rem;
+}
+.toast-msg {
+  position: fixed;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #323232;
+  color: #fff;
+  padding: .6rem 1.2rem;
+  border-radius: 6px;
+  font-size: .85rem;
+  z-index: 1100;
+  box-shadow: 0 4px 12px rgba(0,0,0,.2);
+  transition: opacity .2s ease;
+}
+</style>
+
+<script>
+(function(){
+  var allBooks = [];
+  var filteredBooks = [];
+  var displayLimit = 40;
+  var currentTradition = 'all';
+  var currentLang = 'all';
+  var currentSort = 'words-desc';
+  var searchQuery = '';
+  var readerFontSize = 1.05;
+
+  var grid = document.getElementById('lib-grid');
+  var status = document.getElementById('lib-status');
+  var searchInput = document.getElementById('lib-search');
+  var sortSelect = document.getElementById('lib-sort');
+  var langSelect = document.getElementById('lib-lang-select');
+  var paginationBox = document.getElementById('lib-pagination');
+  var loadMoreBtn = document.getElementById('lib-load-more');
+  var readerModal = document.getElementById('lib-reader-modal');
+  var readerTitle = document.getElementById('reader-book-title');
+  var readerAuthor = document.getElementById('reader-book-author');
+  var readerContent = document.getElementById('reader-content');
+  var readerSourceLink = document.getElementById('reader-source-link');
+  var readerCloseBtn = document.getElementById('reader-close-btn');
+
+  var langNames = {
+    en: 'English', nl: 'Dutch', de: 'German', fr: 'French', es: 'Spanish',
+    pt: 'Portuguese', ru: 'Russian', ar: 'Arabic', fa: 'Persian', it: 'Italian',
+    tr: 'Turkish', sq: 'Albanian', sv: 'Swedish', no: 'Norwegian', da: 'Danish',
+    fi: 'Finnish', zh: 'Chinese', ja: 'Japanese', ko: 'Korean', eo: 'Esperanto',
+    id: 'Indonesian', pl: 'Polish'
+  };
+
+  // 1. Fetch catalog
+  fetch('/data/library_catalog.json')
+    .then(function(res){ return res.json(); })
+    .then(function(data){
+      allBooks = data;
+      populateLangSelect(data);
+
+      // Auto-select UI language if available
+      var uiLang = (window.__getUiLang && window.__getUiLang()) || 'en';
+      var hasUiLang = data.some(function(b){ return b.lang === uiLang; });
+      if (hasUiLang && uiLang !== 'en') {
+        currentLang = uiLang;
+        langSelect.value = uiLang;
+      }
+
+      applyFilters();
+
+      // Check hash for direct read
+      if (window.location.hash && window.location.hash.startsWith('#book=')) {
+        var bookId = window.location.hash.replace('#book=', '');
+        var b = allBooks.find(function(item){ return item.id === bookId; });
+        if (b) openReader(b);
+      }
+    })
+    .catch(function(err){
+      status.textContent = 'Failed to load library catalog.';
+    });
+
+  function populateLangSelect(books) {
+    var counts = {};
+    books.forEach(function(b){
+      counts[b.lang] = (counts[b.lang] || 0) + 1;
+    });
+
+    var sortedLangs = Object.keys(counts).sort(function(a, b){
+      return counts[b] - counts[a];
+    });
+
+    langSelect.innerHTML = '<option value="all">All Languages (' + books.length + ')</option>';
+    sortedLangs.forEach(function(code){
+      var opt = document.createElement('option');
+      opt.value = code;
+      var name = langNames[code] || code.toUpperCase();
+      opt.textContent = name + ' (' + counts[code] + ')';
+      langSelect.appendChild(opt);
+    });
+  }
+
+  function matchesTradition(book, trad) {
+    if (trad === 'all') return true;
+    var rel = (book.rel || '').toLowerCase();
+    if (trad === 'bahai') {
+      return rel.includes('baha') || rel.includes('بهائي') || rel.includes('бахаи');
+    }
+    if (trad === 'islam') {
+      return rel.includes('islam') || rel.includes('qur') || rel.includes('إسلام') || rel.includes('ислам');
+    }
+    if (trad === 'christianity') {
+      return rel.includes('christ') || rel.includes('bible') || rel.includes('مسيح') || rel.includes('христиан');
+    }
+    if (trad === 'other') {
+      return !rel.includes('baha') && !rel.includes('بهائي') && !rel.includes('бахаи') &&
+             !rel.includes('islam') && !rel.includes('christ');
+    }
+    return true;
+  }
+
+  function applyFilters() {
+    var q = searchQuery.toLowerCase().trim();
+
+    filteredBooks = allBooks.filter(function(b){
+      if (currentLang !== 'all' && b.lang !== currentLang) return false;
+      if (!matchesTradition(b, currentTradition)) return false;
+      if (q) {
+        var matchTitle = (b.title || '').toLowerCase().includes(q);
+        var matchAuthor = (b.author || '').toLowerCase().includes(q);
+        var matchCat = (b.cat || '').toLowerCase().includes(q);
+        if (!matchTitle && !matchAuthor && !matchCat) return false;
+      }
+      return true;
+    });
+
+    // Sort
+    filteredBooks.sort(function(a, b){
+      if (currentSort === 'title') return (a.title || '').localeCompare(b.title || '');
+      if (currentSort === 'author') return (a.author || '').localeCompare(b.author || '');
+      if (currentSort === 'words-desc') return (b.words || 0) - (a.words || 0);
+      if (currentSort === 'paras-desc') return (b.paras || 0) - (a.paras || 0);
+      if (currentSort === 'lang') return (a.lang || '').localeCompare(b.lang || '');
+      return 0;
+    });
+
+    displayLimit = 40;
+    renderGrid();
+  }
+
+  function renderGrid() {
+    grid.innerHTML = '';
+    var total = filteredBooks.length;
+    var showing = Math.min(displayLimit, total);
+
+    status.textContent = 'Showing ' + showing + ' of ' + total + ' books' +
+      (currentLang !== 'all' ? ' in ' + (langNames[currentLang] || currentLang) : '');
+
+    if (total === 0) {
+      grid.innerHTML = '<div style="grid-column: 1/-1; text-align:center; padding: 2rem; color:var(--text-secondary)">No books match the selected filters.</div>';
+      paginationBox.style.display = 'none';
+      return;
+    }
+
+    var slice = filteredBooks.slice(0, showing);
+    var frag = document.createDocumentFragment();
+
+    slice.forEach(function(b){
+      var card = document.createElement('div');
+      card.className = 'book-card';
+
+      var top = document.createElement('div');
+      var t = document.createElement('h3');
+      t.className = 'book-title';
+      t.textContent = b.title || 'Untitled';
+      top.appendChild(t);
+
+      if (b.author) {
+        var a = document.createElement('div');
+        a.className = 'book-author';
+        a.textContent = b.author;
+        top.appendChild(a);
+      }
+
+      var badges = document.createElement('div');
+      badges.className = 'book-badges';
+
+      var bLang = document.createElement('span');
+      bLang.className = 'badge badge-lang';
+      bLang.textContent = b.lang.toUpperCase();
+      badges.appendChild(bLang);
+
+      if (b.rel) {
+        var bRel = document.createElement('span');
+        bRel.className = 'badge badge-rel';
+        bRel.textContent = b.rel;
+        badges.appendChild(bRel);
+      }
+
+      if (b.cat) {
+        var bCat = document.createElement('span');
+        bCat.className = 'badge badge-cat';
+        bCat.textContent = b.cat;
+        badges.appendChild(bCat);
+      }
+      top.appendChild(badges);
+
+      var meta = document.createElement('div');
+      meta.className = 'book-meta';
+      meta.textContent = (b.words ? b.words.toLocaleString() + ' words' : '') +
+        (b.paras ? (b.words ? ' • ' : '') + b.paras.toLocaleString() + ' paragraphs' : '');
+      top.appendChild(meta);
+
+      card.appendChild(top);
+
+      var actions = document.createElement('div');
+      actions.className = 'book-actions';
+
+      var readBtn = document.createElement('button');
+      readBtn.className = 'btn-read';
+      readBtn.textContent = 'Read';
+      readBtn.addEventListener('click', function(e){
+        e.stopPropagation();
+        openReader(b);
+      });
+      actions.appendChild(readBtn);
+
+      if (b.url) {
+        var srcBtn = document.createElement('a');
+        srcBtn.className = 'btn-source';
+        srcBtn.href = b.url;
+        srcBtn.target = '_blank';
+        srcBtn.rel = 'noopener';
+        srcBtn.textContent = 'Source ↗';
+        actions.appendChild(srcBtn);
+      }
+
+      card.appendChild(actions);
+      card.addEventListener('click', function(){ openReader(b); });
+      frag.appendChild(card);
+    });
+
+    grid.appendChild(frag);
+
+    paginationBox.style.display = showing < total ? 'block' : 'none';
+  }
+
+  // Reader Logic
+  function openReader(book) {
+    window.location.hash = 'book=' + book.id;
+    readerTitle.textContent = book.title;
+    readerAuthor.textContent = (book.author ? book.author + ' • ' : '') +
+      (langNames[book.lang] || book.lang.toUpperCase()) +
+      (book.words ? ' • ' + book.words.toLocaleString() + ' words' : '');
+
+    readerSourceLink.href = book.url || '#';
+    readerSourceLink.style.display = book.url ? 'inline-block' : 'none';
+
+    readerContent.innerHTML = '<div class="reader-loading">Loading book text…</div>';
+    readerModal.style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+
+    fetch('/data/library/books/' + book.id + '.json')
+      .then(function(res){
+        if (!res.ok) throw new Error('Not found');
+        return res.json();
+      })
+      .then(function(doc){
+        renderReaderContent(book, doc.paras || []);
+      })
+      .catch(function(){
+        // Fallback if local reader file isn't present
+        readerContent.innerHTML = '<div style="text-align:center; padding: 3rem;">' +
+          '<p style="color:var(--text-secondary); margin-bottom: 1rem;">This book is cataloged in the library. Read the complete text at the original source:</p>' +
+          '<a href="' + (book.url || '#') + '" target="_blank" rel="noopener" class="btn-read" style="display:inline-block; text-decoration:none; padding: .6rem 1.2rem;">Open on Bahá\'í Research ↗</a>' +
+          '</div>';
+      });
+  }
+
+  function renderReaderContent(book, paras) {
+    if (!paras || paras.length === 0) {
+      readerContent.innerHTML = '<div class="reader-loading">No paragraphs available for this book.</div>';
+      return;
+    }
+
+    readerContent.innerHTML = '';
+    var frag = document.createDocumentFragment();
+
+    paras.forEach(function(pText, idx){
+      var p = document.createElement('div');
+      p.className = 'reader-para';
+
+      var addBtn = document.createElement('button');
+      addBtn.className = 'para-add-btn';
+      addBtn.title = 'Add excerpt to Devotional Program';
+      addBtn.textContent = '+';
+      addBtn.addEventListener('click', function(e){
+        e.stopPropagation();
+        addToDevotionalProgram(book, idx, pText);
+      });
+      p.appendChild(addBtn);
+
+      var span = document.createElement('div');
+      span.textContent = pText;
+      p.appendChild(span);
+
+      frag.appendChild(p);
+    });
+
+    readerContent.appendChild(frag);
+  }
+
+  function addToDevotionalProgram(book, pIdx, text) {
+    var itemCode = 'lib:' + book.id + ':' + (pIdx + 1);
+    var saved = [];
+    try {
+      saved = JSON.parse(sessionStorage.getItem('devotional_program') || '[]');
+    } catch(e){}
+
+    saved.push(itemCode);
+    sessionStorage.setItem('devotional_program', JSON.stringify(saved));
+    showToast('Added paragraph to Devotional Program!');
+  }
+
+  function showToast(msg) {
+    var existing = document.querySelector('.toast-msg');
+    if (existing) existing.remove();
+    var t = document.createElement('div');
+    t.className = 'toast-msg';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(function(){ t.style.opacity = '0'; setTimeout(function(){ t.remove(); }, 300); }, 2000);
+  }
+
+  function closeReader() {
+    readerModal.style.display = 'none';
+    document.body.style.overflow = '';
+    if (window.location.hash.startsWith('#book=')) {
+      history.replaceState(null, null, ' ');
+    }
+  }
+
+  // Event Listeners
+  searchInput.addEventListener('input', function(){
+    searchQuery = this.value;
+    applyFilters();
+  });
+
+  sortSelect.addEventListener('change', function(){
+    currentSort = this.value;
+    applyFilters();
+  });
+
+  langSelect.addEventListener('change', function(){
+    currentLang = this.value;
+    applyFilters();
+  });
+
+  document.getElementById('lib-tradition-pills').addEventListener('click', function(e){
+    var btn = e.target.closest('.pill-btn');
+    if (!btn) return;
+    document.querySelectorAll('.pill-btn').forEach(function(b){ b.classList.remove('active'); });
+    btn.classList.add('active');
+    currentTradition = btn.dataset.rel;
+    applyFilters();
+  });
+
+  loadMoreBtn.addEventListener('click', function(){
+    displayLimit += 40;
+    renderGrid();
+  });
+
+  readerCloseBtn.addEventListener('click', closeReader);
+  readerModal.addEventListener('click', function(e){
+    if (e.target === readerModal) closeReader();
+  });
+
+  document.getElementById('reader-font-inc').addEventListener('click', function(){
+    readerFontSize = Math.min(1.5, readerFontSize + 0.1);
+    readerContent.style.fontSize = readerFontSize + 'rem';
+  });
+
+  document.getElementById('reader-font-dec').addEventListener('click', function(){
+    readerFontSize = Math.max(0.85, readerFontSize - 0.1);
+    readerContent.style.fontSize = readerFontSize + 'rem';
+  });
+
+  document.addEventListener('keydown', function(e){
+    if (e.key === 'Escape' && readerModal.style.display !== 'none') {
+      closeReader();
+    }
+  });
+
+})();
+</script>
+{{ partial "foot.html" . }}
