@@ -14,7 +14,7 @@
              autocomplete="off" autofocus>
       <div class="library-sort-group">
         <label for="lib-sort" class="sort-label">Sort:</label>
-        <select id="lib-sort" class="library-select">
+          <option value="tradition">Tradition / Religion</option>
           <option value="title">Title (A–Z)</option>
           <option value="author">Author</option>
           <option value="words-desc" selected>Length (Words ↓)</option>
@@ -27,10 +27,12 @@
     <div class="library-filter-row">
       <div class="library-pill-group" id="lib-tradition-pills">
         <button class="pill-btn active" data-rel="all">All Traditions</button>
-        <button class="pill-btn" data-rel="bahai">Bahá'í Literature</button>
+        <button class="pill-btn" data-rel="bahai">Bahá'í</button>
         <button class="pill-btn" data-rel="islam">Islam</button>
         <button class="pill-btn" data-rel="christianity">Christianity</button>
-        <button class="pill-btn" data-rel="other">Other Scriptures</button>
+        <button class="pill-btn" data-rel="hinduism">Hinduism</button>
+        <button class="pill-btn" data-rel="judaism">Judaism</button>
+        <button class="pill-btn" data-rel="other">Other</button>
       </div>
 
       <div class="library-lang-group">
@@ -495,21 +497,11 @@
 
   function matchesTradition(book, trad) {
     if (trad === 'all') return true;
-    var rel = (book.rel || '').toLowerCase();
-    if (trad === 'bahai') {
-      return rel.includes('baha') || rel.includes('بهائي') || rel.includes('бахаи');
-    }
-    if (trad === 'islam') {
-      return rel.includes('islam') || rel.includes('qur') || rel.includes('إسلام') || rel.includes('ислам');
-    }
-    if (trad === 'christianity') {
-      return rel.includes('christ') || rel.includes('bible') || rel.includes('مسيح') || rel.includes('христиан');
-    }
+    var bTrad = book.trad || 'other';
     if (trad === 'other') {
-      return !rel.includes('baha') && !rel.includes('بهائي') && !rel.includes('бахаи') &&
-             !rel.includes('islam') && !rel.includes('christ');
+      return !['bahai', 'islam', 'christianity', 'hinduism', 'judaism'].includes(bTrad);
     }
-    return true;
+    return bTrad === trad;
   }
 
   function applyFilters() {
@@ -529,6 +521,11 @@
 
     // Sort
     filteredBooks.sort(function(a, b){
+      if (currentSort === 'tradition') {
+        var tComp = (a.trad || '').localeCompare(b.trad || '');
+        if (tComp !== 0) return tComp;
+        return (a.title || '').localeCompare(b.title || '');
+      }
       if (currentSort === 'title') return (a.title || '').localeCompare(b.title || '');
       if (currentSort === 'author') return (a.author || '').localeCompare(b.author || '');
       if (currentSort === 'words-desc') return (b.words || 0) - (a.words || 0);
@@ -583,7 +580,26 @@
       bLang.textContent = b.lang.toUpperCase();
       badges.appendChild(bLang);
 
-      if (b.rel) {
+      var tradLabels = {
+        bahai: "Bahá'í",
+        christianity: "Christianity",
+        islam: "Islam",
+        hinduism: "Hinduism",
+        buddhism: "Buddhism",
+        judaism: "Judaism",
+        zoroastrianism: "Zoroastrianism",
+        sikhism: "Sikhism",
+        taoism: "Taoism",
+        philosophy: "Philosophy",
+        literature: "Literature",
+        other: "Other"
+      };
+      if (b.trad) {
+        var bRel = document.createElement('span');
+        bRel.className = 'badge badge-rel';
+        bRel.textContent = tradLabels[b.trad] || b.trad;
+        badges.appendChild(bRel);
+      } else if (b.rel) {
         var bRel = document.createElement('span');
         bRel.className = 'badge badge-rel';
         bRel.textContent = b.rel;
@@ -591,9 +607,11 @@
       }
 
       if (b.cat) {
+        var cleanCat = b.cat.replace(/^[0-9]+_/, '').replace(/_/g, ' ');
+        if (cleanCat.toLowerCase().includes('authorat')) cleanCat = 'Authoritative';
         var bCat = document.createElement('span');
         bCat.className = 'badge badge-cat';
-        bCat.textContent = b.cat;
+        bCat.textContent = cleanCat;
         badges.appendChild(bCat);
       }
       top.appendChild(badges);
@@ -705,13 +723,18 @@
 
   function addToDevotionalProgram(book, pIdx, text) {
     var itemCode = 'lib:' + book.id + ':' + (pIdx + 1);
-    var saved = [];
-    try {
-      saved = JSON.parse(sessionStorage.getItem('devotional_program') || '[]');
-    } catch(e){}
-
-    saved.push(itemCode);
-    sessionStorage.setItem('devotional_program', JSON.stringify(saved));
+    if (window.hwDevotional && typeof window.hwDevotional.add === 'function') {
+      window.hwDevotional.add(itemCode);
+    } else {
+      var saved = [];
+      try {
+        saved = JSON.parse(localStorage.getItem('hw_devotional_codes') || '[]');
+      } catch(e){}
+      if (!saved.some(function(i){ return (typeof i === 'string' ? i : i.code) === itemCode; })) {
+        saved.push({ code: itemCode });
+        localStorage.setItem('hw_devotional_codes', JSON.stringify(saved));
+      }
+    }
     showToast('Added paragraph to Devotional Program!');
   }
 

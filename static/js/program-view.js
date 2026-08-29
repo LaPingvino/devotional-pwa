@@ -167,6 +167,7 @@
       (data.books || []).forEach(b => {
         (b.entries || []).forEach(e => {
           const entry = { ...e, bookTitle: b.title };
+          all.push(entry);
           function indexEntry(k) {
             if (!k) return;
             if (!map[k]) {
@@ -391,13 +392,38 @@
       return { text: '<p>' + textParts.join(' ') + '</p>', category: "Qur'an", type: 'quran', name: qtitle, link: '/quran/' + quranLang + '/#surah-' + qref.surah };
     }
 
+    // Library book reference: lib:<book_id>:<para_1_based>
+    if (code.startsWith('lib:')) {
+      var lparts = code.split(':');
+      if (lparts.length >= 3) {
+        var bookId = lparts[1];
+        var pIdx = parseInt(lparts[2], 10) - 1;
+        try {
+          var bRes = await fetch('/data/library/books/' + bookId + '.json');
+          if (bRes.ok) {
+            var bDoc = await bRes.json();
+            var pText = (bDoc.paras && bDoc.paras[pIdx]) || '';
+            if (pText) {
+              return {
+                text: '<p>' + pText + '</p>',
+                category: bDoc.title || 'Library',
+                type: 'writing',
+                name: (bDoc.author ? bDoc.author + ' — ' : '') + '¶ ' + (pIdx + 1),
+                link: '/library/#book=' + bookId
+              };
+            }
+          }
+        } catch(e) {}
+      }
+    }
+
     // Writing shorthand: iqan:part:section, aqdas:para, etc.
     var writingShort = parseWritingShorthand(code);
     if (writingShort) {
       var wMap = await getWritingMap(writingShort.key, lang);
-      if (!wMap) wMap = await getWritingMap(writingShort.key, 'en');
+      if (!wMap || Object.keys(wMap).length === 0) wMap = await getWritingMap(writingShort.key, 'en');
       if (wMap) {
-        var entries = wMap._all || Object.values(wMap);
+        var entries = (wMap._all && wMap._all.length > 0) ? wMap._all : Object.values(wMap);
         var matching = entries.filter(writingShort.filter);
         if (matching.length > 0) {
           var text = matching.map(function(e) { return e.text; }).join('\n');
