@@ -737,49 +737,41 @@ func main() {
 		Cat    string `json:"c,omitempty"`
 		Link   string `json:"u"`
 	}
-	ftLangs := doltQuery(`SELECT DISTINCT language FROM writings WHERE phelps IS NOT NULL AND phelps <> '' AND language IS NOT NULL AND language <> ''`)
-	ftTotal, ftFiles := 0, 0
-	for _, lr := range ftLangs[1:] {
-		if len(lr) < 1 || lr[0] == "" {
+	allRows := doltQuery(`SELECT language, phelps, text, IFNULL(type,'') FROM writings WHERE phelps IS NOT NULL AND phelps <> '' AND language IS NOT NULL AND language <> '' AND text IS NOT NULL`)
+	entriesByLang := map[string][]FTEntry{}
+	for _, row := range allRows[1:] {
+		if len(row) < 4 {
 			continue
 		}
-		lang := lr[0]
-		rows := doltQuery(fmt.Sprintf(`SELECT phelps, text, IFNULL(type,'') FROM writings WHERE language = '%s' AND phelps IS NOT NULL AND phelps <> '' AND text IS NOT NULL`, lang))
-		var entries []FTEntry
-		for _, row := range rows[1:] {
-			if len(row) < 3 {
-				continue
-			}
-			phelps, text, wtype := row[0], stripHTML(row[1]), row[2]
-			if text == "" {
-				continue
-			}
-			base := phelps
-			if len(base) > 7 {
-				base = base[:7]
-			}
-			var link, cat string
-			if wtype == "" || wtype == "prayer" {
-				link = "/prayers/" + lang + "/#" + phelps
+		lang, phelps, text, wtype := row[0], row[1], stripHTML(row[2]), row[3]
+		if text == "" {
+			continue
+		}
+		base := phelps
+		if len(base) > 7 {
+			base = base[:7]
+		}
+		var link, cat string
+		if wtype == "" || wtype == "prayer" {
+			link = "/prayers/" + lang + "/#" + phelps
+		} else {
+			key := writingTypeKeys[wtype]
+			if key == "" {
+				// A coded text with no browse section is still a work and
+				// must stay searchable — dropping it made 248 INBA-typed
+				// standalone tablets unfindable, and they belong to no book
+				// to be browsed under. Point at the code's own page instead.
+				skippedTypes[wtype]++
+				link = "/phelps/" + strings.ToLower(phelpscode.Parse(phelps).Base) + "/"
 			} else {
-				key := writingTypeKeys[wtype]
-				if key == "" {
-					// A coded text with no browse section is still a work and
-					// must stay searchable — dropping it made 248 INBA-typed
-					// standalone tablets unfindable, and they belong to no book
-					// to be browsed under. Point at the code's own page instead.
-					skippedTypes[wtype]++
-					link = "/phelps/" + strings.ToLower(phelpscode.Parse(phelps).Base) + "/"
-				} else {
-					link = "/writings/" + key + "/" + lang + "/#" + phelps
-					cat = writingTypeNames[wtype]
-				}
+				link = "/writings/" + key + "/" + lang + "/#" + phelps
+				cat = writingTypeNames[wtype]
 			}
-			entries = append(entries, FTEntry{Phelps: phelps, Base: base, Text: text, Cat: cat, Link: link})
 		}
-		if len(entries) == 0 {
-			continue
-		}
+		entriesByLang[lang] = append(entriesByLang[lang], FTEntry{Phelps: phelps, Base: base, Text: text, Cat: cat, Link: link})
+	}
+	ftTotal, ftFiles := 0, 0
+	for lang, entries := range entriesByLang {
 		writeJSON(filepath.Join(ftDir, lang+".json"), entries)
 		ftTotal += len(entries)
 		ftFiles++

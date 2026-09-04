@@ -554,6 +554,33 @@
         label: "PM " + start + (end > start ? '–' + end : ''),
         filter: function(e) { return e.order >= start && e.order <= end; }
       };
+    // dawn:ch or dawnbreakers:ch (The Dawn-Breakers)
+    m = code.match(/^(?:dawn|dawnbreakers):(\d+)(?:-(\d+))?$/i);
+    if (m) {
+      var start = parseInt(m[1]), end = m[2] ? parseInt(m[2]) : start;
+      var wanted = [];
+      for (var i = start; i <= end; i++) {
+        wanted.push('SEDAWNB:' + i);
+      }
+      return {
+        key: 'dawnbreakers', title: "The Dawn-Breakers",
+        label: "Dawn-Breakers " + (start === 0 ? "Intro" : (start === 27 ? "Epilogue" : "Ch. " + start)) + (end > start ? '–' + end : ''),
+        filter: function(e) { return wanted.indexOf(e.phelps) >= 0; }
+      };
+    }
+    // gpb:ch or gpb:start-end (God Passes By)
+    m = code.match(/^gpb:(\d+)(?:-(\d+))?$/i);
+    if (m) {
+      var start = parseInt(m[1]), end = m[2] ? parseInt(m[2]) : start;
+      var wanted = [];
+      for (var i = start; i <= end; i++) {
+        wanted.push('SEBKGPB:' + i);
+      }
+      return {
+        key: 'gpb', title: "God Passes By",
+        label: "God Passes By Ch. " + start + (end > start ? '–' + end : ''),
+        filter: function(e) { return wanted.indexOf(e.phelps) >= 0; }
+      };
     }
     // tab:BH00053:5 or tab:BH00053:10-20 (Tablets of Bahá'u'lláh)
     m = code.match(/^tab:([a-zA-Z]{2}\d{5}):(\d+)(?:-(\d+))?$/i);

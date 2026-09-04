@@ -28,6 +28,7 @@ type CatalogEntry struct {
 	Category  string `json:"cat"`
 	Religion  string `json:"rel"`
 	Tradition string `json:"trad"`
+	Tag       string `json:"tag,omitempty"`
 	Words     int    `json:"words"`
 	Paras     int    `json:"paras"`
 	URL       string `json:"url,omitempty"`
@@ -41,6 +42,7 @@ type BookData struct {
 	Category  string   `json:"cat"`
 	Religion  string   `json:"rel"`
 	Tradition string   `json:"trad"`
+	Tag       string   `json:"tag,omitempty"`
 	Paras     []string `json:"paras"`
 }
 
@@ -79,7 +81,7 @@ func main() {
 
 	// 1. Query library_catalog from Dolt
 	cmd := exec.Command("dolt", "sql", "-r", "csv", "-q",
-		"SELECT book_id, religion, category, author, title, language, word_count, para_count, source_url, COALESCE(tradition, 'other') FROM library_catalog ORDER BY language, tradition, title")
+		"SELECT book_id, religion, category, author, title, language, word_count, para_count, source_url, COALESCE(tradition, 'other'), COALESCE(tag, 'general') FROM library_catalog ORDER BY language, tradition, title")
 	cmd.Dir = *doltDir
 	out, err := cmd.Output()
 	if err != nil {
@@ -115,6 +117,10 @@ func main() {
 		if len(row) > 9 && row[9] != "" {
 			trad = row[9]
 		}
+		tag := "general"
+		if len(row) > 10 && row[10] != "" {
+			tag = row[10]
+		}
 
 		entry := CatalogEntry{
 			ID:        bookID,
@@ -124,6 +130,7 @@ func main() {
 			Category:  cat,
 			Religion:  rel,
 			Tradition: trad,
+			Tag:       tag,
 			Words:     words,
 			Paras:     paras,
 			URL:       sourceURL,
@@ -197,6 +204,7 @@ func main() {
 				Category:  meta.Category,
 				Religion:  meta.Religion,
 				Tradition: meta.Tradition,
+				Tag:       meta.Tag,
 				Paras:     doc.Paragraphs,
 			}
 
@@ -249,6 +257,7 @@ func main() {
 				Category:  meta.Category,
 				Religion:  meta.Religion,
 				Tradition: meta.Tradition,
+				Tag:       meta.Tag,
 				Paras:     currentParas,
 			}
 			bBytes, err := json.Marshal(book)

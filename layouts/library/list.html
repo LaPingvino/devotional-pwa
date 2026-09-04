@@ -27,13 +27,13 @@
 
     <div class="library-filter-row">
       <div class="library-pill-group" id="lib-tradition-pills">
-        <button class="pill-btn active" data-rel="all">All Traditions</button>
-        <button class="pill-btn" data-rel="bahai">Bahá'í</button>
-        <button class="pill-btn" data-rel="islam">Islam</button>
-        <button class="pill-btn" data-rel="christianity">Christianity</button>
-        <button class="pill-btn" data-rel="hinduism">Hinduism</button>
-        <button class="pill-btn" data-rel="judaism">Judaism</button>
-        <button class="pill-btn" data-rel="other">Other</button>
+        <button class="pill-btn active" data-rel="all" data-i18n="lib_trad_all">All Traditions</button>
+        <button class="pill-btn" data-rel="bahai" data-i18n="lib_trad_bahai">Bahá'í</button>
+        <button class="pill-btn" data-rel="islam" data-i18n="lib_trad_islam">Islam</button>
+        <button class="pill-btn" data-rel="christianity" data-i18n="lib_trad_christianity">Christianity</button>
+        <button class="pill-btn" data-rel="hinduism" data-i18n="lib_trad_hinduism">Hinduism</button>
+        <button class="pill-btn" data-rel="judaism" data-i18n="lib_trad_judaism">Judaism</button>
+        <button class="pill-btn" data-rel="other" data-i18n="lib_trad_other">Other</button>
       </div>
 
       <div class="library-lang-group">
@@ -41,6 +41,10 @@
           <option value="all">All Languages (3,562)</option>
         </select>
       </div>
+    </div>
+
+    <div class="library-filter-row library-subfilter-row">
+      <div class="library-pill-group" id="lib-tag-pills"></div>
     </div>
   </div>
 
@@ -175,6 +179,29 @@
   background: var(--accent);
   color: #fff;
   border-color: var(--accent);
+}
+.library-subfilter-row {
+  margin-top: .15rem;
+  padding-top: .6rem;
+  border-top: 1px dashed var(--border);
+}
+.pill-btn-sub {
+  font-size: .76rem;
+  padding: .2rem .65rem;
+  border-radius: 14px;
+}
+.pill-btn-sub.active {
+  background: var(--accent-subtle, rgba(46, 125, 50, 0.12));
+  color: var(--accent);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.badge.clickable {
+  cursor: pointer;
+  transition: opacity .15s ease;
+}
+.badge.clickable:hover {
+  opacity: .8;
 }
 .library-status {
   font-size: .85rem;
@@ -421,6 +448,7 @@
   var filteredBooks = [];
   var displayLimit = 40;
   var currentTradition = 'all';
+  var currentTag = 'all';
   var currentLang = 'all';
   var currentSort = 'words-desc';
   var searchQuery = '';
@@ -445,8 +473,107 @@
     pt: 'Portuguese', ru: 'Russian', ar: 'Arabic', fa: 'Persian', it: 'Italian',
     tr: 'Turkish', sq: 'Albanian', sv: 'Swedish', no: 'Norwegian', da: 'Danish',
     fi: 'Finnish', zh: 'Chinese', ja: 'Japanese', ko: 'Korean', eo: 'Esperanto',
-    id: 'Indonesian', pl: 'Polish'
+    id: 'Indonesian', pl: 'Polish', be: 'Belarusian', bg: 'Bulgarian',
+    hu: 'Hungarian', ro: 'Romanian', uk: 'Ukrainian'
   };
+
+  var TAG_MAP = {
+    bahaullah: { id: 'bahaullah', key: 'lib_tag_bahaullah', label: "Bahá'u'lláh" },
+    bab: { id: 'bab', key: 'lib_tag_bab', label: 'The Báb' },
+    abdulbaha: { id: 'abdulbaha', key: 'lib_tag_abdulbaha', label: "'Abdu'l-Bahá" },
+    shoghieffendi: { id: 'shoghieffendi', key: 'lib_tag_shoghieffendi', label: 'Shoghi Effendi' },
+    uhj: { id: 'uhj', key: 'lib_tag_uhj', label: 'House of Justice' },
+    compilations: { id: 'compilations', key: 'lib_tag_compilations', label: 'Compilations' },
+    prayers: { id: 'prayers', key: 'lib_tag_prayers', label: 'Prayers' },
+    history: { id: 'history', key: 'lib_tag_history', label: 'History' },
+    studies: { id: 'studies', key: 'lib_tag_studies', label: 'Studies' },
+    ruhi: { id: 'ruhi', key: 'lib_tag_ruhi', label: 'Ruhi Institute' },
+    quran: { id: 'quran', key: 'lib_tag_quran', label: "Qur'an" },
+    bible_nt: { id: 'bible_nt', key: 'lib_tag_bible_nt', label: 'New Testament' },
+    bible_ot: { id: 'bible_ot', key: 'lib_tag_bible_ot', label: 'Old Testament' },
+    tanakh: { id: 'tanakh', key: 'lib_tag_tanakh', label: 'Tanakh' },
+    scripture: { id: 'scripture', key: 'lib_tag_scripture', label: 'Scripture' },
+    philosophy: { id: 'philosophy', key: 'lib_tag_philosophy', label: 'Philosophy' },
+    literature: { id: 'literature', key: 'lib_tag_literature', label: 'Literature' }
+  };
+
+  var TAG_CONFIGS = {
+    all: [
+      { id: 'all', key: 'lib_tag_all', label: 'All Categories' },
+      TAG_MAP.bahaullah, TAG_MAP.bab, TAG_MAP.abdulbaha, TAG_MAP.shoghieffendi,
+      TAG_MAP.uhj, TAG_MAP.compilations, TAG_MAP.prayers, TAG_MAP.quran,
+      TAG_MAP.bible_nt, TAG_MAP.bible_ot, TAG_MAP.tanakh, TAG_MAP.scripture,
+      TAG_MAP.history, TAG_MAP.studies
+    ],
+    bahai: [
+      { id: 'all', key: 'lib_tag_all', label: 'All Categories' },
+      TAG_MAP.bahaullah, TAG_MAP.bab, TAG_MAP.abdulbaha, TAG_MAP.shoghieffendi,
+      TAG_MAP.uhj, TAG_MAP.compilations, TAG_MAP.prayers, TAG_MAP.history,
+      TAG_MAP.studies, TAG_MAP.ruhi
+    ],
+    islam: [
+      { id: 'all', key: 'lib_tag_all', label: 'All Categories' },
+      TAG_MAP.quran, TAG_MAP.scripture
+    ],
+    christianity: [
+      { id: 'all', key: 'lib_tag_all', label: 'All Categories' },
+      TAG_MAP.bible_nt, TAG_MAP.bible_ot, TAG_MAP.scripture
+    ],
+    judaism: [
+      { id: 'all', key: 'lib_tag_all', label: 'All Categories' },
+      TAG_MAP.tanakh, TAG_MAP.scripture
+    ],
+    hinduism: [
+      { id: 'all', key: 'lib_tag_all', label: 'All Categories' },
+      TAG_MAP.scripture
+    ],
+    other: [
+      { id: 'all', key: 'lib_tag_all', label: 'All Categories' },
+      TAG_MAP.philosophy, TAG_MAP.literature
+    ]
+  };
+
+  function renderTagPills(tradition) {
+    var container = document.getElementById('lib-tag-pills');
+    if (!container) return;
+    var tags = TAG_CONFIGS[tradition] || TAG_CONFIGS['all'];
+    container.innerHTML = '';
+    tags.forEach(function(t){
+      if (!t) return;
+      var btn = document.createElement('button');
+      btn.className = 'pill-btn pill-btn-sub' + (t.id === currentTag ? ' active' : '');
+      btn.dataset.tag = t.id;
+      btn.setAttribute('data-i18n', t.key);
+      btn.textContent = (window.__t && window.__t(t.key)) || t.label;
+      btn.addEventListener('click', function(){
+        container.querySelectorAll('.pill-btn').forEach(function(b){ b.classList.remove('active'); });
+        btn.classList.add('active');
+        currentTag = t.id;
+        applyFilters();
+      });
+      container.appendChild(btn);
+    });
+  }
+
+  function setTagFilter(tagId) {
+    currentTag = tagId;
+    renderTagPills(currentTradition);
+    applyFilters();
+    var gridEl = document.getElementById('lib-grid');
+    if (gridEl) gridEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function getLangName(code) {
+    if (langNames[code]) return langNames[code];
+    try {
+      if (typeof Intl !== 'undefined' && Intl.DisplayNames) {
+        var dn = new Intl.DisplayNames(['en'], { type: 'language' });
+        var n = dn.of(code);
+        if (n && n !== code) return n;
+      }
+    } catch(e) {}
+    return code.toUpperCase();
+  }
 
   // 1. Fetch catalog
   fetch('/data/library_catalog.json')
@@ -454,6 +581,7 @@
     .then(function(data){
       allBooks = data;
       populateLangSelect(data);
+      renderTagPills('all');
 
       // Auto-select UI language if available
       var uiLang = (window.__getUiLang && window.__getUiLang()) || 'en';
@@ -490,7 +618,7 @@
     sortedLangs.forEach(function(code){
       var opt = document.createElement('option');
       opt.value = code;
-      var name = langNames[code] || code.toUpperCase();
+      var name = getLangName(code);
       opt.textContent = name + ' (' + counts[code] + ')';
       langSelect.appendChild(opt);
     });
@@ -511,11 +639,13 @@
     filteredBooks = allBooks.filter(function(b){
       if (currentLang !== 'all' && b.lang !== currentLang) return false;
       if (!matchesTradition(b, currentTradition)) return false;
+      if (currentTag !== 'all' && b.tag !== currentTag) return false;
       if (q) {
         var matchTitle = (b.title || '').toLowerCase().includes(q);
         var matchAuthor = (b.author || '').toLowerCase().includes(q);
         var matchCat = (b.cat || '').toLowerCase().includes(q);
-        if (!matchTitle && !matchAuthor && !matchCat) return false;
+        var matchTag = (b.tag || '').toLowerCase().includes(q);
+        if (!matchTitle && !matchAuthor && !matchCat && !matchTag) return false;
       }
       return true;
     });
@@ -579,6 +709,7 @@
       var bLang = document.createElement('span');
       bLang.className = 'badge badge-lang';
       bLang.textContent = b.lang.toUpperCase();
+      bLang.title = getLangName(b.lang);
       badges.appendChild(bLang);
 
       var tradLabels = {
@@ -598,7 +729,9 @@
       if (b.trad) {
         var bRel = document.createElement('span');
         bRel.className = 'badge badge-rel';
-        bRel.textContent = tradLabels[b.trad] || b.trad;
+        var tradKey = 'lib_trad_' + b.trad;
+        bRel.setAttribute('data-i18n', tradKey);
+        bRel.textContent = (window.__t && window.__t(tradKey)) || tradLabels[b.trad] || b.trad;
         badges.appendChild(bRel);
       } else if (b.rel) {
         var bRel = document.createElement('span');
@@ -607,7 +740,19 @@
         badges.appendChild(bRel);
       }
 
-      if (b.cat) {
+      var tagConfig = TAG_MAP[b.tag];
+      if (tagConfig && tagConfig.id !== 'general' && tagConfig.id !== 'other') {
+        var bTag = document.createElement('span');
+        bTag.className = 'badge badge-cat clickable';
+        bTag.setAttribute('data-i18n', tagConfig.key);
+        bTag.textContent = (window.__t && window.__t(tagConfig.key)) || tagConfig.label;
+        bTag.title = 'Filter: ' + tagConfig.label;
+        bTag.addEventListener('click', function(e){
+          e.stopPropagation();
+          setTagFilter(b.tag);
+        });
+        badges.appendChild(bTag);
+      } else if (b.cat) {
         var cleanCat = b.cat.replace(/^[0-9]+_/, '').replace(/_/g, ' ');
         if (cleanCat.toLowerCase().includes('authorat')) cleanCat = 'Authoritative';
         var bCat = document.createElement('span');
@@ -776,9 +921,11 @@
   document.getElementById('lib-tradition-pills').addEventListener('click', function(e){
     var btn = e.target.closest('.pill-btn');
     if (!btn) return;
-    document.querySelectorAll('.pill-btn').forEach(function(b){ b.classList.remove('active'); });
+    document.querySelectorAll('#lib-tradition-pills .pill-btn').forEach(function(b){ b.classList.remove('active'); });
     btn.classList.add('active');
     currentTradition = btn.dataset.rel;
+    currentTag = 'all';
+    renderTagPills(currentTradition);
     applyFilters();
   });
 
