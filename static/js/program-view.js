@@ -554,6 +554,7 @@
         label: "PM " + start + (end > start ? '–' + end : ''),
         filter: function(e) { return e.order >= start && e.order <= end; }
       };
+    }
     // dawn:ch or dawnbreakers:ch (The Dawn-Breakers)
     m = code.match(/^(?:dawn|dawnbreakers):(\d+)(?:-(\d+))?$/i);
     if (m) {
