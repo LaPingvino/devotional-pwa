@@ -1,0 +1,13 @@
+# Auto-generated from Dolt i18n table by gen_i18n.go — do not hand-edit
+# Source: holywritings/bahaiwritings@main, rows WHERE `key` LIKE 'ui/%' AND language='bg'
+
+lib_tag_avesta: "Авеста"
+lib_tag_bible: "Библия"
+lib_tag_dhammapada: "Дхамапада"
+lib_tag_gita: "Бхагавад гита"
+lib_tag_granth: "Гуру Грант Сахиб"
+lib_tag_hadith: "Хадиси"
+lib_tag_ruhiyyih: "Рухийе Ханъм"
+lib_tag_sutras: "Сутри"
+lib_tag_upanishads: "Упанишади"
+lib_tag_vedas: "Веди"
