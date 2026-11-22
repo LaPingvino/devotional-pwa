@@ -77,6 +77,7 @@
         window.__uiLang = code;
         localStorage.setItem('hw_ui_lang', code);
         translatePage();
+      if (window.__checkNavOverflow) window.__checkNavOverflow();
         markUiLang();
         // Update menu active state
         var menu = document.getElementById('ui-lang-menu');
@@ -251,15 +252,17 @@
   var tog=document.getElementById('nav-toggle');
   var nav=document.getElementById('site-nav');
 
-  // Detect overflow: if nav wraps past header height, collapse to hamburger
+  // Detect overflow: if nav wraps past header height or overflows horizontally, collapse to hamburger
   function checkOverflow(){
     header.classList.remove('collapsed');
     nav.classList.remove('open');
-    // If header is taller than one row (56px + tolerance), nav is wrapping
-    if(header.scrollHeight>60){header.classList.add('collapsed')}
+    // If header is taller than one row (56px + tolerance) or overflows width, nav needs hamburger
+    if(header.scrollHeight>60 || header.scrollWidth>header.clientWidth+1){header.classList.add('collapsed')}
   }
+  window.__checkNavOverflow = checkOverflow;
   checkOverflow();
   window.addEventListener('resize',checkOverflow);
+  window.addEventListener('orientationchange',function(){setTimeout(checkOverflow,100);});
 
   // Hamburger toggle
   if(tog&&nav){

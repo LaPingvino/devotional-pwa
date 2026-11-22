@@ -33,7 +33,9 @@ body {
   background: var(--accent);
   color: #fff;
   padding: 0 1rem;
+  display: -webkit-flex;
   display: flex;
+  -webkit-align-items: center;
   align-items: center;
   min-height: 56px;
   position: -webkit-sticky;
@@ -41,13 +43,24 @@ body {
   top: 0;
   z-index: 100;
   box-shadow: 0 2px 4px rgba(0,0,0,.2);
+  -webkit-flex-wrap: wrap;
   flex-wrap: wrap;
 }
 .site-header a { color: #fff; text-decoration: none; }
-.site-header .title { font-size: 1.2rem; font-weight: 600; flex: 1; white-space: nowrap; }
+.site-header .title {
+  font-size: 1.2rem;
+  font-weight: 600;
+  -webkit-flex: 1 0 auto;
+  flex: 1 0 auto;
+  margin-right: .75rem;
+  white-space: nowrap;
+}
 .site-header nav {
+  display: -webkit-flex;
   display: flex;
+  -webkit-align-items: center;
   align-items: center;
+  -webkit-flex-wrap: wrap;
   flex-wrap: wrap;
   gap: 0;
 }
@@ -62,6 +75,9 @@ body {
 
 /* PWA install button — only shown when installable */
 .pwa-install-btn {
+  -webkit-flex-shrink: 0;
+  flex-shrink: 0;
+  margin-right: .35rem;
   background: none;
   border: 1px solid rgba(255,255,255,.4);
   border-radius: 4px;
@@ -75,7 +91,7 @@ body {
 .pwa-install-btn:hover { opacity: 1; border-color: #fff; }
 
 /* UI language picker */
-.ui-lang-picker { position: relative; }
+.ui-lang-picker { position: relative; -webkit-flex-shrink: 0; flex-shrink: 0; margin-right: .25rem; }
 .ui-lang-btn {
   background: none;
   border: none;
@@ -131,6 +147,8 @@ body {
 /* Hamburger toggle — hidden by default, shown by JS when nav overflows */
 .nav-toggle {
   display: none;
+  -webkit-flex-shrink: 0;
+  flex-shrink: 0;
   background: none;
   border: none;
   color: #fff;
@@ -154,6 +172,7 @@ body {
   left: 0;
   right: 0;
   background: var(--accent);
+  -webkit-flex-direction: column;
   flex-direction: column;
   padding: .5rem 0;
   box-shadow: 0 4px 8px rgba(0,0,0,.2);
@@ -169,7 +188,7 @@ body {
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
 }
-.site-header.collapsed nav.open { display: flex !important; }
+.site-header.collapsed nav.open { display: -webkit-flex !important; display: flex !important; }
 .site-header.collapsed nav a {
   margin-left: 0;
   padding: .6rem 1.2rem;
@@ -225,7 +244,7 @@ body {
   width: 100%;
   height: .5rem;
 }
-.nav-dropdown:hover .nav-dropdown-menu,
+.nav-dropdown:hover .nav-dropdown-menu { display: block; }
 .nav-dropdown:focus-within .nav-dropdown-menu { display: block; }
 .nav-dropdown-menu a {
   display: block;
