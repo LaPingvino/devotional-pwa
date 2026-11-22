@@ -766,8 +766,9 @@
 
   // Show button after a short delay (content may load dynamically)
   function checkAndShow() {
-    if (hasArabic(document.body.textContent || '')) {
+    if (btn.style.display === 'none' && hasArabic(document.body.textContent || '')) {
       btn.style.display = '';
+      if (window.__checkNavOverflow) window.__checkNavOverflow();
     }
   }
   checkAndShow();

@@ -93,6 +93,9 @@ body {
 /* UI language picker */
 .ui-lang-picker { position: relative; -webkit-flex-shrink: 0; flex-shrink: 0; margin-right: .25rem; }
 .ui-lang-btn {
+  display: inline-block;
+  min-width: 2rem;
+  text-align: center;
   background: none;
   border: none;
   color: #fff;
@@ -1215,17 +1218,22 @@ p { margin-bottom: .5rem; }
 
 /* Transliteration toggle */
 .translit-toggle {
+  display: inline-block;
+  -webkit-flex-shrink: 0;
+  flex-shrink: 0;
+  white-space: nowrap;
   background: rgba(255,255,255,.2);
   border: 1px solid rgba(255,255,255,.5);
   border-radius: 4px;
-  padding: .15rem .45rem;
-  font-size: .75rem;
+  padding: .2rem .5rem;
+  font-size: .8rem;
+  line-height: 1.2;
   font-weight: 600;
   cursor: pointer;
   color: #fff;
   font-family: serif;
   transition: all .15s;
-  margin-right: .3rem;
+  margin-right: .5rem;
 }
 .translit-toggle:hover { background: rgba(255,255,255,.4); }
 .translit-toggle.active { background: #fff; color: var(--accent); border-color: #fff; }

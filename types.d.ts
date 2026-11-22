@@ -105,6 +105,7 @@ interface Window {
   };
 
   // misc page globals
+  __checkNavOverflow?: () => void;
   _writingsIndex?: any[];
   fuzzySearch?: (...args: any[]) => any;
 }
