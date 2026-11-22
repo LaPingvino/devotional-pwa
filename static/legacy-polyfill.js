@@ -4,6 +4,54 @@
 (function () {
   'use strict';
 
+  // 0. On-page error log (?debug=1, remembered; ?debug=0 turns it off). iOS 9 shows script errors only
+  //    through a Mac's Web Inspector, so this lists them on the page itself: errors, failed data loads,
+  //    rejected promises the polyfilled fetch saw. ES5; nothing happens without the switch.
+  (function () {
+    var on = false;
+    try {
+      var m = /[?&]debug=([01])/.exec(location.search);
+      if (m) localStorage.setItem('hw_debug', m[1]);
+      on = localStorage.getItem('hw_debug') === '1';
+    } catch (e) { on = /[?&]debug=1/.test(location.search); }
+    if (!on) return;
+    var lines = [];
+    var box = null;
+    function show() {
+      if (!document.body) { setTimeout(show, 200); return; }
+      if (!box) {
+        box = document.createElement('pre');
+        box.setAttribute('style', 'position:fixed;left:0;right:0;bottom:0;max-height:40%;overflow:auto;margin:0;padding:6px;' +
+          'background:#fff8e1;color:#000;border-top:2px solid #c00;font:11px/1.3 monospace;z-index:2147483647;white-space:pre-wrap');
+        document.body.appendChild(box);
+      }
+      box.textContent = 'debug (' + navigator.userAgent + ')\n' + lines.join('\n');
+    }
+    window.__hwDebug = function (msg) { lines.push(new Date().toTimeString().slice(0, 8) + ' ' + msg); show(); };
+    window.onerror = function (msg, src, line, col, err) {
+      window.__hwDebug('ERROR ' + msg + ' @ ' + (src || '').replace(location.origin, '') + ':' + line + ':' + (col || '') +
+        (err && err.stack ? '\n  ' + String(err.stack).split('\n').slice(0, 4).join('\n  ') : ''));
+    };
+    // a rejected promise (an error in an async function, a failed load) is silent in Safari 9: log each one
+    // made with new Promise or Promise.reject (the transpiled async functions use new Promise)
+    var P = window.Promise;
+    if (P) {
+      var why = function (e) { return e && e.message ? e.message + (e.stack ? '\n  ' + String(e.stack).split('\n').slice(0, 3).join('\n  ') : '') : String(e); };
+      var DP = function (executor) {
+        return new P(function (resolve, reject) {
+          executor(resolve, function (e) { window.__hwDebug('REJECTED ' + why(e)); reject(e); });
+        });
+      };
+      DP.prototype = P.prototype;
+      DP.resolve = function (v) { return P.resolve(v); };
+      DP.reject = function (e) { window.__hwDebug('REJECTED ' + why(e)); return P.reject(e); };
+      DP.all = function (a) { return P.all(a); };
+      DP.race = function (a) { return P.race(a); };
+      window.Promise = DP;
+    }
+    window.__hwDebug('page ' + location.pathname + (window.applicationCache ? ' appcache status ' + window.applicationCache.status : ''));
+  })();
+
   // 1. NodeList & HTMLCollection .forEach (Safari 9 lacks both)
   if (typeof NodeList !== 'undefined' && NodeList.prototype && !NodeList.prototype.forEach) {
     NodeList.prototype.forEach = Array.prototype.forEach;
@@ -354,7 +402,7 @@
         text: function () { return Promise.resolve(bodyText); },
         json: function () {
           return new Promise(function (resolve, reject) {
-            try { resolve(JSON.parse(bodyText)); } catch (e) { reject(e); }
+            try { resolve(JSON.parse(bodyText)); } catch (e) { if (window.__hwDebug) window.__hwDebug('bad JSON (' + status + ', ' + String(bodyText || '').length + ' bytes): ' + e.message); reject(e); }
           });
         },
         clone: function () { return makeResponse(status, statusText, bodyText, h); }
@@ -386,7 +434,7 @@
           } catch (e) {}
           resolve(makeResponse(xhr.status || 200, xhr.statusText, xhr.responseText, hMap));
         };
-        xhr.onerror = function () { reject(new TypeError('Network request failed')); };
+        xhr.onerror = function () { if (window.__hwDebug) window.__hwDebug('fetch failed ' + url); reject(new TypeError('Network request failed')); };
         xhr.ontimeout = function () { reject(new TypeError('Network request timed out')); };
         xhr.send(opts && opts.body ? opts.body : null);
       });
