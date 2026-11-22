@@ -1,0 +1,22 @@
+CACHE MANIFEST
+# build-stamp: 2026-11-22-v1
+
+CACHE:
+/
+/daily/
+/prayers/
+/writings/
+/collections/
+/css/main.min.css
+/legacy-polyfill.js
+/js/collections.js
+/js/program-view.js
+/js/prayer-list.js
+/js/uuid-base36.js
+/js/render-md.js
+/js/fuzzy-ar.js
+/js/translit.js
+/icons/icon-180.png
+
+NETWORK:
+*

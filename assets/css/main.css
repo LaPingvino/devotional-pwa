@@ -36,6 +36,7 @@ body {
   display: flex;
   align-items: center;
   min-height: 56px;
+  position: -webkit-sticky;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -241,6 +242,7 @@ body {
   padding: .5rem .6rem;
   border-bottom: 1px solid var(--border);
   background: var(--surface);
+  position: -webkit-sticky;
   position: sticky;
   top: 0;
   z-index: 1;
@@ -298,6 +300,7 @@ body {
 }
 /* Keep the filter box reachable while scrolling a long book list. */
 .site-header.collapsed .nav-dropdown-search {
+  position: -webkit-sticky;
   position: sticky;
   top: 0;
   z-index: 1;
@@ -338,6 +341,7 @@ body {
   border-right: 1px solid var(--border);
   height: calc(100vh - 56px);
   overflow-y: auto;
+  position: -webkit-sticky;
   position: sticky;
   top: 56px;
   padding: 1rem 0;
@@ -1493,4 +1497,58 @@ td.il-marker { width: 18px; padding: 2px 3px; vertical-align: top; padding-top: 
 /* Phelps code — print only */
 .dev-item-pin {
   display: none;
+}
+
+/* ── Legacy Safari 9 / iOS 9 fallbacks (ignored by modern browsers) ── */
+@supports not (display: grid) {
+  .home-sections,
+  .lang-grid,
+  .translations-grid,
+  .writings-grid,
+  .bible-book-grid,
+  .dev-item-columns {
+    display: -webkit-flex;
+    display: flex;
+    -webkit-flex-wrap: wrap;
+    flex-wrap: wrap;
+  }
+  .home-sections > .home-card {
+    -webkit-flex: 1 1 250px;
+    flex: 1 1 250px;
+    margin: 0 1rem 1rem 0;
+  }
+  .lang-grid > .lang-card {
+    -webkit-flex: 1 1 200px;
+    flex: 1 1 200px;
+    margin: 0 .75rem .75rem 0;
+  }
+  .translations-grid > .translation-card {
+    -webkit-flex: 1 1 320px;
+    flex: 1 1 320px;
+    margin: 0 1rem 1rem 0;
+  }
+  .writings-grid > .writing-card {
+    -webkit-flex: 1 1 280px;
+    flex: 1 1 280px;
+    margin: 0 1rem 1rem 0;
+  }
+  .bible-book-grid > .bible-book-card {
+    -webkit-flex: 1 1 180px;
+    flex: 1 1 180px;
+    margin: 0 .75rem .75rem 0;
+  }
+  .dev-item-columns > .dev-item-col {
+    -webkit-flex: 1 1 260px;
+    flex: 1 1 260px;
+    margin: 0 .75rem .75rem 0;
+  }
+}
+
+@supports not (gap: 1px) {
+  .home-search > * { margin-right: .5rem; }
+  .home-search > *:last-child { margin-right: 0; }
+  .writing-lang-list > * { margin: 0 .35rem .35rem 0; }
+  .about-toc > * { margin: 0 .5rem .5rem 0; }
+  .writing-range-bar > * { margin-right: .5rem; }
+  .range-banner > * { margin-right: .6rem; }
 }

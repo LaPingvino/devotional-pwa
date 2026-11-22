@@ -156,3 +156,18 @@ echo "PDF/EPUB generation complete: $(ls static/downloads/*.pdf 2>/dev/null | wc
 # Build Hugo site
 echo "Building Hugo site..."
 hugo --minify
+
+# Legacy iOS 9 / Safari 9 ES5 transpile + AppCache stamp
+if [ -f public/legacy.appcache ]; then
+  STAMP="$(git rev-parse --short HEAD 2>/dev/null || date -u +%Y%m%d%H%M%S)"
+  sed -i "s/^# build-stamp:.*/# build-stamp: ${STAMP}/" public/legacy.appcache
+fi
+ES5_TOOLS_DIR="${ES5_TOOLS_DIR:-/tmp/es5-tools}"
+if [ ! -d "$ES5_TOOLS_DIR/node_modules/@swc/core" ] || [ ! -d "$ES5_TOOLS_DIR/node_modules/acorn" ]; then
+  echo "Installing @swc/core and acorn into $ES5_TOOLS_DIR for ES5 transpilation..."
+  mkdir -p "$ES5_TOOLS_DIR"
+  npm --prefix "$ES5_TOOLS_DIR" install --no-audit --no-fund @swc/core acorn
+fi
+echo "Transpiling site JS to ES5 for legacy Safari/iOS 9..."
+ES5_TOOLS_DIR="$ES5_TOOLS_DIR" node scripts/transpile-es5.mjs public
+

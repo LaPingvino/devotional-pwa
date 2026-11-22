@@ -1,0 +1,3 @@
+/legacy.appcache
+  Content-Type: text/cache-manifest; charset=utf-8
+  Cache-Control: no-cache, no-store, must-revalidate

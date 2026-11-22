@@ -500,7 +500,7 @@
       verses.forEach(v => {
         const ayah = v.dataset.ayah;
         const arText = (ar[surahNum] || {})[ayah] || '';
-        const transText = v.querySelector('.ayah-text')?.textContent || '';
+        var ayahEl = v.querySelector('.ayah-text'); const transText = ayahEl ? (ayahEl.textContent || '') : '';
         const tr = document.createElement('tr');
         tr.innerHTML =
           `<td class="bt-ar">${arText}</td>` +
@@ -515,7 +515,7 @@
 
     // Inject Arabic basmalah
     document.querySelectorAll('.basmalah').forEach(b => {
-      if (b.nextElementSibling?.classList.contains('basmalah-ar')) return;
+      if (b.nextElementSibling && b.nextElementSibling.classList.contains('basmalah-ar')) return;
       if (arBasmalah) {
         const el = document.createElement('div');
         el.className = 'basmalah-ar';
