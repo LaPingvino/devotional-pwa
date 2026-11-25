@@ -1526,56 +1526,75 @@ td.il-marker { width: 18px; padding: 2px 3px; vertical-align: top; padding-top: 
   display: none;
 }
 
-/* ── Legacy Safari 9 / iOS 9 fallbacks (ignored by modern browsers) ── */
-@supports not (display: grid) {
-  .home-sections,
-  .lang-grid,
-  .translations-grid,
-  .writings-grid,
-  .bible-book-grid,
-  .dev-item-columns {
-    display: -webkit-flex;
-    display: flex;
-    -webkit-flex-wrap: wrap;
-    flex-wrap: wrap;
-  }
-  .home-sections > .home-card {
-    -webkit-flex: 1 1 250px;
-    flex: 1 1 250px;
-    margin: 0 1rem 1rem 0;
-  }
-  .lang-grid > .lang-card {
-    -webkit-flex: 1 1 200px;
-    flex: 1 1 200px;
-    margin: 0 .75rem .75rem 0;
-  }
-  .translations-grid > .translation-card {
-    -webkit-flex: 1 1 320px;
-    flex: 1 1 320px;
-    margin: 0 1rem 1rem 0;
-  }
-  .writings-grid > .writing-card {
-    -webkit-flex: 1 1 280px;
-    flex: 1 1 280px;
-    margin: 0 1rem 1rem 0;
-  }
-  .bible-book-grid > .bible-book-card {
-    -webkit-flex: 1 1 180px;
-    flex: 1 1 180px;
-    margin: 0 .75rem .75rem 0;
-  }
+/* ── Legacy Safari 8 / 9 (iOS 8.4.1 & 9.3.5) fallbacks ──
+ * Safari 8 lacks @supports, CSS Grid, and flex gap. Provide unconditional
+ * flex + margin fallbacks first, then reset margins in modern browsers
+ * via positive @supports (display: grid) and @supports (gap: 1px). */
+.home-sections,
+.lang-grid,
+.translations-grid,
+.writings-grid,
+.bible-book-grid,
+.dev-item-columns {
+  display: -webkit-flex;
+  display: flex;
+  -webkit-flex-wrap: wrap;
+  flex-wrap: wrap;
+  display: grid;
+}
+.home-sections > .home-card {
+  -webkit-flex: 1 1 250px;
+  flex: 1 1 250px;
+  margin: 0 1rem 1rem 0;
+}
+.lang-grid > .lang-card {
+  -webkit-flex: 1 1 200px;
+  flex: 1 1 200px;
+  margin: 0 .75rem .75rem 0;
+}
+.translations-grid > .translation-card {
+  -webkit-flex: 1 1 320px;
+  flex: 1 1 320px;
+  margin: 0 1rem 1rem 0;
+}
+.writings-grid > .writing-card {
+  -webkit-flex: 1 1 280px;
+  flex: 1 1 280px;
+  margin: 0 1rem 1rem 0;
+}
+.bible-book-grid > .bible-book-card {
+  -webkit-flex: 1 1 180px;
+  flex: 1 1 180px;
+  margin: 0 .75rem .75rem 0;
+}
+.dev-item-columns > .dev-item-col {
+  -webkit-flex: 1 1 260px;
+  flex: 1 1 260px;
+  margin: 0 .75rem .75rem 0;
+}
+@supports (display: grid) {
+  .home-sections > .home-card,
+  .lang-grid > .lang-card,
+  .translations-grid > .translation-card,
+  .writings-grid > .writing-card,
+  .bible-book-grid > .bible-book-card,
   .dev-item-columns > .dev-item-col {
-    -webkit-flex: 1 1 260px;
-    flex: 1 1 260px;
-    margin: 0 .75rem .75rem 0;
+    margin: 0;
   }
 }
 
-@supports not (gap: 1px) {
-  .home-search > * { margin-right: .5rem; }
-  .home-search > *:last-child { margin-right: 0; }
-  .writing-lang-list > * { margin: 0 .35rem .35rem 0; }
-  .about-toc > * { margin: 0 .5rem .5rem 0; }
-  .writing-range-bar > * { margin-right: .5rem; }
-  .range-banner > * { margin-right: .6rem; }
+.home-search > * { margin-right: .5rem; }
+.home-search > *:last-child { margin-right: 0; }
+.writing-lang-list > * { margin: 0 .35rem .35rem 0; }
+.about-toc > * { margin: 0 .5rem .5rem 0; }
+.writing-range-bar > * { margin-right: .5rem; }
+.range-banner > * { margin-right: .6rem; }
+@supports (gap: 1px) {
+  .home-search > *,
+  .writing-lang-list > *,
+  .about-toc > *,
+  .writing-range-bar > *,
+  .range-banner > * {
+    margin: 0;
+  }
 }
